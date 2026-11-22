@@ -1,13 +1,13 @@
-/* BACH AI - SABER 1.0
-   Leitura de textos e código + pesquisa profunda + base de conhecimento.
+/* BACH AI - SABER 2.0
+   Leitura de textos, código e links + pesquisa profunda com ranking BM25 + base de conhecimento.
    Tudo roda no seu navegador, sem IA externa. */
 
-const KB_KEY = "bach_conhecimento_v1";
+const KB_KEY = "bach_conhecimento_v2"; // v2: só guarda pesquisas confiáveis
 
 const STOP = new Set(("a o as os um uma uns umas de do da dos das em no na nos nas por para com sem que e eh se ao aos " +
   "mais menos como mas foi ser ou ja tambem seu sua seus suas isso isto este esta esse essa sao tem ha foram sobre entre " +
   "ate quando muito muitos nao sim me te lhe eu tu ele ela nos vos eles elas meu minha pode podem pelo pela pelos pelas " +
-  "era eram sera serao cada outro outra outros outras qual quais onde quem quanto porque").split(" "));
+  "era eram sera serao cada outro outra outros outras qual quais onde quem quanto porque mesmo voce voces entao seria fazer faz sobre").split(" "));
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 const tokens = t => norm(t).split(/[^a-z0-9]+/).filter(Boolean);
@@ -107,20 +107,62 @@ async function get(url, ms = 20000, json = false) {
   } finally { clearTimeout(t); }
 }
 
-async function wiki(q) {
-  const p = new URLSearchParams({
-    action: "query", generator: "search", gsrsearch: q, gsrlimit: "3",
-    prop: "extracts", exintro: "1", explaintext: "1", exsentences: "6",
-    format: "json", origin: "*"
-  });
-  const d = await get("https://pt.wikipedia.org/w/api.php?" + p, 20000, true);
-  return Object.values(d?.query?.pages || {})
-    .sort((a, b) => a.index - b.index)
-    .filter(x => x.extract)
-    .map(x => ({
-      titulo: x.title, texto: x.extract,
-      url: "https://pt.wikipedia.org/wiki/" + encodeURIComponent(x.title.replace(/ /g, "_"))
-    }));
+/* radical simples: "cores" e "cor", "planetas" e "planeta" contam como o mesmo termo */
+const radical = w => {
+  w = w.replace(/(coes|oes|aes)$/, "ao");
+  if (w.length > 4) w = w.replace(/s$/, "");
+  return w.length > 6 ? w.slice(0, 6) : w;
+};
+const kr = t => kw(t).map(radical);
+
+const DESAMBIGUA = /(pode (se )?referir-se a|pode significar|pode designar|p[áa]gina de desambigua|desambigua[çc][ãa]o)/i;
+
+function paragrafos(texto) {
+  const corte = String(texto || "").split(/\n(?:Ver também|Referências|Ligações externas|Notas|Bibliografia|Leitura adicional)\s*\n/)[0];
+  const out = [];
+  for (const p of corte.split(/\n+/)) {
+    const t = p.replace(/\s+/g, " ").trim();
+    if (t.length < 45) continue;
+    for (const s of t.split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9"“])/)) out.push(s.trim());
+  }
+  return out;
+}
+
+async function wiki(q, qk) {
+  const base = "https://pt.wikipedia.org/w/api.php?";
+  const buscar = async termo => get(base + new URLSearchParams({
+    action: "query", list: "search", srsearch: termo, srlimit: "6", srinfo: "suggestion", format: "json", origin: "*"
+  }), 20000, true);
+
+  let d = await buscar(q);
+  let res = d?.query?.search || [];
+  const sug = d?.query?.searchinfo?.suggestion;
+  if (!res.length && sug) { d = await buscar(sug); res = d?.query?.search || []; }
+  if (!res.length && qk.length) { d = await buscar(qk.join(" ")); res = d?.query?.search || []; }
+
+  const alvo = new Set(qk.map(radical));
+  const cand = res.map((r, i) => {
+    const tk = new Set(kr(r.title));
+    const cob = alvo.size ? [...alvo].filter(w => tk.has(w)).length / alvo.size : 0;
+    const extra = [...tk].filter(w => !alvo.has(w)).length;
+    return { titulo: r.title, rank: i, cob, v: cob - 0.1 * extra - i * 0.01 };
+  }).filter(c => c.cob > 0).sort((a, b) => b.v - a.v).slice(0, 2);
+
+  const out = [];
+  await Promise.allSettled(cand.map(async (c, n) => {
+    const p = await get(base + new URLSearchParams({
+      action: "query", prop: "extracts", explaintext: "1", exsectionformat: "plain", redirects: "1",
+      titles: c.titulo, format: "json", origin: "*"
+    }), 25000, true);
+    const pg = Object.values(p?.query?.pages || {})[0];
+    const texto = (pg?.extract || "").slice(0, 60000);
+    if (!texto || DESAMBIGUA.test(texto.slice(0, 500))) return;
+    out[n] = {
+      titulo: pg.title || c.titulo, texto, cob: c.cob,
+      url: "https://pt.wikipedia.org/wiki/" + encodeURIComponent((pg.title || c.titulo).replace(/ /g, "_"))
+    };
+  }));
+  return out.filter(Boolean);
 }
 
 const limparMd = t => String(t || "")
@@ -159,13 +201,13 @@ async function web(q) {
   return out;
 }
 
-function filtrar(links, qk) {
+function filtrar(links, qs) {
   return links.map(l => {
-    const k = new Set(kw(l.titulo + " " + l.snippet));
-    const hits = qk.filter(w => k.has(w)).length;
-    const bonus = /wikipedia|\.gov|\.edu|mozilla|w3schools|britannica/i.test(l.url) ? 1 : 0;
+    const k = new Set(kr(l.titulo + " " + l.snippet));
+    const hits = [...qs].filter(w => k.has(w)).length;
+    const bonus = /wikipedia|\.gov|\.edu|mozilla|w3schools|britannica|scielo|bbc\.|nationalgeographic/i.test(l.url) ? 1 : 0;
     return { ...l, hits, v: hits * 2 + bonus };
-  }).filter(l => l.hits > 0).sort((x, y) => y.v - x.v).slice(0, 5);
+  }).filter(l => l.hits > 0 && (qs.size < 3 || l.hits >= 2)).sort((x, y) => y.v - x.v).slice(0, 5);
 }
 
 function cleanPage(t) {
@@ -177,16 +219,36 @@ function cleanPage(t) {
     .slice(0, 30000);
 }
 
-async function readPage(link, qk) {
+async function readPage(link, qs) {
   const txt = cleanPage(await get("https://r.jina.ai/" + link.url, 22000));
-  return best(sentences(txt), s => {
-    const n = new Set(kw(s));
-    const hits = qk.filter(w => n.has(w)).length;
+  return best(paragrafos(txt), s => {
+    const n = new Set(kr(s));
+    const hits = [...qs].filter(w => n.has(w)).length;
     return hits ? hits * 3 + (s.length > 70 && s.length < 300 ? 1 : 0) : 0;
-  }, 6);
+  }, 10);
 }
 
-/* ---------- Base de conhecimento ---------- */
+/* ---------- Ler links colados ---------- */
+
+const urlsEm = t => [...new Set(String(t || "").match(/https?:\/\/[^\s"'`)<>]+/g) || [])].map(u => u.replace(/[.,;:!?]+$/, ""));
+
+function rawGithub(u) {
+  const m = u.match(/^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+?)(?:[?#].*)?$/);
+  return m ? "https://raw.githubusercontent.com/" + m[1] + "/" + m[2] + "/" + m[3] + "/" + m[4] : u;
+}
+
+async function lerLink(url) {
+  const u = rawGithub(url);
+  let nome = host(u);
+  try { nome = decodeURIComponent(new URL(u).pathname.split("/").filter(Boolean).pop() || nome); } catch {}
+  const raw = /raw\.githubusercontent\.com/.test(u);
+  let texto = raw ? await get(u, 25000) : String(await get("https://r.jina.ai/" + u, 30000)).replace(/!\[[^\]]*\]\([^)]*\)/g, " ");
+  texto = texto.trim();
+  if (texto.length < 20) throw new Error("vazio");
+  return { texto: texto.slice(0, 200000), nome, url: u };
+}
+
+/* ---------- Base de conhecimento (só pesquisas confiáveis) ---------- */
 
 function loadKB() {
   try { const k = JSON.parse(localStorage.getItem(KB_KEY)); return Array.isArray(k) ? k : []; }
@@ -202,24 +264,28 @@ function saveKB(entry) {
 }
 
 function buscarConhecimento(texto) {
-  const qk = new Set(kw(texto));
+  const qk = new Set(kr(texto));
   if (!qk.size) return null;
   let top = null, score = 0;
   for (const e of loadKB()) {
-    const ek = new Set(kw(e.q));
+    const ek = new Set(kr(e.q));
     const inter = [...qk].filter(w => ek.has(w)).length;
-    const s = inter / qk.size;
+    const s = inter / Math.max(qk.size, ek.size);
     if (s > score) { score = s; top = e; }
   }
-  if (!top || score < 0.6) return null;
-  return "📚 Do que aprendi pesquisando (“" + top.q + "”):\n\n" + top.resumo.slice(0, 1500) +
+  if (!top || score < 0.75) return null;
+  const dias = Math.floor((Date.now() - (top.at || 0)) / 86400000);
+  return "📚 Já pesquisei isso (“" + top.q + "”, " + new Date(top.at).toLocaleDateString("pt-BR") + "):\n\n" + String(top.resumo).slice(0, 1500) +
+    (dias > 30 ? "\n\n⚠️ Essa pesquisa tem mais de 30 dias e pode estar desatualizada." : "") +
     "\n\nPara atualizar: pesquise a fundo sobre " + top.q;
 }
 
-/* ---------- Montar a resposta com palavras da BACH ---------- */
+/* ---------- Montar a resposta com ranking BM25 ---------- */
 
-const LIXO = /(cookie|copyright|©|todos os direitos|pol[ií]tica de privacidade|termos de uso|inscreva|assine|newsletter|clique aqui|leia mais|compartilhe|whatsapp|facebook|instagram|login|cadastr|publicidade|an[uú]ncio|aceitar|menu principal)/i;
-const pick = a => a[Math.floor(Math.random() * a.length)];
+const LIXO = /(cookie|copyright|©|todos os direitos|pol[ií]tica de privacidade|termos de uso|inscreva|assine|newsletter|clique aqui|leia mais|compartilhe|whatsapp|facebook|instagram|login|cadastr|publicidade|an[uú]ncio|aceitar|menu principal|veja também|ver também)/i;
+
+function hash(s) { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; }
+const pickFixo = (a, chave) => a[hash(chave) % a.length]; // mesma pergunta, mesma frase
 
 function limparFrase(s) {
   return String(s).replace(/\[\d+\]/g, "").replace(/\s*\([^)]{0,80}\)/g, "").replace(/\s+/g, " ").replace(/^[-•*\d.)\s]+/, "").trim();
@@ -231,29 +297,53 @@ function jac(a, b) {
   return i / (a.size + b.size - i || 1);
 }
 
-function candidatas(fontes, qk) {
+function candidatas(fontes, qs) {
   const out = [];
   fontes.forEach((f, fi) => {
-    for (const raw of f.frases) {
+    f.frases.forEach((raw, pos) => {
       const s = limparFrase(raw);
-      if (s.length < 45 || s.length > 300 || LIXO.test(s) || !/[.!?]$/.test(s)) continue;
-      const k = new Set(kw(s));
-      const hits = qk.filter(w => k.has(w)).length;
-      if (!hits && !f.wiki) continue;
-      out.push({ s, k, fi, hits, wiki: !!f.wiki });
-    }
+      if (s.length < 45 || s.length > 320 || LIXO.test(s) || !/[.!?]$/.test(s)) return;
+      if (/^[,;:)\]]/.test(s) || !/^[A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9"“]/.test(s)) return; // fragmento cortado
+      const k = new Set(kr(s));
+      let hits = [...qs].filter(w => k.has(w)).length;
+      let cob = qs.size ? hits / qs.size : 0;
+      const lead = !!f.primario && pos === 0;
+      if (f.primario && f.tituloStems) {
+        // no artigo principal, as palavras do título já valem como presentes ("cores" basta para "cores do arco-íris")
+        const nao = [...qs].filter(w => !f.tituloStems.has(w));
+        const achou = nao.filter(w => k.has(w)).length;
+        if (nao.length ? !achou && !lead : pos >= 4) return;
+        hits = qs.size - nao.length + achou;
+        cob = qs.size ? hits / qs.size : 0;
+      } else if (!hits) return;
+      out.push({ s, k, fi, pos, hits, cob, wiki: !!f.wiki, lead, principal: !!f.primario, len: k.size });
+    });
   });
   return out;
 }
 
-function escolher(c, n = 4) {
+function escolher(c, qs, pedeLista, n = 4) {
+  const temPrincipal = c.some(x => x.principal);
+  const N = c.length || 1;
+  const df = {};
+  for (const x of c) for (const w of x.k) df[w] = (df[w] || 0) + 1;
+  const avg = c.reduce((a, x) => a + x.len, 0) / N || 1;
+  const idf = w => Math.log(1 + (N - (df[w] || 0) + 0.5) / ((df[w] || 0) + 0.5));
+  const k1 = 1.2, b = 0.75;
+  const minCob = qs.size <= 1 ? 1 : 0.5;
+
   c.forEach(x => {
+    let bm = 0;
+    for (const w of qs) if (x.k.has(w)) bm += idf(w) * ((k1 + 1) / (1 + k1 * (1 - b + b * x.len / avg)));
     x.apoio = new Set(c.filter(y => y.fi !== x.fi && jac(x.k, y.k) > 0.25).map(y => y.fi)).size;
-    x.v = x.hits * 3 + x.apoio * 2 + (x.wiki ? 2 : 0);
+    const lista = pedeLista && (x.s.match(/,/g) || []).length >= 2 ? 1.5 : 0;
+    x.v = bm + 3 * x.cob + 1.5 * x.apoio + (x.wiki ? 1 : 0) + (x.lead ? 6 : 0) + (x.principal ? 2 : 0) + lista;
+    if (x.wiki && !x.principal && temPrincipal) x.v -= 4;
   });
-  c.sort((a, b) => b.v - a.v);
+
+  const ok = c.filter(x => x.lead || x.cob >= minCob).sort((a, b2) => b2.v - a.v);
   const sel = [];
-  for (const x of c) {
+  for (const x of ok) {
     if (sel.some(y => jac(x.k, y.k) > 0.55)) continue;
     sel.push(x);
     if (sel.length >= n) break;
@@ -265,50 +355,51 @@ const lista = a => a.length > 1 ? a.slice(0, -1).join(", ") + " e " + a[a.length
 
 function compor(q, fontes) {
   const qk = kw(q);
-  const { sel, total } = escolher(candidatas(fontes, qk));
-  if (!sel.length) return null;
+  const qs = new Set(qk.map(radical));
+  const pedeLista = /^\s*(quais|quantos|quantas|cite|liste|tipos|exemplos)\b|\b(cores|tipos|exemplos|lista)\b/i.test(norm(q));
+  const { sel: escolhidas, total } = escolher(candidatas(fontes, qs), qs, pedeLista);
+  if (!escolhidas.length) return null;
 
+  // a frase que abre o artigo principal vem primeiro; o resto na ordem em que aparece nas fontes
+  const sel = [...escolhidas].sort((a, b) => (b.lead - a.lead) || (a.fi - b.fi) || (a.pos - b.pos));
   const usados = [...new Set(sel.map(x => x.fi))].sort((a, b) => a - b);
   const num = fi => usados.indexOf(fi) + 1;
   const [primeira, ...resto] = sel;
-  resto.sort((a, b) => a.fi - b.fi);
 
-  let t = "🧠 " + pick([
+  let corpo = primeira.s + " [" + num(primeira.fi) + "]";
+  if (resto.length) corpo += "\n\nAlém disso:\n" + resto.map(x => "• " + x.s + " [" + num(x.fi) + "]").join("\n");
+
+  const principal = fontes.some(f => f.primario);
+  const apoio = Math.max(...sel.map(x => x.apoio));
+  const forte = sel.filter(x => x.cob >= 0.75).length;
+  const conf = principal && (apoio >= 1 || forte >= 2) ? "alta" : principal || apoio >= 1 || usados.length >= 2 && forte >= 2 ? "média" : "baixa";
+
+  let t = "🧠 " + pickFixo([
     "Sobre “" + q + "”, foi isso que entendi:",
     "Pesquisei “" + q + "” e separei o que mais apareceu nas fontes:",
     "Aqui está o resumo do que encontrei sobre “" + q + "”:"
-  ]) + "\n\n" + primeira.s + " [" + num(primeira.fi) + "]";
+  ], norm(q)) + "\n\n" + (conf === "baixa" ? "⚠️ Não tenho certeza dessa resposta; confira nas fontes.\n\n" : "") + corpo;
 
-  if (resto.length) t += "\n\nAlém disso:\n" + resto.map(x => "• " + x.s + " [" + num(x.fi) + "]").join("\n");
-
-  const orig = {};
-  for (const x of sel) for (const w of x.s.split(/[^\p{L}\p{N}]+/u)) if (w && !orig[norm(w)]) orig[norm(w)] = w.toLowerCase();
-  const extras = topWords(sel.map(x => x.s).join(" "), 10).filter(w => !qk.includes(w)).slice(0, 4).map(w => orig[w] || w);
-  if (extras.length) t += "\n\n💬 Em poucas palavras: o assunto envolve " + lista(extras) + ".";
-
-  const apoio = Math.max(...sel.map(x => x.apoio));
-  const conf = usados.length >= 3 && apoio >= 2 ? "alta" : usados.length >= 2 && apoio >= 1 ? "média" : "baixa";
   t += "\n\n🔍 Como cheguei nisso: olhei " + fontes.length + " fonte(s), separei " + total +
     " frase(s) ligadas à sua pergunta e fiquei com " + sel.length + ", descartando repetidas e fora do assunto. Confiança " + conf +
-    (conf === "baixa" ? " (só uma fonte falou disso, confira antes de confiar)" : apoio ? " (fontes diferentes dizem coisas parecidas)" : "") + ".";
+    (conf === "baixa" ? " (poucas fontes falaram disso)" : apoio ? " (fontes diferentes dizem coisas parecidas)" : principal ? " (artigo principal da Wikipédia)" : "") + ".";
   t += "\nℹ️ Eu escolho e organizo os melhores trechos; não reescrevo do zero como uma IA grande faria.";
   t += "\n\nFontes:\n" + usados.map((fi, i) => "[" + (i + 1) + "] " + fontes[fi].nome).join("\n");
-  return { texto: t, usados };
+  return { texto: t, corpo, conf, usados };
 }
 
 async function pesquisaProfunda(q, progresso = () => {}, fundo = true) {
   const qk = kw(q);
+  const qs = new Set(qk.map(radical));
   const fontes = [];
 
   progresso("📚 Consultando a Wikipédia (pt.wikipedia.org)...");
   try {
-    const pg = await wiki(q);
-    for (const p of pg.slice(0, 2)) {
-      const k = new Set(kw(p.texto));
-      if (pg.length === 1 || qk.some(w => k.has(w))) {
-        fontes.push({ nome: "Wikipédia: " + p.titulo, url: p.url, frases: sentences(p.texto).slice(0, 6), wiki: true });
-      }
-    }
+    const pg = await wiki(q, qk);
+    pg.forEach((p, i) => fontes.push({
+      nome: "Wikipédia: " + p.titulo, url: p.url, frases: paragrafos(p.texto).slice(0, 400), wiki: true,
+      primario: i === 0 && p.cob >= 0.5, tituloStems: new Set(kr(p.titulo))
+    }));
   } catch (e) { console.warn("wiki", e); }
 
   progresso("🦆 Buscando no DuckDuckGo...");
@@ -316,7 +407,7 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true) {
   try { links = await web(q); } catch (e) { console.warn("web", e); }
 
   progresso("🧹 Filtrando " + links.length + " resultado(s) por relevância...");
-  links = filtrar(links, qk);
+  links = filtrar(links, qs);
   const webFontes = links.map(l => ({ nome: host(l.url) + " — " + l.titulo.slice(0, 60), url: l.url, frases: l.snippet ? [l.snippet] : [] }));
   fontes.push(...webFontes);
 
@@ -324,7 +415,7 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true) {
     progresso("📖 Abrindo as melhores páginas...");
     await Promise.allSettled(webFontes.slice(0, 3).map(async f => {
       progresso("🌐 Lendo " + host(f.url));
-      f.frases.push(...await readPage(f, qk));
+      f.frases.push(...await readPage(f, qs));
     }));
   }
 
@@ -332,10 +423,13 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true) {
   const r = compor(q, fontes);
   if (!r) throw new Error("irrelevante");
 
-  saveKB({ q, resumo: r.texto, at: Date.now() });
+  // só guarda na memória o que tem confiança média ou alta
+  const guardou = r.conf !== "baixa";
+  if (guardou) saveKB({ q, resumo: r.corpo, at: Date.now() });
 
-  const texto = r.texto + "\n\n💾 Guardei esse resumo na memória." + (fundo ? "" : "\nQuer mais detalhes? Peça: pesquise a fundo sobre " + q);
-  return { texto, fontes: r.usados.map(i => ({ titulo: fontes[i].nome, url: fontes[i].url })) };
+  const texto = r.texto + (guardou ? "\n\n💾 Guardei esse resumo na memória." : "\n\n🚫 Não guardei na memória por causa da confiança baixa.") +
+    (fundo ? "" : "\nQuer mais detalhes? Peça: pesquise a fundo sobre " + q);
+  return { texto, conf: r.conf, fontes: r.usados.map(i => ({ titulo: fontes[i].nome, url: fontes[i].url })) };
 }
 
-export const Saber = { lerTexto, summarize, pesquisaProfunda, buscarConhecimento, isCode, compor };
+export const Saber = { lerTexto, summarize, pesquisaProfunda, buscarConhecimento, isCode, compor, lerLink, urlsEm };
