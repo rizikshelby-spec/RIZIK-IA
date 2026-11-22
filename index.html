@@ -66,7 +66,7 @@ import { RizikBrain } from "./brain.js?v=11";
 import { Saber } from "./saber.js?v=3";
 import { Prog } from "./programacao.js?v=2";
 import { Arquivos } from "./arquivos.js?v=1";
-import { Mente } from "./mente.js?v=3";
+import { Mente } from "./mente.js?v=4";
 
 const $ = id => document.getElementById(id);
 const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status");
@@ -110,7 +110,7 @@ function montar(texto, tipo) {
   for (let i = 0; i < p.length; i += 3) {
     const t = p[i].trim();
     if (t) {
-      if (t.length > LONGO) {
+      if (t.length > (tipo === "user" ? LONGO : 3500)) {
         const n = t.split(/\n/).length;
         w.appendChild(cartao("📄 Texto longo • " + t.split(/\s+/).length + " palavras, " + n + " linhas", t, "texto-bach.txt", false));
       } else w.appendChild(mk("div", "t", t));
@@ -201,12 +201,31 @@ const extrairPesquisa = t => (t.match(/^(?:(?:fa[cç]a|faz|fazer|pode)\s+)?(?:um
 const extrairClima = t => (t.match(/^(?:(?:qual|como)\s+(?:est[aá]\s+)?(?:o|a)\s+)?(?:(?:clima|previs[aã]o(?:\s+do\s+tempo)?)(?:\s+(?:em|de|para|na|no|do|da))?|tempo\s+(?:em|na|no|para))\s+(.+?)\??$/i) || [])[1]?.trim() ?? null;
 const extrairProfundo = t => (t.match(/^(?:(?:fa[cç]a|faz|pode)\s+)?(?:uma\s+)?(?:(?:pesquise|pesquisa|pesquisar|busque|busca|procure)\s+(?:a fundo|profundamente|em profundidade)|pesquisa profunda|aprofunde|\/profundo)\s*(?:sobre\s+|a respeito de\s+)?(.+)/i) || [])[1]?.trim() ?? null;
 
+const lim = x => String(x).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+async function noticias(q) {
+  passo("📰 Buscando as manchetes de hoje...");
+  try {
+    const txt = await (await requisicao("https://r.jina.ai/http://html.duckduckgo.com/html/?df=d&q=" + encodeURIComponent(q), 25000)).text();
+    const ms = [...txt.matchAll(/^## \[(.*?)\]\((https?:\/\/[^)\s]+)\)/gm)], itens = [], vistos = new Set();
+    for (let i = 0; i < ms.length && itens.length < 6; i++) {
+      let l = ms[i][2]; try { const u = new URL(l); if (u.hostname.includes("duckduckgo.com")) l = u.searchParams.get("uddg") || l; } catch {}
+      if (!/^https?:\/\//.test(l) || vistos.has(l) || /duckduckgo\.com/.test(l)) continue; vistos.add(l);
+      const a = ms[i].index + ms[i][0].length, b = i + 1 < ms.length ? ms[i + 1].index : txt.length;
+      itens.push({ t: lim(ms[i][1]), l, s: lim(txt.slice(a, b).replace(/\[[^\]]*\]\([^)]*\)/g, " ").replace(/https?:\/\/\S+/g, " ")).slice(0, 180) });
+    }
+    if (!itens.length) throw new Error("vazio");
+    falar("📰 Manchetes de " + new Date().toLocaleDateString("pt-BR") + ":\n\n" + itens.map(x => "• " + x.t + (x.s ? "\n  " + x.s : "")).join("\n\n"), "bot", "🌐 DuckDuckGo");
+    itens.forEach(x => { try { criarResultado(new URL(x.l).hostname.replace(/^www\./, ""), "", x.l); } catch {} });
+  } catch (e) { console.error(e); falar("Não consegui buscar as notícias agora. Tente de novo ou diga: pesquise sobre ..."); }
+}
 async function pesquisaProfunda(q, fundo = true) {
   if (/\b(piadas?|humor|engra[cç]ad[oa]s?)\b/i.test(q)) { falar("Piada eu tenho de sobra! 😄\n\n" + Prog.humor("conta uma piada"), "bot", "😄 meu repertório"); return; }
   passo((fundo ? "🔎 Pesquisando a fundo: " : "🔎 Pesquisando: ") + q);
   try {
     const r = await Saber.pesquisaProfunda(Mente.tema(q) || q, passo, fundo);
-    falar(r.texto, "bot", "🌐 internet, filtrada e resumida");
+    const tx = r.texto.replace(/\n\n💬 Em poucas palavras:[^\n]*/, "").replace(/\n\n🔍 Como cheguei nisso:[^\n]*/, "").replace(/\nℹ️ Eu escolho[^\n]*/, "").replace(/\n\n💾 Guardei[^\n]*/, "");
+    Mente.lembrarTema(Mente.tema(q) || q);
+    falar(tx, "bot", "🌐 internet, filtrada e resumida");
     Arquivos.salvar({ nome: "pesquisa-" + q.slice(0, 24), pasta: Mente.pasta("Pesquisas"), texto: r.texto, tipo: "pesquisa" }); r.fontes.forEach(f => criarResultado(f.titulo, "", f.url));
   } catch (e) {
     console.error(e);
@@ -294,7 +313,7 @@ async function rotear(texto) {
 
   const arq = Arquivos.comando(texto); if (arq) { falar(arq, "bot", "📁 seus arquivos"); return; }
   const mt = Mente.responder(texto);
-  if (mt) { if (mt.pesquisa) return pesquisaProfunda(mt.pesquisa, mt.fundo !== false); falar(mt.texto, "bot", mt.origem || "🧠 minha mente"); return; }
+  if (mt) { if (mt.noticias) return noticias(mt.q); if (mt.pesquisa) return pesquisaProfunda(mt.pesquisa, mt.fundo !== false); falar(mt.texto, "bot", mt.origem || "🧠 minha mente"); return; }
 
   passo("🧠 Consultando minha memória...");
   const r = RizikBrain.think(texto), temIA = !!localStorage.getItem(KEY_API);
