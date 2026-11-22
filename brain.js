@@ -154,22 +154,24 @@ function analyzeText(txt) {
 }
 
 const HELP =
-  "Comandos que eu entendo:\n" +
+  "Posso te ajudar de várias formas 😊\n\n" +
+  "💬 Conversar e aprender\n" +
   "• ensine: pergunta => resposta\n" +
   "• corrija: pergunta => nova resposta\n" +
   "• esqueça: pergunta\n" +
-  "• sinônimo: palavra = palavra_conhecida\n" +
-  "• meu nome é ...\n" +
-  "• lembre: algo / o que você lembra\n" +
-  "• exportar memória / importar memória: {json}\n" +
-  "• estatísticas\n" +
-  "• /clear (apaga o chat)\n" +
-  "• pesquise a fundo sobre ... (lê várias fontes e guarda)\n" +
-  "• cole um texto/código ou use o botão + para anexar fotos, vídeos e arquivos\n" +
-  "• /arquivos, /abrir nome, /buscar palavra, /apagar nome\n" +
-  "• pergunte sobre programação (função, loop, API...)\n" +
-  "• conta uma piada 😄\n" +
-  "• pesquise sobre ... / clima em ...";
+  "• sinônimo: gíria = palavra\n" +
+  "• meu nome é ...\n\n" +
+  "🔎 Pesquisar\n" +
+  "• pesquise sobre ... (rápido)\n" +
+  "• pesquise a fundo sobre ... (lê as páginas)\n" +
+  "• clima em (sua cidade)\n\n" +
+  "📁 Arquivos\n" +
+  "• botão + para anexar fotos, vídeos e textos\n" +
+  "• /arquivos, /abrir nome, /buscar palavra, /apagar nome\n\n" +
+  "💻 Programação e humor\n" +
+  "• pergunte: o que é função? como fazer um loop?\n" +
+  "• conta uma piada (e depois: outra!)\n\n" +
+  "🛠️ Extras: lembre: algo • estatísticas • exportar memória • /clear";
 
 function think(message) {
   const original = String(message || "").trim();
