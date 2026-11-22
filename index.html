@@ -5,91 +5,60 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#10111a">
-<title>BACH AI 0.4</title>
+<title>BACH AI 0.5</title>
 
 <style>
 *{box-sizing:border-box}
 body{
-  margin:0;
-  background:#10111a;
-  color:#f5f5fb;
+  margin:0;background:#10111a;color:#f5f5fb;
   font-family:Arial,sans-serif
 }
 header{
-  padding:18px 16px;
-  background:#191b29;
+  padding:18px 16px;background:#191b29;
   border-bottom:1px solid #303247
 }
-h2{
-  margin:0 0 5px;
-  color:#b5a8ff;
-  font-size:23px
-}
+h2{margin:0 0 5px;color:#b5a8ff;font-size:23px}
 #status{color:#aaaabd;font-size:12px}
 #chat{
   height:calc(100dvh - 154px);
-  overflow:auto;
-  padding:14px 12px 20px
+  overflow:auto;padding:14px 12px 20px
 }
 .msg{
-  padding:12px 14px;
-  margin:9px 0;
-  border-radius:15px;
-  max-width:92%;
-  line-height:1.55;
-  white-space:pre-wrap;
-  overflow-wrap:anywhere;
-  font-size:15px
+  padding:12px 14px;margin:9px 0;
+  border-radius:15px;max-width:92%;
+  line-height:1.55;white-space:pre-wrap;
+  overflow-wrap:anywhere;font-size:15px
 }
 .bot{background:#222538;border:1px solid #30344b}
 .user{background:#5141a0;margin-left:auto}
 .result{
-  background:#202437;
-  border:1px solid #3a3e59;
-  border-radius:14px;
-  padding:13px;
-  margin:10px 0;
-  max-width:95%;
-  line-height:1.5
+  background:#202437;border:1px solid #3a3e59;
+  border-radius:14px;padding:13px;
+  margin:10px 0;max-width:95%;line-height:1.5
 }
 .result h3{margin:0 0 8px;color:#c5baff;font-size:16px}
 .result p{margin:0 0 10px;color:#e4e4ee;font-size:14px}
 .result a{color:#b9adff;font-size:13px;overflow-wrap:anywhere}
 .meta{
-  color:#a9a9bd;
-  font-size:12px;
-  margin-top:10px;
-  line-height:1.5;
+  color:#a9a9bd;font-size:12px;
+  margin-top:10px;line-height:1.5;
   white-space:pre-line
 }
 footer{
-  position:fixed;
-  bottom:0;
-  width:100%;
-  display:flex;
-  gap:8px;
-  padding:10px;
+  position:fixed;bottom:0;width:100%;
+  display:flex;gap:8px;padding:10px;
   background:#191b29;
   padding-bottom:max(10px,env(safe-area-inset-bottom));
   border-top:1px solid #303247
 }
 input{
-  flex:1;
-  min-width:0;
-  padding:13px;
-  border:1px solid #44465d;
-  border-radius:12px;
-  background:#10111a;
-  color:white;
-  font-size:16px
+  flex:1;min-width:0;padding:13px;
+  border:1px solid #44465d;border-radius:12px;
+  background:#10111a;color:white;font-size:16px
 }
 button{
-  padding:12px 16px;
-  border:0;
-  border-radius:12px;
-  background:#7864ed;
-  color:white;
-  font-weight:bold
+  padding:12px 16px;border:0;border-radius:12px;
+  background:#7864ed;color:white;font-weight:bold
 }
 button:disabled{opacity:.55}
 @media(min-width:700px){
@@ -134,9 +103,15 @@ try {
   history = [];
 }
 
+// Corrige mensagens antigas com o nome anterior
+history = history.map(item => ({
+  ...item,
+  text: String(item.text || "").replace(/RIZIK AI/gi, "BACH AI")
+}));
+
 function salvarHistorico() {
   try {
-    history = history.slice(-30);
+    history = history.slice(-40);
     localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
   } catch(e) {
     console.warn("Erro ao salvar histórico", e);
@@ -157,10 +132,11 @@ function falar(texto, tipo = "bot") {
 }
 
 function restaurarHistorico() {
-  for (const item of history.slice(-30)) {
+  for (const item of history.slice(-40)) {
     const div = document.createElement("div");
-    div.className = "msg " + item.type;
-    div.textContent = item.text;
+    div.className = "msg " +
+      (item.type === "user" ? "user" : "bot");
+    div.textContent = String(item.text || "");
     chat.appendChild(div);
   }
   chat.scrollTop = chat.scrollHeight;
@@ -169,11 +145,17 @@ function restaurarHistorico() {
 function limpar(texto) {
   return String(texto || "")
     .replace(/<[^>]*>/g," ")
+    .replace(/&nbsp;/g," ")
+    .replace(/&amp;/g,"&")
+    .replace(/&quot;/g,'"')
+    .replace(/&#39;/g,"'")
     .replace(/\s+/g," ")
     .trim();
 }
 
 function resultado(titulo,resumo,url) {
+  if (!/^https?:\/\//i.test(url)) return;
+
   const card = document.createElement("article");
   card.className = "result";
 
@@ -181,7 +163,7 @@ function resultado(titulo,resumo,url) {
   h.textContent = titulo;
 
   const p = document.createElement("p");
-  p.textContent = resumo;
+  p.textContent = resumo || "Abra a fonte para consultar mais informações.";
 
   const a = document.createElement("a");
   a.href = url;
@@ -206,7 +188,7 @@ function meta(site,tempo) {
   chat.scrollTop = chat.scrollHeight;
 }
 
-async function fetchTimeout(url,ms=15000) {
+async function fetchTimeout(url,ms=18000) {
   const controller = new AbortController();
   const timer = setTimeout(()=>controller.abort(),ms);
 
@@ -225,7 +207,7 @@ async function pesquisarWiki(q) {
     action:"query",
     list:"search",
     srsearch:q,
-    srlimit:"3",
+    srlimit:"4",
     format:"json",
     origin:"*"
   });
@@ -253,36 +235,80 @@ async function pesquisarWiki(q) {
   return "Wikipédia";
 }
 
-// PESQUISA GERAL
+// CONVERTE LINK DO DUCKDUCKGO PARA O ENDEREÇO ORIGINAL
+function enderecoOriginal(url) {
+  try {
+    const parsed = new URL(url);
+
+    if (parsed.hostname.includes("duckduckgo.com")) {
+      const destino = parsed.searchParams.get("uddg");
+      if (destino) return decodeURIComponent(destino);
+    }
+
+    return url;
+  } catch {
+    return url;
+  }
+}
+
+// PESQUISA GERAL ORGANIZADA
 async function pesquisarDuck(q) {
   const url =
     "https://r.jina.ai/http://html.duckduckgo.com/html/?q=" +
     encodeURIComponent(q);
 
-  const r = await fetchTimeout(url,22000);
+  const r = await fetchTimeout(url,25000);
   const texto = await r.text();
 
   if (texto.length < 100) {
     throw new Error("Pesquisa sem resultados.");
   }
 
-  resultado(
-    "Resultados para: "+q,
-    limpar(texto).slice(0,1800),
-    "https://duckduckgo.com/?q="+encodeURIComponent(q)
-  );
+  const regex =
+    /## \[([^\]]+)\]\((https?:\/\/[^)]+)\)([\s\S]*?)(?=\n## \[|$)/g;
+
+  let match;
+  let quantidade = 0;
+  const vistos = new Set();
+
+  while ((match = regex.exec(texto)) !== null && quantidade < 5) {
+    const titulo = limpar(match[1]);
+    const destino = enderecoOriginal(match[2]);
+
+    if (
+      !/^https?:\/\//i.test(destino) ||
+      vistos.has(destino) ||
+      destino.includes("duckduckgo.com/html")
+    ) continue;
+
+    vistos.add(destino);
+
+    let resumo = match[3]
+      .replace(/\[.*?\]\(.*?\)/g," ")
+      .replace(/https?:\/\/\S+/g," ")
+      .replace(/!\[.*?\]\(.*?\)/g," ");
+
+    resumo = limpar(resumo).slice(0,550);
+
+    resultado(titulo,resumo,destino);
+    quantidade++;
+  }
+
+  if (!quantidade) {
+    throw new Error("Não consegui organizar os resultados.");
+  }
 
   return "DuckDuckGo";
 }
 
-// STACK OVERFLOW
+// PESQUISA DE PROGRAMAÇÃO
 async function pesquisarStack(q) {
   const url =
     "https://api.stackexchange.com/2.3/search/excerpts?"+
     new URLSearchParams({
       order:"desc",
       sort:"relevance",
-      pagesize:"3",
+      pagesize:"4",
       site:"stackoverflow",
       q:q
     });
@@ -294,11 +320,14 @@ async function pesquisarStack(q) {
   if (!items.length) throw new Error("Sem resultados.");
 
   for (const item of items) {
+    const link = item.question_id
+      ? "https://stackoverflow.com/questions/" + item.question_id
+      : "https://stackoverflow.com/search?q="+encodeURIComponent(q);
+
     resultado(
       limpar(item.title),
-      limpar(item.excerpt),
-      "https://stackoverflow.com/search?q="+
-      encodeURIComponent(q)
+      limpar(item.excerpt).slice(0,550),
+      link
     );
   }
 
@@ -313,7 +342,7 @@ async function pesquisarMDN(q) {
 
   const r = await fetchTimeout(url);
   const data = await r.json();
-  const docs = (data.documents || []).slice(0,3);
+  const docs = (data.documents || []).slice(0,4);
 
   if (!docs.length) throw new Error("Sem resultados.");
 
@@ -338,12 +367,12 @@ async function pesquisarInternet(q) {
   const inicio = performance.now();
 
   botao.disabled = true;
-  status.textContent = "Pesquisando na internet...";
+  status.textContent = "BACH AI pesquisando...";
 
-  falar("Pesquisando: "+q);
+  falar("Estou pesquisando na internet: "+q);
 
   const tecnico =
-    /javascript|html|css|python|código|programação|erro|bug|api|git|react|node|sql/i.test(q);
+    /javascript|html|css|python|código|programação|erro|bug|api|git|react|node|sql|android|iphone/i.test(q);
 
   try {
     let fonte;
@@ -352,7 +381,11 @@ async function pesquisarInternet(q) {
       try {
         fonte = await pesquisarStack(q);
       } catch {
-        fonte = await pesquisarMDN(q);
+        try {
+          fonte = await pesquisarMDN(q);
+        } catch {
+          fonte = await pesquisarDuck(q);
+        }
       }
     } else {
       try {
@@ -365,14 +398,20 @@ async function pesquisarInternet(q) {
     const segundos = (performance.now()-inicio)/1000;
     meta(fonte,segundos);
 
-    falar("Pesquisa concluída! Confira os resultados e abra as fontes.");
+    falar(
+      "Encontrei informações sobre esse assunto! " +
+      "Confira os resultados e abra as fontes para saber mais."
+    );
 
   } catch(e) {
     console.error(e);
-    falar("Não consegui pesquisar agora. Confira sua conexão ou tente outras palavras.");
+    falar(
+      "Não consegui encontrar resultados agora. " +
+      "Tente novamente ou reformule sua pergunta."
+    );
   } finally {
     botao.disabled = false;
-    status.textContent = "BACH AI 0.4 • Pesquisa e clima";
+    status.textContent = "BACH AI 0.5 • Cérebro 0.3 • Pesquisa e clima";
   }
 }
 
@@ -452,7 +491,7 @@ async function consultarClima(cidade) {
     falar("Não consegui consultar o clima. Confira o nome da cidade e sua conexão.");
   } finally {
     botao.disabled = false;
-    status.textContent = "BACH AI 0.4 • Pesquisa e clima";
+    status.textContent = "BACH AI 0.5 • Cérebro 0.3 • Pesquisa e clima";
   }
 }
 
@@ -469,6 +508,16 @@ function extrairCidade(texto) {
     /^(?:clima|tempo|previsão|previsao)(?:\s+(?:em|de|para))?\s+(.+)$/i
   );
   return match ? match[1].trim() : null;
+}
+
+// IDENTIFICAR PERGUNTAS QUE PODEM SER PESQUISADAS
+function parecePergunta(texto) {
+  const t = texto.toLowerCase().trim();
+
+  return (
+    t.endsWith("?") ||
+    /^(quem|qual|quais|quando|onde|como|porque|por que|porquê|quanto|quantos|quantas|o que|oq|me explica|explique|me fale|me conte)\b/i.test(t)
+  );
 }
 
 // ENVIAR MENSAGEM
@@ -490,7 +539,7 @@ async function enviar() {
   }
 
   if (/^faz pesquisa na internet\??$/.test(simples)) {
-    falar("Sim! Escreva: pesquise sobre [assunto].");
+    falar("Sim! Você pode pedir uma pesquisa ou fazer uma pergunta. Exemplo: quem criou a inteligência artificial?");
     return;
   }
 
@@ -508,20 +557,29 @@ async function enviar() {
     return;
   }
 
+  // Primeiro consulta a memória e o cérebro
   const resposta = RizikBrain.think(texto);
 
   if (resposta.handled) {
     falar(resposta.text);
-  } else {
-    falar(
-      "Ainda estou aprendendo! Você pode me ensinar assim:\n\n"+
-      "ensine: pergunta => resposta\n\n"+
-      "Também posso pesquisar:\n"+
-      "pesquise sobre inteligência artificial\n\n"+
-      "E consultar o clima:\n"+
-      "clima em Nova Esperança"
-    );
+    return;
   }
+
+  // Se for uma pergunta desconhecida, tenta pesquisar
+  if (parecePergunta(texto)) {
+    await pesquisarInternet(texto);
+    return;
+  }
+
+  falar(
+    "Ainda estou aprendendo! 🧠\n\n"+
+    "Você pode me ensinar assim:\n"+
+    "ensine: pergunta => resposta\n\n"+
+    "Também pode me fazer perguntas ou pedir pesquisas na internet.\n\n"+
+    "Exemplo: quem criou a inteligência artificial?\n"+
+    "Ou consultar o clima:\n"+
+    "clima em Nova Esperança"
+  );
 }
 
 botao.addEventListener("click",enviar);
@@ -533,10 +591,12 @@ entrada.addEventListener("keydown",e=>{
 restaurarHistorico();
 
 status.textContent =
-  "BACH AI 0.4 • Cérebro 0.2 • Pesquisa e clima";
+  "BACH AI 0.5 • Cérebro 0.3 • Pesquisa e clima";
 
 if (!history.length) {
-  falar("Olá! Sou a BACH AI 🧠. Tenho memória, aprendizado, pesquisa na internet e consulta de clima. Vamos evoluir juntos!");
+  falar(
+    "Olá! Sou a BACH AI 🧠. Tenho memória, aprendizado, pesquisa na internet e consulta de clima. Vamos evoluir juntos!"
+  );
 }
 </script>
 </body>
