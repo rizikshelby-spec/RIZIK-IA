@@ -165,7 +165,10 @@ const HELP =
   "• estatísticas\n" +
   "• /clear (apaga o chat)\n" +
   "• pesquise a fundo sobre ... (lê várias fontes e guarda)\n" +
-  "• cole um texto ou código e eu leio\n" +
+  "• cole um texto/código ou use o botão + para anexar fotos, vídeos e arquivos\n" +
+  "• /arquivos, /abrir nome, /buscar palavra, /apagar nome\n" +
+  "• pergunte sobre programação (função, loop, API...)\n" +
+  "• conta uma piada 😄\n" +
   "• pesquise sobre ... / clima em ...";
 
 function think(message) {
