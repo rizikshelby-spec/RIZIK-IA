@@ -40,6 +40,21 @@ button.stop{background:#c0392b}
 #menu{display:none;position:fixed;left:10px;bottom:calc(64px + env(safe-area-inset-bottom));background:#222538;border:1px solid #3a3e59;border-radius:14px;padding:6px;z-index:5;min-width:250px}
 #menu.aberto{display:block}
 #menu button{display:block;width:100%;text-align:left;background:none;padding:11px 12px;font-weight:normal;font-size:15px}
+#hist{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10;align-items:flex-end;justify-content:center}
+#hist.aberto{display:flex}
+.hbox{background:#191b29;border:1px solid #303247;border-radius:16px 16px 0 0;width:100%;max-width:640px;max-height:88dvh;display:flex;flex-direction:column;padding:12px;gap:8px}
+.htopo{display:flex;gap:8px;align-items:center}.htopo b{color:#c5baff;white-space:nowrap}
+.htopo input{padding:8px 10px;font-size:14px}.htopo button{padding:8px 12px;background:#303247}
+.hlista{overflow:auto;flex:1;display:flex;flex-direction:column;gap:6px;min-height:120px}
+.hitem{display:flex;gap:6px;align-items:center;background:rgba(34,37,56,.6);border:1px solid #3a3e59;border-radius:12px;padding:8px 10px}
+.hitem.atual{border-color:#7864ed}.hinfo{flex:1;min-width:0;cursor:pointer}
+.htit{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hmeta{font-size:11px;color:#8d8fa6;margin-top:2px}
+.hitem button{background:none;padding:6px 8px}.hvazio{color:#8d8fa6;text-align:center;padding:24px 0;font-size:14px}
+.hpag{display:flex;flex-wrap:wrap;gap:4px;justify-content:center}
+.hpag button{min-width:32px;padding:6px 0;font-size:13px;background:#303247}
+.hpag button.on{background:#7864ed}.hpag button.vazia{opacity:.35}.hpag button:disabled{opacity:.3}
+.hrod{display:flex;gap:8px;justify-content:space-between;align-items:center;font-size:12px;color:#8d8fa6}
+.hrod button{padding:6px 10px;font-size:12px;background:#303247}
 </style>
 </head>
 <body>
@@ -55,29 +70,39 @@ button.stop{background:#c0392b}
 <button data-acao="anexar">📎 Anexar foto, vídeo ou arquivo</button>
 <button data-acao="profundo">🧠 Pensar bastante: desligado</button>
 <button data-acao="voz">🔊 Ler respostas sozinha: desligado</button>
+<button data-acao="historico">🕘 Histórico de conversas</button>
+<button data-acao="nova">➕ Nova conversa</button>
 <button data-acao="arquivos">📁 Meus arquivos</button>
+<button data-acao="base">💾 Exportar tudo (/basedados)</button>
 <button data-acao="piada">😄 Conta uma piada</button>
 <button data-acao="jogo">🎮 Jogar um joguinho</button>
 </div>
 <input id="seletor" type="file" hidden multiple accept="image/*,video/*,.txt,.md,.js,.html,.css,.json,.csv,.py,.xml,.log,.ts,.java,.c,.cpp,.sql,.yml,.yaml">
 
+<div id="hist"></div>
+<input id="seletorBase" type="file" hidden accept=".json,application/json">
+
 <script type="module">
-import { RizikBrain } from "./brain.js?v=11";
-import { Saber } from "./saber.js?v=3";
-import { Prog } from "./programacao.js?v=2";
+import { RizikBrain } from "./brain.js?v=12";
+import { Saber } from "./saber.js?v=4";
+import { Prog } from "./programacao.js?v=3";
 import { Arquivos } from "./arquivos.js?v=1";
-import { Mente } from "./mente.js?v=5";
+import { Mente } from "./mente.js?v=6";
+import { Fatos } from "./fatos.js?v=1";
+import { Historico } from "./historico.js?v=1";
+import { Base } from "./base.js?v=1";
 
 const $ = id => document.getElementById(id);
-const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status");
+const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status"), hist = $("hist");
 const HISTORY_KEY = "bach_chat_history_v1", KEY_API = "bach_gemini_key", KEY_MODEL = "bach_gemini_model";
-const STATUS = "BACH AI 2.0 • Conversa, código, jogos, arquivos e pesquisa";
+const STATUS = "BACH AI 3.0 • Conversa, código, jogos, arquivos, histórico e pesquisa";
 const LONGO = 700;
 
 let history = [], pensando = null, modoProfundo = false, lerAuto = false;
 let ocupado = false, cancelado = false, ctrl = null, ultimoArquivo = null;
 try { history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); if (!Array.isArray(history)) history = []; } catch { history = []; }
-const salvarHist = () => { try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-40).map(h => ({ ...h, text: String(h.text).slice(0, 20000) })))); } catch (e) { console.warn(e); } };
+const salvarHist = () => { try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-40).map(h => ({ ...h, text: String(h.text).slice(0, 20000) })))); } catch (e) { console.warn(e); }
+  try { Historico.salvarAtual(history); } catch (e) { console.warn(e); } };
 
 function busy(b) { ocupado = b; botao.textContent = b ? "⏹" : "Enviar"; botao.classList.toggle("stop", b); if (!b) status.textContent = STATUS; }
 
@@ -88,18 +113,18 @@ async function copiar(t, btn) {
   if (btn) { const o = btn.textContent; btn.textContent = "✅ Copiado"; setTimeout(() => btn.textContent = o, 1500); }
 }
 function baixar(t, nome) {
-  const u = URL.createObjectURL(new Blob([t], { type: "text/plain;charset=utf-8" }));
+  const u = URL.createObjectURL(new Blob([t], { type: /\.json$/.test(nome) ? "application/json" : "text/plain;charset=utf-8" }));
   const a = document.createElement("a"); a.href = u; a.download = nome; a.click(); setTimeout(() => URL.revokeObjectURL(u), 3000);
 }
 const EXT = { html: "html", js: "js", javascript: "js", css: "css", python: "py", py: "py", json: "json", sql: "sql", java: "java", ts: "ts" };
 function mk(tag, cls, txt) { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
 
-function cartao(titulo, conteudo, arquivo, aberto) {
+function cartao(titulo, conteudo, arquivo, aberto, previa) {
   const c = mk("div", "cartao"), top = mk("div", "topo"), b1 = mk("button", "", "📋 Copiar"), b2 = mk("button", "", "⬇️ Baixar");
   b1.onclick = () => copiar(conteudo, b1); b2.onclick = () => baixar(conteudo, arquivo);
   top.append(mk("span", "", titulo), b1, b2);
   const d = mk("details"); if (aberto) d.open = true;
-  d.append(mk("summary", "", "Ver conteúdo"), mk("pre", "", conteudo));
+  d.append(mk("summary", "", "Ver conteúdo"), mk("pre", "", previa && conteudo.length > previa ? conteudo.slice(0, previa) + "\n\n[... prévia: o arquivo completo tem " + conteudo.length + " caracteres; use Copiar ou Baixar]" : conteudo));
   c.append(top, d); return c;
 }
 
@@ -223,10 +248,11 @@ async function pesquisaProfunda(q, fundo = true) {
   passo((fundo ? "🔎 Pesquisando a fundo: " : "🔎 Pesquisando: ") + q);
   try {
     const r = await Saber.pesquisaProfunda(Mente.tema(q) || q, passo, fundo);
-    const tx = r.texto.replace(/\n\n💬 Em poucas palavras:[^\n]*/, "").replace(/\n\n🔍 Como cheguei nisso:[^\n]*/, "").replace(/\nℹ️ Eu escolho[^\n]*/, "").replace(/\n\n💾 Guardei[^\n]*/, "");
-    Mente.lembrarTema(Mente.tema(q) || q);
+    const tx = r.texto.replace(/\n\n💬 Em poucas palavras:[^\n]*/, "").replace(/\n\n🔍 Como cheguei nisso:[^\n]*/, "").replace(/\nℹ️ Eu escolho[^\n]*/, "").replace(/\n\n💾 Guardei[^\n]*/, "").replace(/\n\n🚫 Não guardei[^\n]*/, "");
+    if (r.conf !== "baixa") Mente.lembrarTema(Mente.tema(q) || q);
     falar(tx, "bot", "🌐 internet, filtrada e resumida");
-    Arquivos.salvar({ nome: "pesquisa-" + q.slice(0, 24), pasta: Mente.pasta("Pesquisas"), texto: r.texto, tipo: "pesquisa" }); r.fontes.forEach(f => criarResultado(f.titulo, "", f.url));
+    if (r.conf !== "baixa") Arquivos.salvar({ nome: "pesquisa-" + q.slice(0, 24), pasta: Mente.pasta("Pesquisas"), texto: r.texto, tipo: "pesquisa" });
+    r.fontes.forEach(f => criarResultado(f.titulo, "", f.url));
   } catch (e) {
     console.error(e);
     falar(e.message === "irrelevante" ? "Procurei, mas nada estava claramente ligado a “" + q + "”, e prefiro não inventar. Tente outras palavras. 🔍" : "Não consegui pesquisar agora. Tente de novo em instantes.");
@@ -244,7 +270,8 @@ REGRAS DE FORMATO:
 - Respostas curtas para perguntas simples. Em tarefas grandes, dê o passo a passo numerado.
 JOGOS COM VOCÊ: você sabe jogar forca, jogo da velha (desenhe com texto), adivinhação de número, quiz, 20 perguntas, stop e charadas. Guarde o estado do jogo pelo histórico, diga de quem é a vez e confira as regras com honestidade.
 IA DO ZERO: ensine nesta ordem — 1) entrada e saída (chat), 2) regras e normalização do texto, 3) memória que aprende (ensine: pergunta => resposta), 4) busca de informação, 5) ler arquivos, 6) conectar um modelo de linguagem por API, com a chave nunca dentro do código do GitHub. Diga sempre por qual arquivo começar e o que colar nele.
-HONESTIDADE: se não souber, diga. Não invente fatos, links ou funções. Use o histórico para entender "isso", "esse texto", "ele". Se o usuário colar um texto ou código sem pergunta, explique em poucas linhas o que é e ofereça próximos passos.`;
+HONESTIDADE: se não souber, diga. Não invente fatos, links ou funções. Use o histórico para entender "isso", "esse texto", "ele". Se o usuário colar um texto ou código sem pergunta, explique em poucas linhas o que é e ofereça próximos passos.
+PRECISÃO: responda só o que foi perguntado, com fatos verificáveis. Dê a mesma resposta para a mesma pergunta. Se houver incerteza, diga qual parte é incerta. Em contas, mostre o cálculo. Em datas, números e nomes, só afirme se tiver certeza.`;
 
 async function perguntarIA(texto) {
   const key = localStorage.getItem(KEY_API), model = localStorage.getItem(KEY_MODEL) || "gemini-3.5-flash-lite";
@@ -258,7 +285,7 @@ async function perguntarIA(texto) {
     if (ultimoArquivo) sis += "\n\nARQUIVO/TEXTO MAIS RECENTE DO USUÁRIO (" + ultimoArquivo.nome + "):\n" + ultimoArquivo.texto.slice(0, 30000);
     const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent", {
       method: "POST", signal: ctrl.signal, headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify({ systemInstruction: { parts: [{ text: sis }] }, contents, generationConfig: { maxOutputTokens: 8192 } })
+      body: JSON.stringify({ systemInstruction: { parts: [{ text: sis }] }, contents, generationConfig: { maxOutputTokens: 8192, temperature: 0.3, topP: 0.9 } })
     });
     if (!r.ok) {
       falar(r.status === 400 || r.status === 403 ? "A chave parece inválida. Gere outra em aistudio.google.com e use /chave SUA_CHAVE."
@@ -300,40 +327,87 @@ async function processarArquivo(f) {
   finally { busy(false); }
 }
 
-/* ---------- roteamento ---------- */
-/* ---------- /dadosbach: exporta memória, dados e a tabela da criação dela ---------- */
-const lerLS = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
-async function exportarDados() {
-  passo("📦 Reunindo memória, arquivos e módulos...");
-  const ARQ = [["index.html", "Tela, chat, voz, cancelar, pesquisa, notícias"], ["brain.js", "Cérebro: regras, memória, ensine:"], ["mente.js", "Contexto, vocabulário, jogos, apps, pastas"], ["conhecimento.js", "Base de programação e erros comuns"], ["saber.js", "Leitura de texto/código e pesquisa profunda"], ["arquivos.js", "Pastas e leitura de fotos, vídeos e textos"], ["programacao.js", "Programação básica e humor"]];
-  const mods = [];
-  for (const [n, d] of ARQ) {
-    try { const tx = await (await fetch("./" + n + "?_=" + Date.now())).text(); mods.push({ arquivo: n, linhas: tx.split("\n").length, kb: +(new Blob([tx]).size / 1024).toFixed(1), funcao: d }); }
-    catch { mods.push({ arquivo: n, linhas: "?", kb: "?", funcao: d }); }
+/* ---------- histórico de conversas (15 páginas) ---------- */
+function novaConversa() {
+  try { speechSynthesis.cancel(); } catch {}
+  Historico.nova(); history = []; try { localStorage.removeItem(HISTORY_KEY); } catch {}
+  chat.innerHTML = ""; hist.classList.remove("aberto");
+  falar("Nova conversa! 🧹 A anterior ficou guardada no histórico (menu +). Sua memória de aprendizado continua guardada.", "bot", "", true);
+}
+function abrirConversa(id) {
+  const msgs = Historico.abrir(id); if (!msgs) return;
+  history = msgs.map(m => ({ text: m.text, type: m.type }));
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch {}
+  chat.innerHTML = ""; restaurar(); hist.classList.remove("aberto");
+}
+function abrirHistorico(pag = 1, termo = "") {
+  const r = Historico.listar(pag, termo);
+  hist.innerHTML = ""; hist.classList.add("aberto");
+  hist.onclick = e => { if (e.target === hist) hist.classList.remove("aberto"); };
+  const box = mk("div", "hbox"), top = mk("div", "htopo"), fechar = mk("button", "", "✕"), busca = mk("input");
+  busca.type = "text"; busca.placeholder = "Buscar nas conversas..."; busca.value = termo;
+  busca.onkeydown = e => { if (e.key === "Enter") abrirHistorico(1, busca.value); };
+  fechar.onclick = () => hist.classList.remove("aberto");
+  top.append(mk("b", "", "🕘 Histórico"), busca, fechar);
+  const lista = mk("div", "hlista");
+  if (!r.itens.length) lista.append(mk("div", "hvazio", termo ? "Nada encontrado." : "Ainda não há conversas salvas."));
+  for (const s of r.itens) {
+    const li = mk("div", "hitem" + (s.id === r.atual ? " atual" : "")), info = mk("div", "hinfo"), del = mk("button", "", "🗑");
+    info.append(mk("div", "htit", s.titulo), mk("div", "hmeta", new Date(s.em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) + " • " + s.qtd + " msgs" + (s.id === r.atual ? " • atual" : "")));
+    info.onclick = () => abrirConversa(s.id);
+    del.onclick = e => { e.stopPropagation(); if (!confirm("Apagar esta conversa do histórico?")) return; const nova = Historico.apagar(s.id); if (nova) { history = []; try { localStorage.removeItem(HISTORY_KEY); } catch {} chat.innerHTML = ""; falar("Conversa apagada. Começamos uma nova! 🧹", "bot", "", true); } abrirHistorico(r.pagina, termo); };
+    li.append(info, del); lista.append(li);
   }
-  const cer = lerLS("rizik_brain_v1") || {}, arqs = lerLS("bach_arquivos_v1") || [], pesq = lerLS("bach_conhecimento_v1") || [], mente = lerLS("bach_mente_v1") || {}, st = Mente.stats();
-  const nk = o => Object.keys(o || {}).length;
-  const cont = [
-    ["Respostas aprendidas (ensine:)", (cer.examples || []).length], ["Sinônimos ensinados", nk(cer.synonyms)], ["Fatos guardados", nk(cer.facts)], ["Notas (lembre:)", (cer.notes || []).length],
-    ["Arquivos guardados", arqs.length], ["Pastas", new Set(arqs.map(a => a.pasta)).size], ["Pesquisas guardadas", pesq.length],
-    ["Gírias/abreviações de fábrica", st.girias], ["Gírias que você ensinou", nk(mente.vocab)], ["Palavras do léxico (base)", st.lexBase], ["Palavras aprendidas", (mente.lex || []).length],
-    ["Assuntos de programação", st.kbProg], ["Erros comuns reconhecidos", st.erros], ["Jogos", st.jogos], ["Modelos de apps prontos", st.modelosApps],
-    ["Assuntos lembrados", (mente.assuntos || []).length], ["Mensagens no histórico", history.length]
-  ];
-  const COM = ["/dadosbach", "/arquivos", "/abrir nome", "/buscar palavra", "/apagar nome", "/pasta Nome/Sub", "/pastas", "/mover nome para Pasta", "/palavra gíria = significado", "/palavras", "/profundo assunto", "/clear", "ensine: pergunta => resposta", "corrija: pergunta => nova", "esqueça: pergunta", "sinônimo: a = b", "lembre: algo", "exportar memória", "importar memória: {...}"];
-  const pad = (x, n) => String(x).padEnd(n), W = Math.max(...cont.map(c => c[0].length)) + 2;
-  const t1 = pad("ARQUIVO", 17) + pad("LINHAS", 8) + pad("KB", 7) + "FUNÇÃO\n" + mods.map(m => pad(m.arquivo, 17) + pad(m.linhas, 8) + pad(m.kb, 7) + m.funcao).join("\n");
-  const t2 = pad("DADO", W) + "QTD\n" + cont.map(c => pad(c[0], W) + c[1]).join("\n");
-  const dados = { bach: { versao: "2.0", geradoEm: new Date().toISOString() }, tabelas: { modulos: mods, contagens: Object.fromEntries(cont), comandos: COM }, memoria: cer, arquivos: arqs, pesquisas: pesq, mente, historico: history };
-  const json = JSON.stringify(dados, null, 1);
-  falar("📦 DADOS DA BACH — " + new Date().toLocaleString("pt-BR") + "\n\nTabela da criação dela:\n```txt\n" + t1 + "\n```\nMemória e dados:\n```txt\n" + t2 + "\n```\nBackup completo (" + (new Blob([json]).size / 1024).toFixed(1) + " KB): use Copiar ou Baixar abaixo. Ele inclui memória, arquivos, pesquisas, vocabulário, histórico e a lista de comandos. A chave da IA externa nunca entra no backup.\n\n```json\n" + json + "\n```", "bot", "📦 /dadosbach");
+  const pg = mk("div", "hpag"), ant = mk("button", "", "◀"), prox = mk("button", "", "▶");
+  ant.disabled = r.pagina <= 1; prox.disabled = r.pagina >= r.paginas;
+  ant.onclick = () => abrirHistorico(r.pagina - 1, termo); prox.onclick = () => abrirHistorico(r.pagina + 1, termo);
+  pg.append(ant);
+  for (let p = 1; p <= r.paginas; p++) { const b = mk("button", p === r.pagina ? "on" : p > r.totalPaginas ? "vazia" : "", String(p)); b.onclick = () => abrirHistorico(p, termo); pg.append(b); }
+  pg.append(prox);
+  const rod = mk("div", "hrod"), novo = mk("button", "", "➕ Nova conversa"), tudo = mk("button", "", "🗑 Apagar tudo");
+  novo.onclick = novaConversa;
+  tudo.onclick = () => { if (!confirm("Apagar TODO o histórico de conversas? A memória de aprendizado não é apagada.")) return; Historico.limparTudo(); history = []; try { localStorage.removeItem(HISTORY_KEY); } catch {} chat.innerHTML = ""; hist.classList.remove("aberto"); falar("Histórico apagado. Sua memória de aprendizado continua guardada.", "bot", "", true); };
+  rod.append(mk("span", "", r.total + " conversa(s) • página " + r.pagina + " de " + r.paginas), novo, tudo);
+  box.append(top, lista, pg, rod); hist.append(box);
 }
 
+/* ---------- /basedados: exporta TUDO (memória, conversas, interface, código) ---------- */
+async function exportarBase() {
+  passo("📦 Reunindo memória, conversas, interface e módulos...");
+  const b = await Base.montar({
+    history, idAtual: Historico.idAtual(), status: STATUS, statsMente: Mente.stats(), totalFatos: Fatos.total,
+    estado: { modoProfundo, lerAuto, temChaveIA: !!localStorage.getItem(KEY_API), modelo: localStorage.getItem(KEY_MODEL) || "padrão" },
+    menu: [...document.querySelectorAll("#menu button")].map(x => x.textContent.trim())
+  });
+  falar("📦 BASE DE DADOS DA BACH — " + new Date().toLocaleString("pt-BR") + "\n\nTabela da criação dela:\n```txt\n" + b.tabelaModulos + "\n```\nMemória e dados:\n```txt\n" + b.tabelaDados + "\n```\nBackup completo: " + b.tamanhoKb + " KB, com " + b.conversas + " conversa(s) do histórico, memória, arquivos, pesquisas, vocabulário, o estado da tela (interface) e o código de todos os módulos. Use os botões do cartão abaixo. A chave da IA externa nunca entra. Para restaurar depois: /importarbase", "bot", "📦 /basedados");
+  chat.appendChild(cartao("📦 " + b.nome + " • " + b.tamanhoKb + " KB", b.json, b.nome, false, 2500));
+  chat.scrollTop = chat.scrollHeight;
+}
+
+/* ---------- ler link colado ---------- */
+async function lerLinkMsg(url, texto, temIA) {
+  passo("🔗 Abrindo o link: " + url.slice(0, 60) + "...");
+  try {
+    const r = await Saber.lerLink(url), leitura = Saber.lerTexto(r.texto);
+    const a = Arquivos.salvar({ nome: r.nome, pasta: Mente.pasta(Saber.isCode(r.texto) ? "Códigos" : "Textos"), texto: r.texto, resumo: leitura.slice(0, 300), tipo: "link" });
+    ultimoArquivo = { nome: a.nome, texto: r.texto }; Mente.setTexto(a.nome, r.texto);
+    if (temIA && texto.replace(url, "").trim().length > 3) { await perguntarIA(texto); return; }
+    falar("🔗 Abri " + r.url + "\n\n" + leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\n💡 Agora pergunte: “o que é esse texto?”, “resume” ou “revisa o código”.", "bot", "🔗 link");
+  } catch (e) { console.error(e); falar("Não consegui abrir esse link. Se for repositório privado ou uma página que bloqueia leitura, copie o texto e cole aqui. 📋"); }
+}
+
+/* ---------- roteamento ---------- */
+const sn = t => String(t).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+
 async function rotear(texto) {
-  const cmd = texto.toLowerCase().trim();
-  if (/^\/dadosbach\b/.test(cmd)) return exportarDados();
-  if (["/clear", "/limpar", "limpar histórico"].includes(cmd)) { history = []; localStorage.removeItem(HISTORY_KEY); chat.innerHTML = ""; falar("Chat limpo! 🧹 Sua memória de aprendizado continua guardada."); return; }
+  const cmd = texto.toLowerCase().trim(), nt = sn(texto), temIA = !!localStorage.getItem(KEY_API);
+  if (/^\/(basedados|dadosbach)\b/.test(cmd)) return exportarBase();
+  if (/^\/importarbase\b/.test(cmd)) { falar("📥 Escolha o arquivo .json que você baixou com /basedados."); $("seletorBase").click(); return; }
   if (cmd.startsWith("/modelo ")) { localStorage.setItem(KEY_MODEL, texto.slice(8).trim()); falar("Modelo trocado para: " + texto.slice(8).trim()); return; }
+
+  const links = Saber.urlsEm(texto); if (links.length) return lerLinkMsg(links[0], texto, temIA);
+  if (/^(exportar|exporta|backup|baixar|salvar)( a| o| minha| meus| toda| todas| tudo| os| as| seus)*( memoria| dados| base| base de dados| conversas)?$/.test(nt) ||
+      /\b(manda|mande|envia|envie|da|de|exporta|exporte) (me )?(os |todos os |seus |tudo |todos )*(dados|backup|base de dados)\b/.test(nt) || nt === "basedados") return exportarBase();
 
   const prof = extrairProfundo(texto); if (prof !== null) return pesquisaProfunda(prof);
   const cons = extrairPesquisa(texto); if (cons !== null) return pesquisaProfunda(cons, false);
@@ -341,11 +415,20 @@ async function rotear(texto) {
   const cid = extrairClima(texto); if (cid) return clima(cid);
 
   const arq = Arquivos.comando(texto); if (arq) { falar(arq, "bot", "📁 seus arquivos"); return; }
+
+  if (!Mente.jogando()) {
+    const eu = Fatos.sobreMim(texto); if (eu) { falar(eu, "bot", "🧠 sobre mim"); return; }
+    const fato = Fatos.responder(texto); if (fato) { falar(fato, "bot", "📘 base de fatos"); return; }
+  }
   const mt = Mente.responder(texto);
-  if (mt) { if (mt.noticias) return noticias(mt.q); if (mt.pesquisa) return pesquisaProfunda(mt.pesquisa, mt.fundo !== false); falar(mt.texto, "bot", mt.origem || "🧠 minha mente"); return; }
+  if (mt) {
+    if (mt.noticias) return noticias(mt.q);
+    if (mt.pesquisa) { if (temIA) return perguntarIA(texto); return pesquisaProfunda(mt.pesquisa, mt.fundo !== false); }
+    falar(mt.texto, "bot", mt.origem || "🧠 minha mente"); return;
+  }
 
   passo("🧠 Consultando minha memória...");
-  const r = RizikBrain.think(texto), temIA = !!localStorage.getItem(KEY_API);
+  const r = RizikBrain.think(texto);
 
   if (r.intent === "longtext") {
     const cod = Saber.isCode(texto), leitura = Saber.lerTexto(texto);
@@ -361,14 +444,16 @@ async function rotear(texto) {
   const graca = Prog.humor(texto); if (graca) { falar(graca, "bot", "😄 meu repertório"); return; }
   const prog = Prog.responder(texto); if (prog) { falar(prog, "bot", "💻 programação"); return; }
   const k = Saber.buscarConhecimento(texto); if (k) { falar(k, "bot", "📚 o que aprendi"); return; }
-  if ((modoProfundo && texto.split(/\s+/).length >= 3) || Mente.pergunta(texto)) return pesquisaProfunda(texto);
-  falar(Prog.desconhecido() + "\n\nVocê pode:\n• me pedir: jogar forca, crie uma calculadora, o que é ...\n• me ensinar: ensine: pergunta => resposta\n• pedir: pesquise a fundo sobre o assunto\n• clima em (sua cidade)\n\nDigite \"ajuda\" para ver tudo.");
+  if ((modoProfundo && texto.split(/\s+/).length >= 3 && !Fatos.sobreVoce(texto)) || Mente.pergunta(texto)) return pesquisaProfunda(texto);
+  falar(Prog.desconhecido(texto) + "\n\nVocê pode:\n• me pedir: jogar forca, crie uma calculadora, o que é ...\n• me ensinar: ensine: pergunta => resposta\n• pedir: pesquise a fundo sobre o assunto\n• colar um link para eu ler\n• clima em (sua cidade)\n\nDigite \"ajuda\" para ver tudo.");
 }
 
 async function enviar() {
   if (ocupado) { parar(); return; }
   const texto = entrada.value.trim(); if (!texto) return;
   entrada.value = "";
+  if (/^(\/clear|\/limpar|\/nova|nova conversa|limpar histórico)$/i.test(texto)) { novaConversa(); return; }
+  if (/^(\/historico|\/histórico|histórico|historico)(\s+\d+)?$/i.test(texto)) { abrirHistorico(parseInt((texto.match(/\d+/) || [1])[0], 10) || 1); return; }
   if (/^\/chave\s+/i.test(texto)) {
     const v = texto.replace(/^\/chave\s+/i, "").trim(); falar("/chave ••••••", "user");
     if (v.toLowerCase() === "apagar") { localStorage.removeItem(KEY_API); falar("Chave apagada. Voltei ao modo sem IA externa."); }
@@ -391,9 +476,17 @@ menu.onclick = e => {
   if (a === "anexar") seletor.click();
   if (a === "profundo") { modoProfundo = !modoProfundo; b.textContent = "🧠 Pensar bastante: " + (modoProfundo ? "ligado" : "desligado"); falar(modoProfundo ? "Modo pensar bastante LIGADO 🧠" : "Modo pensar bastante desligado."); }
   if (a === "voz") { lerAuto = !lerAuto; b.textContent = "🔊 Ler respostas sozinha: " + (lerAuto ? "ligado" : "desligado"); if (!lerAuto) speechSynthesis.cancel(); }
+  if (a === "historico") abrirHistorico(1);
+  if (a === "nova") novaConversa();
+  if (a === "base") { entrada.value = "/basedados"; enviar(); }
   if (a === "arquivos") { entrada.value = "/arquivos"; enviar(); }
   if (a === "piada") { entrada.value = "conta uma piada"; enviar(); }
   if (a === "jogo") { entrada.value = "vamos jogar"; enviar(); }
+};
+$("seletorBase").onchange = async () => {
+  const f = $("seletorBase").files[0]; $("seletorBase").value = ""; if (!f) return;
+  try { const n = Base.importar(JSON.parse(await f.text())); alert("✅ Backup restaurado (" + n + " partes). A tela vai recarregar."); location.reload(); }
+  catch (e) { falar("Não consegui restaurar: " + (e.message || "arquivo inválido"), "bot", "", true); }
 };
 seletor.onchange = async () => { const L = [...seletor.files]; seletor.value = ""; for (const f of L) await processarArquivo(f); };
 
@@ -410,6 +503,7 @@ $("mic").onclick = () => {
 botao.onclick = enviar;
 entrada.addEventListener("keydown", e => { if (e.key === "Enter") enviar(); });
 
+try { Historico.salvarAtual(history); } catch {}
 restaurar(); status.textContent = STATUS;
 if (!history.length) falar("Olá! Sou a BACH AI 🧠. Converso, resumo textos, programo, crio jogos e apps e jogo com você. Digite \"ajuda\" para ver tudo.");
 </script>
