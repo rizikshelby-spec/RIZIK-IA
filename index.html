@@ -66,7 +66,7 @@ import { RizikBrain } from "./brain.js?v=11";
 import { Saber } from "./saber.js?v=3";
 import { Prog } from "./programacao.js?v=2";
 import { Arquivos } from "./arquivos.js?v=1";
-import { Mente } from "./mente.js?v=2";
+import { Mente } from "./mente.js?v=3";
 
 const $ = id => document.getElementById(id);
 const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status");
@@ -205,7 +205,7 @@ async function pesquisaProfunda(q, fundo = true) {
   if (/\b(piadas?|humor|engra[cç]ad[oa]s?)\b/i.test(q)) { falar("Piada eu tenho de sobra! 😄\n\n" + Prog.humor("conta uma piada"), "bot", "😄 meu repertório"); return; }
   passo((fundo ? "🔎 Pesquisando a fundo: " : "🔎 Pesquisando: ") + q);
   try {
-    const r = await Saber.pesquisaProfunda(q, passo, fundo);
+    const r = await Saber.pesquisaProfunda(Mente.tema(q) || q, passo, fundo);
     falar(r.texto, "bot", "🌐 internet, filtrada e resumida");
     Arquivos.salvar({ nome: "pesquisa-" + q.slice(0, 24), pasta: Mente.pasta("Pesquisas"), texto: r.texto, tipo: "pesquisa" }); r.fontes.forEach(f => criarResultado(f.titulo, "", f.url));
   } catch (e) {
