@@ -1,4 +1,6 @@
-/* BACH AI - FATOS 1.0
+import { MAIS } from "./saberes.js?v=1";
+
+/* BACH AI - FATOS 2.0
    Base de fatos verificados + respostas sobre a própria BACH.
    Respostas sempre iguais para a mesma pergunta (nada aleatório).
    Só responde quando a pergunta cobre bem o assunto; senão devolve null
@@ -10,7 +12,7 @@ const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ
 const SEM_VALOR = new Set(("qual quais quem quanto quantos quantas como onde quando porque por que para pra o a os as um uma uns umas " +
   "de do da dos das em no na nos nas e eh ao aos me se fale fala falar diga dizer explique explica explicar sobre significa " +
   "significado definicao conceito mesmo voce vc eu sao foi ser ha tem existe existem exatamente basicamente resumo resuma " +
-  "conte conta pode poderia favor pf entao ai tipo seria era").split(" "));
+  "conte conta pode poderia favor pf entao ai tipo seria era passe passa manda mande quero preciso gostaria queria crie cria faca fazer ajuda ajude algum alguma uns umas pesquise pesquisa busque procure ensina ensine mostra mostre bach").split(" "));
 
 const stem = w => {
   w = w.replace(/(coes|oes|aes)$/, "ao");
@@ -218,6 +220,8 @@ const FATOS = [
  "🌡️ °F = °C × 9/5 + 32. E °C = (°F − 32) × 5/9. Exemplo: 25 °C = 77 °F."]
 ];
 
+FATOS.push(...MAIS);
+
 const BASE = FATOS.map(([k, r]) => ({
   frases: k.split("|").map(f => new Set(toks(f))).filter(s => s.size),
   r
@@ -298,7 +302,7 @@ function responder(texto) {
 const SOBRE = {
   nome: "Meu nome é BACH AI 🧠.",
   quem: "Sou a BACH AI 🧠, uma assistente que roda inteira no seu navegador, criada por você neste projeto. Converso, guardo o que você me ensina, pesquiso na Wikipédia e na web, leio textos e códigos e ajudo com programação.",
-  servir: "Eu sirvo para:\n• conversar e aprender o que você me ensina (ensine: pergunta => resposta)\n• responder perguntas comuns com minha base de fatos\n• pesquisar na Wikipédia e na web e resumir citando as fontes (pesquise a fundo sobre ...)\n• ler textos, códigos e links que você colar ou anexar\n• explicar programação e montar apps e jogos simples\n• guardar arquivos em pastas e histórico de conversas\n• exportar tudo com /basedados\n\nLimite: sem chave de IA externa eu não raciocino como o ChatGPT ou o Claude; eu escolho e organizo trechos. Para esse nível, conecte uma chave do Google AI Studio com /chave.",
+  servir: "Eu sirvo para:\n• conversar e aprender o que você me ensina (ensine: pergunta => resposta)\n• responder perguntas comuns com minha base de fatos\n• pesquisar na Wikipédia e na web e resumir citando as fontes (pesquise a fundo sobre ...)\n• ler textos, códigos e links que você colar ou anexar\n• explicar programação e montar apps e jogos simples\n• guardar arquivos em pastas e o histórico de conversas\n• contar piadas, curiosidades e charadas, e bater papo\n\nLimite: sem chave de IA externa eu não raciocino como o ChatGPT ou o Claude; eu escolho e organizo trechos. Para esse nível, conecte uma chave do Google AI Studio com /chave.",
   como: "Funciono por regras e busca, tudo no seu navegador: entendo sua frase, procuro primeiro no que você me ensinou e na minha base de fatos, e só depois pesquiso na internet, comparando fontes. Eu não invento texto: escolho os melhores trechos e mostro a confiança. Se você conectar uma chave Gemini (/chave), passo a responder com uma IA de linguagem de verdade.",
   ia: "Sou uma IA de regras e busca, não um modelo de linguagem grande como o ChatGPT ou o Claude. Isso me deixa previsível, privada (roda no seu aparelho) e honesta sobre o que não sei, mas menos flexível. Com uma chave Gemini (/chave) eu uso uma IA de linguagem de verdade.",
   erro: "Você tem razão em cobrar. Sem IA externa eu erro quando a pergunta foge da minha base ou quando a busca traz páginas sem relação. O que mudou: a mesma pergunta agora sempre recebe a mesma resposta, só guardo pesquisas de confiança média ou alta, e quando não tenho certeza eu aviso. Para me corrigir: corrija: pergunta => resposta certa.",
@@ -318,7 +322,7 @@ function sobreMim(texto) {
   if (new RegExp("\\bcomo " + eu + " (funciona|pensa|aprende|responde|e feita)\\b").test(t) ||
       /\bvoce (usa|roda|funciona com|e feita com) (ia|inteligencia artificial|chatgpt|gemini|claude|internet|api)\b/.test(t)) return SOBRE.como;
   if (/\bvoce e (uma |um )?(ia|inteligencia artificial|robo|chatgpt|humana|gente|pessoa|real)\b/.test(t)) return SOBRE.ia;
-  if (/\bvoce (esta|ta|anda|so|vive) (errando|errada|falhando|burra|dando errado)\b/.test(t) || /\b(respostas?) (erradas?|diferentes|trocadas)\b/.test(t) ||
+  if (/\bvoce (esta|ta|anda|so|vive|sempre|muito|ainda) (errando|errada|falhando|dando errado)\b/.test(t) || /\bvoce (so |sempre |muito |ainda )?(erra|errou)\b/.test(t) || /\b(respostas?) (erradas?|diferentes|trocadas)\b/.test(t) ||
       /\bvoce errou\b/.test(t)) return SOBRE.erro;
   if (/\b(suas|quais (sao )?(as )?(suas )?) ?(limitacoes|limites)\b/.test(t) || /\bvoce nao (consegue|sabe) tudo\b/.test(t)) return SOBRE.limite;
   if (/\bvoce e (melhor|igual|parecida?) (que|do|de|ao|com) (o )?(chatgpt|claude|gemini)\b/.test(t) ||
@@ -327,6 +331,32 @@ function sobreMim(texto) {
 }
 
 /* Pergunta sobre a própria BACH que não deve ir para a internet */
+const semEmoji = s => String(s).replace(/^[^\p{L}\p{N}"“(]+/u, "").trim();
+const maiuscula = s => s.charAt(0).toUpperCase() + s.slice(1);
+const corpo = t => String(t || "").split(/\n\s*(?:Fontes|🔍|ℹ️|💾|🚫)/)[0].trim();
+
+/* "me conte em numeração": transforma a resposta anterior em lista numerada */
+function enumerar(texto) {
+  const base = corpo(texto);
+  if (!base) return null;
+  const plano = base.replace(/\s+/g, " ");
+  const m = plano.match(/([^.:!?]{0,200}):\s*([^.!?]+?)[.!?](?:\s|$)/);
+  if (m) {
+    const itens = m[2].split(/\s*,\s*|\s+e\s+/).map(x => x.trim()).filter(x => x && x.length < 60);
+    if (itens.length >= 3) return "🔢 " + semEmoji(m[1]) + ":\n" + itens.map((x, i) => (i + 1) + ". " + maiuscula(x)).join("\n");
+  }
+  const linhas = base.split("\n").map(l => l.replace(/^[•\-*]\s*|^\d+[.)]\s*/, "").replace(/\s*\[\d+\]/g, "").trim())
+    .filter(l => l.length > 25 && !/^(Além disso|Fontes|Sobre|Pesquisei|Aqui está)/.test(l));
+  const fr = (linhas.length >= 2 ? linhas : plano.split(/(?<=[.!?])\s+/).map(semEmoji).filter(l => l.length > 25)).slice(0, 12);
+  return fr.length >= 2 ? "🔢 Em numeração:\n" + fr.map((x, i) => (i + 1) + ". " + x).join("\n") : null;
+}
+
+function resumir(texto) {
+  const base = corpo(texto).replace(/\s*\[\d+\]/g, "").replace(/\s+/g, " ");
+  const fr = base.split(/(?<=[.!?])\s+/).map(semEmoji).filter(s => s.length > 25);
+  return fr.length ? "📝 Resumindo: " + fr.slice(0, 2).join(" ") : null;
+}
+
 const sobreVoce = texto => /\b(voce|vc|bach|bash)\b/.test(norm(texto));
 
-export const Fatos = { responder, sobreMim, sobreVoce, total: FATOS.length };
+export const Fatos = { responder, sobreMim, sobreVoce, enumerar, resumir, total: FATOS.length };
