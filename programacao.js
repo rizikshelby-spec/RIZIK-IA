@@ -37,29 +37,66 @@ function responder(texto) {
 }
 
 const PIADAS = [
-  "Por que o programador saiu do banho? Porque a embalagem dizia: aplicar, enxaguar, repetir. 🔁",
-  "Um bug entrou num bar... e ninguém conseguiu reproduzir. 🐛",
-  "Como o programador resolve tudo? Reinicia. Se não resolver, reinicia de novo. 🔄",
-  "Existem 10 tipos de pessoas: as que entendem binário e as que não. 😎",
-  "\"Funciona na minha máquina!\" — Então vamos entregar a sua máquina. 💻",
-  "O que o HTML disse pro CSS? Sem você eu seria só texto. 💅",
-  "Por que o Python não vai à balada? Medo de se enrolar na identação. 🐍",
-  "Meu código tem 3 problemas: o primeiro é eu não lembrar o que o segundo faz. 😅"
+  { c: "dev", t: "Por que o programador confunde Halloween com Natal?\n\n…Porque 31 OCT = 25 DEC. 🎃🎄" },
+  { c: "dev", t: "A esposa do programador pede: “Compre um pão. Se tiver ovos, traga 6.”\n\n…Ele volta com 6 pães. “Tinha ovos!” 🍞" },
+  { c: "dev", t: "Qual a diferença entre um programador e um mágico?\n\n…O mágico faz o problema desaparecer. O programador faz ele aparecer só em produção. 🎩" },
+  { c: "dev", t: "Qual é o esporte radical favorito do programador?\n\n…Fazer deploy na sexta-feira às 17h. 🪂" },
+  { c: "dev", t: "Como se chama um programador sem café?\n\n…Um erro de sintaxe com pernas. ☕" },
+  { c: "dev", t: "— Seu código tem comentários?\n— Tem: “não mexe aqui”, “não sei por que funciona” e “TODO: arrumar (2019)”. 🙈" },
+  { c: "dev", t: "Meu código funciona e eu não sei por quê.\nMeu código quebrou e eu também não sei por quê.\n\n…Equilíbrio. ☯️" },
+  { c: "dev", t: "Existem 10 tipos de pessoas no mundo:\n\n…as que entendem binário e as que não. 😎" },
+  { c: "dev", t: "O que o HTML disse ao CSS?\n\n…Sem você eu seria só texto. 💅" },
+  { c: "dev", t: "O programador foi ao médico: “Doutor, estou ouvindo vozes!”\n— E o que elas dizem?\n— Que isso já foi resolvido no Stack Overflow. 🩺" },
+  { c: "geral", t: "O que o tomate foi fazer no banco?\n\n…Tirar extrato. 🍅" },
+  { c: "geral", t: "O que o zero disse para o oito?\n\n…Bonito cinto! 8️⃣" },
+  { c: "geral", t: "Por que o livro de matemática ficou triste?\n\n…Porque tinha muitos problemas. 📘" },
+  { c: "geral", t: "O que a aranha faz na internet?\n\n…Fica na web. 🕷️" },
+  { c: "geral", t: "Por que o computador foi ao médico?\n\n…Estava com vírus. 🦠" },
+  { c: "geral", t: "Qual é o cúmulo da paciência?\n\n…Sentar na beira da estrada e esperar o tempo passar. ⏳" },
+  { c: "geral", t: "É pavê ou pra comê? 🍰\n\n(Piada de tiozão, eu sei. Mas funciona em toda ceia.)" },
+  { c: "geral", t: "O que o oceano disse para a praia?\n\n…Nada, só deu uma onda. 🌊" },
+  { c: "geral", t: "Por que a galinha atravessou a rua?\n\n…Para provar ao pato que dava. 🐔" },
+  { c: "geral", t: "O que é um pontinho verde na tela da reunião online?\n\n…Alguém que diz “estou só ouvindo” e foi lavar a louça. 🟢" }
 ];
+
+let saco = [], jaContou = false;
+
+const embaralhar = a => {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+
+function proximaPiada(cat) {
+  const todas = () => embaralhar(PIADAS.map((_, i) => i));
+  if (!saco.length) saco = todas();
+  let idx = saco.findIndex(i => !cat || PIADAS[i].c === cat);
+  if (idx < 0) { saco = todas(); idx = saco.findIndex(i => !cat || PIADAS[i].c === cat); }
+  return PIADAS[saco.splice(idx, 1)[0]].t;
+}
 
 function humor(texto) {
   const t = norm(texto);
-  if (/(piada|me faz rir|me faca rir|algo engracado|me alegra|conta uma graca|me anima)/.test(t)) return pick(PIADAS);
-  if (/^(kkk+|haha+|rs+|rsrs+|hehe+)$/.test(t)) return pick(["😂 Essa foi boa até pra mim!", "Rindo em binário: 01001000 01000001 😄"]);
+
+  if (/(piada|me faz rir|me faca rir|algo engracado|conta uma graca|me anima|me alegra)/.test(t) ||
+      (jaContou && /^(outra|mais uma|outra piada|mais uma piada|manda outra|de novo)$/.test(t))) {
+    const cat = /(programa|dev|codigo|computador)/.test(t) ? "dev" : /(tiozao|trocadilho|geral)/.test(t) ? "geral" : null;
+    jaContou = true;
+    return pick(["Lá vai! 😄", "Prepara que vem aí:", "Essa é boa:", "Ouve essa:"]) + "\n\n" + proximaPiada(cat) + "\n\n(Quer outra? É só dizer “outra”.)";
+  }
+
+  if (/^(kkk+|haha+|rs+|rsrs+|hehe+)$/.test(t)) return pick(["😂 Essa foi boa até pra mim!", "Rindo em binário: 01001000 01000001 😄", "Gargalhando por dentro dos meus circuitos! 🤖"]);
   if (/(voce e engracada|voce e legal|voce e inteligente|gostei de voce)/.test(t)) return pick(["Para, que meu processador esquenta! 🥵💜", "Obrigada! Estou tentando ser a IA mais divertida do navegador. 😄"]);
   return null;
 }
 
 function desconhecido() {
   return pick([
-    "Hmm, essa me pegou! 😅 Meu cérebro de regras ainda não sabe isso.",
-    "Boa pergunta! Mas eu ainda não aprendi isso. 🧠💤",
-    "Travei aqui, igual código sem ponto e vírgula. 😬"
+    "Hmm, essa me pegou! 😅 Não tenho nada sobre isso na memória, e prefiro admitir a inventar uma resposta.",
+    "Boa pergunta! Mas eu ainda não aprendi isso, e não quero chutar. 🧠",
+    "Travei aqui, igual código sem ponto e vírgula. 😬 Isso eu ainda não sei, mas dá para resolver:"
   ]);
 }
 
