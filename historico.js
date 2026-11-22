@@ -48,7 +48,7 @@ function salvarAtual(msgs) {
   if (!util.some(m => m.type === "user")) { if (i >= 0) { lista.splice(i, 1); gravar(lista); } return; }
   const item = {
     id, titulo: titulo(util), em: Date.now(),
-    msgs: util.slice(-80).map(m => ({ type: m.type === "user" ? "user" : "bot", text: String(m.text).slice(0, 3000) }))
+    msgs: util.slice(-80).map(m => ({ type: m.type === "user" ? "user" : "bot", text: String(m.text).slice(0, 3000), ...(m.cit ? { cit: String(m.cit).slice(0, 200) } : {}) }))
   };
   if (i >= 0) lista[i] = { ...lista[i], ...item, criada: lista[i].criada || item.em }; else lista.push({ ...item, criada: item.em });
   gravar(ordenar(lista));
