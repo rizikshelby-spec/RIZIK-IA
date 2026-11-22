@@ -1,122 +1,328 @@
-/* BACH AI - BASE DE DADOS 1.0
-   Comando /basedados: reúne TUDO dela num arquivo só:
-   memória, arquivos, pesquisas, vocabulário, TODAS as conversas, estado da tela
-   e o código-fonte de cada módulo (inclusive a interface, index.html).
-   A chave da IA externa nunca entra. */
+/* BACH AI 4.0 — base de dados e backup completo.
+ * Exporta memórias, conversas, arquivos e o código de todos os módulos.
+ * A chave do Gemini nunca é incluída no backup.
+ */
 
 export const ARQUIVOS = [
-  ["index.html", "Tela, chat, histórico, voz, pesquisa, /basedados"],
-  ["brain.js", "Cérebro: regras, memória, ensine:"],
-  ["mente.js", "Contexto, vocabulário, jogos, apps, pastas"],
-  ["fatos.js", "Base de fatos e respostas sobre a própria BACH"],
-  ["conhecimento.js", "Base de programação e erros comuns"],
-  ["saber.js", "Leitura de texto/código/links e pesquisa profunda"],
-  ["arquivos.js", "Pastas e leitura de fotos, vídeos e textos"],
-  ["programacao.js", "Programação básica e humor"],
-  ["historico.js", "Histórico de conversas (15 páginas)"],
-  ["base.js", "Exportação /basedados"]
+  ["index.html", "Interface, chat, roteamento, IA e pesquisa"],
+  ["brain.js", "Cérebro, memória e aprendizado"],
+  ["mente.js", "Contexto, jogos, criação de apps e pastas"],
+  ["conversa.js", "Personalidade e conversação"],
+  ["fatos.js", "Base de fatos"],
+  ["saberes.js", "Conhecimento adicional"],
+  ["conhecimento.js", "Conhecimento de programação"],
+  ["saber.js", "Leitura de textos, código, links e pesquisa"],
+  ["dicionario.js", "Dicionário, definições e tradução"],
+  ["arquivos.js", "Arquivos e leitura de mídia"],
+  ["programacao.js", "Programação e humor existente"],
+  ["historico.js", "Histórico de conversas"],
+  ["base.js", "Exportação e importação de backup"],
+  ["modules/intelligence.js", "Cálculo local e raciocínio aritmético"],
+  ["modules/personality.js", "Piadas e humor local"],
+  ["modules/creativity.js", "Ideias, personagens e histórias offline"],
+  ["modules/planning.js", "Planejamento de etapas"],
+  ["modules/security.js", "Triagem de sinais de golpes"],
+  ["modules/units.js", "Conversão de unidades"],
+  ["modules/finance.js", "Juros simples e compostos"],
+  ["modules/science.js", "Fórmulas introdutórias de física"],
+  ["modules/education.js", "Quiz educativo offline"],
+  ["modules/automation.js", "Roteiros seguros de automação"],
+  ["modules/registry.js", "Catálogo e roteador de módulos"]
 ];
 
-export const COMANDOS = ["/basedados", "/importarbase", "/historico", "/nova", "/arquivos", "/abrir nome", "/buscar palavra", "/apagar nome",
-  "/pasta Nome/Sub", "/pastas", "/mover nome para Pasta", "/palavra gíria = significado", "/palavras", "/profundo assunto", "/chave SUA_CHAVE",
-  "/modelo nome", "/clear", "ensine: pergunta => resposta", "corrija: pergunta => nova", "esqueça: pergunta", "sinônimo: a = b", "lembre: algo",
-  "/exportar", "importar memória: {...}", "pesquise sobre ...", "pesquise a fundo sobre ...", "clima em (cidade)"];
+export const COMANDOS = [
+  "/modulos", "/statusmodulos", "/modulo ID on", "/modulo ID off",
+  "/calc (2+3)*4", "/converter 10 km para m",
+  "/juros simples 1000 2 12",
+  "/fisica velocidade 100 2",
+  "/golpe mensagem suspeita",
+  "/quiz", "/resposta A",
+  "/ideia assunto", "/historia tema",
+  "/personagem tema", "/plano objetivo",
+  "/automacao tarefa", "/humor",
+  "/basedados", "/importarbase",
+  "/historico", "/nova", "/arquivos",
+  "/abrir nome", "/buscar palavra", "/apagar nome",
+  "/pasta Nome/Sub", "/pastas",
+  "/mover nome para Pasta",
+  "/palavra gíria = significado",
+  "/palavras", "/profundo assunto",
+  "/chave SUA_CHAVE", "/modelo nome",
+  "/clear", "ensine: pergunta => resposta",
+  "corrija: pergunta => nova",
+  "esqueça: pergunta", "sinônimo: a = b",
+  "lembre: algo", "pesquise sobre ...",
+  "pesquise a fundo sobre ...", "clima em (cidade)"
+];
 
 const CHAVE_SECRETA = "bach_gemini_key";
+
 const CONHECIDAS = {
-  rizik_brain_v1: "memoria", bach_arquivos_v1: "arquivos", bach_conhecimento_v2: "pesquisas", bach_conhecimento_v1: "pesquisasAntigas",
-  bach_mente_v1: "mente", bach_sessoes_v1: "conversas", bach_chat_history_v1: "conversaAberta"
+  rizik_brain_v1: "memoria",
+  bach_arquivos_v1: "arquivos",
+  bach_conhecimento_v2: "pesquisas",
+  bach_conhecimento_v1: "pesquisasAntigas",
+  bach_mente_v1: "mente",
+  bach_sessoes_v1: "conversas",
+  bach_chat_history_v1: "conversaAberta"
 };
 
-const analisar = v => { try { return JSON.parse(v); } catch { return v; } };
+const analisar = value => {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+};
+
+const tamanhoKB = value =>
+  +(new Blob([value]).size / 1024).toFixed(1);
+
+const quantidade = value =>
+  Array.isArray(value) ? value.length : Object.keys(value || {}).length;
+
+const pad = (value, size) =>
+  String(value).padEnd(size);
 
 function lerArmazenamento() {
-  const out = {}, outros = {};
+  const dados = {};
+  const outros = {};
+
   try {
     for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (!k || k === CHAVE_SECRETA) continue;
-      if (CONHECIDAS[k]) out[CONHECIDAS[k]] = analisar(localStorage.getItem(k));
-      else if (/^(bach|rizik)_/i.test(k)) outros[k] = analisar(localStorage.getItem(k));
+      const key = localStorage.key(i);
+
+      if (!key || key === CHAVE_SECRETA) continue;
+
+      const value = analisar(localStorage.getItem(key));
+
+      if (CONHECIDAS[key]) {
+        dados[CONHECIDAS[key]] = value;
+      } else if (/^(bach|rizik)_/i.test(key)) {
+        outros[key] = value;
+      }
     }
-  } catch (e) { console.warn(e); }
-  return { out, outros };
-}
-
-async function lerFonte(nome) {
-  try {
-    const r = await fetch("./" + nome + "?_=" + Date.now());
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    return await r.text();
-  } catch { return null; }
-}
-
-const kb = t => +(new Blob([t]).size / 1024).toFixed(1);
-const pad = (x, n) => String(x).padEnd(n);
-const n = o => Array.isArray(o) ? o.length : Object.keys(o || {}).length;
-
-/* ctx: { history, estado, menu, status, mente } vindo da tela */
-async function montar(ctx = {}) {
-  const fontes = {}, mods = [];
-  for (const [nome, funcao] of ARQUIVOS) {
-    const t = await lerFonte(nome);
-    if (t != null) fontes[nome] = t;
-    mods.push({ arquivo: nome, linhas: t != null ? t.split("\n").length : "?", kb: t != null ? kb(t) : "?", funcao });
+  } catch (error) {
+    console.warn("Não foi possível ler todo o armazenamento:", error);
   }
-  if (!fontes["index.html"]) fontes["index.html"] = "<!DOCTYPE html>\n" + document.documentElement.outerHTML; // plano B: a tela como está agora
 
-  const { out: mem, outros } = lerArmazenamento();
-  const cer = mem.memoria || {}, arqs = mem.arquivos || [], pesq = mem.pesquisas || [], mente = mem.mente || {};
-  const sessoes = Array.isArray(mem.conversas) ? mem.conversas : [];
-  const msgsSessoes = sessoes.reduce((a, s) => a + (s.msgs || []).length, 0);
-  const st = ctx.statsMente || {};
+  return { dados, outros };
+}
 
-  const cont = [
-    ["Respostas aprendidas (ensine:)", n(cer.examples)], ["Sinônimos ensinados", n(cer.synonyms)], ["Fatos guardados", n(cer.facts)], ["Notas (lembre:)", n(cer.notes)],
-    ["Arquivos guardados", n(arqs)], ["Pastas", new Set(arqs.map(a => a.pasta)).size], ["Pesquisas guardadas", n(pesq)],
-    ["Conversas no histórico", sessoes.length], ["Mensagens em todas as conversas", msgsSessoes], ["Mensagens na conversa aberta", (ctx.history || []).length],
-    ["Gírias/abreviações de fábrica", st.girias ?? "?"], ["Gírias que você ensinou", n(mente.vocab)], ["Palavras do léxico (base)", st.lexBase ?? "?"], ["Palavras aprendidas", n(mente.lex)],
-    ["Assuntos de programação", st.kbProg ?? "?"], ["Erros comuns reconhecidos", st.erros ?? "?"], ["Fatos verificados (fatos.js)", ctx.totalFatos ?? "?"],
-    ["Jogos", st.jogos ?? "?"], ["Modelos de apps prontos", st.modelosApps ?? "?"], ["Assuntos lembrados", n(mente.assuntos)]
+async function lerFonte(path) {
+  try {
+    const response = await fetch("./" + path + "?v=" + Date.now());
+
+    if (!response.ok) {
+      throw new Error("HTTP " + response.status);
+    }
+
+    return await response.text();
+  } catch (error) {
+    console.warn("Não foi possível incluir no backup:", path, error);
+    return null;
+  }
+}
+
+async function montar(context = {}) {
+  const fontes = {};
+  const modulos = [];
+
+  for (const [path, funcao] of ARQUIVOS) {
+    const source = await lerFonte(path);
+
+    if (source !== null) {
+      fontes[path] = source;
+    }
+
+    modulos.push({
+      arquivo: path,
+      linhas: source !== null ? source.split("\n").length : "não lido",
+      kb: source !== null ? tamanhoKB(source) : "não lido",
+      funcao
+    });
+  }
+
+  if (!fontes["index.html"]) {
+    fontes["index.html"] =
+      "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+  }
+
+  const { dados: memoria, outros } = lerArmazenamento();
+
+  const cerebro = memoria.memoria || {};
+
+  const arquivos = Array.isArray(memoria.arquivos)
+    ? memoria.arquivos
+    : [];
+
+  const pesquisas = Array.isArray(memoria.pesquisas)
+    ? memoria.pesquisas
+    : [];
+
+  const mente = memoria.mente || {};
+
+  const sessoes = Array.isArray(memoria.conversas)
+    ? memoria.conversas
+    : [];
+
+  const totalMensagens = sessoes.reduce(
+    (sum, session) => sum + (session.msgs || []).length,
+    0
+  );
+
+  const stats = context.statsMente || {};
+
+  const contagens = [
+    ["Respostas ensinadas", quantidade(cerebro.examples)],
+    ["Sinônimos ensinados", quantidade(cerebro.synonyms)],
+    ["Fatos e notas", quantidade(cerebro.facts) + quantidade(cerebro.notes)],
+    ["Arquivos", arquivos.length],
+    ["Pastas", new Set(arquivos.map(item => item.pasta)).size],
+    ["Pesquisas salvas", pesquisas.length],
+    ["Conversas no histórico", sessoes.length],
+    ["Mensagens no histórico", totalMensagens],
+    ["Mensagens na conversa aberta", (context.history || []).length],
+    ["Gírias base", stats.girias ?? "?"],
+    ["Palavras aprendidas", quantidade(mente.lex)],
+    ["Assuntos lembrados", quantidade(mente.assuntos)],
+    ["Fatos cadastrados", context.totalFatos ?? "?"],
+    ["Departamentos no catálogo", 24],
+    ["Arquivos de código listados", ARQUIVOS.length]
   ];
-  const W = Math.max(...cont.map(c => c[0].length)) + 2;
-  const t1 = pad("ARQUIVO", 17) + pad("LINHAS", 8) + pad("KB", 7) + "FUNÇÃO\n" + mods.map(m => pad(m.arquivo, 17) + pad(m.linhas, 8) + pad(m.kb, 7) + m.funcao).join("\n");
-  const t2 = pad("DADO", W) + "QTD\n" + cont.map(c => pad(c[0], W) + c[1]).join("\n");
 
-  const css = (fontes["index.html"].match(/<style>([\s\S]*?)<\/style>/) || [])[1] || "";
-  const interfaceInfo = {
-    arquivo: "index.html", linhas: fontes["index.html"].split("\n").length,
-    estilos: css.trim(), menu: ctx.menu || [], status: ctx.status || "", estado: ctx.estado || {},
-    tela: { largura: window.innerWidth, altura: window.innerHeight, idioma: navigator.language, navegador: navigator.userAgent }
-  };
+  const width =
+    Math.max(...contagens.map(item => item[0].length)) + 2;
 
-  const dados = {
-    bach: { versao: "3.0", geradoEm: new Date().toISOString() },
-    tabelas: { modulos: mods, contagens: Object.fromEntries(cont), comandos: COMANDOS },
-    interface: interfaceInfo,
-    conversas: { aberta: ctx.history || [], historico: sessoes, idAtual: ctx.idAtual || null },
-    memoria: cer, arquivos: arqs, pesquisas: pesq, pesquisasAntigas: mem.pesquisasAntigas || [], mente,
+  const tabelaModulos =
+    pad("ARQUIVO", 32) +
+    pad("LINHAS", 14) +
+    pad("KB", 12) +
+    "FUNÇÃO\n" +
+    modulos.map(item =>
+      pad(item.arquivo, 32) +
+      pad(item.linhas, 14) +
+      pad(item.kb, 12) +
+      item.funcao
+    ).join("\n");
+
+  const tabelaDados =
+    pad("DADO", width) +
+    "QTD\n" +
+    contagens.map(item =>
+      pad(item[0], width) + item[1]
+    ).join("\n");
+
+  const css =
+    (fontes["index.html"].match(/<style>([\s\S]*?)<\/style>/) || [])[1] || "";
+
+  const backup = {
+    bach: {
+      versao: "4.0",
+      geradoEm: new Date().toISOString()
+    },
+
+    tabelas: {
+      modulos,
+      contagens: Object.fromEntries(contagens),
+      comandos: COMANDOS
+    },
+
+    interface: {
+      arquivo: "index.html",
+      linhas: fontes["index.html"].split("\n").length,
+      estilos: css.trim(),
+      menu: context.menu || [],
+      status: context.status || "",
+      estado: context.estado || {},
+      tela: {
+        largura: window.innerWidth,
+        altura: window.innerHeight,
+        idioma: navigator.language
+      }
+    },
+
+    conversas: {
+      aberta: context.history || [],
+      historico: sessoes,
+      idAtual: context.idAtual || null
+    },
+
+    memoria: cerebro,
+    arquivos,
+    pesquisas,
+    pesquisasAntigas: memoria.pesquisasAntigas || [],
+    mente,
     outrosDados: outros,
     codigo: fontes,
-    aviso: "A chave da IA externa (Gemini) nunca entra neste backup."
+
+    aviso:
+      "A chave da IA externa (Gemini) foi excluída deste backup por segurança."
   };
-  const json = JSON.stringify(dados, null, 1);
-  const data = new Date().toISOString().slice(0, 10);
-  return { json, nome: "bach-basedados-" + data + ".json", tabelaModulos: t1, tabelaDados: t2, tamanhoKb: kb(json), conversas: sessoes.length };
+
+  const json = JSON.stringify(backup, null, 1);
+  const date = new Date().toISOString().slice(0, 10);
+
+  return {
+    json,
+    nome: "bach-basedados-" + date + ".json",
+    tabelaModulos,
+    tabelaDados,
+    tamanhoKb: tamanhoKB(json),
+    conversas: sessoes.length
+  };
 }
 
-/* Restaurar um /basedados salvo (memória, arquivos, pesquisas, vocabulário e conversas). */
 function importar(obj) {
-  if (!obj || typeof obj !== "object" || !obj.bach) throw new Error("Esse arquivo não é um backup da BACH.");
-  const mapa = { memoria: "rizik_brain_v1", arquivos: "bach_arquivos_v1", pesquisas: "bach_conhecimento_v2", mente: "bach_mente_v1" };
-  let feitos = 0;
-  for (const [campo, chave] of Object.entries(mapa)) {
-    if (obj[campo] != null) { localStorage.setItem(chave, JSON.stringify(obj[campo])); feitos++; }
+  if (!obj || typeof obj !== "object" || !obj.bach) {
+    throw new Error("Esse arquivo não é um backup da BACH.");
   }
-  if (Array.isArray(obj.conversas?.historico)) { localStorage.setItem("bach_sessoes_v1", JSON.stringify(obj.conversas.historico)); feitos++; }
-  if (Array.isArray(obj.conversas?.aberta)) { localStorage.setItem("bach_chat_history_v1", JSON.stringify(obj.conversas.aberta)); feitos++; }
-  for (const [k, v] of Object.entries(obj.outrosDados || {})) if (/^(bach|rizik)_/i.test(k) && k !== CHAVE_SECRETA) { localStorage.setItem(k, JSON.stringify(v)); feitos++; }
+
+  const mapa = {
+    memoria: "rizik_brain_v1",
+    arquivos: "bach_arquivos_v1",
+    pesquisas: "bach_conhecimento_v2",
+    mente: "bach_mente_v1"
+  };
+
+  let feitos = 0;
+
+  for (const [campo, key] of Object.entries(mapa)) {
+    if (obj[campo] != null) {
+      localStorage.setItem(key, JSON.stringify(obj[campo]));
+      feitos++;
+    }
+  }
+
+  if (Array.isArray(obj.conversas?.historico)) {
+    localStorage.setItem(
+      "bach_sessoes_v1",
+      JSON.stringify(obj.conversas.historico)
+    );
+    feitos++;
+  }
+
+  if (Array.isArray(obj.conversas?.aberta)) {
+    localStorage.setItem(
+      "bach_chat_history_v1",
+      JSON.stringify(obj.conversas.aberta)
+    );
+    feitos++;
+  }
+
+  for (const [key, value] of Object.entries(obj.outrosDados || {})) {
+    if (/^(bach|rizik)_/i.test(key) && key !== CHAVE_SECRETA) {
+      localStorage.setItem(key, JSON.stringify(value));
+      feitos++;
+    }
+  }
+
   return feitos;
 }
 
-export const Base = { montar, importar, ARQUIVOS, COMANDOS };
+export const Base = {
+  montar,
+  importar,
+  ARQUIVOS,
+  COMANDOS
+};
