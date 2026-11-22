@@ -1,7 +1,7 @@
 
 /*
- BACH AI - CEREBRO 0.4
- Memoria, aprendizado e conversa básica.
+ BACH AI - CEREBRO 0.5
+ Conversa, memoria e aprendizado.
 */
 
 const STORAGE_KEY = "rizik_brain_v1";
@@ -10,7 +10,7 @@ const DEFAULT_DATA = {
   name: "BACH AI",
   facts: {},
   examples: [],
-  version: 4
+  version: 5
 };
 
 function loadData() {
@@ -26,11 +26,15 @@ function loadData() {
         examples: Array.isArray(saved.examples) ? saved.examples : []
       };
     }
-  } catch (error) {
-    console.warn("Erro ao carregar memória", error);
+  } catch (e) {
+    console.warn("Erro ao carregar memória:", e);
   }
 
-  return structuredClone(DEFAULT_DATA);
+  return {
+    ...DEFAULT_DATA,
+    facts: {},
+    examples: []
+  };
 }
 
 let data = loadData();
@@ -38,16 +42,14 @@ let data = loadData();
 function saveData() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    return true;
-  } catch (error) {
-    console.warn("Erro ao salvar memória", error);
-    return false;
+  } catch (e) {
+    console.warn("Erro ao salvar:", e);
   }
 }
 
 function normalize(text) {
-  return String(text)
-    .toLocaleLowerCase("pt-BR")
+  return String(text || "")
+    .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
@@ -71,16 +73,16 @@ function learn(question, answer) {
     item => normalize(item.question) === key
   );
 
-  const example = {
+  const item = {
     question: q,
     answer: a,
     updatedAt: Date.now()
   };
 
   if (index >= 0) {
-    data.examples[index] = example;
+    data.examples[index] = item;
   } else {
-    data.examples.push(example);
+    data.examples.push(item);
   }
 
   saveData();
@@ -96,105 +98,80 @@ function recall(key) {
   return data.facts[key] ?? null;
 }
 
-function classify(text) {
-  const t = normalize(text);
+function classify(message) {
+  const t = normalize(message);
+  const c = compact(message);
 
-  if (/^(oi|ola|eai|opa|bom dia|boa tarde|boa noite)\b/.test(t))
-    return "greeting";
-
-  if (/^(bora|vamos|partiu|vambora|vamos nessa)$/.test(t))
-    return "encouragement";
-
-  if (/^(beleza|blz|legal|massa|show|bacana|top)$/.test(t))
-    return "positive";
-
-  if (/^(obrigado|obrigada|valeu|agradecido)$/.test(t))
-    return "thanks";
-
-  if (/^(tudo bem|como vai|como voce esta)$/.test(t))
-    return "wellbeing";
-
-  if (/^(tchau|ate mais|falou|fui)$/.test(t))
-    return "goodbye";
-
+  // Identidade: verificar antes de qualquer pesquisa.
   if (
-    t.includes("quem criou voce") ||
-    t.includes("quem fez voce") ||
-    t.includes("quem desenvolveu voce") ||
-    t.includes("quem criou a bach") ||
-    t.includes("quem criou bach") ||
-    t.includes("quem criou vice bach") ||
-    t.includes("seu nome") ||
-    t.includes("quem e voce")
+    /quem criou voce|quem fez voce|quem desenvolveu voce|quem criou bach|quem criou a bach|quem e voce/.test(t) ||
+    /quemcriouvoce|quemfezvoce|quemcrioubach/.test(c)
   ) return "identity";
 
+  // Capacidades.
   if (
-    t.includes("o que voce faz") ||
-    t.includes("oque voce faz") ||
-    t.includes("que voce sabe fazer") ||
-    t.includes("faz de bom") ||
-    t.includes("suas funcoes") ||
-    t.includes("suas capacidades")
+    /o que voce faz|oque voce faz|que voce sabe fazer|faz de bom|suas capacidades|suas funcoes/.test(t) ||
+    /oquevocefaz|quevocefaz/.test(c)
   ) return "capabilities";
 
-  if (t.includes("que horas") || t.includes("hora agora"))
+  // Cumprimentos.
+  if (/^(oi|ola|eai|opa|bom dia|boa tarde|boa noite)$/.test(t))
+    return "greeting";
+
+  // Incentivo.
+  if (/^(bora|vamos|partiu|vambora|vamos nessa|bora la)$/.test(t))
+    return "encouragement";
+
+  // Conversa positiva.
+  if (/^(beleza|blz|legal|massa|show|bacana|top|otimo|otima)$/.test(t))
+    return "positive";
+
+  // Bem-estar e respostas de conversa.
+  if (
+    /^(tudo bem|como vai|como voce esta|bem e voce|bem e vc|to bem e voce|estou bem e voce|e voce|e vc|tudo certo)$/.test(t)
+  ) return "wellbeing";
+
+  if (/^(obrigado|obrigada|valeu|agradecido|agradecida)$/.test(t))
+    return "thanks";
+
+  if (/^(tchau|ate mais|falou|fui|ate logo)$/.test(t))
+    return "goodbye";
+
+  if (/que horas|hora agora/.test(t))
     return "time";
 
-  if (t.includes("que dia") || t.includes("data de hoje"))
+  if (/que dia|data de hoje/.test(t))
     return "date";
 
-  if (t.includes("meu nome"))
+  if (/^(qual e )?meu nome$/.test(t))
     return "name";
 
   return "unknown";
 }
 
 function findExample(text) {
+  const key = normalize(text);
+
   const exact = data.examples.find(
-    item => normalize(item.question) === text
+    item => normalize(item.question) === key
   );
 
   if (exact) return exact;
 
-  const noSpaces = data.examples.find(
+  const noSpace = data.examples.find(
     item => compact(item.question) === compact(text)
   );
 
-  if (noSpaces) return noSpaces;
+  if (noSpace) return noSpace;
 
-  const words = text.split(" ").filter(word => word.length > 2);
-
-  if (words.length < 2) return null;
-
-  let best = null;
-  let bestScore = 0;
-
-  for (const item of data.examples) {
-    const candidateWords = normalize(item.question)
-      .split(" ")
-      .filter(word => word.length > 2);
-
-    const matches = words.filter(
-      word => candidateWords.includes(word)
-    ).length;
-
-    const score = matches /
-      Math.max(words.length, candidateWords.length, 1);
-
-    if (score > bestScore) {
-      best = item;
-      bestScore = score;
-    }
-  }
-
-  return bestScore >= 0.65 ? best : null;
+  return null;
 }
 
 function think(message) {
   const original = String(message || "").trim();
-  const text = normalize(original);
+  const t = normalize(original);
 
-  if (!text) {
+  if (!t) {
     return {
       handled: true,
       intent: "empty",
@@ -202,34 +179,34 @@ function think(message) {
     };
   }
 
+  // Ensinar a BACH.
   const teaching = original.match(
     /^ensine\s*:\s*(.+?)\s*=>\s*(.+)$/i
   );
 
   if (teaching) {
-    const success = learn(teaching[1], teaching[2]);
+    learn(teaching[1], teaching[2]);
 
     return {
       handled: true,
       intent: "learning",
-      text: success
-        ? "Aprendi um novo exemplo! Vou guardar essa associação. 🧠"
-        : "Não consegui guardar esse ensinamento."
+      text: "Aprendi! 🧠 Vou guardar essa resposta na minha memória."
     };
   }
 
   const intent = classify(original);
 
-  // Identidade tem prioridade sobre exemplos antigos.
+  // Identidade sempre tem prioridade.
   if (intent === "identity") {
     return {
       handled: true,
       intent,
-      text: "Sou a BACH AI 🧠! Fui criada no projeto BACH AI, desenvolvido por você. Ainda estou evoluindo e tenho memória, aprendizado e ferramentas de pesquisa."
+      text: "Sou a BACH AI! 🧠 Fui criada no seu projeto BACH AI, desenvolvido por você. Estou evoluindo com memória, aprendizado e pesquisa na internet."
     };
   }
 
-  const example = findExample(text);
+  // Verificar respostas aprendidas.
+  const example = findExample(original);
 
   if (example) {
     return {
@@ -251,84 +228,65 @@ function think(message) {
       return {
         handled: true,
         intent,
-        text: "Bora! 🚀 Estou pronta. O que vamos fazer?"
+        text: "Bora! 🚀 Estou pronta! O que vamos fazer?"
       };
 
     case "positive":
       return {
         handled: true,
         intent,
-        text: "Que bom! 😄 Vamos continuar!"
-      };
-
-    case "thanks":
-      return {
-        handled: true,
-        intent,
-        text: "Por nada! Estou aqui para ajudar! 😊"
+        text: "Que bom! 😄"
       };
 
     case "wellbeing":
       return {
         handled: true,
         intent,
-        text: "Estou funcionando direitinho! E você, tudo bem?"
+        text: "Estou ótima e pronta para conversar com você! 😄"
+      };
+
+    case "thanks":
+      return {
+        handled: true,
+        intent,
+        text: "Por nada! Sempre que precisar, estou aqui. 😊"
       };
 
     case "goodbye":
       return {
         handled: true,
         intent,
-        text: "Até mais! Estarei aqui quando voltar. 👋"
+        text: "Até mais! 👋"
       };
 
     case "capabilities":
       return {
         handled: true,
         intent,
-        text: "Posso conversar, guardar informações, aprender respostas que você me ensina, pesquisar assuntos na internet e consultar a previsão do clima. Ainda estou em desenvolvimento! 🧠"
+        text: "Posso conversar, aprender respostas que você me ensina, guardar informações, pesquisar na internet e consultar o clima. Ainda estou evoluindo! 🧠"
       };
 
     case "time":
       return {
         handled: true,
         intent,
-        text: "Agora são " +
-          new Date().toLocaleTimeString("pt-BR") + "."
+        text: "Agora são " + new Date().toLocaleTimeString("pt-BR") + "."
       };
 
     case "date":
       return {
         handled: true,
         intent,
-        text: "Hoje é " +
-          new Date().toLocaleDateString("pt-BR") + "."
+        text: "Hoje é " + new Date().toLocaleDateString("pt-BR") + "."
       };
 
     case "name": {
-      const match = original.match(
-        /meu nome (?:e|é)\s+(.+)/i
-      );
-
-      if (match) {
-        remember("userName", match[1].trim());
-
-        return {
-          handled: true,
-          intent: "remember_name",
-          text: "Prazer, " + match[1].trim() +
-            "! Guardei seu nome."
-        };
-      }
-
       const name = recall("userName");
 
       return {
         handled: true,
-        intent: "recall_name",
-        text: name
-          ? "Seu nome é " + name + "."
-          : "Ainda não sei seu nome."
+        intent,
+        text: name ? "Seu nome é " + name + "." : "Ainda não sei seu nome."
       };
     }
 
@@ -342,7 +300,7 @@ function think(message) {
 }
 
 export const RizikBrain = {
-  version: "0.4.0",
+  version: "0.5.0",
   think,
   learn,
   remember,
