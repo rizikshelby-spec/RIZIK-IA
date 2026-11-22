@@ -17,17 +17,17 @@ export const ARQUIVOS = [
   ["programacao.js", "Programação e humor existente"],
   ["historico.js", "Histórico de conversas"],
   ["base.js", "Exportação e importação de backup"],
-  ["modules/intelligence.js", "Cálculo local e raciocínio aritmético"],
-  ["modules/personality.js", "Piadas e humor local"],
-  ["modules/creativity.js", "Ideias, personagens e histórias offline"],
-  ["modules/planning.js", "Planejamento de etapas"],
-  ["modules/security.js", "Triagem de sinais de golpes"],
-  ["modules/units.js", "Conversão de unidades"],
-  ["modules/finance.js", "Juros simples e compostos"],
-  ["modules/science.js", "Fórmulas introdutórias de física"],
-  ["modules/education.js", "Quiz educativo offline"],
-  ["modules/automation.js", "Roteiros seguros de automação"],
-  ["modules/registry.js", "Catálogo e roteador de módulos"]
+  ["registry.js", "Catálogo e roteador de módulos"],
+  ["intelligence.js", "Cálculo local e raciocínio aritmético"],
+  ["personality.js", "Piadas e humor local"],
+  ["creativity.js", "Ideias, personagens e histórias offline"],
+  ["planning.js", "Planejamento de etapas"],
+  ["security.js", "Triagem de sinais de golpes"],
+  ["units.js", "Conversão de unidades"],
+  ["finance.js", "Juros simples e compostos"],
+  ["science.js", "Fórmulas introdutórias de física"],
+  ["education.js", "Quiz educativo offline"],
+  ["automation.js", "Roteiros seguros de automação"]
 ];
 
 export const COMANDOS = [
