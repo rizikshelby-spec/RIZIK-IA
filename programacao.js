@@ -92,12 +92,14 @@ function humor(texto) {
   return null;
 }
 
-function desconhecido() {
-  return pick([
+function desconhecido(t = "") {
+  let h = 0; for (const c of String(t)) h = (h * 31 + c.charCodeAt(0)) >>> 0; // mesma pergunta, mesma frase
+  const a = ([
     "Hmm, essa me pegou! 😅 Não tenho nada sobre isso na memória, e prefiro admitir a inventar uma resposta.",
     "Boa pergunta! Mas eu ainda não aprendi isso, e não quero chutar. 🧠",
     "Travei aqui, igual código sem ponto e vírgula. 😬 Isso eu ainda não sei, mas dá para resolver:"
   ]);
+  return a[h % a.length];
 }
 
 export const Prog = { responder, humor, desconhecido };
