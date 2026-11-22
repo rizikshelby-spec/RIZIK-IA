@@ -1,0 +1,186 @@
+/* BACH AI - MENTE 1.0
+   Entende contexto, texto colado, jogos, criação de apps, pastas e perguntas.
+   100% sua, sem IA externa. */
+import { Saber } from "./saber.js?v=3";
+
+const KF = "bach_arquivos_v1";
+const lf = () => { try { return JSON.parse(localStorage.getItem(KF)) || []; } catch { return []; } };
+const sf = a => { try { localStorage.setItem(KF, JSON.stringify(a.slice(-300))); } catch (e) { console.warn(e); } };
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const prep = t => " " + String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .replace(/\boque\b|\boq\b/g, "o que").replace(/\bvc\b|\bvce\b/g, "voce").replace(/\bpq\b/g, "porque")
+  .replace(/\bq\b/g, "que").replace(/\be\s+esse\b/g, "e esse").replace(/[^a-z0-9+\-*/().,\s]/g, " ").replace(/\s+/g, " ").trim() + " ";
+const has = (p, re) => re.test(p);
+
+const ctx = { texto: null, nome: "", pasta: null, jogo: null };
+const setTexto = (nome, texto) => { ctx.nome = nome; ctx.texto = texto; };
+const pasta = def => ctx.pasta || def;
+
+/* ---------- pastas ---------- */
+function comandoPasta(t) {
+  let m = t.match(/^\/pasta(?:\s+(.+))?$/i);
+  if (m) {
+    if (!m[1]) return ctx.pasta ? "📂 Pasta atual: " + ctx.pasta + "\nPara sair: /pasta sair" : "Nenhuma pasta escolhida. Use: /pasta Estudos/IA (pode criar pastas dentro de pastas com /).";
+    if (/^sair$/i.test(m[1].trim())) { ctx.pasta = null; return "Voltei para as pastas automáticas."; }
+    ctx.pasta = m[1].trim().replace(/\s*\/\s*/g, "/").slice(0, 60);
+    return "📂 Pasta atual: " + ctx.pasta + "\nTudo que eu guardar agora (textos, pesquisas, arquivos) vai para ela.";
+  }
+  if (/^\/pastas$/i.test(t)) {
+    const c = {}; lf().forEach(a => c[a.pasta] = (c[a.pasta] || 0) + 1);
+    const k = Object.keys(c).sort();
+    return k.length ? "📂 Suas pastas:\n" + k.map(x => "• " + x + " (" + c[x] + ")").join("\n") : "Ainda não há pastas. Use /pasta Nome.";
+  }
+  m = t.match(/^\/mover\s+(.+?)\s+para\s+(.+)$/i);
+  if (m) {
+    const L = lf(), n = m[1].trim().toLowerCase(), a = L.find(x => x.nome.toLowerCase() === n) || L.find(x => x.nome.toLowerCase().includes(n));
+    if (!a) return "Não achei esse arquivo. Veja com /arquivos";
+    a.pasta = m[2].trim().replace(/\s*\/\s*/g, "/"); sf(L);
+    return "📦 Movi “" + a.nome + "” para " + a.pasta;
+  }
+  return null;
+}
+
+/* ---------- ler/analisar o texto atual ---------- */
+function revisar(t) {
+  const p = [];
+  if (/localStorage\.getItem/.test(t) && !/try\s*\{/.test(t)) p.push("Usa localStorage sem try/catch (pode quebrar em modo privado).");
+  if (/fetch\(/.test(t) && !/catch/.test(t)) p.push("Faz fetch sem tratar erro (catch).");
+  if (/\bvar\s/.test(t)) p.push("Usa var; prefira let/const.");
+  if (/[^=!]==[^=]/.test(t)) p.push("Usa == ; prefira === para comparar.");
+  const a = (t.match(/\{/g) || []).length, b = (t.match(/\}/g) || []).length;
+  if (a !== b) p.push("Chaves desbalanceadas: " + a + " “{” e " + b + " “}”.");
+  const x = (t.match(/\(/g) || []).length, y = (t.match(/\)/g) || []).length;
+  if (x !== y) p.push("Parênteses desbalanceados: " + x + " “(” e " + y + " “)”.");
+  if (/\bTODO\b|\bFIXME\b/.test(t)) p.push("Tem TODO/FIXME pendentes.");
+  return "🔍 Revisão rápida do código (" + t.split("\n").length + " linhas):\n" + (p.length ? p.map(s => "• " + s).join("\n") : "• Não achei problemas óbvios.") +
+    "\n\nObs.: sou uma revisão por regras; não executo o código.";
+}
+function sobreTexto(p) {
+  const t = ctx.texto, cod = Saber.isCode(t);
+  if (has(p, /resum/)) { const r = Saber.summarize(t, 4); return r.length ? "📝 Resumo de " + ctx.nome + ":\n• " + r.join("\n• ") : Saber.lerTexto(t); }
+  if (cod && has(p, /erro|problema|bug|revis|melhor|conserta|arruma/)) return revisar(t);
+  return "📄 " + ctx.nome + "\n" + Saber.lerTexto(t) + "\n\nPosso também: resumir, revisar o código ou guardar numa pasta (/pasta Nome).";
+}
+
+/* ---------- jogos no chat ---------- */
+const PAL = "computador programacao javascript internet teclado algoritmo navegador variavel funcao servidor python aplicativo memoria pesquisa inteligencia arquivo biblioteca notebook".split(" ");
+const QUIZ = [
+  ["Qual linguagem roda no navegador?", ["Python", "JavaScript", "SQL"], 1],
+  ["O que significa HTML?", ["Linguagem de marcação de hipertexto", "Banco de dados", "Editor de fotos"], 0],
+  ["Qual comando mostra algo no console do JS?", ["print()", "echo", "console.log()"], 2],
+  ["Quanto é 7 x 8?", ["54", "56", "64"], 1],
+  ["Qual é a capital do Brasil?", ["Rio de Janeiro", "São Paulo", "Brasília"], 2],
+  ["CSS serve para...", ["estilo e aparência", "guardar dados", "criar servidores"], 0]
+];
+const LV = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+const venc = b => { for (const [a, c, d] of LV) if (b[a] && b[a] === b[c] && b[a] === b[d]) return b[a]; return b.includes("") ? null : "E"; };
+function mm(b, p) {
+  const r = venc(b); if (r) return { s: r === "O" ? 1 : r === "X" ? -1 : 0 };
+  let best = null;
+  for (let i = 0; i < 9; i++) if (!b[i]) { b[i] = p; const s = mm(b, p === "O" ? "X" : "O").s; b[i] = ""; if (!best || (p === "O" ? s > best.s : s < best.s)) best = { s, i }; }
+  return best;
+}
+const tab = b => [0, 3, 6].map(i => [0, 1, 2].map(j => b[i + j] === "X" ? "❌" : b[i + j] === "O" ? "⭕" : ["1️⃣","2️⃣","3️⃣","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣","9️⃣"][i + j]).join(" ")).join("\n");
+const forca = j => "Palavra: " + j.p.split("").map(c => j.ok.includes(c) ? c : "_").join(" ") + "\nVidas: " + "❤️".repeat(6 - j.er.length) + (j.er.length ? "\nErros: " + j.er.join(" ") : "");
+const MENU = "🎮 Escolha um jogo:\n• forca\n• jogo da velha\n• adivinhe o número\n• quiz\n\nDiga, por exemplo: jogar forca. (Para sair: sair)";
+
+function iniciar(p) {
+  if (has(p, /forca/)) { ctx.jogo = { t: "forca", p: pick(PAL), ok: [], er: [] }; return "🪢 FORCA! Mande uma letra (ou chute a palavra inteira).\n\n" + forca(ctx.jogo); }
+  if (has(p, /velha/)) { ctx.jogo = { t: "velha", b: Array(9).fill("") }; return "⭕❌ JOGO DA VELHA! Você é ❌. Mande o número da casa:\n\n" + tab(ctx.jogo.b); }
+  if (has(p, /adivinh|numero/)) { ctx.jogo = { t: "num", n: 1 + Math.floor(Math.random() * 100), c: 0 }; return "🔢 Pensei num número de 1 a 100. Qual é?"; }
+  if (has(p, /quiz|pergunta/)) { ctx.jogo = { t: "quiz", i: 0, pts: 0 }; return "🧠 QUIZ!\n\n" + perg(0); }
+  return MENU;
+}
+const perg = i => (i + 1) + ") " + QUIZ[i][0] + "\n" + QUIZ[i][1].map((o, k) => "abc"[k] + ") " + o).join("\n");
+
+function jogar(p, raw) {
+  const j = ctx.jogo, w = p.trim();
+  if (/^(sair|parar|desistir|chega)$/.test(w)) { ctx.jogo = null; return "Jogo encerrado. Quando quiser, é só dizer: jogar ..."; }
+  if (j.t === "forca") {
+    if (w.length === 1 && /[a-z]/.test(w)) {
+      if (j.ok.includes(w) || j.er.includes(w)) return "Você já tentou “" + w + "”.\n\n" + forca(j);
+      j.p.includes(w) ? j.ok.push(w) : j.er.push(w);
+    } else if (w.length > 1) { if (w === j.p) j.ok = [...j.p]; else j.er.push(w.slice(0, 6) + "…"); }
+    else return "Mande uma letra.";
+    if (j.p.split("").every(c => j.ok.includes(c))) { ctx.jogo = null; return "🎉 Acertou! A palavra era “" + j.p + "”."; }
+    if (j.er.length >= 6) { ctx.jogo = null; return "💀 Perdeu! A palavra era “" + j.p + "”. Diga “jogar forca” para outra."; }
+    return forca(j);
+  }
+  if (j.t === "velha") {
+    const n = parseInt(w, 10) - 1;
+    if (!(n >= 0 && n < 9) || j.b[n]) return "Escolha uma casa livre de 1 a 9.\n\n" + tab(j.b);
+    j.b[n] = "X"; let r = venc(j.b);
+    if (!r) { j.b[mm(j.b, "O").i] = "O"; r = venc(j.b); }
+    if (r) { ctx.jogo = null; return tab(j.b) + "\n\n" + (r === "E" ? "🤝 Empate!" : r === "X" ? "🎉 Você ganhou!" : "😎 Eu ganhei!"); }
+    return tab(j.b);
+  }
+  if (j.t === "num") {
+    const v = parseInt(w, 10); if (isNaN(v)) return "Mande um número de 1 a 100.";
+    j.c++; if (v === j.n) { ctx.jogo = null; return "🎉 Acertou em " + j.c + " tentativa(s)!"; }
+    return v < j.n ? "⬆️ Maior!" : "⬇️ Menor!";
+  }
+  if (j.t === "quiz") {
+    const k = "abc".indexOf(w[0]); if (k < 0 || w.length > 2) return "Responda com a, b ou c.";
+    const q = QUIZ[j.i], ok = k === q[2]; if (ok) j.pts++;
+    const fb = ok ? "✅ Certo!" : "❌ Errado. Era: " + q[1][q[2]];
+    if (++j.i >= QUIZ.length) { ctx.jogo = null; return fb + "\n\n🏁 Fim! Você fez " + j.pts + "/" + QUIZ.length + " pontos."; }
+    return fb + "\n\n" + perg(j.i);
+  }
+  return null;
+}
+
+/* ---------- criar apps/jogos/telas ---------- */
+const H = (titulo, css, corpo) => "<!DOCTYPE html><html lang=\"pt-BR\"><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>" + titulo + "</title><style>body{font-family:Arial;background:#10111a;color:#fff;text-align:center}button{border:0;border-radius:10px;background:#7864ed;color:#fff}" + css + "</style>" + corpo + "</html>";
+const TEMPLATES = {
+  velha: ["jogo-da-velha.html", H("Jogo da Velha", "#t{display:grid;grid-template-columns:repeat(3,90px);gap:6px;justify-content:center;margin:20px}#t button{height:90px;font-size:40px}", "<h2>Jogo da Velha</h2><p id=m></p><div id=t></div><button onclick=novo() style=padding:10px>Reiniciar</button><script>let b,fim;const L=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];function v(b){for(const[a,c,d]of L)if(b[a]&&b[a]==b[c]&&b[a]==b[d])return b[a];return b.includes('')?null:'E'}function mm(b,p){const r=v(b);if(r)return{s:r=='O'?1:r=='X'?-1:0};let best=null;for(let i=0;i<9;i++)if(!b[i]){b[i]=p;const s=mm(b,p=='O'?'X':'O').s;b[i]='';if(!best||(p=='O'?s>best.s:s<best.s))best={s,i}}return best}function desenha(){t.innerHTML='';b.forEach((x,i)=>{const e=document.createElement('button');e.textContent=x;e.onclick=()=>jogar(i);t.append(e)})}function jogar(i){if(fim||b[i])return;b[i]='X';let r=v(b);if(!r){b[mm(b,'O').i]='O';r=v(b)}desenha();if(r){fim=1;m.textContent=r=='E'?'Empate!':r=='X'?'Você ganhou!':'Eu ganhei!'}}function novo(){b=Array(9).fill('');fim=0;m.textContent='Sua vez (X)';desenha()}novo()</script>")],
+  calculadora: ["calculadora.html", H("Calculadora", "#c{width:280px;margin:30px auto}#d{width:100%;font-size:28px;text-align:right;padding:12px;box-sizing:border-box;border-radius:10px;border:0}#g{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}#g button{padding:16px;font-size:20px}", "<div id=c><input id=d readonly><div id=g></div></div><script>'789/456*123-0.C+='.split('').forEach(k=>{const b=document.createElement('button');b.textContent=k;b.onclick=()=>{if(k=='C')d.value='';else if(k=='=')try{d.value=Function('return '+d.value)()}catch{d.value='Erro'}else d.value+=k};g.append(b)})</script>")],
+  tarefas: ["tarefas.html", H("Tarefas", "body{max-width:420px;margin:20px auto;text-align:left;padding:0 12px}input{width:65%;padding:10px;border-radius:8px;border:0}button{padding:10px}li{margin:8px 0}.f{text-decoration:line-through;opacity:.5}", "<h2>Minhas tarefas</h2><input id=i placeholder='Nova tarefa'> <button onclick=add()>Adicionar</button><p style=font-size:12px>Toque = feita • Toque duplo = apagar</p><ul id=l></ul><script>let T=[];try{T=JSON.parse(localStorage.getItem('t')||'[]')}catch{}function r(){l.innerHTML='';T.forEach((x,n)=>{const e=document.createElement('li');e.textContent=x.t;if(x.f)e.className='f';e.onclick=()=>{x.f=!x.f;s()};e.ondblclick=()=>{T.splice(n,1);s()};l.append(e)})}function s(){try{localStorage.setItem('t',JSON.stringify(T))}catch{}r()}function add(){if(i.value.trim()){T.push({t:i.value.trim(),f:0});i.value='';s()}}r()</script>")],
+  adivinhacao: ["adivinhe-o-numero.html", H("Adivinhe", "body{margin-top:40px}input,button{padding:12px;font-size:18px;border-radius:8px;border:0}", "<h2>Adivinhe o número (1 a 100)</h2><input id=n type=number> <button onclick=t()>Chutar</button><p id=m></p><script>let s=Math.ceil(Math.random()*100),c=0;function t(){const v=+n.value;c++;m.textContent=v==s?'Acertou em '+c+' tentativas! 🎉':v<s?'Maior ⬆️':'Menor ⬇️';if(v==s){s=Math.ceil(Math.random()*100);c=0}}</script>")],
+  pagina: ["meu-site.html", H("Meu site", "header{padding:60px 20px;background:linear-gradient(#5141a0,#10111a)}button{padding:14px 22px;font-size:16px}section{padding:24px 20px;max-width:600px;margin:auto}", "<header><h1>Meu site</h1><p>Uma frase que explica o que você faz.</p><button onclick=\"alert('Olá!')\">Começar</button></header><section><h2>Sobre</h2><p>Escreva aqui sobre você ou seu projeto.</p></section>")]
+};
+function criar(p) {
+  const k = has(p, /velha/) ? "velha" : has(p, /calculadora/) ? "calculadora" : has(p, /tarefa|todo|lista/) ? "tarefas" : has(p, /adivinh|numero/) ? "adivinhacao" : has(p, /site|pagina|tela|landing/) ? "pagina" : null;
+  if (!k) return "Sei montar prontos: jogo da velha, calculadora, lista de tarefas, adivinhe o número e uma página/tela. Diga, por exemplo: crie uma calculadora.";
+  const [nome, cod] = TEMPLATES[k];
+  return "Aqui está o arquivo " + nome + ". Cole num arquivo com esse nome e abra no navegador (ou suba no GitHub Pages):\n\n```html\n" + cod + "\n```\n\nPara mudar cores e textos, edite o trecho <style> e os textos entre as tags.";
+}
+
+const GUIA = "🤖 Como fazer uma IA do zero (o caminho da BACH):\n\n1) index.html — a tela do chat (entrada, botão, lista de mensagens). Comece aqui.\n2) brain.js — o cérebro: normalizar texto, achar a intenção por regras e responder. Comando para começar: ensine: pergunta => resposta\n3) Memória — guarde o que ela aprende no localStorage (já tem em brain.js).\n4) saber.js — pesquisar na internet, ler páginas e resumir.\n5) arquivos.js — guardar textos e arquivos em pastas.\n6) mente.js — entender contexto: “esse texto”, jogos, criar apps.\n7) Evoluir — mais regras, mais exemplos ensinados e busca por significado (TF-IDF).\n\nOrdem para copiar: 1 → 2 → 3, teste, e só depois 4, 5 e 6. Quer que eu detalhe algum passo?";
+
+/* ---------- principal ---------- */
+function responder(msg) {
+  const raw = String(msg || "").trim();
+  const cp = comandoPasta(raw); if (cp) return { texto: cp, origem: "📂 pastas" };
+  if (raw.length > 160) return null;
+  const p = prep(raw), w = p.trim();
+
+  if (ctx.jogo) { const r = jogar(w, raw); if (r) return { texto: r, origem: "🎮 jogo" }; }
+
+  const mat = raw.match(/^(?:quanto (?:e|é)\s+|calcule\s+|calcula\s+)?([\d\s+\-*/x×÷().,]{3,})\??$/i);
+  if (mat && /[+\-*/x×÷]/.test(mat[1].replace(/^\s*-/, "")) && /\d/.test(mat[1])) {
+    const ex = mat[1].replace(/[x×]/gi, "*").replace(/÷/g, "/").replace(/,/g, ".");
+    if (/^[\d+\-*/().\s]+$/.test(ex)) { try { const v = Function("return (" + ex + ")")(); if (isFinite(v)) return { texto: "🧮 " + mat[1].trim() + " = " + +v.toFixed(8), origem: "🧮 conta" }; } catch {} }
+  }
+
+  const criarV = has(p, / (cria|crie|criar|faz|faca|fazer|monta|monte|gera|gere|programa|programe|constroi) /);
+  if (criarV && has(p, / (jogo|jogos|app|aplicativo|tela|site|pagina|calculadora|tarefas|lista de tarefas|landing) /)) return { texto: criar(p), origem: "🛠️ criador de apps" };
+  if (has(p, / (jogar|joguinho|jogo|brincar) /) && !criarV) return { texto: iniciar(p), origem: "🎮 jogos" };
+  if (criarV && has(p, / (ia|inteligencia artificial|chatbot|bot) /)) return { texto: GUIA, origem: "🤖 guia" };
+  if (has(p, /(como|onde) (comeco|comecar|começo|faco|fazer).*(ia|chatbot)/)) return { texto: GUIA, origem: "🤖 guia" };
+
+  const m = p.match(/ (?:escreve|escreva|redija|faz|faca|crie|cria) (?:um |uma )?(?:texto|redacao|artigo|resumo) (?:sobre|de|do|da) (.+)/);
+  if (m) return { pesquisa: m[1].trim(), fundo: true };
+  if (has(p, / (email|carta) /) && criarV) {
+    const t = (p.match(/ sobre (.+)/) || [])[1] || "[assunto]";
+    return { texto: "✉️ Modelo:\n\nAssunto: " + t + "\n\nOlá,\n\nEspero que esteja bem. Escrevo para tratar de " + t + ".\n\n[explique seu pedido em 2 ou 3 frases]\n\nFico à disposição e agradeço desde já.\n\nAtenciosamente,\n[seu nome]", origem: "✍️ escrita" };
+  }
+
+  if (has(p, / (esse|este|isso|texto|codigo|arquivo|ele) /) && has(p, /(o que e|explica|explique|resum|o que faz|pra que serve|erro|problema|entend|leia|le |analis|revis|conserta|arruma)/)) {
+    if (!ctx.texto) return { texto: "Ainda não tenho nenhum texto seu. Cole o texto aqui ou anexe um arquivo no botão + e depois me pergunte. 📎", origem: "🧠 contexto" };
+    return { texto: sobreTexto(p), origem: "📖 leitura do seu texto" };
+  }
+  return null;
+}
+const pergunta = t => has(prep(t), /^ ?(o que e|o que sao|quem e|quem foi|quem era|como funciona|por que|porque|qual a diferenca|me explica|explique|explica|o que significa|onde fica|quando foi|quando aconteceu|quantos|quanto|como faz|como fazer|qual e|quais sao)/);
+
+export const Mente = { responder, setTexto, pasta, pergunta };
