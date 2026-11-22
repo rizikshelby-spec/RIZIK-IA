@@ -1,7 +1,7 @@
 /* BACH AI - MENTE 1.0
    Entende contexto, texto colado, jogos, criação de apps, pastas e perguntas.
    100% sua, sem IA externa. */
-import { Saber } from "./saber.js?v=3";
+import { Saber } from "./saber.js?v=4";
 import { KB, ERROS } from "./conhecimento.js?v=1";
 
 const KF = "bach_arquivos_v1";
@@ -15,7 +15,7 @@ const VOCAB = { oque: "o que", oq: "o que", oqe: "o que", vc: "voce", vce: "voce
   pra: "para", pro: "para o", pras: "para as", pros: "para os", ngm: "ninguem", msg: "mensagem", pf: "por favor", pfv: "por favor", plis: "por favor", pls: "por favor",
   n: "nao", naum: "nao", nn: "nao", s: "sim", ss: "sim", eh: "e", kd: "cade", qnd: "quando", qdo: "quando", qm: "quem", cm: "como", qto: "quanto", qtos: "quantos",
   agr: "agora", vdd: "verdade", fds: "fim de semana", sdds: "saudade", add: "adicionar", app: "app", apps: "app", cel: "celular", pc: "computador", net: "internet",
-  iries: "iris", arcoiris: "arco iris", sao: "sao", ola: "ola", oii: "oi", oie: "oi", eae: "e ai", eai: "e ai", flw: "falou", vamo: "vamos", bora: "bora",
+  iries: "iris", bash: "bach", bax: "bach", arcoiris: "arco iris", sao: "sao", ola: "ola", oii: "oi", oie: "oi", eae: "e ai", eai: "e ai", flw: "falou", vamo: "vamos", bora: "bora",
   progamacao: "programacao", programaçao: "programacao", codigo: "codigo", kd: "cade", cmo: "como", cmg: "comigo", ctg: "contigo", dps: "depois", ate: "ate", gnt: "gente", mlr: "mulher" };
 /* Léxico: palavras que ela conhece (corrige erros de digitação como "mindo" -> "mundo") */
 const BASE_LEX = ("mundo noticia noticias hoje agora ontem amanha tempo clima chuva calor frio sol lua estrela terra planeta pais cidade estado brasil pessoa gente homem mulher crianca amigo familia casa escola trabalho dinheiro comida agua cafe carne fruta animal cachorro gato cavalo passaro peixe pato planta arvore flor cores azul verde vermelho amarelo preto branco rosa roxo laranja marrom cinza pintar pintura quadro quadros desenho desenhar musica cantar dancar filme livro historia jogo esporte futebol campeonato carro moto aviao onibus trem viagem hotel hospital medico doenca saude remedio corpo cabeca coracao amor feliz triste raiva medo computador celular internet site programa codigo erro texto resumo explicar explicacao significa significado diferenca exemplo pergunta resposta ajuda ajudar aprender ensinar estudar escrever falar ouvir fazer criar jogar pesquisar procurar encontrar saber entender lembrar esquecer comecar terminar importante facil dificil grande pequeno melhor pior rapido devagar muito pouco alguem ninguem sempre nunca depois antes porque quando quanto qualquer outro mesmo primeiro ultimo ultimas politica economia ciencia tecnologia cultura arte geografia matematica fisica quimica biologia presidente governo guerra energia imagem video foto praia montanha floresta deserto neve vento tempestade tinta pincel tela").split(" ");
@@ -297,4 +297,5 @@ const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|v
 const pergunta = t => { const p = prep(t); if (has(p, SMALL)) return false; return has(p, /^ ?(o que|quem|quais|qual|quantos|quantas|quanto|onde|quando|como|por que|porque|para que|me explica|explique|explica|fale sobre|fala sobre|fala de|me fala|diga)/) || (/\?\s*$/.test(String(t)) && p.trim().split(" ").length >= 3); };
 
 const stats = () => ({ girias: Object.keys(VOCAB).length, lexBase: BASE_LEX.length, kbProg: KB.length, erros: ERROS.length, jogos: 4, modelosApps: Object.keys(TEMPLATES).length, pasta: ctx.pasta, tema: ctx.tema });
-export const Mente = { responder, setTexto, pasta, pergunta, tema, lembrarTema, stats };
+const jogando = () => !!ctx.jogo;
+export const Mente = { jogando, responder, setTexto, pasta, pergunta, tema, lembrarTema, stats };
