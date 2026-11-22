@@ -56,8 +56,8 @@ function isCode(text) {
 
 function analyzeCode(text) {
   let lang = "código";
-  if (/<!doctype|<html|<\/div>/i.test(text)) lang = "HTML";
-  else if (/\bdef\s+\w+\(|print\(/.test(text) && !/;\s/.test(text)) lang = "Python";
+  if (/^\s*<(!doctype|html|head|body|div|section|main)\b/i.test(text)) lang = "HTML";
+  else if (/\bdef\s+\w+\([^)]*\)\s*:/.test(text)) lang = "Python";
   else if (/\b(const|let|var|function)\b|=>/.test(text)) lang = "JavaScript";
 
   const funcs = new Set();
@@ -192,15 +192,21 @@ async function pesquisaProfunda(q, progresso = () => {}) {
   const qk = kw(q);
   let paginas = [], links = [], lidas = [];
 
-  progresso("Consultando a Wikipédia...");
+  progresso("📚 Consultando a Wikipédia (pt.wikipedia.org)...");
   try { paginas = await wiki(q); } catch (e) { console.warn("wiki", e); }
 
-  progresso("Buscando na internet...");
+  progresso("🦆 Buscando no DuckDuckGo...");
   try { links = await web(q); } catch (e) { console.warn("web", e); }
 
-  progresso("Lendo as fontes...");
+  progresso("📖 Abrindo as melhores páginas encontradas...");
   const alvo = links.slice(0, 3);
-  const res = await Promise.allSettled(alvo.map(l => readPage(l, qk)));
+  const res = await Promise.allSettled(alvo.map(l => {
+    let host = l.url;
+    try { host = new URL(l.url).hostname; } catch {}
+    progresso("🌐 Lendo " + host);
+    return readPage(l, qk);
+  }));
+  progresso("🧩 Juntando as informações...");
   res.forEach((r, i) => {
     if (r.status === "fulfilled" && r.value.length) lidas.push({ ...alvo[i], frases: r.value });
   });
