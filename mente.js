@@ -17,9 +17,22 @@ const VOCAB = { oque: "o que", oq: "o que", oqe: "o que", vc: "voce", vce: "voce
   agr: "agora", vdd: "verdade", fds: "fim de semana", sdds: "saudade", add: "adicionar", app: "app", apps: "app", cel: "celular", pc: "computador", net: "internet",
   iries: "iris", arcoiris: "arco iris", sao: "sao", ola: "ola", oii: "oi", oie: "oi", eae: "e ai", eai: "e ai", flw: "falou", vamo: "vamos", bora: "bora",
   progamacao: "programacao", programaçao: "programacao", codigo: "codigo", kd: "cade", cmo: "como", cmg: "comigo", ctg: "contigo", dps: "depois", ate: "ate", gnt: "gente", mlr: "mulher" };
+/* Léxico: palavras que ela conhece (corrige erros de digitação como "mindo" -> "mundo") */
+const BASE_LEX = ("mundo noticia noticias hoje agora ontem amanha tempo clima chuva calor frio sol lua estrela terra planeta pais cidade estado brasil pessoa gente homem mulher crianca amigo familia casa escola trabalho dinheiro comida agua cafe carne fruta animal cachorro gato cavalo passaro peixe pato planta arvore flor cores azul verde vermelho amarelo preto branco rosa roxo laranja marrom cinza pintar pintura quadro quadros desenho desenhar musica cantar dancar filme livro historia jogo esporte futebol campeonato carro moto aviao onibus trem viagem hotel hospital medico doenca saude remedio corpo cabeca coracao amor feliz triste raiva medo computador celular internet site programa codigo erro texto resumo explicar explicacao significa significado diferenca exemplo pergunta resposta ajuda ajudar aprender ensinar estudar escrever falar ouvir fazer criar jogar pesquisar procurar encontrar saber entender lembrar esquecer comecar terminar importante facil dificil grande pequeno melhor pior rapido devagar muito pouco alguem ninguem sempre nunca depois antes porque quando quanto qualquer outro mesmo primeiro ultimo ultimas politica economia ciencia tecnologia cultura arte geografia matematica fisica quimica biologia presidente governo guerra energia imagem video foto praia montanha floresta deserto neve vento tempestade tinta pincel tela").split(" ");
+let LEXS = null;
+const lexico = () => { if (!LEXS) { LEXS = new Set(BASE_LEX); KB.forEach(e => e[0].split("|").forEach(k => k.split(" ").forEach(w => w.length > 3 && LEXS.add(w)))); Object.values(VOCAB).forEach(v => v.split(" ").forEach(w => w.length > 3 && LEXS.add(w))); (ctx.lex || []).forEach(w => LEXS.add(w)); } return LEXS; };
+function lev(a, b) { const m = a.length, n = b.length; let pr = Array.from({ length: n + 1 }, (_, j) => j); for (let i = 1; i <= m; i++) { const c = [i]; for (let j = 1; j <= n; j++) c[j] = Math.min(pr[j] + 1, c[j - 1] + 1, pr[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); pr = c; } return pr[n]; }
+function corrigir(w) {
+  if (w.length < 5 || /\d/.test(w)) return w;
+  const L = lexico(); if (L.has(w)) return w;
+  const max = w.length >= 8 ? 2 : 1; let best = w, bd = max + 1;
+  for (const c of L) { if (c[0] !== w[0] || Math.abs(c.length - w.length) > max || w.startsWith(c) || c.startsWith(w)) continue; const d = lev(w, c); if (d < bd) { bd = d; best = c; } }
+  return bd <= max ? best : w;
+}
+function lembrarTema(q) { const t = String(q || "").trim(); if (!t) return; ctx.tema = t; (ctx.lex = ctx.lex || []); prep(t).split(" ").forEach(w => w.length > 3 && !ctx.lex.includes(w) && ctx.lex.push(w)); ctx.lex = ctx.lex.slice(-300); LEXS = null; persist(); }
 const prep = t => " " + String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .replace(/(?<=[a-z])-(?=[a-z])/g, " ").replace(/[^a-z0-9+\-*/().,\s]/g, " ").replace(/[.,]+(?=\s|$)/g, " ")
-  .split(/\s+/).filter(Boolean).map(w => (ctx.vocab && ctx.vocab[w]) || VOCAB[w] || w).join(" ") + " ";
+  .split(/\s+/).filter(Boolean).map(w => (ctx.vocab && ctx.vocab[w]) || VOCAB[w] || w).map(corrigir).join(" ") + " ";
 /* tira as palavras de pergunta e fica só com o assunto: "o que é um pato?" -> "pato" */
 function tema(t) {
   let x = prep(t).trim();
@@ -32,9 +45,9 @@ function tema(t) {
 const has = (p, re) => re.test(p);
 
 const KC = "bach_mente_v1";
-const ctx = { texto: null, nome: "", pasta: null, jogo: null, ultimo: null, assuntos: [], esperando: null, vocab: {} };
-try { const o = JSON.parse(localStorage.getItem(KC)); if (o) Object.assign(ctx, { texto: o.texto, nome: o.nome || "", pasta: o.pasta, ultimo: o.ultimo, assuntos: o.assuntos || [], vocab: o.vocab || {} }); } catch {}
-function persist() { try { localStorage.setItem(KC, JSON.stringify({ texto: ctx.texto && ctx.texto.slice(0, 60000), nome: ctx.nome, pasta: ctx.pasta, ultimo: ctx.ultimo, assuntos: ctx.assuntos, vocab: ctx.vocab })); } catch {} }
+const ctx = { texto: null, nome: "", pasta: null, jogo: null, ultimo: null, assuntos: [], esperando: null, vocab: {}, tema: null, lex: [] };
+try { const o = JSON.parse(localStorage.getItem(KC)); if (o) Object.assign(ctx, { texto: o.texto, nome: o.nome || "", pasta: o.pasta, ultimo: o.ultimo, assuntos: o.assuntos || [], vocab: o.vocab || {}, tema: o.tema || null, lex: o.lex || [] }); } catch {}
+function persist() { try { localStorage.setItem(KC, JSON.stringify({ texto: ctx.texto && ctx.texto.slice(0, 60000), nome: ctx.nome, pasta: ctx.pasta, ultimo: ctx.ultimo, assuntos: ctx.assuntos, vocab: ctx.vocab, tema: ctx.tema, lex: (ctx.lex || []).slice(-300) })); } catch {} }
 const setTexto = (nome, texto) => { ctx.nome = nome; ctx.texto = texto; ctx.ultimo = { t: "texto" }; persist(); };
 const pasta = def => ctx.pasta || def;
 
@@ -243,7 +256,7 @@ function responder(msg) {
   if (has(p, /(como|onde) (comeco|comecar|faco|fazer).*(ia|chatbot)/)) return { texto: (ctx.ultimo = { t: "guia" }, persist(), GUIA), origem: "🤖 guia" };
 
   const m = p.match(/ (?:escreve|escreva|redija|faz|faca|crie|cria) (?:um |uma )?(?:texto|redacao|artigo|resumo) (?:sobre|de|do|da) (.+)/);
-  if (m) return { pesquisa: m[1].trim(), fundo: true };
+  if (m && !has(p, / (livro|filme|serie|historia|conto|desenho|novela|anime) /)) return { pesquisa: m[1].trim(), fundo: true };
   if (has(p, / (email|carta) /) && criarV) {
     const t = (p.match(/ sobre (.+)/) || [])[1] || "[assunto]";
     return { texto: "✉️ Modelo:\n\nAssunto: " + t + "\n\nOlá,\n\nEspero que esteja bem. Escrevo para tratar de " + t + ".\n\n[explique seu pedido em 2 ou 3 frases]\n\nFico à disposição e agradeço desde já.\n\nAtenciosamente,\n[seu nome]", origem: "✍️ escrita" };
@@ -256,16 +269,31 @@ function responder(msg) {
   if (has(p, /(o que (a gente |nos |voce )?(falou|falamos|conversou|conversamos|vimos)|voce lembra|lembra do que|do que falamos)/))
     return { texto: ctx.assuntos.length ? "🧠 Lembro que falamos de:\n• " + ctx.assuntos.join("\n• ") + (ctx.texto ? "\n\nE guardei o texto “" + ctx.nome + "”." : "") : "Ainda não conversamos sobre nada que eu tenha guardado. 😊", origem: "🧠 memória" };
   for (const [k, r] of ERROS) if (new RegExp(k, "i").test(raw)) return { texto: "🛠️ " + r + "\n\nSe quiser, cole o código e eu reviso.", origem: "🐛 erros comuns" };
-  if (has(p, / (acontecendo|noticia|noticias|novidades|novidade) /) && has(p, / (mundo|hoje|agora|brasil|aqui|ultimas) /)) return { pesquisa: "ultimas noticias do mundo hoje", fundo: false };
+  const rb = p.match(/ resum\w* (?:de |do |da )?(?:um |uma |o |a )?(livro|filme|serie|historia|conto|desenho|novela|anime) (?:de |do |da |chamado |chamada )?(.+)/);
+  if (rb) { lembrarTema(rb[2].trim()); return { pesquisa: rb[2].trim() + " sinopse", fundo: true }; }
+  if (has(p, / (noticia|noticias|novidades|novidade|manchete|manchetes|acontecendo) /)) { ctx.tema = "noticias"; return { noticias: true, q: has(p, / brasil /) ? "ultimas noticias do brasil hoje" : "ultimas noticias do mundo hoje" }; }
   const ti = achaTopico(p);
   if (ti !== null) return { texto: topico(ti, p), origem: "💻 programação" };
   const lg = Object.keys(LING).find(l => w === l);
   if (lg) return { texto: "📘 " + LING[lg] + "\n\n" + ROTEIRO, origem: "💻 programação" };
   if (has(p, /(programa|codigo|codar|codificar|desenvolv)/) && has(p, /(ajud|ensin|aprend|duvida|como|quero|preciso)/)) return { texto: ajudaProg(p), origem: "💻 programação" };
-  if (pergunta(raw) && !has(p, / (voce|horas|hora|dia|data|bach|meu nome|seu nome) /)) { const tm = tema(raw); if (tm.length > 2) return { pesquisa: tm, fundo: true }; }
+  const cap = p.match(/^ (?:voce )?(?:sabe|consegue|pode|poderia|sabe me) (.+)/);
+  if (cap && !has(p, / (horas|hora) /)) {
+    const x = cap[1].trim();
+    if (has(p, / (programar|codigo|codar|jogar|resumir|pesquisar|escrever|criar|calcular|ler|traduzir) /) && !has(p, / (quadro|desenho|musica|carro|cozinhar|dancar|cantar) /)) return { texto: "Sim! 😊 Eu sei: programar (JS, Python, HTML, CSS, SQL), jogar (forca, velha, quiz, adivinhação), resumir e revisar textos, criar apps prontos, pesquisar na internet, contar e guardar arquivos em pastas.\nDiga o que quer fazer!", origem: "🧠 minhas habilidades" };
+    lembrarTema("como " + x); return { pesquisa: "como " + x, fundo: true };
+  }
+  if (ctx.tema && has(p, / (essa|essas|esse|esses|isso|isto|disso|dele|dela|deles|delas|nisso|aquilo|ele|ela|eles|elas) /) && (pergunta(raw) || has(p, / (faz|fazem|serve|servem|significa) /))) {
+    const PR = new Set("essa essas esse esses isso isto disso dele dela deles delas nisso aquilo ele ela eles elas faz fazem fazer serve servem o que e sao por para qual quais como me explica".split(" "));
+    const seen = new Set(prep(ctx.tema).split(" ")), novo = p.trim().split(" ").filter(w => !PR.has(w) && !seen.has(w) && w.length > 2);
+    if (!novo.length) return { texto: "Estamos falando de “" + ctx.tema + "”. O que você quer saber sobre isso? Por exemplo: significado, origem, como funciona ou para que serve. 🤔", origem: "🧠 lembrei do assunto" };
+    return { pesquisa: ctx.tema + " " + novo.join(" "), fundo: true };
+  }
+  if (pergunta(raw) && !has(p, / (voce|horas|hora|dia|data|bach|meu nome|seu nome) /)) { const tm = tema(raw); if (tm.length > 2) { lembrarTema(tm); return { pesquisa: tm, fundo: true }; } }
   if (ctx.esperando === "prog") { ctx.esperando = null; if (w.length > 3) return { texto: ajudaProg(p) + "\n\n(Não achei esse assunto. Tente com outras palavras.)", origem: "💻 programação" }; }
   return null;
 }
-const pergunta = t => has(prep(t), /^ ?(o que e|o que sao|quem e|quem foi|quem era|como funciona|por que|porque|qual a diferenca|me explica|explique|explica|o que significa|onde fica|quando foi|quando aconteceu|quantos|quanto|como faz|como fazer|qual e|quais sao)/);
+const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo)/;
+const pergunta = t => { const p = prep(t); if (has(p, SMALL)) return false; return has(p, /^ ?(o que|quem|quais|qual|quantos|quantas|quanto|onde|quando|como|por que|porque|para que|me explica|explique|explica|fale sobre|fala sobre|fala de|me fala|diga)/) || (/\?\s*$/.test(String(t)) && p.trim().split(" ").length >= 3); };
 
-export const Mente = { responder, setTexto, pasta, pergunta, tema };
+export const Mente = { responder, setTexto, pasta, pergunta, tema, lembrarTema };
