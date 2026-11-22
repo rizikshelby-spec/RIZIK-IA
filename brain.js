@@ -128,6 +128,7 @@ function classify(message) {
     /quemcriouvoce|quemfezvoce|quemcrioubach/.test(c)) return "identity";
   if (/o que voce faz|oque voce faz|que voce sabe fazer|faz de bom|suas capacidades|suas funcoes/.test(t) ||
     /oquevocefaz|quevocefaz/.test(c)) return "capabilities";
+  if (/^(voce )?sabe (ler|resolver|entender|interpretar|analisar)/.test(t)) return "canread";
   if (/^(oi|ola|eai|opa|bom dia|boa tarde|boa noite)$/.test(t)) return "greeting";
   if (/^(bora|vamos|partiu|vambora|vamos nessa|bora la)$/.test(t)) return "encouragement";
   if (/^(beleza|blz|legal|massa|show|bacana|top|otimo|otima)$/.test(t)) return "positive";
@@ -142,6 +143,16 @@ function classify(message) {
 
 const R = (text, intent) => ({ handled: true, intent, text });
 
+function analyzeText(txt) {
+  const words = txt.trim().split(/\s+/).length;
+  const code = /(\bconst\b|\bfunction\b|=>|<\/?[a-z]+>|\bimport\b|\breturn\b)/.test(txt);
+  return "Recebi um texto grande: " + words + " palavras e " + txt.length + " caracteres." +
+    (code ? " Parece código de programação." : "") +
+    "\n\nEu sou uma IA de regras e ainda não consigo ler nem resumir textos longos de verdade. " +
+    "Posso pesquisar (pesquise sobre ...) ou aprender respostas curtas com você. " +
+    "Para entender textos grandes, o ideal é conectar um modelo de IA por API.";
+}
+
 const HELP =
   "Comandos que eu entendo:\n" +
   "• ensine: pergunta => resposta\n" +
@@ -152,6 +163,9 @@ const HELP =
   "• lembre: algo / o que você lembra\n" +
   "• exportar memória / importar memória: {json}\n" +
   "• estatísticas\n" +
+  "• /clear (apaga o chat)\n" +
+  "• pesquise a fundo sobre ... (lê várias fontes e guarda)\n" +
+  "• cole um texto ou código e eu leio\n" +
   "• pesquise sobre ... / clima em ...";
 
 function think(message) {
@@ -231,6 +245,11 @@ function think(message) {
   }
   if (/^(ajuda|comandos|help)$/.test(t)) return R(HELP, "help");
 
+  // Textos grandes (ex.: código colado) não passam pelas regras de conversa.
+  if (original.length > 160 || t.split(" ").length > 25) {
+    return R(analyzeText(original), "longtext");
+  }
+
   const intent = classify(original);
 
   if (intent === "identity") {
@@ -259,6 +278,7 @@ function think(message) {
     case "thanks": return R(pick(["Por nada! Sempre que precisar, estou aqui. 😊", "Disponha! 💜"]), intent);
     case "goodbye": return R(pick(["Até mais! 👋", "Até logo! Volte sempre! 💜"]), intent);
     case "capabilities": return R("Posso conversar, aprender respostas e palavras novas, corrigir erros de digitação, guardar informações e notas, fazer backup da memória, pesquisar na internet e consultar o clima. Digite “ajuda” para ver os comandos! 🧠", intent);
+    case "canread": return R("Textos curtos eu leio, mas não entendo de verdade: sou uma IA de regras. Textos enormes eu só consigo contar e identificar se parecem código. Para resolver textos grandes, o ideal é conectar um modelo de IA por API.", intent);
     case "time": return R("Agora são " + new Date().toLocaleTimeString("pt-BR") + ".", intent);
     case "date": return R("Hoje é " + new Date().toLocaleDateString("pt-BR") + ".", intent);
     case "name": return R(nome ? "Seu nome é " + nome + "." : "Ainda não sei seu nome. Diga: meu nome é ...", intent);
