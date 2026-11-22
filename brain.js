@@ -1,6 +1,6 @@
 
 /*
- BACH AI - CEREBRO 0.3
+ BACH AI - CEREBRO 0.4
  Memoria, aprendizado e conversa básica.
 */
 
@@ -10,7 +10,7 @@ const DEFAULT_DATA = {
   name: "BACH AI",
   facts: {},
   examples: [],
-  version: 3
+  version: 4
 };
 
 function loadData() {
@@ -117,8 +117,25 @@ function classify(text) {
   if (/^(tchau|ate mais|falou|fui)$/.test(t))
     return "goodbye";
 
-  if (t.includes("quem e voce") || t.includes("seu nome"))
-    return "identity";
+  if (
+    t.includes("quem criou voce") ||
+    t.includes("quem fez voce") ||
+    t.includes("quem desenvolveu voce") ||
+    t.includes("quem criou a bach") ||
+    t.includes("quem criou bach") ||
+    t.includes("quem criou vice bach") ||
+    t.includes("seu nome") ||
+    t.includes("quem e voce")
+  ) return "identity";
+
+  if (
+    t.includes("o que voce faz") ||
+    t.includes("oque voce faz") ||
+    t.includes("que voce sabe fazer") ||
+    t.includes("faz de bom") ||
+    t.includes("suas funcoes") ||
+    t.includes("suas capacidades")
+  ) return "capabilities";
 
   if (t.includes("que horas") || t.includes("hora agora"))
     return "time";
@@ -190,12 +207,25 @@ function think(message) {
   );
 
   if (teaching) {
-    learn(teaching[1], teaching[2]);
+    const success = learn(teaching[1], teaching[2]);
 
     return {
       handled: true,
       intent: "learning",
-      text: "Aprendi um novo exemplo! Vou guardar essa associação."
+      text: success
+        ? "Aprendi um novo exemplo! Vou guardar essa associação. 🧠"
+        : "Não consegui guardar esse ensinamento."
+    };
+  }
+
+  const intent = classify(original);
+
+  // Identidade tem prioridade sobre exemplos antigos.
+  if (intent === "identity") {
+    return {
+      handled: true,
+      intent,
+      text: "Sou a BACH AI 🧠! Fui criada no projeto BACH AI, desenvolvido por você. Ainda estou evoluindo e tenho memória, aprendizado e ferramentas de pesquisa."
     };
   }
 
@@ -208,8 +238,6 @@ function think(message) {
       text: example.answer
     };
   }
-
-  const intent = classify(original);
 
   switch (intent) {
     case "greeting":
@@ -237,7 +265,7 @@ function think(message) {
       return {
         handled: true,
         intent,
-        text: "Por nada! Estou aqui para ajudar. 😊"
+        text: "Por nada! Estou aqui para ajudar! 😊"
       };
 
     case "wellbeing":
@@ -254,11 +282,11 @@ function think(message) {
         text: "Até mais! Estarei aqui quando voltar. 👋"
       };
 
-    case "identity":
+    case "capabilities":
       return {
         handled: true,
         intent,
-        text: "Sou a BACH AI 🧠, uma inteligência artificial própria em desenvolvimento, com memória, aprendizado e ferramentas de pesquisa."
+        text: "Posso conversar, guardar informações, aprender respostas que você me ensina, pesquisar assuntos na internet e consultar a previsão do clima. Ainda estou em desenvolvimento! 🧠"
       };
 
     case "time":
@@ -314,7 +342,7 @@ function think(message) {
 }
 
 export const RizikBrain = {
-  version: "0.3.0",
+  version: "0.4.0",
   think,
   learn,
   remember,
