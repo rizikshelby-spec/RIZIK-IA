@@ -5,56 +5,59 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#10111a">
 <title>BACH AI</title>
-
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#10111a;color:#f5f5fb;font-family:Arial,sans-serif}
-header{padding:18px 16px;background:#191b29;border-bottom:1px solid #303247}
-h2{margin:0 0 5px;color:#b5a8ff;font-size:23px}
-#status{color:#aaaabd;font-size:12px}
-#chat{height:calc(100dvh - 154px);overflow:auto;padding:14px 12px 20px}
-.msg{padding:12px 14px;margin:9px 0;border-radius:15px;max-width:92%;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px}
-.bot{background:#222538;border:1px solid #30344b}
-.user{background:#5141a0;margin-left:auto}
-.result{background:#202437;border:1px solid #3a3e59;border-radius:14px;padding:13px;margin:10px 0;max-width:95%;line-height:1.5}
-.result h3{margin:0 0 8px;color:#c5baff;font-size:16px}
-.result p{margin:0 0 10px;color:#e4e4ee;font-size:14px}
-.result a{color:#b9adff;font-size:13px;overflow-wrap:anywhere}
-.meta{color:#aaaabd;font-size:12px;margin-top:10px;white-space:pre-line}
-footer{position:fixed;bottom:0;width:100%;display:flex;gap:8px;padding:10px;background:#191b29;padding-bottom:max(10px,env(safe-area-inset-bottom));border-top:1px solid #303247}
-input{flex:1;min-width:0;padding:13px;border:1px solid #44465d;border-radius:12px;background:#10111a;color:white;font-size:16px}
-button{padding:12px 16px;border:0;border-radius:12px;background:#7864ed;color:white;font-weight:bold}
-button:disabled{opacity:.55}
-#mais{width:46px;padding:0;font-size:26px;background:#303247}
-#menu{display:none;position:fixed;left:10px;bottom:calc(68px + env(safe-area-inset-bottom));background:#222538;border:1px solid #3a3e59;border-radius:14px;padding:6px;z-index:5;min-width:240px}
-#menu.aberto{display:block}
-#menu button{display:block;width:100%;text-align:left;background:none;padding:12px 14px;font-weight:normal;font-size:15px}
-.pensando{opacity:.85;border-style:dashed}
+html,body{height:100%}
+body{margin:0;background:#10111a;color:#f5f5fb;font-family:Arial,sans-serif;display:flex;flex-direction:column;height:100dvh}
+header{padding:12px 16px;background:#191b29;border-bottom:1px solid #303247;flex:none}
+h2{margin:0 0 3px;color:#b5a8ff;font-size:20px}
+#status{color:#aaaabd;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#chat{flex:1;overflow:auto;padding:10px 10px 14px;width:100%;max-width:850px;margin:0 auto}
+.msg{padding:8px 11px;margin:6px 0;border-radius:14px;max-width:82%;width:fit-content;line-height:1.45;overflow-wrap:anywhere;font-size:14px;backdrop-filter:blur(6px)}
+.msg .t{white-space:pre-wrap}
+.bot{background:rgba(34,37,56,.55);border:1px solid rgba(90,96,130,.35);margin-right:auto}
+.user{background:rgba(81,65,160,.55);border:1px solid rgba(140,120,240,.3);margin-left:auto}
+.pensando{opacity:.85;border-style:dashed;white-space:pre-line}
+.acoes{display:flex;gap:6px;margin:-2px 0 6px}
+.acoes button{padding:3px 9px;font-size:12px;font-weight:normal;background:rgba(255,255,255,.08);border-radius:10px}
+.meta{color:#8d8fa6;font-size:11px;margin:2px 4px 4px;white-space:pre-line}
+.cartao{border:1px solid rgba(120,100,237,.4);border-radius:10px;margin:6px 0;background:rgba(0,0,0,.25);overflow:hidden;min-width:230px}
+.topo{display:flex;align-items:center;gap:6px;padding:6px 8px;font-size:12px;color:#c5baff}
+.topo span{flex:1}
+.topo button{padding:4px 9px;font-size:12px;font-weight:normal;background:rgba(255,255,255,.1);border-radius:8px}
+.cartao details{border-top:1px solid rgba(255,255,255,.08)}
+.cartao summary{padding:5px 8px;font-size:12px;color:#aaaabd;cursor:pointer}
+.cartao pre{margin:0;padding:8px;max-height:320px;overflow:auto;font-size:12px;line-height:1.4;white-space:pre-wrap;color:#e4e4ee}
+.result{background:rgba(32,36,55,.6);border:1px solid #3a3e59;border-radius:12px;padding:10px;margin:6px 0;max-width:88%;font-size:13px}
+.result h3{margin:0 0 6px;color:#c5baff;font-size:14px}.result a{color:#b9adff;overflow-wrap:anywhere}
 .msg img,.msg video{max-width:100%;border-radius:10px;display:block}
-@media(min-width:700px){#chat{max-width:850px;margin:auto}footer{justify-content:center}footer input{max-width:700px}}
+footer{flex:none;display:flex;gap:6px;padding:8px 10px;background:#191b29;padding-bottom:max(8px,env(safe-area-inset-bottom));border-top:1px solid #303247}
+input[type=text]{flex:1;min-width:0;padding:11px;border:1px solid #44465d;border-radius:12px;background:#10111a;color:#fff;font-size:16px}
+button{padding:10px 14px;border:0;border-radius:12px;background:#7864ed;color:#fff;font-weight:bold;cursor:pointer}
+button.stop{background:#c0392b}
+#mais,#mic{width:42px;padding:0;font-size:20px;background:#303247}
+#mic.gravando{background:#c0392b}
+#menu{display:none;position:fixed;left:10px;bottom:calc(64px + env(safe-area-inset-bottom));background:#222538;border:1px solid #3a3e59;border-radius:14px;padding:6px;z-index:5;min-width:250px}
+#menu.aberto{display:block}
+#menu button{display:block;width:100%;text-align:left;background:none;padding:11px 12px;font-weight:normal;font-size:15px}
 </style>
 </head>
-
 <body>
-
-<header>
-<h2>BACH AI 🧠</h2>
-<div id="status">Carregando...</div>
-</header>
-
+<header><h2>BACH AI 🧠</h2><div id="status">Carregando...</div></header>
 <main id="chat"></main>
-
 <footer>
 <button id="mais" aria-label="Mais opções">+</button>
-<input id="entrada" placeholder="Converse ou digite 'ajuda'..." autocomplete="off">
+<input type="text" id="entrada" placeholder="Converse ou digite 'ajuda'..." autocomplete="off">
+<button id="mic" aria-label="Falar">🎤</button>
 <button id="enviar">Enviar</button>
 </footer>
-
 <div id="menu">
 <button data-acao="anexar">📎 Anexar foto, vídeo ou arquivo</button>
 <button data-acao="profundo">🧠 Pensar bastante: desligado</button>
+<button data-acao="voz">🔊 Ler respostas sozinha: desligado</button>
 <button data-acao="arquivos">📁 Meus arquivos</button>
 <button data-acao="piada">😄 Conta uma piada</button>
+<button data-acao="jogo">🎮 Jogar um joguinho</button>
 </div>
 <input id="seletor" type="file" hidden multiple accept="image/*,video/*,.txt,.md,.js,.html,.css,.json,.csv,.py,.xml,.log,.ts,.java,.c,.cpp,.sql,.yml,.yaml">
 
@@ -63,681 +66,304 @@ import { RizikBrain } from "./brain.js?v=11";
 import { Saber } from "./saber.js?v=3";
 import { Prog } from "./programacao.js?v=2";
 import { Arquivos } from "./arquivos.js?v=1";
+import { Mente } from "./mente.js?v=1";
 
-const chat = document.getElementById("chat");
-const entrada = document.getElementById("entrada");
-const botao = document.getElementById("enviar");
-const status = document.getElementById("status");
+const $ = id => document.getElementById(id);
+const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status");
+const HISTORY_KEY = "bach_chat_history_v1", KEY_API = "bach_gemini_key", KEY_MODEL = "bach_gemini_model";
+const STATUS = "BACH AI 2.0 • Conversa, código, jogos, arquivos e pesquisa";
+const LONGO = 700;
 
-const HISTORY_KEY = "bach_chat_history_v1";
-const KEY_API = "bach_gemini_key";
-const KEY_MODEL = "bach_gemini_model";
-const STATUS = "BACH AI 1.1 • Arquivos, mídia, programação e pesquisa";
+let history = [], pensando = null, modoProfundo = false, lerAuto = false;
+let ocupado = false, cancelado = false, ctrl = null, ultimoArquivo = null;
+try { history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); if (!Array.isArray(history)) history = []; } catch { history = []; }
+const salvarHist = () => { try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-40).map(h => ({ ...h, text: String(h.text).slice(0, 20000) })))); } catch (e) { console.warn(e); } };
 
-let history = [];
-let pensando = null;
-let modoProfundo = false;
+function busy(b) { ocupado = b; botao.textContent = b ? "⏹" : "Enviar"; botao.classList.toggle("stop", b); if (!b) status.textContent = STATUS; }
 
-try {
-  history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
-  if (!Array.isArray(history)) history = [];
-} catch {
-  history = [];
+/* ---------- utilitários ---------- */
+async function copiar(t, btn) {
+  try { await navigator.clipboard.writeText(t); }
+  catch { const a = document.createElement("textarea"); a.value = t; document.body.appendChild(a); a.select(); document.execCommand("copy"); a.remove(); }
+  if (btn) { const o = btn.textContent; btn.textContent = "✅ Copiado"; setTimeout(() => btn.textContent = o, 1500); }
+}
+function baixar(t, nome) {
+  const u = URL.createObjectURL(new Blob([t], { type: "text/plain;charset=utf-8" }));
+  const a = document.createElement("a"); a.href = u; a.download = nome; a.click(); setTimeout(() => URL.revokeObjectURL(u), 3000);
+}
+const EXT = { html: "html", js: "js", javascript: "js", css: "css", python: "py", py: "py", json: "json", sql: "sql", java: "java", ts: "ts" };
+function mk(tag, cls, txt) { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+
+function cartao(titulo, conteudo, arquivo, aberto) {
+  const c = mk("div", "cartao"), top = mk("div", "topo"), b1 = mk("button", "", "📋 Copiar"), b2 = mk("button", "", "⬇️ Baixar");
+  b1.onclick = () => copiar(conteudo, b1); b2.onclick = () => baixar(conteudo, arquivo);
+  top.append(mk("span", "", titulo), b1, b2);
+  const d = mk("details"); if (aberto) d.open = true;
+  d.append(mk("summary", "", "Ver conteúdo"), mk("pre", "", conteudo));
+  c.append(top, d); return c;
 }
 
-function salvar() {
-  try {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-40)));
-  } catch(e) {
-    console.warn(e);
+/* ---------- bolhas ---------- */
+function montar(texto, tipo) {
+  const w = mk("div", "msg " + tipo);
+  const p = String(texto).split(/```([\w+-]*)[ \t]*\n?([\s\S]*?)```/g);
+  for (let i = 0; i < p.length; i += 3) {
+    const t = p[i].trim();
+    if (t) {
+      if (t.length > LONGO) {
+        const n = t.split(/\n/).length;
+        w.appendChild(cartao("📄 Texto longo • " + t.split(/\s+/).length + " palavras, " + n + " linhas", t, "texto-bach.txt", false));
+      } else w.appendChild(mk("div", "t", t));
+    }
+    if (i + 2 < p.length) {
+      const lang = (p[i + 1] || "").toLowerCase(), code = p[i + 2].replace(/\n$/, ""), n = code.split("\n").length;
+      w.appendChild(cartao("💻 " + (lang || "código") + " • " + n + " linhas", code, "bach-codigo." + (EXT[lang] || "txt"), n <= 18));
+    }
   }
+  return w;
+}
+function textoFalavel(t) {
+  return String(t).replace(/```[\s\S]*?```/g, " (código na tela) ").replace(/[*_#`>|]/g, " ").replace(/https?:\/\/\S+/g, " ").replace(/\s+/g, " ").trim();
+}
+function ler(texto, btn) {
+  if (!("speechSynthesis" in window)) return;
+  if (speechSynthesis.speaking) { speechSynthesis.cancel(); if (btn) btn.textContent = "🔊 Ouvir"; return; }
+  const u = new SpeechSynthesisUtterance(textoFalavel(texto).slice(0, 4000)); u.lang = "pt-BR";
+  u.onend = u.onerror = () => { if (btn) btn.textContent = "🔊 Ouvir"; };
+  if (btn) btn.textContent = "⏹ Parar"; speechSynthesis.speak(u);
+}
+function acoes(texto) {
+  const a = mk("div", "acoes"), b1 = mk("button", "", "🔊 Ouvir"), b2 = mk("button", "", "📋 Copiar");
+  b1.onclick = () => ler(texto, b1); b2.onclick = () => copiar(texto, b2);
+  a.append(b1, b2); return a;
 }
 
-function falar(texto,tipo="bot",origem="") {
+function falar(texto, tipo = "bot", origem = "", forcar = false) {
+  if (tipo === "bot" && cancelado && !forcar) return;
   let seg = null;
-
-  if (tipo === "bot" && pensando) {
-    seg = pensando.fim();
-    pensando = null;
-  }
-
-  const div = document.createElement("div");
-  div.className = "msg " + tipo;
-  div.textContent = String(texto);
-  chat.appendChild(div);
-
-  if (seg !== null) {
-    const m = document.createElement("div");
-    m.className = "meta";
-    m.textContent = (seg < 0.3 ? "⚡ Respondi na hora" : "⏱ Pensei por " + seg.toFixed(1) + " s") + (origem ? " • " + origem : "");
-    chat.appendChild(m);
-  }
-
+  if (tipo === "bot" && pensando) { seg = pensando.fim(); pensando = null; }
+  chat.appendChild(montar(texto, tipo));
+  if (tipo === "bot") chat.appendChild(acoes(texto));
+  if (seg !== null) chat.appendChild(mk("div", "meta", (seg < 0.3 ? "⚡ Respondi na hora" : "⏱ Pensei por " + seg.toFixed(1) + " s") + (origem ? " • " + origem : "")));
   chat.scrollTop = chat.scrollHeight;
-
-  history.push({text:String(texto),type:tipo});
-  salvar();
+  history.push({ text: String(texto), type: tipo }); salvarHist();
+  if (tipo === "bot" && lerAuto) ler(texto);
 }
-
 function restaurar() {
   history = history.slice(-40);
-
-  for (const item of history) {
-    const div = document.createElement("div");
-    div.className = "msg " + (item.type === "user" ? "user" : "bot");
-    div.textContent = String(item.text || "");
-    chat.appendChild(div);
-  }
-
+  for (const h of history) { chat.appendChild(montar(h.text || "", h.type === "user" ? "user" : "bot")); if (h.type !== "user") chat.appendChild(acoes(h.text || "")); }
   chat.scrollTop = chat.scrollHeight;
 }
-
-function criarResultado(titulo,resumo,url) {
+function criarResultado(titulo, resumo, url) {
   if (!/^https?:\/\//i.test(url)) return;
-
-  const card = document.createElement("article");
-  card.className = "result";
-
-  const h = document.createElement("h3");
-  h.textContent = titulo;
-
-  const p = document.createElement("p");
-  p.textContent = resumo || "Consulte a fonte para mais detalhes.";
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.target = "_blank";
-  a.rel = "noopener noreferrer";
-  a.textContent = "Abrir fonte ↗";
-
-  card.append(h,p,a);
-  chat.appendChild(card);
-  chat.scrollTop = chat.scrollHeight;
+  const c = mk("article", "result"), a = mk("a", "", "Abrir fonte ↗");
+  a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer";
+  c.append(mk("h3", "", titulo)); if (resumo) c.append(mk("div", "", resumo)); c.append(a);
+  chat.appendChild(c); chat.scrollTop = chat.scrollHeight;
 }
 
-function limpar(texto) {
-  return String(texto || "")
-    .replace(/<[^>]*>/g," ")
-    .replace(/&nbsp;/g," ")
-    .replace(/&amp;/g,"&")
-    .replace(/&quot;/g,'"')
-    .replace(/&#39;/g,"'")
-    .replace(/\s+/g," ")
-    .trim();
-}
-
-async function requisicao(url,tempo=20000) {
-  const controller = new AbortController();
-  const timer = setTimeout(()=>controller.abort(),tempo);
-
-  try {
-    const r = await fetch(url,{signal:controller.signal});
-    if (!r.ok) throw new Error("HTTP "+r.status);
-    return r;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-async function pesquisarWiki(q) {
-  const params = new URLSearchParams({
-    action:"query",
-    list:"search",
-    srsearch:q,
-    srlimit:"5",
-    format:"json",
-    origin:"*"
-  });
-
-  const r = await requisicao("https://pt.wikipedia.org/w/api.php?"+params);
-
-  const data = await r.json();
-  const items = data?.query?.search || [];
-
-  if (!items.length) throw new Error("Nenhum resultado.");
-
-  for (const item of items) {
-    criarResultado(
-      item.title,
-      limpar(item.snippet),
-      "https://pt.wikipedia.org/wiki/"+encodeURIComponent(item.title.replace(/ /g,"_"))
-    );
-  }
-
-  return "Wikipédia";
-}
-
-async function pesquisarInternet(q) {
-  const inicio = performance.now();
-
-  botao.disabled = true;
-  passo("🌐 Pesquisando na internet: "+q);
-
-  try {
-    let fonte;
-
-    try {
-      const url =
-        "https://r.jina.ai/http://html.duckduckgo.com/html/?q="+
-        encodeURIComponent(q);
-
-      const r = await requisicao(url,25000);
-      const texto = await r.text();
-
-      const regex = /^## \[(.*?)\]\((https?:\/\/[^)\s]+)\)/gm;
-      const matches = [...texto.matchAll(regex)];
-      const vistos = new Set();
-
-      let quantidade = 0;
-
-      for (let i=0;i<matches.length && quantidade<5;i++) {
-        const titulo = limpar(matches[i][1]);
-        let link = matches[i][2];
-
-        try {
-          const parsed = new URL(link);
-
-          if (parsed.hostname.includes("duckduckgo.com")) {
-            link = parsed.searchParams.get("uddg") || link;
-          }
-        } catch {}
-
-        if (!/^https?:\/\//i.test(link) || vistos.has(link)) continue;
-        if (/duckduckgo\.com\/html/i.test(link)) continue;
-
-        const inicioResumo = matches[i].index + matches[i][0].length;
-        const fimResumo = i+1 < matches.length
-          ? matches[i+1].index
-          : texto.length;
-
-        const resumo = limpar(
-          texto.slice(inicioResumo,fimResumo)
-            .replace(/\[[^\]]*\]\([^)]*\)/g," ")
-            .replace(/https?:\/\/\S+/g," ")
-        ).slice(0,450);
-
-        vistos.add(link);
-        criarResultado(titulo,resumo,link);
-        quantidade++;
-      }
-
-      if (!quantidade) throw new Error("Resultados indisponíveis.");
-
-      fonte = "DuckDuckGo";
-
-    } catch(e) {
-      console.warn("Pesquisa alternativa:",e);
-      passo("📚 DuckDuckGo falhou, tentando a Wikipédia...");
-      fonte = await pesquisarWiki(q);
-    }
-
-    const segundos = ((performance.now()-inicio)/1000).toFixed(2);
-
-    const div = document.createElement("div");
-    div.className = "meta";
-    div.textContent = "Fonte: "+fonte+" • "+segundos+" segundos";
-    chat.appendChild(div);
-
-    falar("Encontrei informações! Veja os resultados e consulte as fontes.");
-
-  } catch(e) {
-    console.error(e);
-    falar("Não consegui pesquisar agora. Tente novamente.");
-  } finally {
-    botao.disabled = false;
-    status.textContent = STATUS;
-  }
-}
-
-async function clima(cidade) {
-  botao.disabled = true;
-  passo("📍 Procurando a cidade “"+cidade+"”...");
-
-  try {
-    const geo = await requisicao(
-      "https://geocoding-api.open-meteo.com/v1/search?name="+
-      encodeURIComponent(cidade)+"&count=5&language=pt&format=json"
-    );
-
-    const locais = (await geo.json()).results || [];
-    const local = locais.find(x=>x.country_code==="BR") || locais[0];
-
-    if (!local) throw new Error("Cidade não encontrada.");
-
-    passo("🌡️ Achei "+local.name+(local.admin1 ? ", "+local.admin1 : "")+" ("+local.country+"). Buscando a previsão...");
-
-    const params = new URLSearchParams({
-      latitude:local.latitude,
-      longitude:local.longitude,
-      current:"temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m",
-      daily:"weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
-      timezone:"auto",
-      forecast_days:"3"
-    });
-
-    const r = await requisicao("https://api.open-meteo.com/v1/forecast?"+params);
-
-    const d = await r.json();
-    const c = d.current;
-
-    const condicao = codigo => {
-      if (codigo===0) return "Céu limpo";
-      if ([1,2,3].includes(codigo)) return "Nublado";
-      if ([45,48].includes(codigo)) return "Neblina";
-      if ([51,53,55,61,63,65,80,81,82].includes(codigo)) return "Chuva ou garoa";
-      if ([95,96,99].includes(codigo)) return "Tempestade";
-      return "Condição variável";
-    };
-
-    let resposta =
-      "🌤️ CLIMA: "+local.name+"\n\n"+
-      "Temperatura: "+c.temperature_2m+"°C\n"+
-      "Sensação: "+c.apparent_temperature+"°C\n"+
-      "Condição: "+condicao(c.weather_code)+"\n"+
-      "Umidade: "+c.relative_humidity_2m+"%\n"+
-      "Vento: "+c.wind_speed_10m+" km/h\n"+
-      "Chuva agora: "+c.precipitation+" mm\n\n"+
-      "PREVISÃO:\n";
-
-    for (let i=0;i<d.daily.time.length;i++) {
-      resposta +=
-        d.daily.time[i]+": "+
-        condicao(d.daily.weather_code[i])+
-        ", mínima "+d.daily.temperature_2m_min[i]+"°C"+
-        ", máxima "+d.daily.temperature_2m_max[i]+"°C"+
-        ", chance de chuva "+
-        d.daily.precipitation_probability_max[i]+"%\n";
-    }
-
-    falar(resposta);
-
-  } catch(e) {
-    console.error(e);
-    falar("Não consegui consultar o clima dessa cidade.");
-  } finally {
-    botao.disabled = false;
-    status.textContent = STATUS;
-  }
-}
-
-function extrairPesquisa(texto) {
-  const m = texto.match(
-    /^(?:(?:fa[cç]a|faz|fazer|pode)\s+)?(?:uma\s+)?(?:pesquise|pesquisa|pesquisar|procure|buscar|busque|busca)\s+(?:(?:uma\s+)?(?:pesquisa|busca)\s+)?(?:na internet\s+|na web\s+|no google\s+)?(?:sobre\s+|por\s+|a respeito de\s+)?(.+)/i
-  );
-
-  return m ? m[1].trim() : null;
-}
-
-function extrairClima(texto) {
-  const m = texto.match(
-    /^(?:(?:qual|como)\s+(?:est[aá]\s+)?(?:o|a)\s+)?(?:(?:clima|previs[aã]o(?:\s+do\s+tempo)?)(?:\s+(?:em|de|para|na|no|do|da))?|tempo\s+(?:em|na|no|para))\s+(.+?)\??$/i
-  );
-
-  return m ? m[1].trim() : null;
-}
-
-async function perguntarIA(texto) {
-  const key = localStorage.getItem(KEY_API);
-  const model = localStorage.getItem(KEY_MODEL) || "gemini-3.5-flash-lite";
-
-  botao.disabled = true;
-  status.textContent = "Pensando...";
-
-  const controller = new AbortController();
-  const timer = setTimeout(()=>controller.abort(),40000);
-
-  try {
-    let contents = history
-      .filter(h=>h.type==="user" || h.type==="bot")
-      .slice(-8)
-      .map(h=>({
-        role: h.type==="user" ? "user" : "model",
-        parts:[{text:String(h.text).slice(0,3000)}]
-      }));
-
-    while (contents.length && contents[0].role !== "user") contents.shift();
-
-    const r = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/"+
-      encodeURIComponent(model)+":generateContent",
-      {
-        method:"POST",
-        signal:controller.signal,
-        headers:{"Content-Type":"application/json","x-goog-api-key":key},
-        body:JSON.stringify({
-          systemInstruction:{parts:[{text:"Você é a BACH AI, uma assistente em português do Brasil criada pelo usuário. Responda de forma clara, simpática e objetiva."}]},
-          contents
-        })
-      }
-    );
-
-    if (!r.ok) {
-      if (r.status===400 || r.status===403) falar("A chave parece inválida. Gere outra em aistudio.google.com e use /chave SUA_CHAVE.");
-      else if (r.status===404) falar("Esse modelo não existe. Use /modelo NOME para trocar.");
-      else if (r.status===429) falar("Atingi o limite grátis por agora. Aguarde um minuto e tente de novo.");
-      else falar("A IA retornou erro "+r.status+". Tente novamente.");
-      return;
-    }
-
-    const d = await r.json();
-    const partes = d?.candidates?.[0]?.content?.parts || [];
-    const resp = partes.map(x=>x.text || "").join("").trim();
-
-    falar(resp || "A IA não devolveu resposta. Tente reformular.");
-
-  } catch(e) {
-    console.error(e);
-    falar("Não consegui falar com a IA agora. Verifique a internet e tente de novo.");
-  } finally {
-    clearTimeout(timer);
-    botao.disabled = false;
-    status.textContent = STATUS;
-  }
-}
-
+/* ---------- pensando / cancelar ---------- */
 function pensar() {
-  const div = document.createElement("div");
-  div.className = "msg bot pensando";
-  const t0 = performance.now();
-  const linhas = [];
-
-  const render = () => {
-    div.textContent = "🤔 Pensando... " + ((performance.now()-t0)/1000).toFixed(1) + " s\n" + linhas.join("\n");
-  };
-
-  const timer = setInterval(render,200);
-  chat.appendChild(div);
-  render();
-  chat.scrollTop = chat.scrollHeight;
-
-  return {
-    passo(t) {
-      linhas.push("• "+t);
-      if (linhas.length > 6) linhas.shift();
-      render();
-      chat.scrollTop = chat.scrollHeight;
-    },
-    fim() {
-      clearInterval(timer);
-      div.remove();
-      return (performance.now()-t0)/1000;
-    }
-  };
+  const div = mk("div", "msg bot pensando"), t0 = performance.now(), linhas = [];
+  const render = () => { div.textContent = "🤔 Pensando... " + ((performance.now() - t0) / 1000).toFixed(1) + " s\n" + linhas.join("\n") + "\n(toque em ⏹ para cancelar)"; };
+  const timer = setInterval(render, 200); chat.appendChild(div); render(); chat.scrollTop = chat.scrollHeight;
+  return { passo(t) { linhas.push("• " + t); if (linhas.length > 5) linhas.shift(); render(); }, fim() { clearInterval(timer); div.remove(); return (performance.now() - t0) / 1000; } };
+}
+function passo(t) { if (pensando) pensando.passo(t); status.textContent = t; }
+function parar() {
+  cancelado = true; if (ctrl) ctrl.abort();
+  if (pensando) { pensando.fim(); pensando = null; }
+  speechSynthesis.cancel(); busy(false);
+  falar("⏹ Cancelei. Pode mandar outra coisa.", "bot", "", true);
 }
 
-function passo(t) {
-  if (pensando) pensando.passo(t);
-  status.textContent = t;
+/* ---------- rede ---------- */
+async function requisicao(url, tempo = 20000) {
+  const c = new AbortController(), t = setTimeout(() => c.abort(), tempo);
+  try { const r = await fetch(url, { signal: c.signal }); if (!r.ok) throw new Error("HTTP " + r.status); return r; } finally { clearTimeout(t); }
 }
-
-function mostrarPreview(p) {
-  const div = document.createElement("div");
-  div.className = "msg bot";
-  const el = document.createElement(p.kind === "video" ? "video" : "img");
-  el.src = p.url;
-  if (p.kind === "video") { el.controls = true; el.muted = true; el.playsInline = true; }
-  div.appendChild(el);
-  chat.appendChild(div);
-}
-
-async function processarArquivo(f) {
-  botao.disabled = true;
-  falar("📎 "+f.name,"user");
-  pensando = pensar();
-  passo("📂 Abrindo "+f.name+" ("+Math.max(1,Math.round(f.size/1024))+" KB)...");
-
+async function clima(cidade) {
   try {
-    const r = await Arquivos.lerMidia(f,passo);
-    if (r.preview) mostrarPreview(r.preview);
-
-    let resposta = r.resumo;
-    let pasta = r.pasta;
-    let texto = "";
-
-    if (r.tipo === "texto") {
-      passo("📖 Lendo e resumindo o conteúdo...");
-      resposta = Saber.lerTexto(r.texto);
-      pasta = Saber.isCode(r.texto) ? "Códigos" : "Textos";
-      texto = r.texto;
-    }
-
-    passo("📁 Organizando em pastas...");
-    const a = Arquivos.salvar({nome:f.name,pasta,texto,resumo:resposta.slice(0,300),tipo:r.tipo});
-    falar(resposta+"\n\n📁 Guardei em: "+a.pasta+"/"+a.nome+"\nVeja tudo com /arquivos");
-  } catch(e) {
-    console.error(e);
-    falar("Não consegui abrir esse arquivo. "+(e.message || ""));
-  } finally {
-    botao.disabled = false;
-    status.textContent = STATUS;
-  }
+    passo("📍 Procurando “" + cidade + "”...");
+    const geo = await (await requisicao("https://geocoding-api.open-meteo.com/v1/search?name=" + encodeURIComponent(cidade) + "&count=5&language=pt&format=json")).json();
+    const L = geo.results || [], l = L.find(x => x.country_code === "BR") || L[0];
+    if (!l) throw new Error("Cidade não encontrada.");
+    passo("🌡️ Buscando a previsão de " + l.name + "...");
+    const p = new URLSearchParams({ latitude: l.latitude, longitude: l.longitude, current: "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m", daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max", timezone: "auto", forecast_days: "3" });
+    const d = await (await requisicao("https://api.open-meteo.com/v1/forecast?" + p)).json(), c = d.current;
+    const cond = k => k === 0 ? "Céu limpo" : [1, 2, 3].includes(k) ? "Nublado" : [45, 48].includes(k) ? "Neblina" : [51, 53, 55, 61, 63, 65, 80, 81, 82].includes(k) ? "Chuva ou garoa" : [95, 96, 99].includes(k) ? "Tempestade" : "Variável";
+    let r = "🌤️ CLIMA: " + l.name + "\n\nTemperatura: " + c.temperature_2m + "°C (sensação " + c.apparent_temperature + "°C)\nCondição: " + cond(c.weather_code) + "\nUmidade: " + c.relative_humidity_2m + "%\nVento: " + c.wind_speed_10m + " km/h\n\nPREVISÃO:\n";
+    d.daily.time.forEach((x, i) => r += x + ": " + cond(d.daily.weather_code[i]) + ", " + d.daily.temperature_2m_min[i] + "°–" + d.daily.temperature_2m_max[i] + "°C, chuva " + d.daily.precipitation_probability_max[i] + "%\n");
+    falar(r);
+  } catch (e) { console.error(e); falar("Não consegui consultar o clima dessa cidade."); }
 }
-
-const maisBtn = document.getElementById("mais");
-const menu = document.getElementById("menu");
-const seletor = document.getElementById("seletor");
-
-maisBtn.addEventListener("click",()=>menu.classList.toggle("aberto"));
-
-menu.addEventListener("click",e=>{
-  const b = e.target.closest("button[data-acao]");
-  if (!b) return;
-
-  menu.classList.remove("aberto");
-  const acao = b.dataset.acao;
-
-  if (acao === "anexar") seletor.click();
-
-  if (acao === "profundo") {
-    modoProfundo = !modoProfundo;
-    b.textContent = "🧠 Pensar bastante: "+(modoProfundo ? "ligado" : "desligado");
-    falar(modoProfundo
-      ? "Modo pensar bastante LIGADO 🧠. Quando eu não souber algo, vou pesquisar a fundo sozinha e mostrar por onde estou procurando."
-      : "Modo pensar bastante desligado. Só pesquiso quando você pedir.");
-  }
-
-  if (acao === "arquivos") { entrada.value = "/arquivos"; enviar(); }
-  if (acao === "piada") { entrada.value = "conta uma piada"; enviar(); }
-});
-
-seletor.addEventListener("change",async()=>{
-  const arquivos = [...seletor.files];
-  seletor.value = "";
-  for (const f of arquivos) await processarArquivo(f);
-});
+const extrairPesquisa = t => (t.match(/^(?:(?:fa[cç]a|faz|fazer|pode)\s+)?(?:uma\s+)?(?:pesquise|pesquisa|pesquisar|procure|buscar|busque|busca)\s+(?:(?:uma\s+)?(?:pesquisa|busca)\s+)?(?:na internet\s+|na web\s+|no google\s+)?(?:sobre\s+|por\s+|a respeito de\s+)?(.+)/i) || [])[1]?.trim() ?? null;
+const extrairClima = t => (t.match(/^(?:(?:qual|como)\s+(?:est[aá]\s+)?(?:o|a)\s+)?(?:(?:clima|previs[aã]o(?:\s+do\s+tempo)?)(?:\s+(?:em|de|para|na|no|do|da))?|tempo\s+(?:em|na|no|para))\s+(.+?)\??$/i) || [])[1]?.trim() ?? null;
+const extrairProfundo = t => (t.match(/^(?:(?:fa[cç]a|faz|pode)\s+)?(?:uma\s+)?(?:(?:pesquise|pesquisa|pesquisar|busque|busca|procure)\s+(?:a fundo|profundamente|em profundidade)|pesquisa profunda|aprofunde|\/profundo)\s*(?:sobre\s+|a respeito de\s+)?(.+)/i) || [])[1]?.trim() ?? null;
 
 async function pesquisaProfunda(q, fundo = true) {
-  if (/\b(piadas?|humor|engra[cç]ad[oa]s?)\b/i.test(q)) {
-    falar("Piada eu tenho de sobra, nem precisa pesquisar! 😄\n\n"+Prog.humor("conta uma piada"),"bot","😄 meu repertório");
-    return;
-  }
-
-  botao.disabled = true;
-  passo((fundo ? "🔎 Pesquisando a fundo: " : "🔎 Pesquisando: ")+q);
-
+  if (/\b(piadas?|humor|engra[cç]ad[oa]s?)\b/i.test(q)) { falar("Piada eu tenho de sobra! 😄\n\n" + Prog.humor("conta uma piada"), "bot", "😄 meu repertório"); return; }
+  passo((fundo ? "🔎 Pesquisando a fundo: " : "🔎 Pesquisando: ") + q);
   try {
     const r = await Saber.pesquisaProfunda(q, passo, fundo);
-    falar(r.texto,"bot","🌐 internet, filtrada e resumida por mim");
-    r.fontes.forEach(f => criarResultado(f.titulo,"",f.url));
-  } catch(e) {
+    falar(r.texto, "bot", "🌐 internet, filtrada e resumida");
+    Arquivos.salvar({ nome: "pesquisa-" + q.slice(0, 24), pasta: Mente.pasta("Pesquisas"), texto: r.texto, tipo: "pesquisa" }); r.fontes.forEach(f => criarResultado(f.titulo, "", f.url));
+  } catch (e) {
     console.error(e);
-    if (e.message === "irrelevante") {
-      falar("Procurei e li o que apareceu, mas nada estava claramente ligado a “"+q+"”, e prefiro não inventar. Tente outras palavras ou seja mais específico. 🔍");
-    } else {
-      falar("Não consegui pesquisar agora: a internet ou as fontes falharam. Tente de novo em instantes.");
-    }
-  } finally {
-    botao.disabled = false;
-    status.textContent = STATUS;
+    falar(e.message === "irrelevante" ? "Procurei, mas nada estava claramente ligado a “" + q + "”, e prefiro não inventar. Tente outras palavras. 🔍" : "Não consegui pesquisar agora. Tente de novo em instantes.");
   }
 }
 
-function extrairProfundo(texto) {
-  const m = texto.match(
-    /^(?:(?:fa[cç]a|faz|pode)\s+)?(?:uma\s+)?(?:(?:pesquise|pesquisa|pesquisar|busque|busca|procure)\s+(?:a fundo|profundamente|em profundidade)|pesquisa profunda|aprofunde|\/profundo)\s*(?:sobre\s+|a respeito de\s+)?(.+)/i
-  );
+/* ---------- IA (Gemini) ---------- */
+const SISTEMA =
+`Você é a BACH AI, assistente em português do Brasil criada pelo usuário. Seja simpática, direta e clara; explique para iniciantes, mas vá fundo quando pedirem nível intermediário ou avançado.
+Você sabe: conversar; escrever e resumir textos; interpretar textos e códigos colados (explique o que são, o que fazem e o que está errado); programar em JavaScript, HTML, CSS, Python, SQL e outras; criar telas, sites, jogos e aplicativos; e ensinar a criar uma IA do zero.
+REGRAS DE FORMATO:
+- Todo código, arquivo ou texto que o usuário vá copiar vai em bloco de código com três crases e a linguagem (ex.: html, js). O app mostra cada bloco como um cartão com botões Copiar e Baixar. Nunca coloque código solto no meio do texto.
+- Antes de cada bloco diga em 1 linha o nome do arquivo e onde colar. Entregue o arquivo COMPLETO, pronto para colar, nunca pedaços soltos, a menos que peçam só uma correção.
+- Para jogos e apps simples, entregue um único arquivo HTML (CSS e JS dentro) que funcione no celular.
+- Respostas curtas para perguntas simples. Em tarefas grandes, dê o passo a passo numerado.
+JOGOS COM VOCÊ: você sabe jogar forca, jogo da velha (desenhe com texto), adivinhação de número, quiz, 20 perguntas, stop e charadas. Guarde o estado do jogo pelo histórico, diga de quem é a vez e confira as regras com honestidade.
+IA DO ZERO: ensine nesta ordem — 1) entrada e saída (chat), 2) regras e normalização do texto, 3) memória que aprende (ensine: pergunta => resposta), 4) busca de informação, 5) ler arquivos, 6) conectar um modelo de linguagem por API, com a chave nunca dentro do código do GitHub. Diga sempre por qual arquivo começar e o que colar nele.
+HONESTIDADE: se não souber, diga. Não invente fatos, links ou funções. Use o histórico para entender "isso", "esse texto", "ele". Se o usuário colar um texto ou código sem pergunta, explique em poucas linhas o que é e ofereça próximos passos.`;
 
-  return m ? m[1].trim() : null;
+async function perguntarIA(texto) {
+  const key = localStorage.getItem(KEY_API), model = localStorage.getItem(KEY_MODEL) || "gemini-3.5-flash-lite";
+  passo("🤖 Pensando com a IA...");
+  ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), 60000);
+  try {
+    let contents = history.filter(h => h.type === "user" || h.type === "bot").slice(-10).map(h => ({ role: h.type === "user" ? "user" : "model", parts: [{ text: String(h.text).slice(0, 12000) }] }));
+    while (contents.length && contents[0].role !== "user") contents.shift();
+    const nome = RizikBrain.recall("userName");
+    let sis = SISTEMA + (nome ? "\nO usuário se chama " + nome + "." : "");
+    if (ultimoArquivo) sis += "\n\nARQUIVO/TEXTO MAIS RECENTE DO USUÁRIO (" + ultimoArquivo.nome + "):\n" + ultimoArquivo.texto.slice(0, 30000);
+    const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent", {
+      method: "POST", signal: ctrl.signal, headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+      body: JSON.stringify({ systemInstruction: { parts: [{ text: sis }] }, contents, generationConfig: { maxOutputTokens: 8192 } })
+    });
+    if (!r.ok) {
+      falar(r.status === 400 || r.status === 403 ? "A chave parece inválida. Gere outra em aistudio.google.com e use /chave SUA_CHAVE."
+        : r.status === 404 ? "Esse modelo não está disponível pra sua chave. Troque com /modelo gemini-3.8-flash"
+        : r.status === 429 ? "Atingi o limite grátis por agora. Aguarde um minuto e tente de novo."
+        : "A IA retornou erro " + r.status + ". Tente novamente.");
+      return;
+    }
+    const d = await r.json(), cand = d?.candidates?.[0];
+    let resp = (cand?.content?.parts || []).map(x => x.text || "").join("").trim();
+    if (cand?.finishReason === "MAX_TOKENS") resp += "\n\n(Resposta cortada pelo limite. Peça: continue)";
+    falar(resp || "A IA não devolveu resposta. Tente reformular.", "bot", "🤖 IA conectada");
+  } catch (e) {
+    if (e.name !== "AbortError") { console.error(e); falar("Não consegui falar com a IA agora. Verifique a internet e tente de novo."); }
+  } finally { clearTimeout(timer); ctrl = null; }
+}
+
+/* ---------- arquivos ---------- */
+function mostrarPreview(p) {
+  const d = mk("div", "msg bot"), el = document.createElement(p.kind === "video" ? "video" : "img"); el.src = p.url;
+  if (p.kind === "video") { el.controls = true; el.muted = true; el.playsInline = true; }
+  d.appendChild(el); chat.appendChild(d);
+}
+async function processarArquivo(f) {
+  busy(true); cancelado = false; falar("📎 " + f.name, "user"); pensando = pensar();
+  passo("📂 Abrindo " + f.name + "...");
+  try {
+    const r = await Arquivos.lerMidia(f, passo);
+    if (r.preview) mostrarPreview(r.preview);
+    let resposta = r.resumo, pasta = r.pasta, texto = "";
+    if (r.tipo === "texto") {
+      passo("📖 Lendo o conteúdo...");
+      resposta = Saber.lerTexto(r.texto); pasta = Mente.pasta(Saber.isCode(r.texto) ? "Códigos" : "Textos"); texto = r.texto; Mente.setTexto(f.name, r.texto);
+      ultimoArquivo = { nome: f.name, texto: r.texto };
+    }
+    const a = Arquivos.salvar({ nome: f.name, pasta, texto, resumo: resposta.slice(0, 300), tipo: r.tipo });
+    falar(resposta + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos" + (texto && localStorage.getItem(KEY_API) ? "\n💡 Pergunte qualquer coisa sobre esse arquivo." : ""));
+  } catch (e) { console.error(e); falar("Não consegui abrir esse arquivo. " + (e.message || "")); }
+  finally { busy(false); }
+}
+
+/* ---------- roteamento ---------- */
+async function rotear(texto) {
+  const cmd = texto.toLowerCase().trim();
+  if (["/clear", "/limpar", "limpar histórico"].includes(cmd)) { history = []; localStorage.removeItem(HISTORY_KEY); chat.innerHTML = ""; falar("Chat limpo! 🧹 Sua memória de aprendizado continua guardada."); return; }
+  if (cmd.startsWith("/modelo ")) { localStorage.setItem(KEY_MODEL, texto.slice(8).trim()); falar("Modelo trocado para: " + texto.slice(8).trim()); return; }
+
+  const prof = extrairProfundo(texto); if (prof !== null) return pesquisaProfunda(prof);
+  const cons = extrairPesquisa(texto); if (cons !== null) return pesquisaProfunda(cons, false);
+  if (/^(?:(?:qual|como)\s+(?:est[aá]\s+)?(?:o|a)\s+)?(?:clima|tempo|previs[aã]o(?:\s+do\s+tempo)?)\s*\??$/i.test(texto)) { falar("De qual cidade? Diga: clima em (sua cidade) 🌤️"); return; }
+  const cid = extrairClima(texto); if (cid) return clima(cid);
+
+  const arq = Arquivos.comando(texto); if (arq) { falar(arq, "bot", "📁 seus arquivos"); return; }
+  const mt = Mente.responder(texto);
+  if (mt) { if (mt.pesquisa) return pesquisaProfunda(mt.pesquisa, mt.fundo !== false); falar(mt.texto, "bot", mt.origem || "🧠 minha mente"); return; }
+
+  passo("🧠 Consultando minha memória...");
+  const r = RizikBrain.think(texto), temIA = !!localStorage.getItem(KEY_API);
+
+  if (r.intent === "longtext") {
+    const cod = Saber.isCode(texto), leitura = Saber.lerTexto(texto);
+    const a = Arquivos.salvar({ texto, pasta: Mente.pasta(cod ? "Códigos" : "Textos"), resumo: leitura.slice(0, 300) });
+    ultimoArquivo = { nome: a.nome, texto }; Mente.setTexto(a.nome, texto);
+    if (temIA) { await perguntarIA(texto); return; }
+    falar(leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos\n💡 Agora pergunte: “o que é esse texto?”, “resume” ou “revisa o código”."); return;
+  }
+  if (r.handled) { falar(r.text, "bot", "🧠 minha memória e regras"); return; }
+
+  if (temIA) { await perguntarIA(texto); return; }
+
+  const graca = Prog.humor(texto); if (graca) { falar(graca, "bot", "😄 meu repertório"); return; }
+  const prog = Prog.responder(texto); if (prog) { falar(prog, "bot", "💻 programação"); return; }
+  const k = Saber.buscarConhecimento(texto); if (k) { falar(k, "bot", "📚 o que aprendi"); return; }
+  if (modoProfundo || Mente.pergunta(texto)) return pesquisaProfunda(texto);
+  falar(Prog.desconhecido() + "\n\nVocê pode:\n• me pedir: jogar forca, crie uma calculadora, o que é ...\n• me ensinar: ensine: pergunta => resposta\n• pedir: pesquise a fundo sobre o assunto\n• clima em (sua cidade)\n\nDigite \"ajuda\" para ver tudo.");
 }
 
 async function enviar() {
-  const texto = entrada.value.trim();
-
-  if (!texto || botao.disabled) return;
-
+  if (ocupado) { parar(); return; }
+  const texto = entrada.value.trim(); if (!texto) return;
   entrada.value = "";
-
-  // A chave nunca aparece no chat nem no histórico.
   if (/^\/chave\s+/i.test(texto)) {
-    const valor = texto.replace(/^\/chave\s+/i,"").trim();
-    falar("/chave ••••••","user");
-
-    if (valor.toLowerCase()==="apagar") {
-      localStorage.removeItem(KEY_API);
-      falar("Chave apagada. Voltei ao modo sem IA externa.");
-    } else if (valor.length < 20) {
-      falar("Essa chave parece curta demais. Copie a chave inteira do Google AI Studio.");
-    } else {
-      localStorage.setItem(KEY_API,valor);
-      falar("Chave salva neste aparelho ✅ Agora respondo perguntas e textos grandes com IA.");
-    }
+    const v = texto.replace(/^\/chave\s+/i, "").trim(); falar("/chave ••••••", "user");
+    if (v.toLowerCase() === "apagar") { localStorage.removeItem(KEY_API); falar("Chave apagada. Voltei ao modo sem IA externa."); }
+    else if (v.length < 20) falar("Essa chave parece curta demais. Copie a chave inteira do Google AI Studio.");
+    else { localStorage.setItem(KEY_API, v); falar("Chave salva neste aparelho ✅ Agora respondo tudo com IA: textos, código, jogos e apps."); }
     return;
   }
-
-  falar(texto,"user");
-  pensando = pensar();
-  passo("👀 Lendo sua mensagem...");
-
-  const cmd = texto.toLowerCase().trim();
-
-  if (cmd === "/clear" || cmd === "/limpar" || cmd === "limpar histórico") {
-    history = [];
-    localStorage.removeItem(HISTORY_KEY);
-    chat.innerHTML = "";
-    falar("Chat limpo! 🧹 Sua memória de aprendizado continua guardada.");
-    return;
-  }
-
-  if (cmd.startsWith("/modelo ")) {
-    const nome = texto.slice(8).trim();
-    localStorage.setItem(KEY_MODEL,nome);
-    falar("Modelo trocado para: "+nome);
-    return;
-  }
-
-  // Pesquisa profunda: só quando você pedir.
-  const profundo = extrairProfundo(texto);
-
-  if (profundo !== null) {
-    await pesquisaProfunda(profundo);
-    return;
-  }
-
-  // Pesquisa: só quando você pedir.
-  const consulta = extrairPesquisa(texto);
-
-  if (consulta !== null) {
-    await pesquisaProfunda(consulta,false);
-    return;
-  }
-
-  // Clima: só pesquisa se você disser a cidade.
-  if (/^(?:(?:qual|como)\s+(?:est[aá]\s+)?(?:o|a)\s+)?(?:clima|tempo|previs[aã]o(?:\s+do\s+tempo)?)\s*\??$/i.test(texto)) {
-    falar("De qual cidade? Diga assim: clima em (sua cidade) 🌤️");
-    return;
-  }
-
-  const cidade = extrairClima(texto);
-
-  if (cidade) {
-    await clima(cidade);
-    return;
-  }
-
-  passo("📁 Verificando comandos de arquivos...");
-  const arq = Arquivos.comando(texto);
-
-  if (arq) {
-    falar(arq,"bot","📁 seus arquivos");
-    return;
-  }
-
-  passo("🧠 Consultando minha memória...");
-  const resposta = RizikBrain.think(texto);
-
-  if (resposta.intent === "longtext") {
-    passo("📖 Lendo o texto inteiro...");
-    const leitura = Saber.lerTexto(texto);
-    const eCodigo = Saber.isCode(texto);
-    const a = Arquivos.salvar({texto,pasta:eCodigo ? "Códigos" : "Textos",resumo:leitura.slice(0,300)});
-    falar(leitura+"\n\n📁 Guardei em: "+a.pasta+"/"+a.nome+"\nVeja tudo com /arquivos");
-    return;
-  }
-
-  if (resposta.handled) {
-    falar(resposta.text,"bot","🧠 minha memória e regras");
-    return;
-  }
-
-  passo("😄 Vendo se é conversa ou piada...");
-  const graca = Prog.humor(texto);
-
-  if (graca) {
-    falar(graca,"bot","😄 meu repertório de humor");
-    return;
-  }
-
-  passo("💻 Vendo se é sobre programação...");
-  const prog = Prog.responder(texto);
-
-  if (prog) {
-    falar(prog,"bot","💻 meu conhecimento de programação");
-    return;
-  }
-
-  passo("📚 Procurando no que já aprendi...");
-  const conhecido = Saber.buscarConhecimento(texto);
-
-  if (conhecido) {
-    falar(conhecido,"bot","📚 o que aprendi pesquisando antes");
-    return;
-  }
-
-  if (modoProfundo) {
-    await pesquisaProfunda(texto);
-    return;
-  }
-
-  if (localStorage.getItem(KEY_API)) {
-    await perguntarIA(texto);
-    return;
-  }
-
-  falar(
-    Prog.desconhecido()+"\n\n"+
-    "Você pode:\n"+
-    "• me ensinar: ensine: pergunta => resposta\n"+
-    "• pedir: pesquise a fundo sobre o assunto\n"+
-    "• ligar \"Pensar bastante\" no botão + para eu pesquisar sozinha\n"+
-    "• ver o clima: clima em (sua cidade)\n\n"+
-    "Digite \"ajuda\" para ver tudo."
-  );
+  cancelado = false; busy(true); falar(texto, "user"); pensando = pensar(); passo("👀 Lendo sua mensagem...");
+  try { await rotear(texto); }
+  catch (e) { console.error(e); falar("Deu um erro inesperado. Tente de novo."); }
+  finally { if (pensando) { pensando.fim(); pensando = null; } busy(false); }
 }
 
-botao.addEventListener("click",enviar);
+/* ---------- menu, voz, eventos ---------- */
+const menu = $("menu"), seletor = $("seletor");
+$("mais").onclick = () => menu.classList.toggle("aberto");
+menu.onclick = e => {
+  const b = e.target.closest("button[data-acao]"); if (!b) return; menu.classList.remove("aberto");
+  const a = b.dataset.acao;
+  if (a === "anexar") seletor.click();
+  if (a === "profundo") { modoProfundo = !modoProfundo; b.textContent = "🧠 Pensar bastante: " + (modoProfundo ? "ligado" : "desligado"); falar(modoProfundo ? "Modo pensar bastante LIGADO 🧠" : "Modo pensar bastante desligado."); }
+  if (a === "voz") { lerAuto = !lerAuto; b.textContent = "🔊 Ler respostas sozinha: " + (lerAuto ? "ligado" : "desligado"); if (!lerAuto) speechSynthesis.cancel(); }
+  if (a === "arquivos") { entrada.value = "/arquivos"; enviar(); }
+  if (a === "piada") { entrada.value = "conta uma piada"; enviar(); }
+  if (a === "jogo") { entrada.value = "vamos jogar"; enviar(); }
+};
+seletor.onchange = async () => { const L = [...seletor.files]; seletor.value = ""; for (const f of L) await processarArquivo(f); };
 
-entrada.addEventListener("keydown",e=>{
-  if (e.key==="Enter") enviar();
-});
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition; let rec = null;
+$("mic").onclick = () => {
+  if (!SR) { falar("Seu navegador não tem reconhecimento de voz. Tente no Chrome.", "bot", "", true); return; }
+  if (rec) { rec.stop(); return; }
+  rec = new SR(); rec.lang = "pt-BR"; rec.interimResults = true; $("mic").classList.add("gravando");
+  rec.onresult = e => { entrada.value = [...e.results].map(r => r[0].transcript).join(" "); };
+  rec.onend = () => { rec = null; $("mic").classList.remove("gravando"); if (entrada.value.trim()) entrada.focus(); };
+  rec.onerror = () => { rec = null; $("mic").classList.remove("gravando"); };
+  rec.start();
+};
+botao.onclick = enviar;
+entrada.addEventListener("keydown", e => { if (e.key === "Enter") enviar(); });
 
-restaurar();
-
-status.textContent = STATUS;
-
-if (!history.length) {
-  falar("Olá! Sou a BACH AI 🧠. Vamos evoluir juntos! Digite \"ajuda\" para ver o que eu faço.");
-}
+restaurar(); status.textContent = STATUS;
+if (!history.length) falar("Olá! Sou a BACH AI 🧠. Converso, resumo textos, programo, crio jogos e apps e jogo com você. Digite \"ajuda\" para ver tudo.");
 </script>
-
 </body>
 </html>
