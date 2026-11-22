@@ -1,15 +1,15 @@
-/* BACH AI - CEREBRO 0.6
+/* BACH AI - CEREBRO 0.7
    Conversa, memória, aprendizado, autocorreção e backup. */
 
 const KEY = "rizik_brain_v1";
-const BASE = { name: "BACH AI", facts: {}, examples: [], synonyms: {}, notes: [], version: 6 };
+const BASE = { name: "BACH AI", facts: {}, examples: [], synonyms: {}, notes: [], version: 7 };
 
 function load() {
   try {
     const s = JSON.parse(localStorage.getItem(KEY));
     if (s && typeof s === "object") {
       return {
-        ...BASE, ...s, name: "BACH AI", version: 6,
+        ...BASE, ...s, name: "BACH AI", version: 7,
         facts: s.facts || {},
         examples: Array.isArray(s.examples) ? s.examples : [],
         synonyms: s.synonyms || {},
@@ -171,7 +171,7 @@ const HELP =
   "💻 Programação e humor\n" +
   "• pergunte: o que é função? como fazer um loop?\n" +
   "• conta uma piada (e depois: outra!)\n\n" +
-  "🛠️ Extras: lembre: algo • estatísticas • exportar memória • /clear";
+  "🕘 Histórico e dados\n• /historico (15 páginas) • /nova (nova conversa)\n• /basedados (exporta tudo) • /importarbase (restaura)\n\n🛠️ Extras: lembre: algo • estatísticas • /clear";
 
 function think(message) {
   const original = String(message || "").trim();
@@ -228,7 +228,7 @@ function think(message) {
   }
 
   // Backup
-  if (/^(exportar memoria|backup|exportar)$/.test(t)) {
+  if (/^(exportar|exporta|backup|baixar)( a| o| minha| toda| tudo| os)*( memoria| dados| base)?$/.test(t)) {
     return R("Copie e guarde este backup:\n\n" + JSON.stringify(data), "export");
   }
   m = original.match(/^importar mem[oó]ria\s*:\s*(\{[\s\S]+\})$/i);
@@ -283,7 +283,7 @@ function think(message) {
     case "thanks": return R(pick(["Por nada! Sempre que precisar, estou aqui. 😊", "Disponha! 💜"]), intent);
     case "goodbye": return R(pick(["Até mais! 👋", "Até logo! Volte sempre! 💜"]), intent);
     case "capabilities": return R("Posso conversar, aprender respostas e palavras novas, corrigir erros de digitação, guardar informações e notas, fazer backup da memória, pesquisar na internet e consultar o clima. Digite “ajuda” para ver os comandos! 🧠", intent);
-    case "canread": return R("Textos curtos eu leio, mas não entendo de verdade: sou uma IA de regras. Textos enormes eu só consigo contar e identificar se parecem código. Para resolver textos grandes, o ideal é conectar um modelo de IA por API.", intent);
+    case "canread": return R("Sim! Leio textos, códigos, arquivos anexados e links: resumo, mostro as funções que encontro e faço uma revisão por regras. Não entendo como um modelo grande de linguagem; para isso, conecte uma chave Gemini com /chave.", intent);
     case "time": return R("Agora são " + new Date().toLocaleTimeString("pt-BR") + ".", intent);
     case "date": return R("Hoje é " + new Date().toLocaleDateString("pt-BR") + ".", intent);
     case "name": return R(nome ? "Seu nome é " + nome + "." : "Ainda não sei seu nome. Diga: meu nome é ...", intent);
@@ -301,4 +301,4 @@ function getStats() {
   };
 }
 
-export const RizikBrain = { version: "0.6.0", think, learn, forget, remember, recall, classify, getStats };
+export const RizikBrain = { version: "0.7.0", think, learn, forget, remember, recall, classify, getStats };
