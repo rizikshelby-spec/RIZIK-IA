@@ -55,14 +55,25 @@ button.stop{background:#c0392b}
 .hpag button.on{background:#7864ed}.hpag button.vazia{opacity:.35}.hpag button:disabled{opacity:.3}
 .hrod{display:flex;gap:8px;justify-content:space-between;align-items:center;font-size:12px;color:#8d8fa6}
 .hrod button{padding:6px 10px;font-size:12px;background:#303247}
+[hidden]{display:none!important}
+textarea#entrada{flex:1;min-width:0;padding:11px;border:1px solid #44465d;border-radius:12px;background:#10111a;color:#fff;font-size:16px;font-family:inherit;line-height:1.35;resize:none;max-height:130px;overflow-y:auto}
+#barras{flex:none;background:#191b29;border-top:1px solid #303247}
+#citbar,#anexos{display:flex;align-items:center;gap:8px;padding:6px 12px;font-size:12px;color:#c5baff;flex-wrap:wrap}
+#citbar{flex-wrap:nowrap;border-left:3px solid #7864ed}
+#citbar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#citbar button,#anexos button{padding:2px 8px;font-size:12px;background:#303247}
+.chip{display:flex;gap:6px;align-items:center;background:rgba(255,255,255,.08);border-radius:10px;padding:3px 4px 3px 9px;max-width:100%;overflow-wrap:anywhere}
+.cit{border-left:3px solid #7864ed;background:rgba(0,0,0,.25);border-radius:6px;padding:4px 8px;margin-bottom:6px;font-size:12px;color:#b9adff;white-space:pre-wrap;overflow-wrap:anywhere}
+.acoes.user{justify-content:flex-end}
 </style>
 </head>
 <body>
 <header><h2>BACH AI 🧠</h2><div id="status">Carregando...</div></header>
 <main id="chat"></main>
+<div id="barras"><div id="citbar" hidden></div><div id="anexos" hidden></div></div>
 <footer>
 <button id="mais" aria-label="Mais opções">+</button>
-<input type="text" id="entrada" placeholder="Converse ou digite 'ajuda'..." autocomplete="off">
+<textarea id="entrada" rows="1" enterkeyhint="enter" placeholder="Converse ou digite 'ajuda'..." autocomplete="off"></textarea>
 <button id="mic" aria-label="Falar">🎤</button>
 <button id="enviar">Enviar</button>
 </footer>
@@ -73,8 +84,6 @@ button.stop{background:#c0392b}
 <button data-acao="historico">🕘 Histórico de conversas</button>
 <button data-acao="nova">➕ Nova conversa</button>
 <button data-acao="arquivos">📁 Meus arquivos</button>
-<button data-acao="base">💾 Exportar tudo (/basedados)</button>
-<button data-acao="piada">😄 Conta uma piada</button>
 <button data-acao="jogo">🎮 Jogar um joguinho</button>
 </div>
 <input id="seletor" type="file" hidden multiple accept="image/*,video/*,.txt,.md,.js,.html,.css,.json,.csv,.py,.xml,.log,.ts,.java,.c,.cpp,.sql,.yml,.yaml">
@@ -83,14 +92,15 @@ button.stop{background:#c0392b}
 <input id="seletorBase" type="file" hidden accept=".json,application/json">
 
 <script type="module">
-import { RizikBrain } from "./brain.js?v=12";
-import { Saber } from "./saber.js?v=4";
-import { Prog } from "./programacao.js?v=3";
+import { RizikBrain } from "./brain.js?v=13";
+import { Saber } from "./saber.js?v=5";
+import { Prog } from "./programacao.js?v=4";
 import { Arquivos } from "./arquivos.js?v=1";
-import { Mente } from "./mente.js?v=6";
-import { Fatos } from "./fatos.js?v=1";
-import { Historico } from "./historico.js?v=1";
-import { Base } from "./base.js?v=1";
+import { Mente } from "./mente.js?v=7";
+import { Fatos } from "./fatos.js?v=2";
+import { Conversa } from "./conversa.js?v=1";
+import { Historico } from "./historico.js?v=2";
+import { Base } from "./base.js?v=2";
 
 const $ = id => document.getElementById(id);
 const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status"), hist = $("hist");
@@ -99,6 +109,7 @@ const STATUS = "BACH AI 3.0 • Conversa, código, jogos, arquivos, histórico e
 const LONGO = 700;
 
 let history = [], pensando = null, modoProfundo = false, lerAuto = false;
+let ultimoTema = null, ultimaOrigem = "", aguardaCidade = false, citacao = null, alvo = null, pendentes = [];
 let ocupado = false, cancelado = false, ctrl = null, ultimoArquivo = null;
 try { history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); if (!Array.isArray(history)) history = []; } catch { history = []; }
 const salvarHist = () => { try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-40).map(h => ({ ...h, text: String(h.text).slice(0, 20000) })))); } catch (e) { console.warn(e); }
@@ -116,7 +127,7 @@ function baixar(t, nome) {
   const u = URL.createObjectURL(new Blob([t], { type: /\.json$/.test(nome) ? "application/json" : "text/plain;charset=utf-8" }));
   const a = document.createElement("a"); a.href = u; a.download = nome; a.click(); setTimeout(() => URL.revokeObjectURL(u), 3000);
 }
-const EXT = { html: "html", js: "js", javascript: "js", css: "css", python: "py", py: "py", json: "json", sql: "sql", java: "java", ts: "ts" };
+const EXT = { html: "html", js: "js", javascript: "js", css: "css", python: "py", py: "py", json: "json", sql: "sql", java: "java", ts: "ts", lua: "lua", txt: "txt" };
 function mk(tag, cls, txt) { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
 
 function cartao(titulo, conteudo, arquivo, aberto, previa) {
@@ -129,8 +140,9 @@ function cartao(titulo, conteudo, arquivo, aberto, previa) {
 }
 
 /* ---------- bolhas ---------- */
-function montar(texto, tipo) {
+function montar(texto, tipo, cit = "") {
   const w = mk("div", "msg " + tipo);
+  if (cit) w.appendChild(mk("div", "cit", "↩ " + cit));
   const p = String(texto).split(/```([\w+-]*)[ \t]*\n?([\s\S]*?)```/g);
   for (let i = 0; i < p.length; i += 3) {
     const t = p[i].trim();
@@ -157,26 +169,28 @@ function ler(texto, btn) {
   u.onend = u.onerror = () => { if (btn) btn.textContent = "🔊 Ouvir"; };
   if (btn) btn.textContent = "⏹ Parar"; speechSynthesis.speak(u);
 }
-function acoes(texto) {
-  const a = mk("div", "acoes"), b1 = mk("button", "", "🔊 Ouvir"), b2 = mk("button", "", "📋 Copiar");
-  b1.onclick = () => ler(texto, b1); b2.onclick = () => copiar(texto, b2);
-  a.append(b1, b2); return a;
+function acoes(texto, user) {
+  const a = mk("div", "acoes" + (user ? " user" : "")), b2 = mk("button", "", "📋 Copiar"), b3 = mk("button", "", "↩ Responder");
+  b2.onclick = () => copiar(texto, b2); b3.onclick = () => responderA(texto, user ? "user" : "bot");
+  if (!user) { const b1 = mk("button", "", "🔊 Ouvir"); b1.onclick = () => ler(texto, b1); a.append(b1); }
+  a.append(b2, b3); return a;
 }
 
-function falar(texto, tipo = "bot", origem = "", forcar = false) {
+function falar(texto, tipo = "bot", origem = "", forcar = false, cit = "") {
   if (tipo === "bot" && cancelado && !forcar) return;
   let seg = null;
   if (tipo === "bot" && pensando) { seg = pensando.fim(); pensando = null; }
-  chat.appendChild(montar(texto, tipo));
-  if (tipo === "bot") chat.appendChild(acoes(texto));
+  chat.appendChild(montar(texto, tipo, cit));
+  chat.appendChild(acoes(texto, tipo === "user"));
   if (seg !== null) chat.appendChild(mk("div", "meta", (seg < 0.3 ? "⚡ Respondi na hora" : "⏱ Pensei por " + seg.toFixed(1) + " s") + (origem ? " • " + origem : "")));
   chat.scrollTop = chat.scrollHeight;
-  history.push({ text: String(texto), type: tipo }); salvarHist();
+  history.push({ text: String(texto), type: tipo, ...(cit ? { cit } : {}) }); salvarHist();
+  if (tipo === "bot") ultimaOrigem = origem;
   if (tipo === "bot" && lerAuto) ler(texto);
 }
 function restaurar() {
   history = history.slice(-40);
-  for (const h of history) { chat.appendChild(montar(h.text || "", h.type === "user" ? "user" : "bot")); if (h.type !== "user") chat.appendChild(acoes(h.text || "")); }
+  for (const h of history) { const u = h.type === "user"; chat.appendChild(montar(h.text || "", u ? "user" : "bot", h.cit || "")); chat.appendChild(acoes(h.text || "", u)); }
   chat.scrollTop = chat.scrollHeight;
 }
 function criarResultado(titulo, resumo, url) {
@@ -213,6 +227,7 @@ async function clima(cidade) {
     const geo = await (await requisicao("https://geocoding-api.open-meteo.com/v1/search?name=" + encodeURIComponent(cidade) + "&count=5&language=pt&format=json")).json();
     const L = geo.results || [], l = L.find(x => x.country_code === "BR") || L[0];
     if (!l) throw new Error("Cidade não encontrada.");
+    try { localStorage.setItem("bach_cidade", l.name); } catch {}
     passo("🌡️ Buscando a previsão de " + l.name + "...");
     const p = new URLSearchParams({ latitude: l.latitude, longitude: l.longitude, current: "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m", daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max", timezone: "auto", forecast_days: "3" });
     const d = await (await requisicao("https://api.open-meteo.com/v1/forecast?" + p)).json(), c = d.current;
@@ -223,10 +238,23 @@ async function clima(cidade) {
   } catch (e) { console.error(e); falar("Não consegui consultar o clima dessa cidade."); }
 }
 const extrairPesquisa = t => (t.match(/^(?:(?:fa[cç]a|faz|fazer|pode)\s+)?(?:uma\s+)?(?:pesquise|pesquisa|pesquisar|procure|buscar|busque|busca)\s+(?:(?:uma\s+)?(?:pesquisa|busca)\s+)?(?:na internet\s+|na web\s+|no google\s+)?(?:sobre\s+|por\s+|a respeito de\s+)?(.+)/i) || [])[1]?.trim() ?? null;
-const extrairClima = t => (t.match(/^(?:(?:qual|como)\s+(?:est[aá]\s+)?(?:o|a)\s+)?(?:(?:clima|previs[aã]o(?:\s+do\s+tempo)?)(?:\s+(?:em|de|para|na|no|do|da))?|tempo\s+(?:em|na|no|para))\s+(.+?)\??$/i) || [])[1]?.trim() ?? null;
-const extrairProfundo = t => (t.match(/^(?:(?:fa[cç]a|faz|pode)\s+)?(?:uma\s+)?(?:(?:pesquise|pesquisa|pesquisar|busque|busca|procure)\s+(?:a fundo|profundamente|em profundidade)|pesquisa profunda|aprofunde|\/profundo)\s*(?:sobre\s+|a respeito de\s+)?(.+)/i) || [])[1]?.trim() ?? null;
+const extrairClima = t => {
+  const x = t.trim().replace(/[?!.]+$/, "");
+  const m = x.match(/^(?:(?:qual|como)\s+(?:(?:est[aá]|[ée])\s+)?(?:a\s+|o\s+)?)?(?:(?:clima|previs[aã]o(?:\s+do\s+tempo)?)\s+(?:em|de|para|pra|na|no|do|da)|tempo\s+(?:em|na|no))\s+(.+)$/i)
+    || x.match(/^(?:vai|ir[aá]|tem|vem)\s+(?:chover|chuva)\s+(?:em|na|no|para|pra)\s+(.+?)(?:\s+(?:hoje|amanh[aã]|agora))?$/i)
+    || x.match(/^(?:est[aá]\s+)?(?:chovendo|fazendo\s+(?:frio|calor))\s+(?:em|na|no)\s+(.+)$/i);
+  return m ? m[1].trim() : null;
+};
+const extrairProfundo = t => (t.match(/^(?:(?:fa[cç]a|faz|pode)\s+)?(?:uma\s+)?(?:(?:pesquise|pesquisa|pesquisar|busque|busca|procure)\s+(?:a\s*fundo|profundamente|em\s+profundidade|bem\s+fundo)|pesquisa profunda|aprofunde|\/profundo)\s*(?:sobre\s+|a respeito de\s+)?(.+)/i) || [])[1]?.trim() ?? null;
+/* "matéria de matemática e sobre computação" vira dois assuntos */
+function dividirTemas(q) {
+  return String(q).split(/\s+e\s+(?:tamb[eé]m\s+)?sobre\s+|\s*;\s*|\s+e\s+tamb[eé]m\s+/i)
+    .map(t => t.replace(/^(?:a\s+|as\s+|o\s+|os\s+)?(?:mat[eé]rias?|assuntos?|conte[uú]dos?|temas?)\s+(?:de|do|da|sobre)\s+/i, "").trim())
+    .filter(t => t.length > 2).slice(0, 3);
+}
 
 const lim = x => String(x).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+const limpo = x => lim(String(x).replace(/!\[[^\]]*\]\([^)]*\)/g, " ").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/\]\([^)]*\)?/g, " ").replace(/[\[\]]/g, " ").replace(/https?:\/\/\S+/g, " ").replace(/[#*_`>|]/g, " "));
 async function noticias(q) {
   passo("📰 Buscando as manchetes de hoje...");
   try {
@@ -236,7 +264,8 @@ async function noticias(q) {
       let l = ms[i][2]; try { const u = new URL(l); if (u.hostname.includes("duckduckgo.com")) l = u.searchParams.get("uddg") || l; } catch {}
       if (!/^https?:\/\//.test(l) || vistos.has(l) || /duckduckgo\.com/.test(l)) continue; vistos.add(l);
       const a = ms[i].index + ms[i][0].length, b = i + 1 < ms.length ? ms[i + 1].index : txt.length;
-      itens.push({ t: lim(ms[i][1]), l, s: lim(txt.slice(a, b).replace(/\[[^\]]*\]\([^)]*\)/g, " ").replace(/https?:\/\/\S+/g, " ")).slice(0, 180) });
+      let sn1 = limpo(txt.slice(a, b)); if (sn1.length < 25) sn1 = "";
+      itens.push({ t: limpo(ms[i][1]), l, s: sn1.slice(0, 180) });
     }
     if (!itens.length) throw new Error("vazio");
     falar("📰 Manchetes de " + new Date().toLocaleDateString("pt-BR") + ":\n\n" + itens.map(x => "• " + x.t + (x.s ? "\n  " + x.s : "")).join("\n\n"), "bot", "🌐 DuckDuckGo");
@@ -244,7 +273,13 @@ async function noticias(q) {
   } catch (e) { console.error(e); falar("Não consegui buscar as notícias agora. Tente de novo ou diga: pesquise sobre ..."); }
 }
 async function pesquisaProfunda(q, fundo = true) {
+  const temas = dividirTemas(q);
+  if (temas.length > 1) { for (const t of temas) { if (cancelado) return; await pesquisaProfunda(t, fundo); } return; }
+  q = temas[0] || q; ultimoTema = q;
+  let deuFato = false;
   if (/\b(piadas?|humor|engra[cç]ad[oa]s?)\b/i.test(q)) { falar("Piada eu tenho de sobra! 😄\n\n" + Prog.humor("conta uma piada"), "bot", "😄 meu repertório"); return; }
+  const fato = Fatos.responder(q);
+  if (fato) { deuFato = true; falar(fato, "bot", "📘 base de fatos"); if (!fundo) return; }
   passo((fundo ? "🔎 Pesquisando a fundo: " : "🔎 Pesquisando: ") + q);
   try {
     const r = await Saber.pesquisaProfunda(Mente.tema(q) || q, passo, fundo);
@@ -255,6 +290,7 @@ async function pesquisaProfunda(q, fundo = true) {
     r.fontes.forEach(f => criarResultado(f.titulo, "", f.url));
   } catch (e) {
     console.error(e);
+    if (e.message === "irrelevante" && deuFato) return;
     falar(e.message === "irrelevante" ? "Procurei, mas nada estava claramente ligado a “" + q + "”, e prefiro não inventar. Tente outras palavras. 🔍" : "Não consegui pesquisar agora. Tente de novo em instantes.");
   }
 }
@@ -278,8 +314,9 @@ async function perguntarIA(texto) {
   passo("🤖 Pensando com a IA...");
   ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), 60000);
   try {
-    let contents = history.filter(h => h.type === "user" || h.type === "bot").slice(-10).map(h => ({ role: h.type === "user" ? "user" : "model", parts: [{ text: String(h.text).slice(0, 12000) }] }));
+    let contents = history.filter(h => h.type === "user" || h.type === "bot").slice(-10).map(h => ({ role: h.type === "user" ? "user" : "model", parts: [{ text: (h.cit ? "[Respondendo a: " + h.cit + "]\n" : "") + String(h.text).slice(0, 12000) }] }));
     while (contents.length && contents[0].role !== "user") contents.shift();
+    if (alvo && contents.length) { const u = contents[contents.length - 1]; u.parts[0].text = "[O usuário está respondendo a esta mensagem: " + alvo.slice(0, 1500) + "]\n" + u.parts[0].text; }
     const nome = RizikBrain.recall("userName");
     let sis = SISTEMA + (nome ? "\nO usuário se chama " + nome + "." : "");
     if (ultimoArquivo) sis += "\n\nARQUIVO/TEXTO MAIS RECENTE DO USUÁRIO (" + ultimoArquivo.nome + "):\n" + ultimoArquivo.texto.slice(0, 30000);
@@ -336,7 +373,7 @@ function novaConversa() {
 }
 function abrirConversa(id) {
   const msgs = Historico.abrir(id); if (!msgs) return;
-  history = msgs.map(m => ({ text: m.text, type: m.type }));
+  history = msgs.map(m => ({ text: m.text, type: m.type, ...(m.cit ? { cit: m.cit } : {}) }));
   try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch {}
   chat.innerHTML = ""; restaurar(); hist.classList.remove("aberto");
 }
@@ -396,29 +433,67 @@ async function lerLinkMsg(url, texto, temIA) {
   } catch (e) { console.error(e); falar("Não consegui abrir esse link. Se for repositório privado ou uma página que bloqueia leitura, copie o texto e cole aqui. 📋"); }
 }
 
+/* ---------- respostas em cadeia, contexto e conversa ---------- */
+function ultimoBotTexto() {
+  if (alvo) return alvo;
+  for (let i = history.length - 1; i >= 0; i--) if (history[i].type !== "user") return String(history[i].text);
+  return "";
+}
+async function seguir(texto) {
+  const nt = sn(texto);
+  if (nt.split(" ").length > 9) return false;
+  const base = ultimoBotTexto(); if (!base) return false;
+  if (/\b(numeracao|numerado|numerada|numerar|enumere|enumera|enumerar|em lista|em topicos|em itens|em passos|listar isso|lista isso)\b/.test(nt)) {
+    falar(Fatos.enumerar(base) || "Não achei uma lista para numerar nessa resposta. 🤔", "bot", "🔢 formatação"); return true;
+  }
+  if (/^(resuma|resume|resumir|resumo|mais curto|encurta|encurte|resumindo)( isso| tudo| a resposta)?$/.test(nt)) {
+    falar(Fatos.resumir(base) || "Essa resposta já é curta. 🙂", "bot", "📝 resumo"); return true;
+  }
+  if (/^(explique melhor|explica melhor|mais detalhes|detalhe|detalhes|aprofunde|aprofunda|me explique mais|conte mais|conta mais|fale mais|continue|e mais)( isso| sobre isso)?$/.test(nt) && ultimoTema && /fatos|internet/.test(ultimaOrigem)) {
+    await pesquisaProfunda(ultimoTema, true); return true;
+  }
+  return false;
+}
+function ctxConversa() {
+  let arquivos = 0; try { arquivos = (JSON.parse(localStorage.getItem("bach_arquivos_v1")) || []).length; } catch {}
+  const st = RizikBrain.getStats();
+  return { nome: RizikBrain.recall("userName"), hora: new Date().getHours(), aprendidas: st.examples, notas: st.notes, arquivos, conversas: Historico.listar(1).total };
+}
+
 /* ---------- roteamento ---------- */
 const sn = t => String(t).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 
 async function rotear(texto) {
   const cmd = texto.toLowerCase().trim(), nt = sn(texto), temIA = !!localStorage.getItem(KEY_API);
+  if (aguardaCidade) {
+    aguardaCidade = false;
+    if (!/^\//.test(texto) && texto.split(/\s+/).length <= 5) return clima(texto.replace(/^(em|na|no|de|para)\s+/i, "").replace(/[?!.]+$/, ""));
+  }
   if (/^\/(basedados|dadosbach)\b/.test(cmd)) return exportarBase();
   if (/^\/importarbase\b/.test(cmd)) { falar("📥 Escolha o arquivo .json que você baixou com /basedados."); $("seletorBase").click(); return; }
   if (cmd.startsWith("/modelo ")) { localStorage.setItem(KEY_MODEL, texto.slice(8).trim()); falar("Modelo trocado para: " + texto.slice(8).trim()); return; }
 
-  const links = Saber.urlsEm(texto); if (links.length) return lerLinkMsg(links[0], texto, temIA);
-  if (/^(exportar|exporta|backup|baixar|salvar)( a| o| minha| meus| toda| todas| tudo| os| as| seus)*( memoria| dados| base| base de dados| conversas)?$/.test(nt) ||
-      /\b(manda|mande|envia|envie|da|de|exporta|exporte) (me )?(os |todos os |seus |tudo |todos )*(dados|backup|base de dados)\b/.test(nt) || nt === "basedados") return exportarBase();
+  const links = Saber.urlsEm(texto);
+  // só é "link para ler" se a mensagem for curta e não for código colado (código também tem endereços dentro)
+  if (links.length && texto.length < 400 && !Saber.isCode(texto) && texto.replace(links[0], "").trim().split(/\s+/).filter(Boolean).length <= 12) return lerLinkMsg(links[0], texto, temIA);
 
   const prof = extrairProfundo(texto); if (prof !== null) return pesquisaProfunda(prof);
   const cons = extrairPesquisa(texto); if (cons !== null) return pesquisaProfunda(cons, false);
-  if (/^(?:(?:qual|como)\s+(?:est[aá]\s+)?(?:o|a)\s+)?(?:clima|tempo|previs[aã]o(?:\s+do\s+tempo)?)\s*\??$/i.test(texto)) { falar("De qual cidade? Diga: clima em (sua cidade) 🌤️"); return; }
+  const cidSalva = (() => { try { return localStorage.getItem("bach_cidade"); } catch { return null; } })();
+  if (/^(?:(?:qual|como)\s+(?:(?:est[aá]|[ée])\s+)?(?:a\s+|o\s+)?)?(?:clima|tempo|previs[aã]o(?:\s+do\s+tempo)?)(?:\s+(?:hoje|agora|amanh[aã]))?\s*\??$/i.test(texto) ||
+      /^(?:tem|vai|vem|est[aá]|esta)\s+.{0,15}(?:chuva|chover|chovendo)(?:\s+(?:hoje|agora|amanh[aã]))?\s*\??$/i.test(texto)) {
+    if (cidSalva) return clima(cidSalva);
+    aguardaCidade = true; falar("De qual cidade? Me diga só o nome (ex.: Londrina) 🌤️"); return;
+  }
   const cid = extrairClima(texto); if (cid) return clima(cid);
 
   const arq = Arquivos.comando(texto); if (arq) { falar(arq, "bot", "📁 seus arquivos"); return; }
+  if (await seguir(texto)) return;
 
   if (!Mente.jogando()) {
     const eu = Fatos.sobreMim(texto); if (eu) { falar(eu, "bot", "🧠 sobre mim"); return; }
-    const fato = Fatos.responder(texto); if (fato) { falar(fato, "bot", "📘 base de fatos"); return; }
+    const fato = Fatos.responder(texto); if (fato) { ultimoTema = Mente.tema(texto) || texto; falar(fato, "bot", "📘 base de fatos"); return; }
+    const papo = Conversa.responder(texto, ctxConversa()); if (papo) { falar(papo, "bot", "💬 conversa"); return; }
   }
   const mt = Mente.responder(texto);
   if (mt) {
@@ -448,23 +523,47 @@ async function rotear(texto) {
   falar(Prog.desconhecido(texto) + "\n\nVocê pode:\n• me pedir: jogar forca, crie uma calculadora, o que é ...\n• me ensinar: ensine: pergunta => resposta\n• pedir: pesquise a fundo sobre o assunto\n• colar um link para eu ler\n• clima em (sua cidade)\n\nDigite \"ajuda\" para ver tudo.");
 }
 
+function ajustar() { entrada.style.height = "auto"; entrada.style.height = Math.min(entrada.scrollHeight, 130) + "px"; }
+function desenharAnexos() {
+  const box = $("anexos"); box.innerHTML = ""; box.hidden = !pendentes.length;
+  pendentes.forEach((f, i) => { const c = mk("span", "chip", "📎 " + f.name), x = mk("button", "", "✕"); x.onclick = () => { pendentes.splice(i, 1); desenharAnexos(); }; c.append(x); box.append(c); });
+}
+function limparCit() { citacao = null; const b = $("citbar"); b.hidden = true; b.innerHTML = ""; }
+function responderA(texto, tipo) {
+  citacao = { texto: String(texto), tipo };
+  const bar = $("citbar"), x = mk("button", "", "✕"); bar.innerHTML = ""; bar.hidden = false; x.onclick = limparCit;
+  bar.append(mk("span", "", "↩ Respondendo " + (tipo === "user" ? "a você: " : "à BACH: ") + String(texto).replace(/\s+/g, " ").slice(0, 90)), x);
+  entrada.focus();
+}
+
+/* Nada é enviado sozinho: só o botão Enviar manda. Enter do teclado pula de linha. */
 async function enviar() {
   if (ocupado) { parar(); return; }
-  const texto = entrada.value.trim(); if (!texto) return;
-  entrada.value = "";
-  if (/^(\/clear|\/limpar|\/nova|nova conversa|limpar histórico)$/i.test(texto)) { novaConversa(); return; }
-  if (/^(\/historico|\/histórico|histórico|historico)(\s+\d+)?$/i.test(texto)) { abrirHistorico(parseInt((texto.match(/\d+/) || [1])[0], 10) || 1); return; }
-  if (/^\/chave\s+/i.test(texto)) {
-    const v = texto.replace(/^\/chave\s+/i, "").trim(); falar("/chave ••••••", "user");
-    if (v.toLowerCase() === "apagar") { localStorage.removeItem(KEY_API); falar("Chave apagada. Voltei ao modo sem IA externa."); }
-    else if (v.length < 20) falar("Essa chave parece curta demais. Copie a chave inteira do Google AI Studio.");
-    else { localStorage.setItem(KEY_API, v); falar("Chave salva neste aparelho ✅ Agora respondo tudo com IA: textos, código, jogos e apps."); }
-    return;
+  const texto = entrada.value.trim(), arquivos = pendentes.splice(0);
+  if (!texto && !arquivos.length) return;
+  entrada.value = ""; ajustar(); desenharAnexos();
+  const cit = citacao ? (citacao.tipo === "user" ? "Você: " : "BACH: ") + citacao.texto.replace(/\s+/g, " ").slice(0, 160) : "";
+  alvo = citacao ? citacao.texto : null; limparCit();
+  if (!arquivos.length) {
+    if (/^(\/clear|\/limpar|\/nova|nova conversa|limpar histórico)$/i.test(texto)) { alvo = null; novaConversa(); return; }
+    if (/^(\/historico|\/histórico|histórico|historico)(\s+\d+)?$/i.test(texto)) { alvo = null; abrirHistorico(parseInt((texto.match(/\d+/) || [1])[0], 10) || 1); return; }
+    if (/^\/chave\s+/i.test(texto)) {
+      alvo = null;
+      const v = texto.replace(/^\/chave\s+/i, "").trim(); falar("/chave ••••••", "user");
+      if (v.toLowerCase() === "apagar") { localStorage.removeItem(KEY_API); falar("Chave apagada. Voltei ao modo sem IA externa."); }
+      else if (v.length < 20) falar("Essa chave parece curta demais. Copie a chave inteira do Google AI Studio.");
+      else { localStorage.setItem(KEY_API, v); falar("Chave salva neste aparelho ✅ Agora respondo tudo com IA: textos, código, jogos e apps."); }
+      return;
+    }
   }
-  cancelado = false; busy(true); falar(texto, "user"); pensando = pensar(); passo("👀 Lendo sua mensagem...");
+  if (arquivos.length) {
+    for (const f of arquivos) { if (cancelado) break; await processarArquivo(f); }
+    if (!texto || cancelado) { alvo = null; return; }
+  }
+  cancelado = false; busy(true); falar(texto, "user", "", false, cit); pensando = pensar(); passo("👀 Lendo sua mensagem...");
   try { await rotear(texto); }
   catch (e) { console.error(e); falar("Deu um erro inesperado. Tente de novo."); }
-  finally { if (pensando) { pensando.fim(); pensando = null; } busy(false); }
+  finally { if (pensando) { pensando.fim(); pensando = null; } alvo = null; busy(false); }
 }
 
 /* ---------- menu, voz, eventos ---------- */
@@ -478,9 +577,7 @@ menu.onclick = e => {
   if (a === "voz") { lerAuto = !lerAuto; b.textContent = "🔊 Ler respostas sozinha: " + (lerAuto ? "ligado" : "desligado"); if (!lerAuto) speechSynthesis.cancel(); }
   if (a === "historico") abrirHistorico(1);
   if (a === "nova") novaConversa();
-  if (a === "base") { entrada.value = "/basedados"; enviar(); }
   if (a === "arquivos") { entrada.value = "/arquivos"; enviar(); }
-  if (a === "piada") { entrada.value = "conta uma piada"; enviar(); }
   if (a === "jogo") { entrada.value = "vamos jogar"; enviar(); }
 };
 $("seletorBase").onchange = async () => {
@@ -488,7 +585,11 @@ $("seletorBase").onchange = async () => {
   try { const n = Base.importar(JSON.parse(await f.text())); alert("✅ Backup restaurado (" + n + " partes). A tela vai recarregar."); location.reload(); }
   catch (e) { falar("Não consegui restaurar: " + (e.message || "arquivo inválido"), "bot", "", true); }
 };
-seletor.onchange = async () => { const L = [...seletor.files]; seletor.value = ""; for (const f of L) await processarArquivo(f); };
+seletor.onchange = () => {
+  const L = [...seletor.files]; seletor.value = ""; pendentes.push(...L); desenharAnexos();
+  status.textContent = "📎 " + pendentes.length + " anexo(s) prontos. Escreva sua pergunta (se quiser) e toque em Enviar.";
+  entrada.focus();
+};
 
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition; let rec = null;
 $("mic").onclick = () => {
@@ -501,7 +602,7 @@ $("mic").onclick = () => {
   rec.start();
 };
 botao.onclick = enviar;
-entrada.addEventListener("keydown", e => { if (e.key === "Enter") enviar(); });
+entrada.addEventListener("input", ajustar); // Enter só pula de linha; enviar é só pelo botão
 
 try { Historico.salvarAtual(history); } catch {}
 restaurar(); status.textContent = STATUS;
