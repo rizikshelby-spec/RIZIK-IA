@@ -2,6 +2,7 @@
    Entende contexto, texto colado, jogos, criação de apps, pastas e perguntas.
    100% sua, sem IA externa. */
 import { Saber } from "./saber.js?v=3";
+import { KB, ERROS } from "./conhecimento.js?v=1";
 
 const KF = "bach_arquivos_v1";
 const lf = () => { try { return JSON.parse(localStorage.getItem(KF)) || []; } catch { return []; } };
@@ -12,8 +13,11 @@ const prep = t => " " + String(t || "").toLowerCase().normalize("NFD").replace(/
   .replace(/\bq\b/g, "que").replace(/\be\s+esse\b/g, "e esse").replace(/[^a-z0-9+\-*/().,\s]/g, " ").replace(/\s+/g, " ").trim() + " ";
 const has = (p, re) => re.test(p);
 
-const ctx = { texto: null, nome: "", pasta: null, jogo: null };
-const setTexto = (nome, texto) => { ctx.nome = nome; ctx.texto = texto; };
+const KC = "bach_mente_v1";
+const ctx = { texto: null, nome: "", pasta: null, jogo: null, ultimo: null, assuntos: [], esperando: null };
+try { const o = JSON.parse(localStorage.getItem(KC)); if (o) Object.assign(ctx, { texto: o.texto, nome: o.nome || "", pasta: o.pasta, ultimo: o.ultimo, assuntos: o.assuntos || [] }); } catch {}
+function persist() { try { localStorage.setItem(KC, JSON.stringify({ texto: ctx.texto && ctx.texto.slice(0, 60000), nome: ctx.nome, pasta: ctx.pasta, ultimo: ctx.ultimo, assuntos: ctx.assuntos })); } catch {} }
+const setTexto = (nome, texto) => { ctx.nome = nome; ctx.texto = texto; ctx.ultimo = { t: "texto" }; persist(); };
 const pasta = def => ctx.pasta || def;
 
 /* ---------- pastas ---------- */
@@ -22,7 +26,7 @@ function comandoPasta(t) {
   if (m) {
     if (!m[1]) return ctx.pasta ? "📂 Pasta atual: " + ctx.pasta + "\nPara sair: /pasta sair" : "Nenhuma pasta escolhida. Use: /pasta Estudos/IA (pode criar pastas dentro de pastas com /).";
     if (/^sair$/i.test(m[1].trim())) { ctx.pasta = null; return "Voltei para as pastas automáticas."; }
-    ctx.pasta = m[1].trim().replace(/\s*\/\s*/g, "/").slice(0, 60);
+    ctx.pasta = m[1].trim().replace(/\s*\/\s*/g, "/").slice(0, 60); persist();
     return "📂 Pasta atual: " + ctx.pasta + "\nTudo que eu guardar agora (textos, pesquisas, arquivos) vai para ela.";
   }
   if (/^\/pastas$/i.test(t)) {
@@ -145,8 +149,53 @@ function criar(p) {
   return "Aqui está o arquivo " + nome + ". Cole num arquivo com esse nome e abra no navegador (ou suba no GitHub Pages):\n\n```html\n" + cod + "\n```\n\nPara mudar cores e textos, edite o trecho <style> e os textos entre as tags.";
 }
 
-const GUIA = "🤖 Como fazer uma IA do zero (o caminho da BACH):\n\n1) index.html — a tela do chat (entrada, botão, lista de mensagens). Comece aqui.\n2) brain.js — o cérebro: normalizar texto, achar a intenção por regras e responder. Comando para começar: ensine: pergunta => resposta\n3) Memória — guarde o que ela aprende no localStorage (já tem em brain.js).\n4) saber.js — pesquisar na internet, ler páginas e resumir.\n5) arquivos.js — guardar textos e arquivos em pastas.\n6) mente.js — entender contexto: “esse texto”, jogos, criar apps.\n7) Evoluir — mais regras, mais exemplos ensinados e busca por significado (TF-IDF).\n\nOrdem para copiar: 1 → 2 → 3, teste, e só depois 4, 5 e 6. Quer que eu detalhe algum passo?";
+const PASSOS = [
+ ["index.html: a tela do chat (campo, botão e área de mensagens)", "Crie um input, um botão e uma div. Ao clicar, pegue o texto, mostre na div e chame uma função responder(texto).\n\n```html\n<div id=\"chat\"></div>\n<input id=\"i\"><button id=\"b\">Enviar</button>\n<script>\nb.onclick = () => {\n  chat.innerHTML += \"<p>\" + i.value + \"</p>\";\n  i.value = \"\";\n};\n</script>\n```"],
+ ["brain.js: o cérebro (regras e intenção)", "Crie normalize(texto) (minúsculas, sem acento), uma lista de regras {padrão, resposta} e think(msg), que devolve a resposta da primeira regra que bater ou null.\n\n```js\nconst regras = [{ p: /oi|ola/, r: \"Olá!\" }];\nexport const think = m => (regras.find(x => x.p.test(m)) || {}).r || null;\n```"],
+ ["Memória: guardar o que ela aprende", "Use localStorage.setItem com JSON.stringify e carregue com JSON.parse dentro de try/catch. O comando ensine: pergunta => resposta guarda pares pergunta/resposta."],
+ ["saber.js: pesquisar e resumir", "Faça fetch na API da Wikipédia (api.php?action=query&origin=*), pegue o texto e escolha as frases que têm as palavras da pergunta."],
+ ["arquivos.js: pastas", "Salve objetos {nome, pasta, texto} numa lista no localStorage. /arquivos lista agrupando por pasta; nomes como Estudos/IA criam pastas dentro de pastas."],
+ ["mente.js: contexto", "Guarde o último texto e o último assunto. Assim ela entende “esse texto”, “mais”, “detalhe” e “passo 3”."],
+ ["Evoluir", "Adicione TF-IDF (palavras raras valem mais) para achar a resposta mais parecida, mais exemplos ensinados e, no futuro, um modelo pequeno no navegador."]
+];
+const GUIA = "🤖 Como fazer uma IA do zero (o caminho da BACH):\n\n" + PASSOS.map((x, i) => (i + 1) + ") " + x[0]).join("\n") + "\n\nOrdem: 1 → 2 → 3, teste, e só depois 4 a 7.\nDiga “passo 1” (ou só o número) para ver o que colar.";
 
+/* ---------- programação ---------- */
+const LING = { javascript: "JavaScript", js: "JavaScript", python: "Python", html: "HTML", css: "CSS", sql: "SQL" };
+const ROTEIRO = "🗺️ Roteiro: 1) variáveis e tipos, 2) condicionais, 3) loops, 4) funções, 5) arrays e objetos, 6) DOM e eventos (JS), 7) fetch/API e async, 8) um projeto pequeno. Depois: classes, módulos, testes e Git.\nPergunte por qualquer um (ex.: “o que é função?”). Diga “mais” para o nível avançado.";
+const ASSUNTOS = "variáveis, condicionais, loops, funções, arrays, objetos/JSON, classes, async/await, DOM, fetch/API, closures, recursão, algoritmos, regex, Git, SQL, HTML, CSS, Python, módulos, localStorage, debug, testes, jogos, apps e IA";
+
+function achaTopico(p) {
+  let best = null, sc = 0;
+  KB.forEach((e, i) => {
+    let s = 0;
+    for (const k of e[0].split("|")) if (p.includes(" " + k + " ")) s += k.length > 3 ? 2 : 1;
+    if (s > sc) { sc = s; best = i; }
+  });
+  return best;
+}
+function topico(i, p) {
+  const [, b, ex, av] = KB[i], fundo = has(p, /avancad|profund|detalhad|completo/);
+  ctx.ultimo = { t: "prog", i }; (ctx.assuntos = ctx.assuntos || []).push(b.slice(3, 28)); ctx.assuntos = ctx.assuntos.slice(-10); persist();
+  return b + "\n\n```" + (i === 17 ? "python" : "js") + "\n" + ex + "\n```" + (fundo ? "\n\n" + av : "\n\nDiga “mais” para o nível avançado ou “outro exemplo”.");
+}
+function seguimento(p, w) {
+  const u = ctx.ultimo; if (!u) return null;
+  if (u.t === "guia") {
+    const n = (w.match(/^(?:passo\s*)?(\d)$/) || w.match(/^passo (\d)/) || [])[1];
+    if (n && PASSOS[n - 1]) return "📌 Passo " + n + " — " + PASSOS[n - 1][0] + "\n\n" + PASSOS[n - 1][1];
+    if (has(p, /^ ?(detalh\w*|mais|explica\w*|continue|sim|quero|pode) ?$/)) return "Qual passo? Diga “passo 1” até “passo 7”.\n\n" + PASSOS.map((x, i) => (i + 1) + ") " + x[0]).join("\n");
+  }
+  if (u.t === "prog" && KB[u.i]) {
+    if (has(p, /^ ?(mais|avancado|avancada|aprofunda|aprofundar|detalhe|detalhes|detalhar|explica melhor|continue|continua|e mais|sim|quero) ?$/)) return KB[u.i][3];
+    if (has(p, /^ ?(exemplo|outro exemplo|mostra|mostre|codigo|me mostra) ?$/)) return "```js\n" + KB[u.i][2] + "\n```\nTente mudar os valores e ver o que acontece. 😉";
+  }
+  return null;
+}
+function ajudaProg(p) {
+  ctx.esperando = "prog"; persist();
+  return "Claro! 💻 Me diga o que você quer:\n• aprender um assunto (ex.: “o que é função?”)\n• corrigir um erro (cole a mensagem de erro ou o código)\n• criar algo (ex.: “crie uma calculadora”)\n\nLinguagens que conheço: JavaScript, Python, HTML, CSS e SQL.\nAssuntos: " + ASSUNTOS + ".";
+}
 /* ---------- principal ---------- */
 function responder(msg) {
   const raw = String(msg || "").trim();
@@ -162,11 +211,13 @@ function responder(msg) {
     if (/^[\d+\-*/().\s]+$/.test(ex)) { try { const v = Function("return (" + ex + ")")(); if (isFinite(v)) return { texto: "🧮 " + mat[1].trim() + " = " + +v.toFixed(8), origem: "🧮 conta" }; } catch {} }
   }
 
+  const sg = seguimento(p, w); if (sg) return { texto: sg, origem: "🧠 lembrei do assunto" };
   const criarV = has(p, / (cria|crie|criar|faz|faca|fazer|monta|monte|gera|gere|programa|programe|constroi) /);
   if (criarV && has(p, / (jogo|jogos|app|aplicativo|tela|site|pagina|calculadora|tarefas|lista de tarefas|landing) /)) return { texto: criar(p), origem: "🛠️ criador de apps" };
-  if (has(p, / (jogar|joguinho|jogo|brincar) /) && !criarV) return { texto: iniciar(p), origem: "🎮 jogos" };
-  if (criarV && has(p, / (ia|inteligencia artificial|chatbot|bot) /)) return { texto: GUIA, origem: "🤖 guia" };
-  if (has(p, /(como|onde) (comeco|comecar|começo|faco|fazer).*(ia|chatbot)/)) return { texto: GUIA, origem: "🤖 guia" };
+  const nomeJogo = w.split(" ").length <= 5 && has(p, /(forc|velh|adivinh|numero|quiz)/) && !criarV;
+  if ((has(p, / (jogar|joguinho|jogo|brincar) /) || nomeJogo) && !criarV) return { texto: iniciar(p), origem: "🎮 jogos" };
+  if (criarV && has(p, / (ia|inteligencia artificial|chatbot|bot) /)) return { texto: (ctx.ultimo = { t: "guia" }, persist(), GUIA), origem: "🤖 guia" };
+  if (has(p, /(como|onde) (comeco|comecar|faco|fazer).*(ia|chatbot)/)) return { texto: (ctx.ultimo = { t: "guia" }, persist(), GUIA), origem: "🤖 guia" };
 
   const m = p.match(/ (?:escreve|escreva|redija|faz|faca|crie|cria) (?:um |uma )?(?:texto|redacao|artigo|resumo) (?:sobre|de|do|da) (.+)/);
   if (m) return { pesquisa: m[1].trim(), fundo: true };
@@ -179,6 +230,15 @@ function responder(msg) {
     if (!ctx.texto) return { texto: "Ainda não tenho nenhum texto seu. Cole o texto aqui ou anexe um arquivo no botão + e depois me pergunte. 📎", origem: "🧠 contexto" };
     return { texto: sobreTexto(p), origem: "📖 leitura do seu texto" };
   }
+  if (has(p, /(o que (a gente |nos |voce )?(falou|falamos|conversou|conversamos|vimos)|voce lembra|lembra do que|do que falamos)/))
+    return { texto: ctx.assuntos.length ? "🧠 Lembro que falamos de:\n• " + ctx.assuntos.join("\n• ") + (ctx.texto ? "\n\nE guardei o texto “" + ctx.nome + "”." : "") : "Ainda não conversamos sobre nada que eu tenha guardado. 😊", origem: "🧠 memória" };
+  for (const [k, r] of ERROS) if (new RegExp(k, "i").test(raw)) return { texto: "🛠️ " + r + "\n\nSe quiser, cole o código e eu reviso.", origem: "🐛 erros comuns" };
+  const ti = achaTopico(p);
+  if (ti !== null) return { texto: topico(ti, p), origem: "💻 programação" };
+  const lg = Object.keys(LING).find(l => w === l);
+  if (lg) return { texto: "📘 " + LING[lg] + "\n\n" + ROTEIRO, origem: "💻 programação" };
+  if (has(p, /(programa|codigo|codar|codificar|desenvolv)/) && has(p, /(ajud|ensin|aprend|duvida|como|quero|preciso)/)) return { texto: ajudaProg(p), origem: "💻 programação" };
+  if (ctx.esperando === "prog") { ctx.esperando = null; if (w.length > 3) return { texto: ajudaProg(p) + "\n\n(Não achei esse assunto. Tente com outras palavras.)", origem: "💻 programação" }; }
   return null;
 }
 const pergunta = t => has(prep(t), /^ ?(o que e|o que sao|quem e|quem foi|quem era|como funciona|por que|porque|qual a diferenca|me explica|explique|explica|o que significa|onde fica|quando foi|quando aconteceu|quantos|quanto|como faz|como fazer|qual e|quais sao)/);
