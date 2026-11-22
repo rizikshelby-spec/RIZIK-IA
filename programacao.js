@@ -81,7 +81,7 @@ function humor(texto) {
   const t = norm(texto);
 
   if (/(piada|me faz rir|me faca rir|algo engracado|conta uma graca|me anima|me alegra)/.test(t) ||
-      (jaContou && /^(outra|mais uma|outra piada|mais uma piada|manda outra|de novo)$/.test(t))) {
+      (jaContou && /^(outra|mais uma|outra piada|mais uma piada|manda outra|de novo|outra melhor|outra ai|mais|quero outra|outra por favor)$/.test(t))) {
     const cat = /(programa|dev|codigo|computador)/.test(t) ? "dev" : /(tiozao|trocadilho|geral)/.test(t) ? "geral" : null;
     jaContou = true;
     return pick(["Lá vai! 😄", "Prepara que vem aí:", "Essa é boa:", "Ouve essa:"]) + "\n\n" + proximaPiada(cat) + "\n\n(Quer outra? É só dizer “outra”.)";
