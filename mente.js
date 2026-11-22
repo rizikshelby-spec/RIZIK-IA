@@ -296,4 +296,5 @@ function responder(msg) {
 const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo)/;
 const pergunta = t => { const p = prep(t); if (has(p, SMALL)) return false; return has(p, /^ ?(o que|quem|quais|qual|quantos|quantas|quanto|onde|quando|como|por que|porque|para que|me explica|explique|explica|fale sobre|fala sobre|fala de|me fala|diga)/) || (/\?\s*$/.test(String(t)) && p.trim().split(" ").length >= 3); };
 
-export const Mente = { responder, setTexto, pasta, pergunta, tema, lembrarTema };
+const stats = () => ({ girias: Object.keys(VOCAB).length, lexBase: BASE_LEX.length, kbProg: KB.length, erros: ERROS.length, jogos: 4, modelosApps: Object.keys(TEMPLATES).length, pasta: ctx.pasta, tema: ctx.tema });
+export const Mente = { responder, setTexto, pasta, pergunta, tema, lembrarTema, stats };
