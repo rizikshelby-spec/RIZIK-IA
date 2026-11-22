@@ -66,7 +66,7 @@ import { RizikBrain } from "./brain.js?v=11";
 import { Saber } from "./saber.js?v=3";
 import { Prog } from "./programacao.js?v=2";
 import { Arquivos } from "./arquivos.js?v=1";
-import { Mente } from "./mente.js?v=4";
+import { Mente } from "./mente.js?v=5";
 
 const $ = id => document.getElementById(id);
 const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status");
@@ -301,8 +301,37 @@ async function processarArquivo(f) {
 }
 
 /* ---------- roteamento ---------- */
+/* ---------- /dadosbach: exporta memória, dados e a tabela da criação dela ---------- */
+const lerLS = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
+async function exportarDados() {
+  passo("📦 Reunindo memória, arquivos e módulos...");
+  const ARQ = [["index.html", "Tela, chat, voz, cancelar, pesquisa, notícias"], ["brain.js", "Cérebro: regras, memória, ensine:"], ["mente.js", "Contexto, vocabulário, jogos, apps, pastas"], ["conhecimento.js", "Base de programação e erros comuns"], ["saber.js", "Leitura de texto/código e pesquisa profunda"], ["arquivos.js", "Pastas e leitura de fotos, vídeos e textos"], ["programacao.js", "Programação básica e humor"]];
+  const mods = [];
+  for (const [n, d] of ARQ) {
+    try { const tx = await (await fetch("./" + n + "?_=" + Date.now())).text(); mods.push({ arquivo: n, linhas: tx.split("\n").length, kb: +(new Blob([tx]).size / 1024).toFixed(1), funcao: d }); }
+    catch { mods.push({ arquivo: n, linhas: "?", kb: "?", funcao: d }); }
+  }
+  const cer = lerLS("rizik_brain_v1") || {}, arqs = lerLS("bach_arquivos_v1") || [], pesq = lerLS("bach_conhecimento_v1") || [], mente = lerLS("bach_mente_v1") || {}, st = Mente.stats();
+  const nk = o => Object.keys(o || {}).length;
+  const cont = [
+    ["Respostas aprendidas (ensine:)", (cer.examples || []).length], ["Sinônimos ensinados", nk(cer.synonyms)], ["Fatos guardados", nk(cer.facts)], ["Notas (lembre:)", (cer.notes || []).length],
+    ["Arquivos guardados", arqs.length], ["Pastas", new Set(arqs.map(a => a.pasta)).size], ["Pesquisas guardadas", pesq.length],
+    ["Gírias/abreviações de fábrica", st.girias], ["Gírias que você ensinou", nk(mente.vocab)], ["Palavras do léxico (base)", st.lexBase], ["Palavras aprendidas", (mente.lex || []).length],
+    ["Assuntos de programação", st.kbProg], ["Erros comuns reconhecidos", st.erros], ["Jogos", st.jogos], ["Modelos de apps prontos", st.modelosApps],
+    ["Assuntos lembrados", (mente.assuntos || []).length], ["Mensagens no histórico", history.length]
+  ];
+  const COM = ["/dadosbach", "/arquivos", "/abrir nome", "/buscar palavra", "/apagar nome", "/pasta Nome/Sub", "/pastas", "/mover nome para Pasta", "/palavra gíria = significado", "/palavras", "/profundo assunto", "/clear", "ensine: pergunta => resposta", "corrija: pergunta => nova", "esqueça: pergunta", "sinônimo: a = b", "lembre: algo", "exportar memória", "importar memória: {...}"];
+  const pad = (x, n) => String(x).padEnd(n), W = Math.max(...cont.map(c => c[0].length)) + 2;
+  const t1 = pad("ARQUIVO", 17) + pad("LINHAS", 8) + pad("KB", 7) + "FUNÇÃO\n" + mods.map(m => pad(m.arquivo, 17) + pad(m.linhas, 8) + pad(m.kb, 7) + m.funcao).join("\n");
+  const t2 = pad("DADO", W) + "QTD\n" + cont.map(c => pad(c[0], W) + c[1]).join("\n");
+  const dados = { bach: { versao: "2.0", geradoEm: new Date().toISOString() }, tabelas: { modulos: mods, contagens: Object.fromEntries(cont), comandos: COM }, memoria: cer, arquivos: arqs, pesquisas: pesq, mente, historico: history };
+  const json = JSON.stringify(dados, null, 1);
+  falar("📦 DADOS DA BACH — " + new Date().toLocaleString("pt-BR") + "\n\nTabela da criação dela:\n```txt\n" + t1 + "\n```\nMemória e dados:\n```txt\n" + t2 + "\n```\nBackup completo (" + (new Blob([json]).size / 1024).toFixed(1) + " KB): use Copiar ou Baixar abaixo. Ele inclui memória, arquivos, pesquisas, vocabulário, histórico e a lista de comandos. A chave da IA externa nunca entra no backup.\n\n```json\n" + json + "\n```", "bot", "📦 /dadosbach");
+}
+
 async function rotear(texto) {
   const cmd = texto.toLowerCase().trim();
+  if (/^\/dadosbach\b/.test(cmd)) return exportarDados();
   if (["/clear", "/limpar", "limpar histórico"].includes(cmd)) { history = []; localStorage.removeItem(HISTORY_KEY); chat.innerHTML = ""; falar("Chat limpo! 🧹 Sua memória de aprendizado continua guardada."); return; }
   if (cmd.startsWith("/modelo ")) { localStorage.setItem(KEY_MODEL, texto.slice(8).trim()); falar("Modelo trocado para: " + texto.slice(8).trim()); return; }
 
