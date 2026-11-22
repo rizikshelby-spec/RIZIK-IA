@@ -59,9 +59,9 @@ button:disabled{opacity:.55}
 <input id="seletor" type="file" hidden multiple accept="image/*,video/*,.txt,.md,.js,.html,.css,.json,.csv,.py,.xml,.log,.ts,.java,.c,.cpp,.sql,.yml,.yaml">
 
 <script type="module">
-import { RizikBrain } from "./brain.js?v=10";
-import { Saber } from "./saber.js?v=2";
-import { Prog } from "./programacao.js?v=1";
+import { RizikBrain } from "./brain.js?v=11";
+import { Saber } from "./saber.js?v=3";
+import { Prog } from "./programacao.js?v=2";
 import { Arquivos } from "./arquivos.js?v=1";
 
 const chat = document.getElementById("chat");
@@ -93,7 +93,7 @@ function salvar() {
   }
 }
 
-function falar(texto,tipo="bot") {
+function falar(texto,tipo="bot",origem="") {
   let seg = null;
 
   if (tipo === "bot" && pensando) {
@@ -109,7 +109,7 @@ function falar(texto,tipo="bot") {
   if (seg !== null) {
     const m = document.createElement("div");
     m.className = "meta";
-    m.textContent = "⏱ Pensou por " + seg.toFixed(1) + " s";
+    m.textContent = (seg < 0.3 ? "⚡ Respondi na hora" : "⏱ Pensei por " + seg.toFixed(1) + " s") + (origem ? " • " + origem : "");
     chat.appendChild(m);
   }
 
@@ -546,17 +546,26 @@ seletor.addEventListener("change",async()=>{
   for (const f of arquivos) await processarArquivo(f);
 });
 
-async function pesquisaProfunda(q) {
+async function pesquisaProfunda(q, fundo = true) {
+  if (/\b(piadas?|humor|engra[cç]ad[oa]s?)\b/i.test(q)) {
+    falar("Piada eu tenho de sobra, nem precisa pesquisar! 😄\n\n"+Prog.humor("conta uma piada"),"bot","😄 meu repertório");
+    return;
+  }
+
   botao.disabled = true;
-  passo("🔎 Pesquisando a fundo: "+q);
+  passo((fundo ? "🔎 Pesquisando a fundo: " : "🔎 Pesquisando: ")+q);
 
   try {
-    const r = await Saber.pesquisaProfunda(q, passo);
-    falar(r.texto);
+    const r = await Saber.pesquisaProfunda(q, passo, fundo);
+    falar(r.texto,"bot","🌐 internet, filtrada e resumida por mim");
     r.fontes.forEach(f => criarResultado(f.titulo,"",f.url));
   } catch(e) {
     console.error(e);
-    falar("Não consegui pesquisar a fundo agora. Tente novamente em instantes.");
+    if (e.message === "irrelevante") {
+      falar("Procurei e li o que apareceu, mas nada estava claramente ligado a “"+q+"”, e prefiro não inventar. Tente outras palavras ou seja mais específico. 🔍");
+    } else {
+      falar("Não consegui pesquisar agora: a internet ou as fontes falharam. Tente de novo em instantes.");
+    }
   } finally {
     botao.disabled = false;
     status.textContent = STATUS;
@@ -628,7 +637,7 @@ async function enviar() {
   const consulta = extrairPesquisa(texto);
 
   if (consulta !== null) {
-    await pesquisarInternet(consulta);
+    await pesquisaProfunda(consulta,false);
     return;
   }
 
@@ -649,7 +658,7 @@ async function enviar() {
   const arq = Arquivos.comando(texto);
 
   if (arq) {
-    falar(arq);
+    falar(arq,"bot","📁 seus arquivos");
     return;
   }
 
@@ -666,7 +675,7 @@ async function enviar() {
   }
 
   if (resposta.handled) {
-    falar(resposta.text);
+    falar(resposta.text,"bot","🧠 minha memória e regras");
     return;
   }
 
@@ -674,7 +683,7 @@ async function enviar() {
   const graca = Prog.humor(texto);
 
   if (graca) {
-    falar(graca);
+    falar(graca,"bot","😄 meu repertório de humor");
     return;
   }
 
@@ -682,7 +691,7 @@ async function enviar() {
   const prog = Prog.responder(texto);
 
   if (prog) {
-    falar(prog);
+    falar(prog,"bot","💻 meu conhecimento de programação");
     return;
   }
 
@@ -690,7 +699,7 @@ async function enviar() {
   const conhecido = Saber.buscarConhecimento(texto);
 
   if (conhecido) {
-    falar(conhecido);
+    falar(conhecido,"bot","📚 o que aprendi pesquisando antes");
     return;
   }
 
