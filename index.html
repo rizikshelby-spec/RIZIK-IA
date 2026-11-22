@@ -5,40 +5,115 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#10111a">
-<title>RIZIK AI</title>
+<title>BACH AI 0.4</title>
+
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#10111a;color:#f5f5fb;font-family:Arial,sans-serif}
-header{padding:18px 16px;background:#191b29;border-bottom:1px solid #303247}
-h2{margin:0 0 5px;color:#b5a8ff;font-size:22px}
+body{
+  margin:0;
+  background:#10111a;
+  color:#f5f5fb;
+  font-family:Arial,sans-serif
+}
+header{
+  padding:18px 16px;
+  background:#191b29;
+  border-bottom:1px solid #303247
+}
+h2{
+  margin:0 0 5px;
+  color:#b5a8ff;
+  font-size:23px
+}
 #status{color:#aaaabd;font-size:12px}
-#chat{height:calc(100dvh - 154px);overflow:auto;padding:14px 12px 20px;scroll-behavior:smooth}
-.msg{padding:12px 14px;margin:9px 0;border-radius:15px;max-width:90%;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px}
+#chat{
+  height:calc(100dvh - 154px);
+  overflow:auto;
+  padding:14px 12px 20px
+}
+.msg{
+  padding:12px 14px;
+  margin:9px 0;
+  border-radius:15px;
+  max-width:92%;
+  line-height:1.55;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+  font-size:15px
+}
 .bot{background:#222538;border:1px solid #30344b}
 .user{background:#5141a0;margin-left:auto}
-.result{background:#202437;border:1px solid #3a3e59;border-radius:14px;padding:13px;margin:10px 0;max-width:95%;line-height:1.55}
+.result{
+  background:#202437;
+  border:1px solid #3a3e59;
+  border-radius:14px;
+  padding:13px;
+  margin:10px 0;
+  max-width:95%;
+  line-height:1.5
+}
 .result h3{margin:0 0 8px;color:#c5baff;font-size:16px}
 .result p{margin:0 0 10px;color:#e4e4ee;font-size:14px}
 .result a{color:#b9adff;font-size:13px;overflow-wrap:anywhere}
-.meta{color:#a9a9bd;font-size:12px;margin-top:10px;line-height:1.5;white-space:pre-line}
-footer{position:fixed;bottom:0;width:100%;display:flex;gap:8px;padding:10px;background:#191b29;padding-bottom:max(10px,env(safe-area-inset-bottom));border-top:1px solid #303247}
-input{flex:1;min-width:0;padding:13px;border:1px solid #44465d;border-radius:12px;background:#10111a;color:white;font-size:16px}
-button{padding:12px 16px;border:0;border-radius:12px;background:#7864ed;color:white;font-weight:bold}
+.meta{
+  color:#a9a9bd;
+  font-size:12px;
+  margin-top:10px;
+  line-height:1.5;
+  white-space:pre-line
+}
+footer{
+  position:fixed;
+  bottom:0;
+  width:100%;
+  display:flex;
+  gap:8px;
+  padding:10px;
+  background:#191b29;
+  padding-bottom:max(10px,env(safe-area-inset-bottom));
+  border-top:1px solid #303247
+}
+input{
+  flex:1;
+  min-width:0;
+  padding:13px;
+  border:1px solid #44465d;
+  border-radius:12px;
+  background:#10111a;
+  color:white;
+  font-size:16px
+}
+button{
+  padding:12px 16px;
+  border:0;
+  border-radius:12px;
+  background:#7864ed;
+  color:white;
+  font-weight:bold
+}
 button:disabled{opacity:.55}
-@media(min-width:700px){#chat{max-width:850px;margin:auto}footer{justify-content:center}footer input{max-width:700px}}
+@media(min-width:700px){
+  #chat{max-width:850px;margin:auto}
+  footer{justify-content:center}
+  footer input{max-width:700px}
+}
 </style>
 </head>
+
 <body>
+
 <header>
-<h2>RIZIK AI 🧠</h2>
-<div id="status">Iniciando cérebro...</div>
+  <h2>BACH AI 🧠</h2>
+  <div id="status">Iniciando cérebro...</div>
 </header>
 
 <main id="chat"></main>
 
 <footer>
-<input id="entrada" placeholder="Converse ou pesquise..." autocomplete="off">
-<button id="enviar">Enviar</button>
+  <input id="entrada"
+    placeholder="Converse, pesquise ou pergunte..."
+    autocomplete="off">
+  <button id="enviar">Enviar</button>
 </footer>
 
 <script type="module">
@@ -49,20 +124,61 @@ const entrada = document.getElementById("entrada");
 const status = document.getElementById("status");
 const botao = document.getElementById("enviar");
 
+const HISTORY_KEY = "bach_chat_history_v1";
+let history = [];
+
+try {
+  history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+  if (!Array.isArray(history)) history = [];
+} catch {
+  history = [];
+}
+
+function salvarHistorico() {
+  try {
+    history = history.slice(-30);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  } catch(e) {
+    console.warn("Erro ao salvar histórico", e);
+  }
+}
+
 function falar(texto, tipo = "bot") {
   const div = document.createElement("div");
   div.className = "msg " + tipo;
-  div.textContent = texto;
+  div.textContent = String(texto);
   chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+
+  if (tipo === "bot" || tipo === "user") {
+    history.push({text:String(texto),type:tipo});
+    salvarHistorico();
+  }
+}
+
+function restaurarHistorico() {
+  for (const item of history.slice(-30)) {
+    const div = document.createElement("div");
+    div.className = "msg " + item.type;
+    div.textContent = item.text;
+    chat.appendChild(div);
+  }
   chat.scrollTop = chat.scrollHeight;
 }
 
-function mostrarResultado(titulo, resumo, url) {
+function limpar(texto) {
+  return String(texto || "")
+    .replace(/<[^>]*>/g," ")
+    .replace(/\s+/g," ")
+    .trim();
+}
+
+function resultado(titulo,resumo,url) {
   const card = document.createElement("article");
   card.className = "result";
 
-  const h3 = document.createElement("h3");
-  h3.textContent = titulo;
+  const h = document.createElement("h3");
+  h.textContent = titulo;
 
   const p = document.createElement("p");
   p.textContent = resumo;
@@ -71,172 +187,319 @@ function mostrarResultado(titulo, resumo, url) {
   a.href = url;
   a.target = "_blank";
   a.rel = "noopener noreferrer";
-  a.textContent = "Abrir artigo original ↗";
+  a.textContent = "Abrir fonte ↗";
 
-  card.append(h3, p, a);
+  card.append(h,p,a);
   chat.appendChild(card);
   chat.scrollTop = chat.scrollHeight;
 }
 
-function mostrarMeta(tempo, quantidade) {
+function meta(site,tempo) {
   const div = document.createElement("div");
   div.className = "meta";
   div.textContent =
-    "Site pesquisado: Wikipédia em português (pt.wikipedia.org)\n" +
-    "Tempo de pesquisa: " + tempo.toFixed(2).replace(".", ",") + " segundos\n" +
-    "Artigos encontrados: " + quantidade;
+    "Fonte: " + site +
+    "\nTempo de pesquisa: " +
+    tempo.toFixed(2).replace(".",",") + " segundos";
 
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
 }
 
-function extrairPesquisa(texto) {
-  const padrao = /^(?:pesquise|pesquisar|pesquisa|procure|buscar|busque|busca)(?:\s+(?:na internet|na web|sobre|por))?\s*[:,-]?\s*/i;
+async function fetchTimeout(url,ms=15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(()=>controller.abort(),ms);
 
-  if (!padrao.test(texto)) return null;
-  return texto.replace(padrao, "").trim();
+  try {
+    const r = await fetch(url,{signal:controller.signal});
+    if (!r.ok) throw new Error("HTTP "+r.status);
+    return r;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
-function limparResumo(texto) {
-  let resumo = String(texto || "").replace(/\s+/g, " ").trim();
+// WIKIPÉDIA
+async function pesquisarWiki(q) {
+  const params = new URLSearchParams({
+    action:"query",
+    list:"search",
+    srsearch:q,
+    srlimit:"3",
+    format:"json",
+    origin:"*"
+  });
 
-  if (resumo.length > 720) {
-    const trecho = resumo.slice(0, 720);
-    const fim = Math.max(
-      trecho.lastIndexOf(". "),
-      trecho.lastIndexOf("! "),
-      trecho.lastIndexOf("? ")
+  const r = await fetchTimeout(
+    "https://pt.wikipedia.org/w/api.php?"+params
+  );
+
+  const data = await r.json();
+  const items = data?.query?.search || [];
+
+  if (!items.length) throw new Error("Sem resultados.");
+
+  for (const item of items) {
+    const url = "https://pt.wikipedia.org/wiki/" +
+      encodeURIComponent(item.title.replace(/ /g,"_"));
+
+    resultado(
+      item.title,
+      limpar(item.snippet).slice(0,500),
+      url
     );
-
-    resumo = fim > 450
-      ? trecho.slice(0, fim + 1)
-      : trecho.replace(/\s+\S*$/, "") + "…";
   }
 
-  return resumo;
+  return "Wikipédia";
 }
 
-async function pesquisarInternet(consulta) {
-  if (!consulta) {
-    falar("Digite o assunto que deseja pesquisar. Exemplo: pesquise sobre inteligência artificial");
+// PESQUISA GERAL
+async function pesquisarDuck(q) {
+  const url =
+    "https://r.jina.ai/http://html.duckduckgo.com/html/?q=" +
+    encodeURIComponent(q);
+
+  const r = await fetchTimeout(url,22000);
+  const texto = await r.text();
+
+  if (texto.length < 100) {
+    throw new Error("Pesquisa sem resultados.");
+  }
+
+  resultado(
+    "Resultados para: "+q,
+    limpar(texto).slice(0,1800),
+    "https://duckduckgo.com/?q="+encodeURIComponent(q)
+  );
+
+  return "DuckDuckGo";
+}
+
+// STACK OVERFLOW
+async function pesquisarStack(q) {
+  const url =
+    "https://api.stackexchange.com/2.3/search/excerpts?"+
+    new URLSearchParams({
+      order:"desc",
+      sort:"relevance",
+      pagesize:"3",
+      site:"stackoverflow",
+      q:q
+    });
+
+  const r = await fetchTimeout(url);
+  const data = await r.json();
+  const items = data.items || [];
+
+  if (!items.length) throw new Error("Sem resultados.");
+
+  for (const item of items) {
+    resultado(
+      limpar(item.title),
+      limpar(item.excerpt),
+      "https://stackoverflow.com/search?q="+
+      encodeURIComponent(q)
+    );
+  }
+
+  return "Stack Overflow";
+}
+
+// DOCUMENTAÇÃO MDN
+async function pesquisarMDN(q) {
+  const url =
+    "https://developer.mozilla.org/api/v1/search?locale=pt-BR&q="+
+    encodeURIComponent(q);
+
+  const r = await fetchTimeout(url);
+  const data = await r.json();
+  const docs = (data.documents || []).slice(0,3);
+
+  if (!docs.length) throw new Error("Sem resultados.");
+
+  for (const doc of docs) {
+    resultado(
+      doc.title,
+      doc.summary || "Documentação técnica.",
+      "https://developer.mozilla.org"+doc.mdn_url
+    );
+  }
+
+  return "Documentação MDN";
+}
+
+// PESQUISA INTELIGENTE
+async function pesquisarInternet(q) {
+  if (!q) {
+    falar("Digite o assunto que deseja pesquisar.");
     return;
   }
 
   const inicio = performance.now();
 
   botao.disabled = true;
-  status.textContent = "Pesquisando na Wikipédia...";
+  status.textContent = "Pesquisando na internet...";
 
-  falar("Pesquisando: " + consulta);
+  falar("Pesquisando: "+q);
+
+  const tecnico =
+    /javascript|html|css|python|código|programação|erro|bug|api|git|react|node|sql/i.test(q);
 
   try {
-    const parametros = new URLSearchParams({
-      action: "query",
-      list: "search",
-      srsearch: consulta,
-      srlimit: "3",
-      format: "json",
-      origin: "*"
-    });
+    let fonte;
 
-    const resposta = await fetch(
-      "https://pt.wikipedia.org/w/api.php?" +
-      parametros.toString()
-    );
-
-    if (!resposta.ok) throw new Error("Falha na busca");
-
-    const dados = await resposta.json();
-    const resultados = dados?.query?.search || [];
-
-    if (!resultados.length) {
-      falar("Não encontrei artigos para esse assunto na Wikipédia em português. Tente pesquisar com outras palavras.");
-      return;
+    if (tecnico) {
+      try {
+        fonte = await pesquisarStack(q);
+      } catch {
+        fonte = await pesquisarMDN(q);
+      }
+    } else {
+      try {
+        fonte = await pesquisarDuck(q);
+      } catch {
+        fonte = await pesquisarWiki(q);
+      }
     }
 
-    const titulos = resultados.map(item => item.title);
+    const segundos = (performance.now()-inicio)/1000;
+    meta(fonte,segundos);
 
-    const detalhes = new URLSearchParams({
-      action: "query",
-      prop: "extracts",
-      exintro: "1",
-      explaintext: "1",
-      exchars: "1200",
-      titles: titulos.join("|"),
-      format: "json",
-      origin: "*"
-    });
+    falar("Pesquisa concluída! Confira os resultados e abra as fontes.");
 
-    const respostaDetalhes = await fetch(
-      "https://pt.wikipedia.org/w/api.php?" +
-      detalhes.toString()
-    );
-
-    if (!respostaDetalhes.ok) throw new Error("Falha ao abrir os artigos");
-
-    const dadosDetalhes = await respostaDetalhes.json();
-
-    const paginas = Object.values(
-      dadosDetalhes?.query?.pages || {}
-    );
-
-    const validas = paginas.filter(p => p.extract);
-
-    if (!validas.length) {
-      falar("Encontrei páginas, mas não consegui carregar os resumos.");
-      return;
-    }
-
-    falar("Encontrei " + validas.length + " artigo(s). Veja os resumos:");
-
-    for (const pagina of validas) {
-      const url = "https://pt.wikipedia.org/wiki/" +
-        encodeURIComponent(pagina.title.replace(/ /g, "_"));
-
-      mostrarResultado(
-        pagina.title,
-        limparResumo(pagina.extract),
-        url
-      );
-    }
-
-    const segundos = (performance.now() - inicio) / 1000;
-
-    mostrarMeta(segundos, validas.length);
-
-    falar("Esses textos são resumos dos artigos da Wikipédia. Toque em “Abrir artigo original” para ler a página completa.");
-
-  } catch (erro) {
-    console.error(erro);
-
-    const segundos = (performance.now() - inicio) / 1000;
-
-    falar("Não consegui concluir a pesquisa. Confira sua conexão e tente novamente.");
-
-    const meta = document.createElement("div");
-    meta.className = "meta";
-    meta.textContent =
-      "Site consultado: pt.wikipedia.org\n" +
-      "Tempo até o erro: " +
-      segundos.toFixed(2).replace(".", ",") +
-      " segundos";
-
-    chat.appendChild(meta);
-
+  } catch(e) {
+    console.error(e);
+    falar("Não consegui pesquisar agora. Confira sua conexão ou tente outras palavras.");
   } finally {
     botao.disabled = false;
-    status.textContent =
-      "Interface 0.3 • Cérebro 0.2 • Pesquisa: Wikipédia";
+    status.textContent = "BACH AI 0.4 • Pesquisa e clima";
   }
 }
 
+// CLIMA
+function textoClima(codigo) {
+  if (codigo===0) return "Céu limpo";
+  if ([1,2,3].includes(codigo)) return "Parcialmente nublado";
+  if ([45,48].includes(codigo)) return "Neblina";
+  if ([51,53,55,56,57].includes(codigo)) return "Garoa";
+  if ([61,63,65,66,67,80,81,82].includes(codigo)) return "Chuva";
+  if ([71,73,75,77,85,86].includes(codigo)) return "Neve";
+  if ([95,96,99].includes(codigo)) return "Tempestade";
+  return "Condição variável";
+}
+
+async function consultarClima(cidade) {
+  botao.disabled = true;
+  status.textContent = "Consultando o clima...";
+
+  try {
+    const geo = await fetchTimeout(
+      "https://geocoding-api.open-meteo.com/v1/search?name="+
+      encodeURIComponent(cidade)+
+      "&count=5&language=pt&format=json"
+    );
+
+    const locais = (await geo.json()).results || [];
+    const local =
+      locais.find(x=>x.country_code==="BR") || locais[0];
+
+    if (!local) throw new Error("Cidade não encontrada.");
+
+    const url =
+      "https://api.open-meteo.com/v1/forecast?"+
+      new URLSearchParams({
+        latitude:local.latitude,
+        longitude:local.longitude,
+        current:
+          "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m",
+        daily:
+          "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
+        timezone:"auto",
+        forecast_days:"3"
+      });
+
+    const r = await fetchTimeout(url);
+    const data = await r.json();
+
+    const c = data.current;
+    const d = data.daily;
+
+    let relatorio =
+      "🌤️ Clima em "+local.name+", "+
+      (local.admin1 || local.country)+"\n\n"+
+      "Agora: "+c.temperature_2m+"°C\n"+
+      "Sensação: "+c.apparent_temperature+"°C\n"+
+      "Condição: "+textoClima(c.weather_code)+"\n"+
+      "Umidade: "+c.relative_humidity_2m+"%\n"+
+      "Vento: "+c.wind_speed_10m+" km/h\n"+
+      "Chuva agora: "+c.precipitation+" mm\n\n"+
+      "PREVISÃO:\n";
+
+    for (let i=0;i<d.time.length;i++) {
+      relatorio +=
+        d.time[i]+": "+textoClima(d.weather_code[i])+
+        ", mínima "+d.temperature_2m_min[i]+"°C"+
+        ", máxima "+d.temperature_2m_max[i]+"°C"+
+        ", chance de chuva "+
+        d.precipitation_probability_max[i]+"%\n";
+    }
+
+    falar(relatorio);
+    meta("Open-Meteo",0);
+
+  } catch(e) {
+    console.error(e);
+    falar("Não consegui consultar o clima. Confira o nome da cidade e sua conexão.");
+  } finally {
+    botao.disabled = false;
+    status.textContent = "BACH AI 0.4 • Pesquisa e clima";
+  }
+}
+
+// RECONHECER COMANDOS
+function extrairPesquisa(texto) {
+  const match = texto.match(
+    /^(?:pesquise|pesquisar|pesquisa|procure|buscar|busque)\s+(?:na internet\s+|na web\s+|sobre\s+|por\s+)?(.+)/i
+  );
+  return match ? match[1].trim() : null;
+}
+
+function extrairCidade(texto) {
+  const match = texto.match(
+    /^(?:clima|tempo|previsão|previsao)(?:\s+(?:em|de|para))?\s+(.+)$/i
+  );
+  return match ? match[1].trim() : null;
+}
+
+// ENVIAR MENSAGEM
 async function enviar() {
   const texto = entrada.value.trim();
-
   if (!texto || botao.disabled) return;
 
-  falar(texto, "user");
+  falar(texto,"user");
   entrada.value = "";
+
+  const simples = texto.toLowerCase().trim();
+
+  if (simples==="limpar histórico") {
+    history = [];
+    localStorage.removeItem(HISTORY_KEY);
+    chat.innerHTML = "";
+    falar("Histórico limpo! Seus ensinamentos continuam guardados.");
+    return;
+  }
+
+  if (/^faz pesquisa na internet\??$/.test(simples)) {
+    falar("Sim! Escreva: pesquise sobre [assunto].");
+    return;
+  }
+
+  const cidade = extrairCidade(texto);
+
+  if (cidade) {
+    await consultarClima(cidade);
+    return;
+  }
 
   const consulta = extrairPesquisa(texto);
 
@@ -245,31 +508,36 @@ async function enviar() {
     return;
   }
 
-  const resultado = RizikBrain.think(texto);
+  const resposta = RizikBrain.think(texto);
 
-  if (resultado.handled) {
-    falar(resultado.text);
+  if (resposta.handled) {
+    falar(resposta.text);
   } else {
     falar(
-      "Ainda estou aprendendo. Você pode me ensinar assim:\n" +
-      "ensine: pergunta => resposta\n\n" +
-      "Para pesquisar artigos, digite: pesquise sobre [assunto]"
+      "Ainda estou aprendendo! Você pode me ensinar assim:\n\n"+
+      "ensine: pergunta => resposta\n\n"+
+      "Também posso pesquisar:\n"+
+      "pesquise sobre inteligência artificial\n\n"+
+      "E consultar o clima:\n"+
+      "clima em Nova Esperança"
     );
   }
 }
 
-botao.addEventListener("click", enviar);
+botao.addEventListener("click",enviar);
 
-entrada.addEventListener("keydown", e => {
-  if (e.key === "Enter") enviar();
+entrada.addEventListener("keydown",e=>{
+  if (e.key==="Enter") enviar();
 });
 
-status.textContent =
-  "Interface 0.3 • Cérebro 0.2 • Pesquisa: Wikipédia";
+restaurarHistorico();
 
-falar(
-  "Olá! Sou a RIZIK AI. Estou na versão 0.3. Agora organizo melhor os resultados e mostro o site pesquisado e o tempo que a busca levou."
-);
+status.textContent =
+  "BACH AI 0.4 • Cérebro 0.2 • Pesquisa e clima";
+
+if (!history.length) {
+  falar("Olá! Sou a BACH AI 🧠. Tenho memória, aprendizado, pesquisa na internet e consulta de clima. Vamos evoluir juntos!");
+}
 </script>
 </body>
 </html>
