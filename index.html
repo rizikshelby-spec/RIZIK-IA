@@ -66,7 +66,7 @@ import { RizikBrain } from "./brain.js?v=11";
 import { Saber } from "./saber.js?v=3";
 import { Prog } from "./programacao.js?v=2";
 import { Arquivos } from "./arquivos.js?v=1";
-import { Mente } from "./mente.js?v=1";
+import { Mente } from "./mente.js?v=2";
 
 const $ = id => document.getElementById(id);
 const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status");
@@ -313,7 +313,7 @@ async function rotear(texto) {
   const graca = Prog.humor(texto); if (graca) { falar(graca, "bot", "😄 meu repertório"); return; }
   const prog = Prog.responder(texto); if (prog) { falar(prog, "bot", "💻 programação"); return; }
   const k = Saber.buscarConhecimento(texto); if (k) { falar(k, "bot", "📚 o que aprendi"); return; }
-  if (modoProfundo || Mente.pergunta(texto)) return pesquisaProfunda(texto);
+  if ((modoProfundo && texto.split(/\s+/).length >= 3) || Mente.pergunta(texto)) return pesquisaProfunda(texto);
   falar(Prog.desconhecido() + "\n\nVocê pode:\n• me pedir: jogar forca, crie uma calculadora, o que é ...\n• me ensinar: ensine: pergunta => resposta\n• pedir: pesquise a fundo sobre o assunto\n• clima em (sua cidade)\n\nDigite \"ajuda\" para ver tudo.");
 }
 
