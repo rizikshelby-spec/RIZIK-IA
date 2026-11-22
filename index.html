@@ -84,6 +84,7 @@ textarea#entrada{flex:1;min-width:0;padding:11px;border:1px solid #44465d;border
 <button data-acao="historico">🕘 Histórico de conversas</button>
 <button data-acao="nova">➕ Nova conversa</button>
 <button data-acao="arquivos">📁 Meus arquivos</button>
+<button data-acao="modulos">🧩 Departamentos da BACH</button>
 <button data-acao="jogo">🎮 Jogar um joguinho</button>
 </div>
 <input id="seletor" type="file" hidden multiple accept="image/*,video/*,.txt,.md,.js,.html,.css,.json,.csv,.py,.xml,.log,.ts,.java,.c,.cpp,.sql,.yml,.yaml">
@@ -100,12 +101,13 @@ import { Mente } from "./mente.js?v=7";
 import { Fatos } from "./fatos.js?v=2";
 import { Conversa } from "./conversa.js?v=1";
 import { Historico } from "./historico.js?v=2";
-import { Base } from "./base.js?v=2";
+import { Base } from "./base.js?v=3";
+import { SkillRouter } from "./registry.js?v=1";
 
 const $ = id => document.getElementById(id);
 const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status"), hist = $("hist");
 const HISTORY_KEY = "bach_chat_history_v1", KEY_API = "bach_gemini_key", KEY_MODEL = "bach_gemini_model";
-const STATUS = "BACH AI 3.0 • Conversa, código, jogos, arquivos, histórico e pesquisa";
+const STATUS = "BACH AI 4.0 • Conversa, código, jogos, departamentos, arquivos, histórico e pesquisa";
 const LONGO = 700;
 
 let history = [], pensando = null, modoProfundo = false, lerAuto = false;
@@ -246,7 +248,6 @@ const extrairClima = t => {
   return m ? m[1].trim() : null;
 };
 const extrairProfundo = t => (t.match(/^(?:(?:fa[cç]a|faz|pode)\s+)?(?:uma\s+)?(?:(?:pesquise|pesquisa|pesquisar|busque|busca|procure)\s+(?:a\s*fundo|profundamente|em\s+profundidade|bem\s+fundo)|pesquisa profunda|aprofunde|\/profundo)\s*(?:sobre\s+|a respeito de\s+)?(.+)/i) || [])[1]?.trim() ?? null;
-/* "matéria de matemática e sobre computação" vira dois assuntos */
 function dividirTemas(q) {
   return String(q).split(/\s+e\s+(?:tamb[eé]m\s+)?sobre\s+|\s*;\s*|\s+e\s+tamb[eé]m\s+/i)
     .map(t => t.replace(/^(?:a\s+|as\s+|o\s+|os\s+)?(?:mat[eé]rias?|assuntos?|conte[uú]dos?|temas?)\s+(?:de|do|da|sobre)\s+/i, "").trim())
@@ -473,6 +474,14 @@ async function rotear(texto) {
   if (/^\/importarbase\b/.test(cmd)) { falar("📥 Escolha o arquivo .json que você baixou com /basedados."); $("seletorBase").click(); return; }
   if (cmd.startsWith("/modelo ")) { localStorage.setItem(KEY_MODEL, texto.slice(8).trim()); falar("Modelo trocado para: " + texto.slice(8).trim()); return; }
 
+  /* ---------- NOVO: roteador de departamentos (registry.js) ----------
+     Ativa /calc, /converter, /juros, /fisica, /golpe, /quiz, /resposta,
+     /ideia, /historia, /personagem, /plano, /automacao, /humor,
+     /modulos, /statusmodulos e /modulo ID on|off.
+     Isso faltava: os 10 módulos novos nunca eram chamados por este arquivo. */
+  const dept = SkillRouter.handle(texto, { hasAI: temIA, history });
+  if (dept) { falar(dept.texto, "bot", dept.origem); return; }
+
   const links = Saber.urlsEm(texto);
   // só é "link para ler" se a mensagem for curta e não for código colado (código também tem endereços dentro)
   if (links.length && texto.length < 400 && !Saber.isCode(texto) && texto.replace(links[0], "").trim().split(/\s+/).filter(Boolean).length <= 12) return lerLinkMsg(links[0], texto, temIA);
@@ -520,7 +529,7 @@ async function rotear(texto) {
   const prog = Prog.responder(texto); if (prog) { falar(prog, "bot", "💻 programação"); return; }
   const k = Saber.buscarConhecimento(texto); if (k) { falar(k, "bot", "📚 o que aprendi"); return; }
   if ((modoProfundo && texto.split(/\s+/).length >= 3 && !Fatos.sobreVoce(texto)) || Mente.pergunta(texto)) return pesquisaProfunda(texto);
-  falar(Prog.desconhecido(texto) + "\n\nVocê pode:\n• me pedir: jogar forca, crie uma calculadora, o que é ...\n• me ensinar: ensine: pergunta => resposta\n• pedir: pesquise a fundo sobre o assunto\n• colar um link para eu ler\n• clima em (sua cidade)\n\nDigite \"ajuda\" para ver tudo.");
+  falar(Prog.desconhecido(texto) + "\n\nVocê pode:\n• me pedir: jogar forca, crie uma calculadora, o que é ...\n• perguntar: /modulos (departamentos), /calc, /converter, /juros, /fisica\n• me ensinar: ensine: pergunta => resposta\n• pedir: pesquise a fundo sobre o assunto\n• colar um link para eu ler\n• clima em (sua cidade)\n\nDigite \"ajuda\" para ver tudo.");
 }
 
 function ajustar() { entrada.style.height = "auto"; entrada.style.height = Math.min(entrada.scrollHeight, 130) + "px"; }
@@ -578,6 +587,7 @@ menu.onclick = e => {
   if (a === "historico") abrirHistorico(1);
   if (a === "nova") novaConversa();
   if (a === "arquivos") { entrada.value = "/arquivos"; enviar(); }
+  if (a === "modulos") { entrada.value = "/modulos"; enviar(); }
   if (a === "jogo") { entrada.value = "vamos jogar"; enviar(); }
 };
 $("seletorBase").onchange = async () => {
@@ -606,7 +616,7 @@ entrada.addEventListener("input", ajustar); // Enter só pula de linha; enviar �
 
 try { Historico.salvarAtual(history); } catch {}
 restaurar(); status.textContent = STATUS;
-if (!history.length) falar("Olá! Sou a BACH AI 🧠. Converso, resumo textos, programo, crio jogos e apps e jogo com você. Digite \"ajuda\" para ver tudo.");
+if (!history.length) falar("Olá! Sou a BACH AI 🧠. Converso, resumo textos, programo, calculo, converto unidades, crio jogos e apps e jogo com você. Digite \"ajuda\" ou \"/modulos\" para ver tudo.");
 </script>
 </body>
 </html>
