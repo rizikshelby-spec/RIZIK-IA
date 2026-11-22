@@ -1,16 +1,16 @@
 
 /*
- RIZIK AI - CEREBRO 0.2
- Memoria e aprendizado com reconhecimento flexível.
+ BACH AI - CEREBRO 0.3
+ Memoria, aprendizado e conversa básica.
 */
 
 const STORAGE_KEY = "rizik_brain_v1";
 
 const DEFAULT_DATA = {
-  name: "RIZIK AI",
+  name: "BACH AI",
   facts: {},
   examples: [],
-  version: 2
+  version: 3
 };
 
 function loadData() {
@@ -21,6 +21,7 @@ function loadData() {
       return {
         ...DEFAULT_DATA,
         ...saved,
+        name: "BACH AI",
         facts: saved.facts || {},
         examples: Array.isArray(saved.examples) ? saved.examples : []
       };
@@ -98,8 +99,23 @@ function recall(key) {
 function classify(text) {
   const t = normalize(text);
 
-  if (/^(oi|ola|bom dia|boa tarde|boa noite)\b/.test(t))
+  if (/^(oi|ola|eai|opa|bom dia|boa tarde|boa noite)\b/.test(t))
     return "greeting";
+
+  if (/^(bora|vamos|partiu|vambora|vamos nessa)$/.test(t))
+    return "encouragement";
+
+  if (/^(beleza|blz|legal|massa|show|bacana|top)$/.test(t))
+    return "positive";
+
+  if (/^(obrigado|obrigada|valeu|agradecido)$/.test(t))
+    return "thanks";
+
+  if (/^(tudo bem|como vai|como voce esta)$/.test(t))
+    return "wellbeing";
+
+  if (/^(tchau|ate mais|falou|fui)$/.test(t))
+    return "goodbye";
 
   if (t.includes("quem e voce") || t.includes("seu nome"))
     return "identity";
@@ -200,14 +216,49 @@ function think(message) {
       return {
         handled: true,
         intent,
-        text: "Olá! Sou a RIZIK AI. Vamos evoluir juntos!"
+        text: "Olá! Sou a BACH AI 🧠. Como você está?"
+      };
+
+    case "encouragement":
+      return {
+        handled: true,
+        intent,
+        text: "Bora! 🚀 Estou pronta. O que vamos fazer?"
+      };
+
+    case "positive":
+      return {
+        handled: true,
+        intent,
+        text: "Que bom! 😄 Vamos continuar!"
+      };
+
+    case "thanks":
+      return {
+        handled: true,
+        intent,
+        text: "Por nada! Estou aqui para ajudar. 😊"
+      };
+
+    case "wellbeing":
+      return {
+        handled: true,
+        intent,
+        text: "Estou funcionando direitinho! E você, tudo bem?"
+      };
+
+    case "goodbye":
+      return {
+        handled: true,
+        intent,
+        text: "Até mais! Estarei aqui quando voltar. 👋"
       };
 
     case "identity":
       return {
         handled: true,
         intent,
-        text: "Sou a RIZIK AI, uma inteligência artificial própria em desenvolvimento."
+        text: "Sou a BACH AI 🧠, uma inteligência artificial própria em desenvolvimento, com memória, aprendizado e ferramentas de pesquisa."
       };
 
     case "time":
@@ -263,7 +314,7 @@ function think(message) {
 }
 
 export const RizikBrain = {
-  version: "0.2.0",
+  version: "0.3.0",
   think,
   learn,
   remember,
