@@ -145,7 +145,9 @@ function cartao(titulo, conteudo, arquivo, aberto, previa) {
 function montar(texto, tipo, cit = "") {
   const w = mk("div", "msg " + tipo);
   if (cit) w.appendChild(mk("div", "cit", "↩ " + cit));
-  const p = String(texto).split(/```([\w+-]*)[ \t]*\n?([\s\S]*?)```/g);
+  const txtBruto = String(texto);
+  const cercas = (txtBruto.match(/```/g) || []).length;
+  const p = cercas % 2 === 0 ? txtBruto.split(/```([\w+-]*)[ \t]*\n?([\s\S]*?)```/g) : [txtBruto];
   for (let i = 0; i < p.length; i += 3) {
     const t = p[i].trim();
     if (t) {
@@ -528,7 +530,7 @@ async function rotear(texto) {
   const graca = Prog.humor(texto); if (graca) { falar(graca, "bot", "😄 meu repertório"); return; }
   const prog = Prog.responder(texto); if (prog) { falar(prog, "bot", "💻 programação"); return; }
   const k = Saber.buscarConhecimento(texto); if (k) { falar(k, "bot", "📚 o que aprendi"); return; }
-  if ((modoProfundo && texto.split(/\s+/).length >= 3 && !Fatos.sobreVoce(texto)) || Mente.pergunta(texto)) return pesquisaProfunda(texto);
+  if (Mente.pergunta(texto)) return pesquisaProfunda(texto, true);
   falar(Prog.desconhecido(texto) + "\n\nVocê pode:\n• me pedir: jogar forca, crie uma calculadora, o que é ...\n• perguntar: /modulos (departamentos), /calc, /converter, /juros, /fisica\n• me ensinar: ensine: pergunta => resposta\n• pedir: pesquise a fundo sobre o assunto\n• colar um link para eu ler\n• clima em (sua cidade)\n\nDigite \"ajuda\" para ver tudo.");
 }
 
