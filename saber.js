@@ -123,21 +123,49 @@ async function wiki(q) {
     }));
 }
 
+const limparMd = t => String(t || "")
+  .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+  .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+  .replace(/\]\([^)]*\)?/g, " ")
+  .replace(/[\[\]]/g, " ")
+  .replace(/\(?https?:\/\/\S+\)?/g, " ")
+  .replace(/[#*_`>|]/g, " ")
+  .replace(/\s+/g, " ")
+  .replace(/^[\s)\]:–-]+/, "")
+  .trim();
+
+const host = u => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
+
 async function web(q) {
   const txt = await get("https://r.jina.ai/http://html.duckduckgo.com/html/?q=" + encodeURIComponent(q), 25000);
+  const ms = [...txt.matchAll(/^## \[(.*?)\]\((https?:\/\/[^)\s]+)\)/gm)];
   const out = [], seen = new Set();
-  for (const m of txt.matchAll(/^## \[(.*?)\]\((https?:\/\/[^)\s]+)\)/gm)) {
-    let link = m[2];
+  for (let i = 0; i < ms.length && out.length < 8; i++) {
+    let link = ms[i][2];
     try {
       const u = new URL(link);
       if (u.hostname.includes("duckduckgo.com")) link = u.searchParams.get("uddg") || link;
     } catch {}
     if (!/^https?:\/\//i.test(link) || seen.has(link) || /duckduckgo\.com/i.test(link)) continue;
+    const ini = ms[i].index + ms[i][0].length;
+    const fim = i + 1 < ms.length ? ms[i + 1].index : txt.length;
+    const titulo = limparMd(ms[i][1]);
+    let snippet = limparMd(txt.slice(ini, fim)).replace(/…+|\.{3,}\s*$/g, "").trim().slice(0, 320);
+    if (snippet && !/[.!?]$/.test(snippet)) snippet += ".";
+    if (titulo.length < 4) continue;
     seen.add(link);
-    out.push({ titulo: m[1].replace(/<[^>]*>/g, "").trim(), url: link });
-    if (out.length >= 5) break;
+    out.push({ titulo, url: link, snippet });
   }
   return out;
+}
+
+function filtrar(links, qk) {
+  return links.map(l => {
+    const k = new Set(kw(l.titulo + " " + l.snippet));
+    const hits = qk.filter(w => k.has(w)).length;
+    const bonus = /wikipedia|\.gov|\.edu|mozilla|w3schools|britannica/i.test(l.url) ? 1 : 0;
+    return { ...l, hits, v: hits * 2 + bonus };
+  }).filter(l => l.hits > 0).sort((x, y) => y.v - x.v).slice(0, 5);
 }
 
 function cleanPage(t) {
@@ -155,7 +183,7 @@ async function readPage(link, qk) {
     const n = new Set(kw(s));
     const hits = qk.filter(w => n.has(w)).length;
     return hits ? hits * 3 + (s.length > 70 && s.length < 300 ? 1 : 0) : 0;
-  }, 3);
+  }, 6);
 }
 
 /* ---------- Base de conhecimento ---------- */
@@ -188,48 +216,126 @@ function buscarConhecimento(texto) {
     "\n\nPara atualizar: pesquise a fundo sobre " + top.q;
 }
 
-async function pesquisaProfunda(q, progresso = () => {}) {
-  const qk = kw(q);
-  let paginas = [], links = [], lidas = [];
+/* ---------- Montar a resposta com palavras da BACH ---------- */
 
-  progresso("📚 Consultando a Wikipédia (pt.wikipedia.org)...");
-  try { paginas = await wiki(q); } catch (e) { console.warn("wiki", e); }
+const LIXO = /(cookie|copyright|©|todos os direitos|pol[ií]tica de privacidade|termos de uso|inscreva|assine|newsletter|clique aqui|leia mais|compartilhe|whatsapp|facebook|instagram|login|cadastr|publicidade|an[uú]ncio|aceitar|menu principal)/i;
+const pick = a => a[Math.floor(Math.random() * a.length)];
 
-  progresso("🦆 Buscando no DuckDuckGo...");
-  try { links = await web(q); } catch (e) { console.warn("web", e); }
-
-  progresso("📖 Abrindo as melhores páginas encontradas...");
-  const alvo = links.slice(0, 3);
-  const res = await Promise.allSettled(alvo.map(l => {
-    let host = l.url;
-    try { host = new URL(l.url).hostname; } catch {}
-    progresso("🌐 Lendo " + host);
-    return readPage(l, qk);
-  }));
-  progresso("🧩 Juntando as informações...");
-  res.forEach((r, i) => {
-    if (r.status === "fulfilled" && r.value.length) lidas.push({ ...alvo[i], frases: r.value });
-  });
-
-  if (!paginas.length && !lidas.length) throw new Error("sem resultados");
-
-  let texto = "🔎 PESQUISA A FUNDO: " + q;
-  if (paginas.length) {
-    texto += "\n\n📚 " + paginas[0].titulo + ":\n" + paginas[0].texto.slice(0, 800);
-  }
-  for (const l of lidas) {
-    texto += "\n\n🌐 " + l.titulo.slice(0, 80) + ":\n• " + l.frases.join("\n• ");
-  }
-  const todos = paginas.map(p => p.texto).concat(lidas.flatMap(l => l.frases)).join(" ");
-  const k = topWords(todos, 8);
-  if (k.length) texto += "\n\n🧠 Assuntos relacionados: " + k.join(", ") + ".";
-  texto += "\n\nGuardei isso na minha memória. Pergunte de novo depois, sem precisar pesquisar!";
-
-  saveKB({ q, resumo: texto, at: Date.now() });
-
-  const fontes = paginas.slice(0, 2).map(p => ({ titulo: p.titulo + " (Wikipédia)", url: p.url }))
-    .concat(lidas.map(l => ({ titulo: l.titulo.slice(0, 80), url: l.url })));
-  return { texto, fontes };
+function limparFrase(s) {
+  return String(s).replace(/\[\d+\]/g, "").replace(/\s*\([^)]{0,80}\)/g, "").replace(/\s+/g, " ").replace(/^[-•*\d.)\s]+/, "").trim();
 }
 
-export const Saber = { lerTexto, summarize, pesquisaProfunda, buscarConhecimento, isCode };
+function jac(a, b) {
+  let i = 0;
+  for (const x of a) if (b.has(x)) i++;
+  return i / (a.size + b.size - i || 1);
+}
+
+function candidatas(fontes, qk) {
+  const out = [];
+  fontes.forEach((f, fi) => {
+    for (const raw of f.frases) {
+      const s = limparFrase(raw);
+      if (s.length < 45 || s.length > 300 || LIXO.test(s) || !/[.!?]$/.test(s)) continue;
+      const k = new Set(kw(s));
+      const hits = qk.filter(w => k.has(w)).length;
+      if (!hits && !f.wiki) continue;
+      out.push({ s, k, fi, hits, wiki: !!f.wiki });
+    }
+  });
+  return out;
+}
+
+function escolher(c, n = 4) {
+  c.forEach(x => {
+    x.apoio = new Set(c.filter(y => y.fi !== x.fi && jac(x.k, y.k) > 0.25).map(y => y.fi)).size;
+    x.v = x.hits * 3 + x.apoio * 2 + (x.wiki ? 2 : 0);
+  });
+  c.sort((a, b) => b.v - a.v);
+  const sel = [];
+  for (const x of c) {
+    if (sel.some(y => jac(x.k, y.k) > 0.55)) continue;
+    sel.push(x);
+    if (sel.length >= n) break;
+  }
+  return { sel, total: c.length };
+}
+
+const lista = a => a.length > 1 ? a.slice(0, -1).join(", ") + " e " + a[a.length - 1] : a[0];
+
+function compor(q, fontes) {
+  const qk = kw(q);
+  const { sel, total } = escolher(candidatas(fontes, qk));
+  if (!sel.length) return null;
+
+  const usados = [...new Set(sel.map(x => x.fi))].sort((a, b) => a - b);
+  const num = fi => usados.indexOf(fi) + 1;
+  const [primeira, ...resto] = sel;
+  resto.sort((a, b) => a.fi - b.fi);
+
+  let t = "🧠 " + pick([
+    "Sobre “" + q + "”, foi isso que entendi:",
+    "Pesquisei “" + q + "” e separei o que mais apareceu nas fontes:",
+    "Aqui está o resumo do que encontrei sobre “" + q + "”:"
+  ]) + "\n\n" + primeira.s + " [" + num(primeira.fi) + "]";
+
+  if (resto.length) t += "\n\nAlém disso:\n" + resto.map(x => "• " + x.s + " [" + num(x.fi) + "]").join("\n");
+
+  const orig = {};
+  for (const x of sel) for (const w of x.s.split(/[^\p{L}\p{N}]+/u)) if (w && !orig[norm(w)]) orig[norm(w)] = w.toLowerCase();
+  const extras = topWords(sel.map(x => x.s).join(" "), 10).filter(w => !qk.includes(w)).slice(0, 4).map(w => orig[w] || w);
+  if (extras.length) t += "\n\n💬 Em poucas palavras: o assunto envolve " + lista(extras) + ".";
+
+  const apoio = Math.max(...sel.map(x => x.apoio));
+  const conf = usados.length >= 3 && apoio >= 2 ? "alta" : usados.length >= 2 && apoio >= 1 ? "média" : "baixa";
+  t += "\n\n🔍 Como cheguei nisso: olhei " + fontes.length + " fonte(s), separei " + total +
+    " frase(s) ligadas à sua pergunta e fiquei com " + sel.length + ", descartando repetidas e fora do assunto. Confiança " + conf +
+    (conf === "baixa" ? " (só uma fonte falou disso, confira antes de confiar)" : apoio ? " (fontes diferentes dizem coisas parecidas)" : "") + ".";
+  t += "\nℹ️ Eu escolho e organizo os melhores trechos; não reescrevo do zero como uma IA grande faria.";
+  t += "\n\nFontes:\n" + usados.map((fi, i) => "[" + (i + 1) + "] " + fontes[fi].nome).join("\n");
+  return { texto: t, usados };
+}
+
+async function pesquisaProfunda(q, progresso = () => {}, fundo = true) {
+  const qk = kw(q);
+  const fontes = [];
+
+  progresso("📚 Consultando a Wikipédia (pt.wikipedia.org)...");
+  try {
+    const pg = await wiki(q);
+    for (const p of pg.slice(0, 2)) {
+      const k = new Set(kw(p.texto));
+      if (pg.length === 1 || qk.some(w => k.has(w))) {
+        fontes.push({ nome: "Wikipédia: " + p.titulo, url: p.url, frases: sentences(p.texto).slice(0, 6), wiki: true });
+      }
+    }
+  } catch (e) { console.warn("wiki", e); }
+
+  progresso("🦆 Buscando no DuckDuckGo...");
+  let links = [];
+  try { links = await web(q); } catch (e) { console.warn("web", e); }
+
+  progresso("🧹 Filtrando " + links.length + " resultado(s) por relevância...");
+  links = filtrar(links, qk);
+  const webFontes = links.map(l => ({ nome: host(l.url) + " — " + l.titulo.slice(0, 60), url: l.url, frases: l.snippet ? [l.snippet] : [] }));
+  fontes.push(...webFontes);
+
+  if (fundo) {
+    progresso("📖 Abrindo as melhores páginas...");
+    await Promise.allSettled(webFontes.slice(0, 3).map(async f => {
+      progresso("🌐 Lendo " + host(f.url));
+      f.frases.push(...await readPage(f, qk));
+    }));
+  }
+
+  progresso("🧩 Comparando as fontes e montando a resposta...");
+  const r = compor(q, fontes);
+  if (!r) throw new Error("irrelevante");
+
+  saveKB({ q, resumo: r.texto, at: Date.now() });
+
+  const texto = r.texto + "\n\n💾 Guardei esse resumo na memória." + (fundo ? "" : "\nQuer mais detalhes? Peça: pesquise a fundo sobre " + q);
+  return { texto, fontes: r.usados.map(i => ({ titulo: fontes[i].nome, url: fontes[i].url })) };
+}
+
+export const Saber = { lerTexto, summarize, pesquisaProfunda, buscarConhecimento, isCode, compor };
