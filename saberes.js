@@ -174,7 +174,7 @@ export const MAIS = [
  "🌦️ Tempo é a condição da atmosfera em um momento e lugar (hoje está chovendo). Clima é o padrão médio do tempo ao longo de muitos anos, geralmente 30 (a região é de clima tropical)."],
 ["camada ozonio|ozonio",
  "🌍 A camada de ozônio fica na estratosfera e absorve grande parte da radiação ultravioleta do Sol. Os gases CFC a estavam destruindo; o Protocolo de Montreal (1987) os baniu, e a camada está se recuperando."],
-["coleta seletiva|reciclagem|cores lixeiras|cores reciclagem",
+["coleta seletiva|reciclagem|cores lixeiras|cores reciclagem|coleta seletiva cores|cores coleta seletiva",
  "♻️ Cores da coleta seletiva (Conama 275): azul = papel; vermelho = plástico; verde = vidro; amarelo = metal; preto = madeira; marrom = orgânico; cinza = não reciclável ou misturado; laranja = resíduos perigosos."],
 ["energia renovavel|energias renovaveis|fontes energia renovavel",
  "⚡ Energias renováveis vêm de fontes que se regeneram: solar, eólica (vento), hidrelétrica, biomassa, geotérmica e das marés. As não renováveis são petróleo, carvão e gás natural (e urânio, nuclear)."],
@@ -223,5 +223,8 @@ export const MAIS = [
 ["moeda brasil|real moeda|plano real",
  "🇧🇷 A moeda do Brasil é o real (R$), em vigor desde julho de 1994 com o Plano Real, que ajudou a controlar a hiperinflação."],
 ["lingua mais falada|idioma mais falado|idiomas mais falados",
- "🗣️ Em número total de falantes, o inglês é o mais falado do mundo; em falantes nativos, o mandarim lidera. O português é falado por cerca de 260 milhões de pessoas."]
+ "🗣️ Em número total de falantes, o inglês é o mais falado do mundo; em falantes nativos, o mandarim lidera. O português é falado por cerca de 260 milhões de pessoas."],
+
+["roblox|script roblox|scripts roblox|script de roblox|lua roblox|luau|lua|programar roblox|criar jogo roblox|script roblox ios|roblox ios|script roblox android|script roblox celular|script roblox pc",
+ "🎮 Os scripts do Roblox usam a linguagem Luau (parente do Lua) e são criados no Roblox Studio, que roda em PC ou Mac. No iPhone/iOS você joga e testa, mas não cria. Aqui vão 3 exemplos prontos:\n\n1) Peça que derruba o jogador ao encostar (Script dentro da Part):\n```lua\nlocal parte = script.Parent\nparte.Touched:Connect(function(toque)\n\tlocal humanoide = toque.Parent:FindFirstChild(\"Humanoid\")\n\tif humanoide then\n\t\thumanoide.Health = 0\n\tend\nend)\n```\n2) Placar de moedas (Script em ServerScriptService):\n```lua\ngame.Players.PlayerAdded:Connect(function(jogador)\n\tlocal pasta = Instance.new(\"Folder\")\n\tpasta.Name = \"leaderstats\"\n\tpasta.Parent = jogador\n\tlocal moedas = Instance.new(\"IntValue\")\n\tmoedas.Name = \"Moedas\"\n\tmoedas.Value = 0\n\tmoedas.Parent = pasta\nend)\n```\n3) Botão de tela (LocalScript dentro de um TextButton):\n```lua\nlocal botao = script.Parent\nbotao.MouseButton1Click:Connect(function()\n\tbotao.Text = \"Clicou!\"\nend)\n```\nObs.: eu só ajudo com scripts para criar jogos no Roblox Studio. Scripts de trapaça (executores) violam as regras do Roblox e podem banir sua conta."]
 ];
