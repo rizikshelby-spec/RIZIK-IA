@@ -25,6 +25,12 @@ footer{position:fixed;bottom:0;width:100%;display:flex;gap:8px;padding:10px;back
 input{flex:1;min-width:0;padding:13px;border:1px solid #44465d;border-radius:12px;background:#10111a;color:white;font-size:16px}
 button{padding:12px 16px;border:0;border-radius:12px;background:#7864ed;color:white;font-weight:bold}
 button:disabled{opacity:.55}
+#mais{width:46px;padding:0;font-size:26px;background:#303247}
+#menu{display:none;position:fixed;left:10px;bottom:calc(68px + env(safe-area-inset-bottom));background:#222538;border:1px solid #3a3e59;border-radius:14px;padding:6px;z-index:5;min-width:240px}
+#menu.aberto{display:block}
+#menu button{display:block;width:100%;text-align:left;background:none;padding:12px 14px;font-weight:normal;font-size:15px}
+.pensando{opacity:.85;border-style:dashed}
+.msg img,.msg video{max-width:100%;border-radius:10px;display:block}
 @media(min-width:700px){#chat{max-width:850px;margin:auto}footer{justify-content:center}footer input{max-width:700px}}
 </style>
 </head>
@@ -39,13 +45,24 @@ button:disabled{opacity:.55}
 <main id="chat"></main>
 
 <footer>
+<button id="mais" aria-label="Mais opções">+</button>
 <input id="entrada" placeholder="Converse ou digite 'ajuda'..." autocomplete="off">
 <button id="enviar">Enviar</button>
 </footer>
 
+<div id="menu">
+<button data-acao="anexar">📎 Anexar foto, vídeo ou arquivo</button>
+<button data-acao="profundo">🧠 Pensar bastante: desligado</button>
+<button data-acao="arquivos">📁 Meus arquivos</button>
+<button data-acao="piada">😄 Conta uma piada</button>
+</div>
+<input id="seletor" type="file" hidden multiple accept="image/*,video/*,.txt,.md,.js,.html,.css,.json,.csv,.py,.xml,.log,.ts,.java,.c,.cpp,.sql,.yml,.yaml">
+
 <script type="module">
-import { RizikBrain } from "./brain.js?v=9";
-import { Saber } from "./saber.js?v=1";
+import { RizikBrain } from "./brain.js?v=10";
+import { Saber } from "./saber.js?v=2";
+import { Prog } from "./programacao.js?v=1";
+import { Arquivos } from "./arquivos.js?v=1";
 
 const chat = document.getElementById("chat");
 const entrada = document.getElementById("entrada");
@@ -55,9 +72,11 @@ const status = document.getElementById("status");
 const HISTORY_KEY = "bach_chat_history_v1";
 const KEY_API = "bach_gemini_key";
 const KEY_MODEL = "bach_gemini_model";
-const STATUS = "BACH AI 1.0 • Cérebro 0.6 • Pesquisa e clima";
+const STATUS = "BACH AI 1.1 • Arquivos, mídia, programação e pesquisa";
 
 let history = [];
+let pensando = null;
+let modoProfundo = false;
 
 try {
   history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
@@ -75,10 +94,25 @@ function salvar() {
 }
 
 function falar(texto,tipo="bot") {
+  let seg = null;
+
+  if (tipo === "bot" && pensando) {
+    seg = pensando.fim();
+    pensando = null;
+  }
+
   const div = document.createElement("div");
   div.className = "msg " + tipo;
   div.textContent = String(texto);
   chat.appendChild(div);
+
+  if (seg !== null) {
+    const m = document.createElement("div");
+    m.className = "meta";
+    m.textContent = "⏱ Pensou por " + seg.toFixed(1) + " s";
+    chat.appendChild(m);
+  }
+
   chat.scrollTop = chat.scrollHeight;
 
   history.push({text:String(texto),type:tipo});
@@ -177,9 +211,7 @@ async function pesquisarInternet(q) {
   const inicio = performance.now();
 
   botao.disabled = true;
-  status.textContent = "Pesquisando na internet...";
-
-  falar("Pesquisando: "+q);
+  passo("🌐 Pesquisando na internet: "+q);
 
   try {
     let fonte;
@@ -235,6 +267,7 @@ async function pesquisarInternet(q) {
 
     } catch(e) {
       console.warn("Pesquisa alternativa:",e);
+      passo("📚 DuckDuckGo falhou, tentando a Wikipédia...");
       fonte = await pesquisarWiki(q);
     }
 
@@ -258,7 +291,7 @@ async function pesquisarInternet(q) {
 
 async function clima(cidade) {
   botao.disabled = true;
-  status.textContent = "Consultando o clima...";
+  passo("📍 Procurando a cidade “"+cidade+"”...");
 
   try {
     const geo = await requisicao(
@@ -270,6 +303,8 @@ async function clima(cidade) {
     const local = locais.find(x=>x.country_code==="BR") || locais[0];
 
     if (!local) throw new Error("Cidade não encontrada.");
+
+    passo("🌡️ Achei "+local.name+(local.admin1 ? ", "+local.admin1 : "")+" ("+local.country+"). Buscando a previsão...");
 
     const params = new URLSearchParams({
       latitude:local.latitude,
@@ -335,7 +370,7 @@ function extrairPesquisa(texto) {
 
 function extrairClima(texto) {
   const m = texto.match(
-    /^(?:clima|tempo|previsao|previsão)(?:\s+(?:em|de|para))?\s+(.+)$/i
+    /^(?:(?:qual|como)\s+(?:est[aá]\s+)?(?:o|a)\s+)?(?:(?:clima|previs[aã]o(?:\s+do\s+tempo)?)(?:\s+(?:em|de|para|na|no|do|da))?|tempo\s+(?:em|na|no|para))\s+(.+?)\??$/i
   );
 
   return m ? m[1].trim() : null;
@@ -400,13 +435,123 @@ async function perguntarIA(texto) {
   }
 }
 
-async function pesquisaProfunda(q) {
+function pensar() {
+  const div = document.createElement("div");
+  div.className = "msg bot pensando";
+  const t0 = performance.now();
+  const linhas = [];
+
+  const render = () => {
+    div.textContent = "🤔 Pensando... " + ((performance.now()-t0)/1000).toFixed(1) + " s\n" + linhas.join("\n");
+  };
+
+  const timer = setInterval(render,200);
+  chat.appendChild(div);
+  render();
+  chat.scrollTop = chat.scrollHeight;
+
+  return {
+    passo(t) {
+      linhas.push("• "+t);
+      if (linhas.length > 6) linhas.shift();
+      render();
+      chat.scrollTop = chat.scrollHeight;
+    },
+    fim() {
+      clearInterval(timer);
+      div.remove();
+      return (performance.now()-t0)/1000;
+    }
+  };
+}
+
+function passo(t) {
+  if (pensando) pensando.passo(t);
+  status.textContent = t;
+}
+
+function mostrarPreview(p) {
+  const div = document.createElement("div");
+  div.className = "msg bot";
+  const el = document.createElement(p.kind === "video" ? "video" : "img");
+  el.src = p.url;
+  if (p.kind === "video") { el.controls = true; el.muted = true; el.playsInline = true; }
+  div.appendChild(el);
+  chat.appendChild(div);
+}
+
+async function processarArquivo(f) {
   botao.disabled = true;
-  status.textContent = "Pesquisando a fundo...";
-  falar("Pesquisando a fundo: "+q);
+  falar("📎 "+f.name,"user");
+  pensando = pensar();
+  passo("📂 Abrindo "+f.name+" ("+Math.max(1,Math.round(f.size/1024))+" KB)...");
 
   try {
-    const r = await Saber.pesquisaProfunda(q, msg => { status.textContent = msg; });
+    const r = await Arquivos.lerMidia(f,passo);
+    if (r.preview) mostrarPreview(r.preview);
+
+    let resposta = r.resumo;
+    let pasta = r.pasta;
+    let texto = "";
+
+    if (r.tipo === "texto") {
+      passo("📖 Lendo e resumindo o conteúdo...");
+      resposta = Saber.lerTexto(r.texto);
+      pasta = Saber.isCode(r.texto) ? "Códigos" : "Textos";
+      texto = r.texto;
+    }
+
+    passo("📁 Organizando em pastas...");
+    const a = Arquivos.salvar({nome:f.name,pasta,texto,resumo:resposta.slice(0,300),tipo:r.tipo});
+    falar(resposta+"\n\n📁 Guardei em: "+a.pasta+"/"+a.nome+"\nVeja tudo com /arquivos");
+  } catch(e) {
+    console.error(e);
+    falar("Não consegui abrir esse arquivo. "+(e.message || ""));
+  } finally {
+    botao.disabled = false;
+    status.textContent = STATUS;
+  }
+}
+
+const maisBtn = document.getElementById("mais");
+const menu = document.getElementById("menu");
+const seletor = document.getElementById("seletor");
+
+maisBtn.addEventListener("click",()=>menu.classList.toggle("aberto"));
+
+menu.addEventListener("click",e=>{
+  const b = e.target.closest("button[data-acao]");
+  if (!b) return;
+
+  menu.classList.remove("aberto");
+  const acao = b.dataset.acao;
+
+  if (acao === "anexar") seletor.click();
+
+  if (acao === "profundo") {
+    modoProfundo = !modoProfundo;
+    b.textContent = "🧠 Pensar bastante: "+(modoProfundo ? "ligado" : "desligado");
+    falar(modoProfundo
+      ? "Modo pensar bastante LIGADO 🧠. Quando eu não souber algo, vou pesquisar a fundo sozinha e mostrar por onde estou procurando."
+      : "Modo pensar bastante desligado. Só pesquiso quando você pedir.");
+  }
+
+  if (acao === "arquivos") { entrada.value = "/arquivos"; enviar(); }
+  if (acao === "piada") { entrada.value = "conta uma piada"; enviar(); }
+});
+
+seletor.addEventListener("change",async()=>{
+  const arquivos = [...seletor.files];
+  seletor.value = "";
+  for (const f of arquivos) await processarArquivo(f);
+});
+
+async function pesquisaProfunda(q) {
+  botao.disabled = true;
+  passo("🔎 Pesquisando a fundo: "+q);
+
+  try {
+    const r = await Saber.pesquisaProfunda(q, passo);
     falar(r.texto);
     r.fontes.forEach(f => criarResultado(f.titulo,"",f.url));
   } catch(e) {
@@ -451,6 +596,8 @@ async function enviar() {
   }
 
   falar(texto,"user");
+  pensando = pensar();
+  passo("👀 Lendo sua mensagem...");
 
   const cmd = texto.toLowerCase().trim();
 
@@ -485,7 +632,12 @@ async function enviar() {
     return;
   }
 
-  // Clima.
+  // Clima: só pesquisa se você disser a cidade.
+  if (/^(?:(?:qual|como)\s+(?:est[aá]\s+)?(?:o|a)\s+)?(?:clima|tempo|previs[aã]o(?:\s+do\s+tempo)?)\s*\??$/i.test(texto)) {
+    falar("De qual cidade? Diga assim: clima em (sua cidade) 🌤️");
+    return;
+  }
+
   const cidade = extrairClima(texto);
 
   if (cidade) {
@@ -493,12 +645,23 @@ async function enviar() {
     return;
   }
 
-  // O cérebro cuida de conversa, aprendizado e autocorreção.
+  passo("📁 Verificando comandos de arquivos...");
+  const arq = Arquivos.comando(texto);
+
+  if (arq) {
+    falar(arq);
+    return;
+  }
+
+  passo("🧠 Consultando minha memória...");
   const resposta = RizikBrain.think(texto);
 
-  // Textos grandes e códigos: a BACH lê sozinha.
   if (resposta.intent === "longtext") {
-    falar(Saber.lerTexto(texto));
+    passo("📖 Lendo o texto inteiro...");
+    const leitura = Saber.lerTexto(texto);
+    const eCodigo = Saber.isCode(texto);
+    const a = Arquivos.salvar({texto,pasta:eCodigo ? "Códigos" : "Textos",resumo:leitura.slice(0,300)});
+    falar(leitura+"\n\n📁 Guardei em: "+a.pasta+"/"+a.nome+"\nVeja tudo com /arquivos");
     return;
   }
 
@@ -507,11 +670,32 @@ async function enviar() {
     return;
   }
 
-  // O que ela já aprendeu pesquisando.
+  passo("😄 Vendo se é conversa ou piada...");
+  const graca = Prog.humor(texto);
+
+  if (graca) {
+    falar(graca);
+    return;
+  }
+
+  passo("💻 Vendo se é sobre programação...");
+  const prog = Prog.responder(texto);
+
+  if (prog) {
+    falar(prog);
+    return;
+  }
+
+  passo("📚 Procurando no que já aprendi...");
   const conhecido = Saber.buscarConhecimento(texto);
 
   if (conhecido) {
     falar(conhecido);
+    return;
+  }
+
+  if (modoProfundo) {
+    await pesquisaProfunda(texto);
     return;
   }
 
@@ -520,22 +704,14 @@ async function enviar() {
     return;
   }
 
-  if (resposta.handled) {
-    falar(resposta.text);
-    return;
-  }
-
   falar(
-    "Ainda não sei responder isso. 🧠\n\n"+
-    "Para aprender sobre isso, peça:\n"+
-    "pesquise a fundo sobre o assunto\n\n"+
-    "Me ensine assim:\n"+
-    "ensine: pergunta => resposta\n\n"+
-    "Para pesquisar:\n"+
-    "pesquise sobre inteligência artificial\n\n"+
-    "Para o clima:\n"+
-    "clima em Nova Esperança\n\n"+
-    "Digite \"ajuda\" para ver todos os comandos."
+    Prog.desconhecido()+"\n\n"+
+    "Você pode:\n"+
+    "• me ensinar: ensine: pergunta => resposta\n"+
+    "• pedir: pesquise a fundo sobre o assunto\n"+
+    "• ligar \"Pensar bastante\" no botão + para eu pesquisar sozinha\n"+
+    "• ver o clima: clima em (sua cidade)\n\n"+
+    "Digite \"ajuda\" para ver tudo."
   );
 }
 
