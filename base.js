@@ -20,7 +20,7 @@ export const ARQUIVOS = [
 export const COMANDOS = ["/basedados", "/importarbase", "/historico", "/nova", "/arquivos", "/abrir nome", "/buscar palavra", "/apagar nome",
   "/pasta Nome/Sub", "/pastas", "/mover nome para Pasta", "/palavra gíria = significado", "/palavras", "/profundo assunto", "/chave SUA_CHAVE",
   "/modelo nome", "/clear", "ensine: pergunta => resposta", "corrija: pergunta => nova", "esqueça: pergunta", "sinônimo: a = b", "lembre: algo",
-  "exportar memória", "importar memória: {...}", "pesquise sobre ...", "pesquise a fundo sobre ...", "clima em (cidade)"];
+  "/exportar", "importar memória: {...}", "pesquise sobre ...", "pesquise a fundo sobre ...", "clima em (cidade)"];
 
 const CHAVE_SECRETA = "bach_gemini_key";
 const CONHECIDAS = {
