@@ -171,7 +171,7 @@ const HELP =
   "💻 Programação e humor\n" +
   "• pergunte: o que é função? como fazer um loop?\n" +
   "• conta uma piada (e depois: outra!)\n\n" +
-  "🕘 Histórico e dados\n• /historico (15 páginas) • /nova (nova conversa)\n• /basedados (exporta tudo) • /importarbase (restaura)\n\n🛠️ Extras: lembre: algo • estatísticas • /clear";
+  "🕘 Histórico\n• /historico (15 páginas) • /nova (nova conversa)\n\n🛠️ Extras: lembre: algo • estatísticas • /clear";
 
 function think(message) {
   const original = String(message || "").trim();
@@ -228,7 +228,7 @@ function think(message) {
   }
 
   // Backup
-  if (/^(exportar|exporta|backup|baixar)( a| o| minha| toda| tudo| os)*( memoria| dados| base)?$/.test(t)) {
+  if (/^\/(exportar|backup)$/i.test(original.trim())) { // só com barra, para ninguém exportar sem querer
     return R("Copie e guarde este backup:\n\n" + JSON.stringify(data), "export");
   }
   m = original.match(/^importar mem[oó]ria\s*:\s*(\{[\s\S]+\})$/i);
