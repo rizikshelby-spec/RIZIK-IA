@@ -44,7 +44,8 @@ button:disabled{opacity:.55}
 </footer>
 
 <script type="module">
-import { RizikBrain } from "./brain.js?v=6";
+import { RizikBrain } from "./brain.js?v=9";
+import { Saber } from "./saber.js?v=1";
 
 const chat = document.getElementById("chat");
 const entrada = document.getElementById("entrada");
@@ -52,7 +53,9 @@ const botao = document.getElementById("enviar");
 const status = document.getElementById("status");
 
 const HISTORY_KEY = "bach_chat_history_v1";
-const STATUS = "BACH AI 0.8 • Cérebro 0.6 • Pesquisa e clima";
+const KEY_API = "bach_gemini_key";
+const KEY_MODEL = "bach_gemini_model";
+const STATUS = "BACH AI 1.0 • Cérebro 0.6 • Pesquisa e clima";
 
 let history = [];
 
@@ -324,7 +327,7 @@ async function clima(cidade) {
 
 function extrairPesquisa(texto) {
   const m = texto.match(
-    /^(?:pesquise|pesquisa|pesquisar|procure|buscar|busque)\s+(?:na internet\s+|na web\s+|sobre\s+|por\s+)?(.+)/i
+    /^(?:(?:fa[cç]a|faz|fazer|pode)\s+)?(?:uma\s+)?(?:pesquise|pesquisa|pesquisar|procure|buscar|busque|busca)\s+(?:(?:uma\s+)?(?:pesquisa|busca)\s+)?(?:na internet\s+|na web\s+|no google\s+)?(?:sobre\s+|por\s+|a respeito de\s+)?(.+)/i
   );
 
   return m ? m[1].trim() : null;
@@ -338,19 +341,139 @@ function extrairClima(texto) {
   return m ? m[1].trim() : null;
 }
 
+async function perguntarIA(texto) {
+  const key = localStorage.getItem(KEY_API);
+  const model = localStorage.getItem(KEY_MODEL) || "gemini-3.5-flash-lite";
+
+  botao.disabled = true;
+  status.textContent = "Pensando...";
+
+  const controller = new AbortController();
+  const timer = setTimeout(()=>controller.abort(),40000);
+
+  try {
+    let contents = history
+      .filter(h=>h.type==="user" || h.type==="bot")
+      .slice(-8)
+      .map(h=>({
+        role: h.type==="user" ? "user" : "model",
+        parts:[{text:String(h.text).slice(0,3000)}]
+      }));
+
+    while (contents.length && contents[0].role !== "user") contents.shift();
+
+    const r = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/"+
+      encodeURIComponent(model)+":generateContent",
+      {
+        method:"POST",
+        signal:controller.signal,
+        headers:{"Content-Type":"application/json","x-goog-api-key":key},
+        body:JSON.stringify({
+          systemInstruction:{parts:[{text:"Você é a BACH AI, uma assistente em português do Brasil criada pelo usuário. Responda de forma clara, simpática e objetiva."}]},
+          contents
+        })
+      }
+    );
+
+    if (!r.ok) {
+      if (r.status===400 || r.status===403) falar("A chave parece inválida. Gere outra em aistudio.google.com e use /chave SUA_CHAVE.");
+      else if (r.status===404) falar("Esse modelo não existe. Use /modelo NOME para trocar.");
+      else if (r.status===429) falar("Atingi o limite grátis por agora. Aguarde um minuto e tente de novo.");
+      else falar("A IA retornou erro "+r.status+". Tente novamente.");
+      return;
+    }
+
+    const d = await r.json();
+    const partes = d?.candidates?.[0]?.content?.parts || [];
+    const resp = partes.map(x=>x.text || "").join("").trim();
+
+    falar(resp || "A IA não devolveu resposta. Tente reformular.");
+
+  } catch(e) {
+    console.error(e);
+    falar("Não consegui falar com a IA agora. Verifique a internet e tente de novo.");
+  } finally {
+    clearTimeout(timer);
+    botao.disabled = false;
+    status.textContent = STATUS;
+  }
+}
+
+async function pesquisaProfunda(q) {
+  botao.disabled = true;
+  status.textContent = "Pesquisando a fundo...";
+  falar("Pesquisando a fundo: "+q);
+
+  try {
+    const r = await Saber.pesquisaProfunda(q, msg => { status.textContent = msg; });
+    falar(r.texto);
+    r.fontes.forEach(f => criarResultado(f.titulo,"",f.url));
+  } catch(e) {
+    console.error(e);
+    falar("Não consegui pesquisar a fundo agora. Tente novamente em instantes.");
+  } finally {
+    botao.disabled = false;
+    status.textContent = STATUS;
+  }
+}
+
+function extrairProfundo(texto) {
+  const m = texto.match(
+    /^(?:(?:fa[cç]a|faz|pode)\s+)?(?:uma\s+)?(?:(?:pesquise|pesquisa|pesquisar|busque|busca|procure)\s+(?:a fundo|profundamente|em profundidade)|pesquisa profunda|aprofunde|\/profundo)\s*(?:sobre\s+|a respeito de\s+)?(.+)/i
+  );
+
+  return m ? m[1].trim() : null;
+}
+
 async function enviar() {
   const texto = entrada.value.trim();
 
   if (!texto || botao.disabled) return;
 
   entrada.value = "";
+
+  // A chave nunca aparece no chat nem no histórico.
+  if (/^\/chave\s+/i.test(texto)) {
+    const valor = texto.replace(/^\/chave\s+/i,"").trim();
+    falar("/chave ••••••","user");
+
+    if (valor.toLowerCase()==="apagar") {
+      localStorage.removeItem(KEY_API);
+      falar("Chave apagada. Voltei ao modo sem IA externa.");
+    } else if (valor.length < 20) {
+      falar("Essa chave parece curta demais. Copie a chave inteira do Google AI Studio.");
+    } else {
+      localStorage.setItem(KEY_API,valor);
+      falar("Chave salva neste aparelho ✅ Agora respondo perguntas e textos grandes com IA.");
+    }
+    return;
+  }
+
   falar(texto,"user");
 
-  if (texto.toLowerCase() === "limpar histórico") {
+  const cmd = texto.toLowerCase().trim();
+
+  if (cmd === "/clear" || cmd === "/limpar" || cmd === "limpar histórico") {
     history = [];
     localStorage.removeItem(HISTORY_KEY);
     chat.innerHTML = "";
-    falar("Histórico limpo. Sua memória de aprendizado continua guardada.");
+    falar("Chat limpo! 🧹 Sua memória de aprendizado continua guardada.");
+    return;
+  }
+
+  if (cmd.startsWith("/modelo ")) {
+    const nome = texto.slice(8).trim();
+    localStorage.setItem(KEY_MODEL,nome);
+    falar("Modelo trocado para: "+nome);
+    return;
+  }
+
+  // Pesquisa profunda: só quando você pedir.
+  const profundo = extrairProfundo(texto);
+
+  if (profundo !== null) {
+    await pesquisaProfunda(profundo);
     return;
   }
 
@@ -373,6 +496,30 @@ async function enviar() {
   // O cérebro cuida de conversa, aprendizado e autocorreção.
   const resposta = RizikBrain.think(texto);
 
+  // Textos grandes e códigos: a BACH lê sozinha.
+  if (resposta.intent === "longtext") {
+    falar(Saber.lerTexto(texto));
+    return;
+  }
+
+  if (resposta.handled) {
+    falar(resposta.text);
+    return;
+  }
+
+  // O que ela já aprendeu pesquisando.
+  const conhecido = Saber.buscarConhecimento(texto);
+
+  if (conhecido) {
+    falar(conhecido);
+    return;
+  }
+
+  if (localStorage.getItem(KEY_API)) {
+    await perguntarIA(texto);
+    return;
+  }
+
   if (resposta.handled) {
     falar(resposta.text);
     return;
@@ -380,6 +527,8 @@ async function enviar() {
 
   falar(
     "Ainda não sei responder isso. 🧠\n\n"+
+    "Para aprender sobre isso, peça:\n"+
+    "pesquise a fundo sobre o assunto\n\n"+
     "Me ensine assim:\n"+
     "ensine: pergunta => resposta\n\n"+
     "Para pesquisar:\n"+
