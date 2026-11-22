@@ -1,7 +1,7 @@
 /* BACH AI - MENTE 1.0
    Entende contexto, texto colado, jogos, criação de apps, pastas e perguntas.
    100% sua, sem IA externa. */
-import { Saber } from "./saber.js?v=4";
+import { Saber } from "./saber.js?v=5";
 import { KB, ERROS } from "./conhecimento.js?v=1";
 
 const KF = "bach_arquivos_v1";
@@ -24,6 +24,7 @@ const lexico = () => { if (!LEXS) { LEXS = new Set(BASE_LEX); KB.forEach(e => e[
 function lev(a, b) { const m = a.length, n = b.length; let pr = Array.from({ length: n + 1 }, (_, j) => j); for (let i = 1; i <= m; i++) { const c = [i]; for (let j = 1; j <= n; j++) c[j] = Math.min(pr[j] + 1, c[j - 1] + 1, pr[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); pr = c; } return pr[n]; }
 function corrigir(w) {
   if (w.length < 5 || /\d/.test(w)) return w;
+  if (/^(passe|passa|passar|passou|arroz|manda|mande|pede|pedir|quero|prece|pesse)$/.test(w)) return w;
   const L = lexico(); if (L.has(w)) return w;
   const max = w.length >= 8 ? 2 : 1; let best = w, bd = max + 1;
   for (const c of L) { if (c[0] !== w[0] || Math.abs(c.length - w.length) > max || w.startsWith(c) || c.startsWith(w)) continue; const d = lev(w, c); if (d < bd) { bd = d; best = c; } }
@@ -290,7 +291,7 @@ function responder(msg) {
     return { pesquisa: ctx.tema + " " + novo.join(" "), fundo: true };
   }
   if (pergunta(raw) && !has(p, / (voce|horas|hora|dia|data|bach|meu nome|seu nome) /)) { const tm = tema(raw); if (tm.length > 2) { lembrarTema(tm); return { pesquisa: tm, fundo: true }; } }
-  if (ctx.esperando === "prog") { ctx.esperando = null; if (w.length > 3) return { texto: ajudaProg(p) + "\n\n(Não achei esse assunto. Tente com outras palavras.)", origem: "💻 programação" }; }
+  if (ctx.esperando === "prog") { ctx.esperando = null; if (w.split(" ").length <= 3 && w.length > 3) return { pesquisa: w + " programação", fundo: false }; }
   return null;
 }
 const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo)/;
