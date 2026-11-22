@@ -7,7 +7,7 @@ const KB_KEY = "bach_conhecimento_v2"; // v2: só guarda pesquisas confiáveis
 const STOP = new Set(("a o as os um uma uns umas de do da dos das em no na nos nas por para com sem que e eh se ao aos " +
   "mais menos como mas foi ser ou ja tambem seu sua seus suas isso isto este esta esse essa sao tem ha foram sobre entre " +
   "ate quando muito muitos nao sim me te lhe eu tu ele ela nos vos eles elas meu minha pode podem pelo pela pelos pelas " +
-  "era eram sera serao cada outro outra outros outras qual quais onde quem quanto porque mesmo voce voces entao seria fazer faz sobre").split(" "));
+  "era eram sera serao cada outro outra outros outras qual quais onde quem quanto porque mesmo voce voces entao seria fazer faz sobre passa passe manda mande uns umas alguem alguma algum quero preciso gostaria fale conte diga").split(" "));
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 const tokens = t => norm(t).split(/[^a-z0-9]+/).filter(Boolean);
@@ -146,7 +146,7 @@ async function wiki(q, qk) {
     const cob = alvo.size ? [...alvo].filter(w => tk.has(w)).length / alvo.size : 0;
     const extra = [...tk].filter(w => !alvo.has(w)).length;
     return { titulo: r.title, rank: i, cob, v: cob - 0.1 * extra - i * 0.01 };
-  }).filter(c => c.cob > 0).sort((a, b) => b.v - a.v).slice(0, 2);
+  }).filter(c => c.cob >= 0.5).sort((a, b) => b.v - a.v).slice(0, 2);
 
   const out = [];
   await Promise.allSettled(cand.map(async (c, n) => {
@@ -207,7 +207,7 @@ function filtrar(links, qs) {
     const hits = [...qs].filter(w => k.has(w)).length;
     const bonus = /wikipedia|\.gov|\.edu|mozilla|w3schools|britannica|scielo|bbc\.|nationalgeographic/i.test(l.url) ? 1 : 0;
     return { ...l, hits, v: hits * 2 + bonus };
-  }).filter(l => l.hits > 0 && (qs.size < 3 || l.hits >= 2)).sort((x, y) => y.v - x.v).slice(0, 5);
+  }).filter(l => l.hits > 0 && (qs.size < 3 || l.hits >= 2)).sort((x, y) => y.v - x.v).slice(0, 7);
 }
 
 function cleanPage(t) {
@@ -302,7 +302,7 @@ function candidatas(fontes, qs) {
   fontes.forEach((f, fi) => {
     f.frases.forEach((raw, pos) => {
       const s = limparFrase(raw);
-      if (s.length < 45 || s.length > 320 || LIXO.test(s) || !/[.!?]$/.test(s)) return;
+      if (s.length < 45 || s.length > 320 || LIXO.test(s) || !/[.!]$/.test(s) || /^(R|P|Q|A):\s/.test(s)) return; // pergunta solta não serve de resposta
       if (/^[,;:)\]]/.test(s) || !/^[A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9"“]/.test(s)) return; // fragmento cortado
       const k = new Set(kr(s));
       let hits = [...qs].filter(w => k.has(w)).length;
@@ -353,12 +353,14 @@ function escolher(c, qs, pedeLista, n = 4) {
 
 const lista = a => a.length > 1 ? a.slice(0, -1).join(", ") + " e " + a[a.length - 1] : a[0];
 
-function compor(q, fontes) {
+function compor(q, fontes, n = 4) {
   const qk = kw(q);
   const qs = new Set(qk.map(radical));
   const pedeLista = /^\s*(quais|quantos|quantas|cite|liste|tipos|exemplos)\b|\b(cores|tipos|exemplos|lista)\b/i.test(norm(q));
-  const { sel: escolhidas, total } = escolher(candidatas(fontes, qs), qs, pedeLista);
+  const { sel: escolhidas, total } = escolher(candidatas(fontes, qs), qs, pedeLista, n);
   if (!escolhidas.length) return null;
+  // com 2+ termos, ao menos uma frase precisa cobrir a maior parte da pergunta; senão é conversa fora do assunto
+  if (qs.size >= 2 && !escolhidas.some(x => x.lead || x.cob >= 0.67)) return null;
 
   // a frase que abre o artigo principal vem primeiro; o resto na ordem em que aparece nas fontes
   const sel = [...escolhidas].sort((a, b) => (b.lead - a.lead) || (a.fi - b.fi) || (a.pos - b.pos));
@@ -405,6 +407,9 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true) {
   progresso("🦆 Buscando no DuckDuckGo...");
   let links = [];
   try { links = await web(q); } catch (e) { console.warn("web", e); }
+  if (fundo) { // vai mais fundo: segunda busca com outra formulação, juntando resultados sem repetir
+    try { const mais = await web(q + " explicação resumo"); const vistos = new Set(links.map(l => l.url)); mais.forEach(l => { if (!vistos.has(l.url)) links.push(l); }); } catch (e) { console.warn("web2", e); }
+  }
 
   progresso("🧹 Filtrando " + links.length + " resultado(s) por relevância...");
   links = filtrar(links, qs);
@@ -413,14 +418,14 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true) {
 
   if (fundo) {
     progresso("📖 Abrindo as melhores páginas...");
-    await Promise.allSettled(webFontes.slice(0, 3).map(async f => {
+    await Promise.allSettled(webFontes.slice(0, 5).map(async f => {
       progresso("🌐 Lendo " + host(f.url));
       f.frases.push(...await readPage(f, qs));
     }));
   }
 
   progresso("🧩 Comparando as fontes e montando a resposta...");
-  const r = compor(q, fontes);
+  const r = compor(q, fontes, fundo ? 6 : 4);
   if (!r) throw new Error("irrelevante");
 
   // só guarda na memória o que tem confiança média ou alta
