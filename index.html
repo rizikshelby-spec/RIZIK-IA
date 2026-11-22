@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -40,12 +39,12 @@ button:disabled{opacity:.55}
 <main id="chat"></main>
 
 <footer>
-<input id="entrada" placeholder="Converse ou faça uma pergunta..." autocomplete="off">
+<input id="entrada" placeholder="Converse ou digite 'ajuda'..." autocomplete="off">
 <button id="enviar">Enviar</button>
 </footer>
 
 <script type="module">
-import { RizikBrain } from "./brain.js?v=5";
+import { RizikBrain } from "./brain.js?v=6";
 
 const chat = document.getElementById("chat");
 const entrada = document.getElementById("entrada");
@@ -53,7 +52,7 @@ const botao = document.getElementById("enviar");
 const status = document.getElementById("status");
 
 const HISTORY_KEY = "bach_chat_history_v1";
-const STATUS = "BACH AI 0.7 • Cérebro 0.5 • Pesquisa e clima";
+const STATUS = "BACH AI 0.8 • Cérebro 0.6 • Pesquisa e clima";
 
 let history = [];
 
@@ -66,10 +65,7 @@ try {
 
 function salvar() {
   try {
-    localStorage.setItem(
-      HISTORY_KEY,
-      JSON.stringify(history.slice(-40))
-    );
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-40)));
   } catch(e) {
     console.warn(e);
   }
@@ -156,9 +152,7 @@ async function pesquisarWiki(q) {
     origin:"*"
   });
 
-  const r = await requisicao(
-    "https://pt.wikipedia.org/w/api.php?"+params
-  );
+  const r = await requisicao("https://pt.wikipedia.org/w/api.php?"+params);
 
   const data = await r.json();
   const items = data?.query?.search || [];
@@ -283,9 +277,7 @@ async function clima(cidade) {
       forecast_days:"3"
     });
 
-    const r = await requisicao(
-      "https://api.open-meteo.com/v1/forecast?"+params
-    );
+    const r = await requisicao("https://api.open-meteo.com/v1/forecast?"+params);
 
     const d = await r.json();
     const c = d.current;
@@ -340,19 +332,10 @@ function extrairPesquisa(texto) {
 
 function extrairClima(texto) {
   const m = texto.match(
-    /^(?:clima|tempo|previsao)(?:\s+(?:em|de|para))?\s+(.+)$/i
+    /^(?:clima|tempo|previsao|previsão)(?:\s+(?:em|de|para))?\s+(.+)$/i
   );
 
   return m ? m[1].trim() : null;
-}
-
-function parecePergunta(texto) {
-  const t = texto.toLowerCase().trim();
-
-  return (
-    t.endsWith("?") ||
-    /^(quem|qual|quais|quando|onde|como|porque|por que|quanto|quantos|quantas|o que|oque|oq|me explica|explique|me fale|me conte)\b/i.test(t)
-  );
 }
 
 async function enviar() {
@@ -371,7 +354,7 @@ async function enviar() {
     return;
   }
 
-  // Pesquisa manual.
+  // Pesquisa: só quando você pedir.
   const consulta = extrairPesquisa(texto);
 
   if (consulta !== null) {
@@ -387,39 +370,23 @@ async function enviar() {
     return;
   }
 
-  // Correções de digitação/transcrição antes do cérebro.
-  let corrigido = texto;
-
-  if (/quem criou vice\b/i.test(texto)) {
-    corrigido = "quem criou voce";
-  }
-
-  if (/quem criou voce bach/i.test(texto)) {
-    corrigido = "quem criou voce";
-  }
-
-  // Primeiro tenta conversar.
-  const resposta = RizikBrain.think(corrigido);
+  // O cérebro cuida de conversa, aprendizado e autocorreção.
+  const resposta = RizikBrain.think(texto);
 
   if (resposta.handled) {
     falar(resposta.text);
     return;
   }
 
-  // Só pesquisa perguntas que não foram reconhecidas.
-  if (parecePergunta(texto)) {
-    await pesquisarInternet(texto);
-    return;
-  }
-
   falar(
-    "Ainda estou aprendendo! 🧠\n\n"+
-    "Você pode me ensinar assim:\n"+
+    "Ainda não sei responder isso. 🧠\n\n"+
+    "Me ensine assim:\n"+
     "ensine: pergunta => resposta\n\n"+
     "Para pesquisar:\n"+
     "pesquise sobre inteligência artificial\n\n"+
-    "Para consultar o clima:\n"+
-    "clima em Nova Esperança"
+    "Para o clima:\n"+
+    "clima em Nova Esperança\n\n"+
+    "Digite \"ajuda\" para ver todos os comandos."
   );
 }
 
@@ -434,7 +401,7 @@ restaurar();
 status.textContent = STATUS;
 
 if (!history.length) {
-  falar("Olá! Sou a BACH AI 🧠. Vamos evoluir juntos!");
+  falar("Olá! Sou a BACH AI 🧠. Vamos evoluir juntos! Digite \"ajuda\" para ver o que eu faço.");
 }
 </script>
 
