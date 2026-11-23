@@ -1,7 +1,7 @@
-/* BACH AI - MENTE 2.2
-   Contexto, texto/código colado, jogos, criação de apps, pastas e vocabulário.
+/* BACH AI - MENTE 2.3
+   Contexto, leitura/cadeia de código colado, jogos, criação de apps, pastas e vocabulário.
    Sem lookbehind e sem crases literais que quebrem formatação. */
-import { Saber } from "./saber.js?v=9";
+import { Saber } from "./saber.js?v=10";
 import { KB, ERROS } from "./conhecimento.js?v=1";
 
 const BT = "\x60\x60\x60";
@@ -22,7 +22,8 @@ const VOCAB = {
   td: "tudo", tdo: "tudo", tds: "todos", nd: "nada", nda: "nada", msm: "mesmo", ctz: "certeza",
   dnv: "de novo", denovo: "de novo", vdd: "verdade", fds: "fim de semana", sdds: "saudade",
   ta: "esta", tao: "estao", to: "estou", tava: "estava", tamo: "estamos", vamo: "vamos",
-  pra: "para", pro: "para o", pras: "para as", pros: "para os",
+  pra: "para", oara: "para", praa: "para", pro: "para o", pras: "para as", pros: "para os",
+  qro: "quero", fzer: "fazer", assitir: "assistir", asist: "assistir", recomnda: "recomenda", recomeda: "recomenda",
   ngm: "ninguem", algm: "alguem", msg: "mensagem",
   pf: "por favor", pfv: "por favor", plis: "por favor", pls: "por favor",
   n: "nao", naum: "nao", nn: "nao", s: "sim", ss: "sim", eh: "e",
@@ -137,7 +138,7 @@ function tema(t) {
   for (let k = 0; k < 4; k++) {
     x = x.replace(CMD, "").replace(PERG, "").replace(ART, "").replace(SUF, "").trim();
   }
-  if (/^(isso|aquilo|ele|ela|eles|elas|esse|essa|este|esta)$/.test(x)) return "";
+  if (/^(isso|aquilo|ele|ela|eles|elas|esse|essa|este|esta|falar|perguntei|aqui)$/.test(x)) return "";
   return x;
 }
 
@@ -211,7 +212,7 @@ function comandoPasta(t) {
   return null;
 }
 
-/* ---------- ler/analisar/explicar o texto atual ---------- */
+/* ---------- ler/analisar/explicar/encadear o texto atual ---------- */
 function revisar(t) {
   const p = [];
   if (/localStorage\.getItem/.test(t) && !/try\s*\{/.test(t)) p.push("Usa localStorage sem try/catch (pode quebrar em modo privado).");
@@ -225,6 +226,32 @@ function revisar(t) {
   if (/\bTODO\b|\bFIXME\b/.test(t)) p.push("Tem TODO/FIXME pendentes.");
   return "🔍 Revisão rápida do código (" + t.split("\n").length + " linhas):\n" + (p.length ? p.map(s => "• " + s).join("\n") : "• Não achei problemas óbvios.") +
     "\n\nObs.: sou uma revisão por regras; não executo o código.";
+}
+
+function cadeiaCodigoLocal(t) {
+  const funcs = new Set();
+  for (const m of t.matchAll(/function\s+([A-Za-z_$][\w$]*)/g)) funcs.add(m[1]);
+  for (const m of t.matchAll(/(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\(?[^=;(]*\)?\s*=>/g)) funcs.add(m[1]);
+  for (const m of t.matchAll(/\bdef\s+([A-Za-z_]\w*)/g)) funcs.add(m[1]);
+
+  const exportsMatch = t.match(/export\s+const\s+([A-Za-z_$][\w$]*)/) || t.match(/export\s+\{\s*([^}]+)\}/);
+  const expNome = exportsMatch ? exportsMatch[1].trim() : "Modulo";
+  const arq = (ctx.nome || "modulo.js").replace(/\s+/g, "-").toLowerCase();
+  const listaFuncs = [...funcs].slice(0, 12);
+
+  const blocoExemplo = "import { " + expNome + " } from \"./" + (arq.endsWith(".js") ? arq : arq + ".js") + "\";\n\n" +
+    "// Fluxo encadeado usando o código enviado:\n" +
+    "async function executarFluxo(entrada) {\n" +
+    "  // 1) Funções internas detectadas: " + (listaFuncs.join(", ") || "bloco direto") + "\n" +
+    "  console.log(\"Módulo carregado:\", " + expNome + ");\n" +
+    "  return " + expNome + ";\n" +
+    "}";
+
+  return "🔗 **Cadeia de uso para “" + (ctx.nome || "seu código") + "”:**\n\n" +
+    "Funções encontradas (" + funcs.size + "): " + (listaFuncs.join(" → ") || "nenhuma função nomeada") + "\n\n" +
+    "Aqui está um modelo pronto para copiar e encadear no seu projeto:\n\n" +
+    BT + "js\n" + blocoExemplo + "\n" + BT +
+    "\n\n💡 Se quiser copiar o código original inteiro de volta, diga “manda o código de novo”.";
 }
 
 function explicarCodigoLocal(t) {
@@ -246,18 +273,22 @@ function explicarCodigoLocal(t) {
   return "🧠 Explicação de **" + ctx.nome + "** (" + linhas + " linhas):\n\n" +
     leitura +
     (partes.length ? "\n\n⚙️ O que esses códigos fazem na prática:\n" + partes.join("\n") : "") +
-    "\n\n💡 Diga “revisar” para caçar erros ou “resumir” para encurtar.";
+    "\n\n💡 Diga “revisar” para caçar erros, “cadeia de códigos” para ligar em outro arquivo ou “resumir” para encurtar.";
 }
 
 function sobreTexto(p) {
   const t = ctx.texto, cod = Saber.isCode(t);
+  if (has(p, /escrito|diz|lê|leia|aqui|foto|imagem|print/)) {
+    return "📝 Texto lido em **" + (ctx.nome || "arquivo recente") + "**:\n\n“" + t.slice(0, 2000) + "”";
+  }
+  if (cod && has(p, /cadeia|ligar|importar|como usar|copiar|estrutura|fluxo/)) return cadeiaCodigoLocal(t);
   if (has(p, /resum/)) {
     const r = Saber.summarize(t, 4);
     return r.length ? "📝 Resumo de " + ctx.nome + ":\n• " + r.join("\n• ") : Saber.lerTexto(t);
   }
   if (cod && has(p, /erro|problema|bug|revis|melhor|conserta|arruma/)) return revisar(t);
   if (cod && has(p, /explic|o que faz|faz o que|fazem o que|o que fazem|para que serve|pra que serve|entend|como funciona|o que e/)) return explicarCodigoLocal(t);
-  return "📄 " + ctx.nome + "\n" + Saber.lerTexto(t) + "\n\nPosso também: explicar em detalhes, resumir, revisar o código ou guardar numa pasta (/pasta Nome).";
+  return "📄 " + ctx.nome + "\n" + Saber.lerTexto(t) + "\n\nPosso também: explicar em detalhes, montar uma cadeia de uso, resumir ou revisar o código.";
 }
 
 /* ---------- jogos no chat ---------- */
@@ -354,7 +385,7 @@ const PASSOS = [
   ["saber.js: pesquisar e resumir", "Faça fetch na API da Wikipédia (api.php?action=query&origin=*), pegue o texto e escolha as frases que têm as palavras da pergunta."],
   ["arquivos.js: pastas", "Salve objetos {nome, pasta, texto} numa lista no localStorage. /arquivos lista agrupando por pasta; nomes como Estudos/IA criam pastas dentro de pastas."],
   ["mente.js: contexto", "Guarde o último texto e o último assunto. Assim ela entende “esse texto”, “mais”, “detalhe” e “passo 3”."],
-  ["Evoluir", "Adicione TF-IDF (palavras raras valem mais) para achar a resposta mais parecida, mais exemplos ensinados e, no futuro, um modelo pequeno no navegador."]
+  ["Evoluir", "Adicione TF-IDF (palavras raras valem mais) para achar a resposta mais parecida, mais exemplos ensinados e modos especializados."]
 ];
 const GUIA = "🤖 Como fazer uma IA do zero (o caminho da BACH):\n\n" + PASSOS.map((x, i) => (i + 1) + ") " + x[0]).join("\n") + "\n\nOrdem: 1 → 2 → 3, teste, e só depois 4 a 7.\nDiga “passo 1” (ou só o número) para ver o que colar.";
 
@@ -450,20 +481,21 @@ function responder(msg) {
   if (ctx.ultimoMidia && (!ctx.texto) && has(p, / (esse|essa|esses|essas|este|nesse|nessa) /) && has(p, / (filme|video|cena|imagem|foto|pessoa|objeto|lugar) /)) {
     return {
       texto: ctx.ultimoMidia.tipo === "video"
-        ? "Eu ainda não reconheço o que acontece dentro de um vídeo (cenas, pessoas, objetos) — só consigo descrever duração, cores e iluminação. 🎬"
-        : "Nessa imagem eu só leio texto escrito, se houver. Ainda não reconheço pessoas, objetos ou do que se trata uma foto sem um motor multimodal conectado (/ia). 🖼️",
+        ? "Nesse vídeo analisei duração, resolução, iluminação, cores e eventuais textos visíveis nos quadros. 🎬"
+        : "Nessa imagem analisei dimensões, iluminação, cores e procurei texto escrito, mas não encontrei texto legível nela. 🖼️",
       origem: "🧠 contexto"
     };
   }
 
-  const PEDIDO_TEXTO_BARE = /^ ?((me\s+)?explic\w*|resum\w*|revis\w*|analis\w*|conserta\w*|arruma\w*|o que (e|faz|fazem) isso)(\s+(isso|esse texto|esse codigo|esses codigos|o codigo|os codigos|o texto|essa imagem|essa foto))? ?$/;
-  const REF_ARQUIVO = / (esse|este|esses|estes|isso|texto|textos|codigo|codigos|arquivo|arquivos|ele|eles|imagem|foto) /;
-  const ACAO_ARQUIVO = /(o que e|o que faz|faz o que|fazem o que|o que fazem|para que serve|pra que serve|como funciona|explica|explique|resum|erro|problema|entend|leia|le |analis|revis|conserta|arruma)/;
+  // Perguntas sobre o último código/texto/imagem ou pedido de "cadeia de códigos"
+  const PEDIDO_TEXTO_BARE = /^ ?((me\s+)?explic\w*|resum\w*|revis\w*|analis\w*|conserta\w*|arruma\w*|o que (e|faz|fazem|esta escrito) (isso|aqui)|cadeia de codigos?)(\s+(isso|esse texto|esse codigo|esses codigos|o codigo|os codigos|o texto|essa imagem|essa foto))? ?$/;
+  const REF_ARQUIVO = / (esse|este|esses|estes|isso|aqui|texto|textos|codigo|codigos|arquivo|arquivos|ele|eles|imagem|foto|print|cadeia) /;
+  const ACAO_ARQUIVO = /(o que e|o que faz|faz o que|fazem o que|o que fazem|para que serve|pra que serve|como funciona|explica|explique|resum|erro|problema|entend|leia|le |analis|revis|conserta|arruma|escrito|diz|cadeia|copiar|usar)/;
   if (PEDIDO_TEXTO_BARE.test(p) || (has(p, REF_ARQUIVO) && has(p, ACAO_ARQUIVO))) {
-    if (ctx.texto) return { texto: sobreTexto(p), origem: "📖 leitura do seu texto" };
-    if (ctx.ultimoMidia) return { texto: "Na última mídia (“" + ctx.ultimoMidia.nome + "”) eu não encontrei texto suficiente para explicar. 🖼️", origem: "🧠 contexto" };
+    if (ctx.texto) return { texto: sobreTexto(p), origem: "📖 leitura do seu arquivo" };
+    if (ctx.ultimoMidia) return { texto: "Na última mídia (“" + ctx.ultimoMidia.nome + "”) não encontrei texto legível para explicar. 🖼️", origem: "🧠 contexto" };
     if (ctx.tema) return { pesquisa: ctx.tema, fundo: true };
-    return { texto: "O que você quer que eu explique? Cole o texto/código aqui ou me diga o assunto (ex.: “me explica o que é API”). 🤔", origem: "🧠 contexto" };
+    return { texto: "O que você quer que eu explique? Cole o texto/código aqui, envie uma foto pelo + ou me diga o assunto. 🤔", origem: "🧠 contexto" };
   }
 
   if (has(p, /(o que (a gente |nos |voce )?(falou|falamos|conversou|conversamos|vimos)|voce lembra|lembra do que|do que falamos)/))
@@ -485,7 +517,7 @@ function responder(msg) {
   const cap = p.match(/^ (?:voce )?(?:sabe|consegue|pode|poderia|sabe me) (.+)/);
   if (cap && !has(p, / (horas|hora) /)) {
     const x = cap[1].trim();
-    if (has(p, / (programar|codigo|codar|jogar|resumir|pesquisar|escrever|criar|calcular|ler|traduzir) /) && !has(p, / (quadro|desenho|musica|carro|cozinhar|dancar|cantar) /)) return { texto: "Sim! 😊 Eu sei: programar (JS, Python, HTML, CSS, SQL), jogar (forca, velha, quiz, adivinhação), resumir e revisar textos, criar apps prontos, pesquisar na internet, traduzir idiomas e guardar arquivos em pastas.\nDiga o que quer fazer!", origem: "🧠 minhas habilidades" };
+    if (has(p, / (programar|codigo|codar|jogar|resumir|pesquisar|escrever|criar|calcular|ler|traduzir) /) && !has(p, / (quadro|desenho|musica|carro|cozinhar|dancar|cantar) /)) return { texto: "Sim! 😊 Eu sei: programar (JS, Python, HTML, CSS, SQL), jogar (forca, velha, quiz, adivinhação), resumir e revisar textos, criar apps prontos, pesquisar na internet, traduzir idiomas, ler texto em imagens e guardar arquivos em pastas.", origem: "🧠 minhas habilidades" };
     const tmCap = tema(x) || x;
     if (tmCap.length >= 2) { lembrarTema(tmCap); return { pesquisa: tmCap, fundo: true }; }
   }
@@ -509,7 +541,7 @@ function responder(msg) {
   return null;
 }
 
-const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo)/;
+const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo|vamos falar sobre|falar sobre o que|nao foi isso)/;
 const pergunta = t => {
   const p = prep(t);
   if (has(p, SMALL)) return false;
