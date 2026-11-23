@@ -87,7 +87,7 @@ const SABER = [
   [/\b(traduzir|traducao|ingles)\b/,
    "Traduzir bem eu ainda não consigo: sou uma IA de regras. Se você conectar uma chave Gemini (/chave), aí sim traduzo e converso em outros idiomas. 🌎"],
   [/\b(desenhar|desenho|imagem|imagens|foto|fotos)\b/,
-   "Não crio imagens, e das fotos que você anexa eu descrevo só o lado técnico (tamanho, cores e iluminação). 🖼️"]
+   "Leio texto escrito em fotos, mas não desenho nem reconheço objetos, pessoas ou cenas ainda. 🖼️"]
 ];
 
 const SAUD = {
@@ -196,6 +196,14 @@ function responder(texto, ctx = {}) {
     return girar("critica", [
       "Entendi a frustração, e você tem razão de cobrar. 😕 Sem uma IA externa eu erro quando o assunto foge da minha base. Me diga a pergunta e como seria a resposta certa: corrija: pergunta => resposta. Eu aprendo na hora.",
       "Poxa, vou melhorar. 💪 Qual pergunta eu errei? Me ensine com: ensine: pergunta => resposta, ou peça: pesquise a fundo sobre o assunto."
+    ]);
+  }
+  if (/\b(isso|essa resposta|sua busca|sua pesquisa|o resultado) (esta|ta|foi|saiu) errad[ao]\b/.test(t) ||
+      /\berrad[ao] (a )?(sua busca|sua pesquisa|essa resposta)\b/.test(t) ||
+      /\bnada (a |ha )?ver\b/.test(t) || /\bnao (tem|e) (nada )?a ver com (o que|isso)\b/.test(t)) {
+    return girar("critica-busca", [
+      "Foi mal, errei a busca. 😕 Me diga com outras palavras o que você queria saber, que eu tento de novo.",
+      "Entendi que essa não ajudou. Tenta reformular com outras palavras, ou corrija: pergunta => resposta certa. 🔍"
     ]);
   }
 
