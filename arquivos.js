@@ -45,6 +45,7 @@ function comando(texto) {
   const t = texto.trim();
   if (/^(\/arquivos|meus arquivos)$/i.test(t)) return listar();
 
+  if (/^\/abrir\s*$/i.test(t)) return "Diga o nome do arquivo depois de /abrir. Ex.: /abrir main\nVeja os nomes com /arquivos";
   let m = t.match(/^\/abrir\s+(.+)$/i);
   if (m) {
     const a = achar(m[1]);
@@ -52,6 +53,7 @@ function comando(texto) {
     return "📄 " + a.nome + " (" + a.pasta + ")\n\n" + (a.texto ? a.texto.slice(0, 1800) + (a.texto.length > 1800 ? "\n\n[...]" : "") : a.resumo);
   }
 
+  if (/^\/apagar\s*$/i.test(t)) return "Diga o nome do arquivo depois de /apagar. Ex.: /apagar main\nVeja os nomes com /arquivos";
   m = t.match(/^\/apagar\s+(.+)$/i);
   if (m) {
     const a = achar(m[1]);
@@ -60,6 +62,7 @@ function comando(texto) {
     return "🗑️ Apaguei: " + a.nome;
   }
 
+  if (/^\/buscar\s*$/i.test(t)) return "Diga a palavra que quer buscar depois de /buscar. Ex.: /buscar roblox";
   m = t.match(/^\/buscar\s+(.+)$/i);
   if (m) {
     const q = norm(m[1]);
@@ -120,9 +123,28 @@ async function lerMidia(file, passo = () => {}) {
     await esperar(img, "load", 15000);
     passo("🎨 Analisando cores e iluminação...");
     const w = img.naturalWidth, h = img.naturalHeight;
+
+    let textoLido = "";
+    if (window.Tesseract && typeof window.Tesseract.recognize === "function") {
+      try {
+        passo("🔎 Procurando texto na imagem (pode demorar um pouco na primeira vez)...");
+        const r = await Promise.race([
+          window.Tesseract.recognize(url, "por", { logger: () => {} }),
+          new Promise((_, rej) => setTimeout(() => rej(new Error("tempo esgotado")), 30000))
+        ]);
+        textoLido = String(r?.data?.text || "").replace(/[ \t]+/g, " ").replace(/\n{2,}/g, "\n").trim();
+      } catch (e) { console.warn("OCR falhou:", e); }
+    }
+    const temTexto = textoLido.length > 2;
+
     return {
       tipo: "imagem", pasta: "Imagens", preview: { url, kind: "img" },
-      resumo: "🖼️ Imagem " + w + "×" + h + " (" + orient(w, h) + "), " + kb + " KB. " + analisarCores(img, w, h) + NOTA
+      resumo: "🖼️ Imagem " + w + "×" + h + " (" + orient(w, h) + "), " + kb + " KB. " + analisarCores(img, w, h) +
+        (temTexto
+          ? "\n\n📝 Texto que consegui ler na imagem:\n“" + textoLido.slice(0, 1200) + (textoLido.length > 1200 ? "…" : "") + "”"
+          : (window.Tesseract
+              ? "\n\nℹ️ Não encontrei texto legível nessa imagem. Ainda não reconheço objetos ou pessoas, só texto."
+              : NOTA))
     };
   }
 
