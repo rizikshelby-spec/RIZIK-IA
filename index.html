@@ -536,7 +536,12 @@ async function rotear(texto) {
   const graca = Prog.humor(texto); if (graca) { falar(graca, "bot", "😄 meu repertório"); return; }
   const prog = Prog.responder(texto); if (prog) { falar(prog, "bot", "💻 programação"); return; }
   const k = Saber.buscarConhecimento(texto); if (k) { falar(k, "bot", "📚 o que aprendi"); return; }
-  if (Mente.pergunta(texto)) return pesquisaProfunda(texto, true);
+  if (Mente.pergunta(texto)) {
+    const tm = Mente.tema(texto);
+    if (tm && tm.length > 2) return pesquisaProfunda(tm, true);
+    falar("Por que o quê? 🤔 Me dá um pouco mais de contexto pra eu entender sua pergunta.");
+    return;
+  }
   falar(Prog.desconhecido(texto) + "\n\nVocê pode:\n• me pedir: jogar forca, crie uma calculadora, o que é ...\n• perguntar: /modulos (departamentos), /calc, /converter, /juros, /fisica\n• me ensinar: ensine: pergunta => resposta\n• pedir: pesquise a fundo sobre o assunto\n• colar um link para eu ler\n• clima em (sua cidade)\n\nDigite \"ajuda\" para ver tudo.");
 }
 
