@@ -1,4 +1,4 @@
-/* BACH AI - CÉREBRO 0.8
+/* BACH AI - CÉREBRO 0.9
    Conversa, memória automática do usuário e dos assuntos, aprendizado, autocorreção e backup. */
 
 const KEY = "rizik_brain_v1";
@@ -10,7 +10,7 @@ const BASE = {
   notes: [],
   profile: { likes: [], dislikes: [], city: null, age: null, projects: [], favorites: {} },
   topics: [],
-  version: 8
+  version: 9
 };
 
 function load() {
@@ -18,12 +18,19 @@ function load() {
     const s = JSON.parse(localStorage.getItem(KEY));
     if (s && typeof s === "object") {
       return {
-        ...BASE, ...s, name: "BACH AI", version: 8,
+        ...BASE, ...s, name: "BACH AI", version: 9,
         facts: s.facts || {},
         examples: Array.isArray(s.examples) ? s.examples : [],
         synonyms: s.synonyms || {},
         notes: Array.isArray(s.notes) ? s.notes : [],
-        profile: { ...BASE.profile, ...(s.profile || {}), likes: s.profile?.likes || [], dislikes: s.profile?.dislikes || [], projects: s.profile?.projects || [], favorites: s.profile?.favorites || {} },
+        profile: {
+          ...BASE.profile,
+          ...(s.profile || {}),
+          likes: s.profile?.likes || [],
+          dislikes: s.profile?.dislikes || [],
+          projects: s.profile?.projects || [],
+          favorites: s.profile?.favorites || {}
+        },
         topics: Array.isArray(s.topics) ? s.topics : []
       };
     }
@@ -74,7 +81,6 @@ function similarity(a, b) {
   return Math.max(ratio, jac * 0.9);
 }
 
-/* Vocabulário expandido para corrigir erros de digitação em português e saudações comuns */
 const CORE_WORDS = (
   "oi ola eai opa bom dia tarde noite quem criou voce fez desenvolveu bach " +
   "faz sabe fazer capacidades funcoes tudo bem como vai esta obrigado obrigada valeu tchau " +
@@ -158,7 +164,6 @@ function pushUnique(arr, val, max = 30) {
   return false;
 }
 
-/* Extrai automaticamente memórias do usuário durante a conversa */
 function captureUserMemory(original) {
   const raw = String(original || "").trim();
   if (!raw || raw.includes("?") || raw.length > 140) return null;
@@ -179,8 +184,9 @@ function captureUserMemory(original) {
     }
   }
 
+  const naoCidade = /^(boa|paz|maior|menor|ferro|aco|verdade|mentira|familia|casa|longe|perto|volta|acordo|novo)$/i;
   m = raw.match(/^(?:eu\s+)?(?:moro em|moro no|moro na|sou de|sou do|sou da|vivo em)\s+(.+)$/i);
-  if (m && m[1].split(/\s+/).length <= 5) {
+  if (m && m[1].split(/\s+/).length <= 5 && !naoCidade.test(normalize(m[1]))) {
     data.profile.city = m[1].trim().replace(/[.!]+$/, "").slice(0, 45);
     save();
     return `Que massa! Guardei que você é de ${data.profile.city}. 📍`;
@@ -266,16 +272,18 @@ const HELP =
   "• esqueça: pergunta\n" +
   "• sinônimo: gíria = palavra (ou sinônimos: top, daora = legal)\n" +
   "• meu nome é ... / eu gosto de ... / moro em ...\n\n" +
-  "🔎 Pesquisar e traduzir\n" +
+  "🔎 Pesquisar, traduzir e modos\n" +
+  "• Use os 10 modos no topo (Automático, Raciocínio, Pesquisa, Programação, Visão...)\n" +
   "• pesquise sobre ... / pesquise a fundo sobre ...\n" +
   "• o que significa ... / como se diz ... em inglês (ou qualquer língua)\n" +
   "• clima em (sua cidade)\n\n" +
-  "📁 Arquivos\n" +
+  "🛠️ Ferramentas e IA\n" +
+  "• /modulos • /calc • /converter • /juros • /fisica • /golpe • /quiz\n" +
+  "• /ia status (configurar Ollama local, API compatível ou Gemini) • /chave\n\n" +
+  "📁 Arquivos e Histórico\n" +
   "• botão + para anexar fotos, vídeos e textos\n" +
-  "• /arquivos, /abrir nome, /buscar palavra, /apagar nome\n\n" +
-  "💻 Programação, jogos e humor\n" +
-  "• o que é função? como fazer um loop? / jogar forca / conta uma piada\n\n" +
-  "🕘 Histórico\n• /historico • /nova (nova conversa)\n\n🛠️ Extras: lembre: algo • estatísticas • /clear";
+  "• /arquivos, /abrir nome, /buscar palavra, /apagar nome\n" +
+  "• /historico • /nova • /basedados • /clear";
 
 function buildMemorySummary() {
   const nome = recall("userName");
@@ -371,18 +379,19 @@ function think(message) {
   }
   if (/^(ajuda|comandos|help)$/.test(t)) return R(HELP, "help");
 
-  if (original.length > 160 || t.split(" ").length > 25) {
+  const pareceCodigo = /(\bconst\b|\bfunction\b|=>|<\/?[a-z]+>|\bimport\b|\bexport\b|\bdef\s+\w+\(|\bclass\s+\w+)/i.test(original);
+  const muitasLinhas = original.split("\n").length >= 5;
+  if (original.length > 600 || (pareceCodigo && original.length > 140) || (muitasLinhas && original.length > 220)) {
     return R(analyzeText(original), "longtext");
   }
 
-  // Captura memórias espontâneas sobre o usuário
   const memResp = captureUserMemory(original);
   if (memResp) return R(memResp, "profile-memory");
 
   const intent = classify(original);
 
   if (intent === "identity") {
-    return R("Sou a BACH AI! 🧠 Fui criada no seu projeto BACH AI, desenvolvido por você. Estou evoluindo com memória, vocabulário, tradução, código e pesquisa na internet.", intent);
+    return R("Sou a BACH AI! 🧠 Fui criada no seu projeto BACH AI, desenvolvido por você. Tenho memória, vocabulário, tradução, código, pesquisa na internet e modos inteligentes.", intent);
   }
 
   const { item, score } = bestExample(original);
@@ -405,8 +414,8 @@ function think(message) {
     case "wellbeing": return R("Estou ótima e pronta para conversar com você! 😄", intent);
     case "thanks": return R(pick(["Por nada! Sempre que precisar, estou aqui. 😊", "Disponha! 💜"]), intent);
     case "goodbye": return R(pick(["Até mais! 👋", "Até logo! Volte sempre! 💜"]), intent);
-    case "capabilities": return R("Posso conversar, lembrar do que você me conta, aprender respostas e palavras novas, traduzir em 18+ idiomas, revisar códigos, jogar e pesquisar na internet. Digite “ajuda” para ver os comandos! 🧠", intent);
-    case "canread": return R("Sim! Leio textos, códigos, arquivos anexados e links: resumo, explico o que o código faz, mostro as funções e reviso por regras. E se conectar uma chave Gemini (/chave), uso um modelo avançado também.", intent);
+    case "capabilities": return R("Posso conversar, lembrar do que você me conta, aprender respostas e palavras novas, traduzir em 18+ idiomas, revisar códigos, calcular, jogar e pesquisar na internet. Digite “ajuda” ou veja os modos no topo! 🧠", intent);
+    case "canread": return R("Sim! Leio textos, códigos, arquivos anexados, links e imagens (OCR e visão com motor conectado). Resumo, explico funções e reviso por regras.", intent);
     case "time": return R("Agora são " + new Date().toLocaleTimeString("pt-BR") + ".", intent);
     case "date": return R("Hoje é " + new Date().toLocaleDateString("pt-BR") + ".", intent);
     case "name": return R(nome ? "Seu nome é " + nome + "." : "Ainda não sei seu nome. Diga: meu nome é ...", intent);
@@ -430,7 +439,7 @@ function getStats() {
 }
 
 export const RizikBrain = {
-  version: "0.8.0",
+  version: "0.9.0",
   think, learn, forget, remember, recall, classify, getStats,
   getProfile, logTopic, getRecentTopics
 };
