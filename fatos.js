@@ -1,6 +1,6 @@
 import { MAIS } from "./saberes.js?v=1";
 
-/* BACH AI 2.2
+/* BACH AI 2.3
    Base de fatos verificados + respostas sobre a própria BACH.
    Sem lookbehind (compatível com todas as versões de iOS/Android). */
 
@@ -185,9 +185,9 @@ const FATOS = [
 ["claude",
  "🤖 Claude é uma família de assistentes de IA desenvolvida pela Anthropic, baseada em grandes modelos de linguagem."],
 ["gemini|gemini google",
- "🤖 Gemini é a família de modelos de IA do Google. Pode ser conectado como motor opcional da BACH via /chave."],
+ "🤖 Gemini é uma família de modelos de IA desenvolvida pelo Google."],
 ["llm|modelo linguagem|grande modelo linguagem|modelos linguagem",
- "🤖 LLM (grande modelo de linguagem) é uma rede neural treinada com enormes quantidades de texto para prever a próxima palavra. Dessa tarefa simples surge a capacidade de conversar, resumir, traduzir e programar. É o que está por trás do ChatGPT, Claude, Gemini e Llama."],
+ "🤖 LLM (grande modelo de linguagem) é uma rede neural treinada com enormes quantidades de texto para prever a próxima palavra. Dessa tarefa simples surge a capacidade de conversar, resumir, traduzir e programar."],
 ["bit|byte|quantos bits byte",
  "💾 Bit é a menor unidade de informação (0 ou 1). 1 byte = 8 bits. 1 KB = 1.000 bytes (ou 1.024 no uso binário, KiB), 1 MB = 1.000 KB, 1 GB = 1.000 MB."],
 ["sistema binario|binario|numero binario",
@@ -294,13 +294,13 @@ function responder(texto) {
 
 const SOBRE = {
   nome: "Meu nome é BACH AI 🧠.",
-  quem: "Sou a BACH AI 🧠, uma assistente modular criada por você. Converso, guardo memórias, traduzo idiomas, pesquiso na web, analiso documentos/imagens, calculo e ajudo com programação.",
-  servir: "Eu sirvo para:\n• conversar, lembrar do que você me conta e aprender respostas novas (ensine: pergunta => resposta)\n• atuar em 10 modos (Automático, Raciocínio, Pesquisa, Aprendizado, Programação, Matemática, Imagens, Voz, Criatividade, Documentos)\n• traduzir e explicar palavras em vários idiomas\n• pesquisar na Wikipédia e na web citando as fontes\n• ler textos, códigos, links e imagens\n• rodar tanto 100% offline quanto conectada a modelos locais (Ollama) ou online (/ia status).",
-  como: "Funciono de forma híbrida: uno meu cérebro local (regras, memória, ferramentas matemáticas, dicionário e pesquisa) com um motor de linguagem configurável (Ollama local, API compatível ou Gemini) via /ia status.",
-  ia: "Sou a BACH AI — um sistema modular próprio que funciona offline com regras, memória e busca, e fica ainda mais fluido quando conectado a um modelo de linguagem local ou online via /ia.",
-  erro: "Você tem razão em cobrar. Quando estou sem modelo de linguagem conectado, dependo das minhas regras e busca na web. Para me corrigir: corrija: pergunta => resposta certa, ou conecte um motor com /ia status.",
-  limite: "Sem motor multimodal conectado (/ia), não reconheço objetos ou cenas em fotos/vídeos (apenas cores e texto OCR) e não executo código diretamente.",
-  melhor: "Meu ponto forte é ser 100% sua, rodar leve no navegador, guardar suas memórias e juntar ferramentas locais com qualquer modelo de IA que você quiser conectar (/ia status)."
+  quem: "Sou a BACH AI 🧠, sua assistente inteligente própria! Converso, guardo memórias, traduzo idiomas, pesquiso na web, analiso textos, códigos, fotos e vídeos, calculo e jogo com você.",
+  servir: "Eu sirvo para:\n• conversar, lembrar do que você me conta e aprender respostas novas (ensine: pergunta => resposta)\n• atuar em 10 modos (Automático, Raciocínio, Pesquisa, Aprendizado, Programação, Matemática, Imagens, Voz, Criatividade, Documentos)\n• traduzir e explicar palavras em vários idiomas\n• pesquisar na internet citando as fontes\n• ler textos, códigos, links, fotos e vídeos\n• fazer cálculos, conversões, recomendações e jogos no chat.",
+  como: "Funciono de forma integrada, juntando memória local, raciocínio por regras, ferramentas próprias (cálculo, código, dicionário, OCR de imagens) e pesquisa online automática quando preciso de informação atual.",
+  ia: "Sou a BACH AI — uma inteligência própria desenvolvida especialmente no seu projeto, privada, rápida e que aprende com o que você ensina.",
+  erro: "Você tem razão em cobrar. Quando alguma resposta sair fora do alvo, você pode reformular com mais contexto ou me ensinar a resposta certa com: corrija: pergunta => resposta certa.",
+  limite: "Ainda estou evoluindo: em vídeos e fotos sem texto escrito eu descrevo cores, dimensões e iluminação (e leio textos escritos em prints!), mas não identifico rostos nem executo código diretamente.",
+  melhor: "Meu diferencial é ser 100% sua, rodar leve direto no seu aparelho, guardar suas preferências e combinar ferramentas práticas com pesquisa na internet na hora."
 };
 
 function sobreMim(texto) {
