@@ -94,14 +94,14 @@ textarea#entrada{flex:1;min-width:0;padding:11px;border:1px solid #44465d;border
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <script type="module">
-import { RizikBrain } from "./brain.js?v=14";
-import { Saber } from "./saber.js?v=7";
+import { RizikBrain } from "./brain.js?v=15";
+import { Saber } from "./saber.js?v=8";
 import { Prog } from "./programacao.js?v=4";
 import { Arquivos } from "./arquivos.js?v=2";
-import { Mente } from "./mente.js?v=10";
+import { Mente } from "./mente.js?v=11";
 import { Fatos } from "./fatos.js?v=4";
-import { Conversa } from "./conversa.js?v=3";
-import { Dic } from "./dicionario.js?v=2";
+import { Conversa } from "./conversa.js?v=4";
+import { Dic } from "./dicionario.js?v=3";
 import { Historico } from "./historico.js?v=2";
 import { Base } from "./base.js?v=3";
 import { SkillRouter } from "./registry.js?v=1";
@@ -324,7 +324,6 @@ REGRAS DE FORMATO:
 - Antes de cada bloco diga em 1 linha o nome do arquivo e onde colar. Entregue o arquivo COMPLETO, pronto para colar, nunca pedaços soltos, a menos que peçam só uma correção.
 - Para jogos e apps simples, entregue um único arquivo HTML (CSS e JS dentro) que funcione no celular.
 - Respostas curtas para perguntas simples. Em tarefas grandes, dê o passo a passo numerado.
-JOGOS COM VOCÊ: você sabe jogar forca, jogo da velha (desenhe com texto), adivinhação de número, quiz, 20 perguntas, stop e charadas. Guarde o estado do jogo pelo histórico, diga de quem é a vez e confira as regras com honestidade.
 HONESTIDADE: se não souber, diga. Não invente fatos, links ou funções. Use o histórico e a memória do usuário para entender "isso", "esse texto", "ele" e lembrar do que já conversaram.`;
 
 async function perguntarIA(texto) {
@@ -438,7 +437,7 @@ function abrirHistorico(pag = 1, termo = "") {
   box.append(top, lista, pg, rod); hist.append(box);
 }
 
-/* ---------- /basedados: exporta TUDO (memória, conversas, interface, código) ---------- */
+/* ---------- /basedados ---------- */
 async function exportarBase() {
   passo("📦 Reunindo memória, conversas, interface e módulos...");
   const b = await Base.montar({
@@ -460,7 +459,7 @@ async function lerLinkMsg(url, texto, temIA) {
     ultimoArquivo = { nome: a.nome, texto: r.texto }; Mente.setTexto(a.nome, r.texto);
     RizikBrain.logTopic(a.nome);
     if (temIA && texto.replace(url, "").trim().length > 3) { await perguntarIA(texto); return; }
-    falar("🔗 Abri " + r.url + "\n\n" + leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\n💡 Agora pergunte: “o que é esse texto?”, “resume” ou “revisa o código”.", "bot", "🔗 link");
+    falar("🔗 Abri " + r.url + "\n\n" + leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\n💡 Agora pergunte: “o que é esse texto?”, “explica”, “resume” ou “revisa o código”.", "bot", "🔗 link");
   } catch (e) { console.error(e); falar("Não consegui abrir esse link. Se for repositório privado ou uma página que bloqueia leitura, copie o texto e cole aqui. 📋"); }
 }
 
@@ -471,28 +470,37 @@ function ultimoBotTexto() {
   return "";
 }
 async function seguir(texto) {
-  const nt = sn(texto);
-  if (nt.split(" ").length > 9) return false;
+  const ntBruto = sn(texto);
+  if (ntBruto.split(" ").length > 10) return false;
+  // Remove cumprimentos/confirmações no início: "certo, resume" -> "resume"
+  const nt = ntBruto.replace(/^(?:(?:ah|oh|sim|ok|okay|certo|blz|beleza|entendi|tendi|saquei|ta|tudo bem|bom|entao|agora|por favor|pfv|pf)\s+)+/, "").trim();
   const base = ultimoBotTexto(); if (!base) return false;
+
   if (/\b(numeracao|numerado|numerada|numerar|enumere|enumera|enumerar|em lista|em topicos|em itens|em passos|listar isso|lista isso)\b/.test(nt)) {
     falar(Fatos.enumerar(base) || "Não achei uma lista para numerar nessa resposta. 🤔", "bot", "🔢 formatação"); return true;
   }
   if (/^(resuma|resume|resumir|resumo|mais curto|encurta|encurte|resumindo)( isso| tudo| a resposta)?$/.test(nt)) {
+    if (ultimoArquivo?.texto && /Guardei em:|Li o texto|Funções que encontrei/i.test(base)) {
+      const resp = Mente.responder("resuma esse texto");
+      if (resp?.texto) { falar(resp.texto, "bot", "📝 resumo do arquivo"); return true; }
+    }
     falar(Fatos.resumir(base) || "Essa resposta já é curta. 🙂", "bot", "📝 resumo"); return true;
   }
+
+  const pedeExplicarArquivo = /Guardei em:|Texto que consegui ler|Li o texto|Funções que encontrei|Parece (HTML|JavaScript|Python|código)/i.test(base) &&
+    (/(esse|este|esses|estes|isso|codigo|codigos|texto|arquivo).*(faz|fazem|serve|servem|explic|funciona|o que e)/.test(nt) || /^(me\s+)?(explica|explique|explicar|o que faz|fazem o que|o que e isso)/.test(nt));
+  if (pedeExplicarArquivo && ultimoArquivo?.texto) {
+    const resp = Mente.responder("explica esse codigo");
+    if (resp?.texto) { falar(resp.texto, "bot", "📖 explicação do código/texto"); return true; }
+  }
+
   if (/^(me\s+)?(explica|explique|explicar)(\s+isso|\s+melhor|\s+o\s+que\s+(e|eh)\s+isso)?$/.test(nt) ||
       /^(mais detalhes|detalhe|detalhes|aprofunde|aprofunda|me explique mais|conte mais|conta mais|fale mais|continue|e mais)( isso| sobre isso)?$/.test(nt)) {
-    if (ultimoArquivo?.texto && /Guardei em:|Texto que consegui ler|Li o texto|Funções que encontrei/i.test(base)) {
-      const resp = Mente.responder("explica esse texto");
-      if (resp?.texto) { falar(resp.texto, "bot", "📖 explicação do contexto"); return true; }
-      falar("📌 Sobre **" + ultimoArquivo.nome + "**:\n\n" + (Fatos.resumir(ultimoArquivo.texto) || ultimoArquivo.texto.slice(0, 700)), "bot", "📖 explicação do contexto");
-      return true;
-    }
     if (ultimoTema && /fatos|internet|dicionário/.test(ultimaOrigem)) {
       await pesquisaProfunda(ultimoTema, true); return true;
     }
     if (base.length > 140) {
-      falar("📌 Resumindo o que eu acabei de dizer:\n\n" + (Fatos.resumir(base) || base.slice(0, 500)) + "\n\nSe quiser que eu explique um trecho específico, use ↩ Responder na mensagem ou pergunte o nome do assunto!", "bot", "🧠 explicação do contexto");
+      falar("📌 Resumindo o que eu acabei de dizer:\n\n" + (Fatos.resumir(base) || base.slice(0, 500)) + "\n\nSe quiser que eu detalhe algo específico, me diga o assunto ou use ↩ Responder!", "bot", "🧠 explicação do contexto");
       return true;
     }
     return false;
@@ -542,13 +550,16 @@ async function rotear(texto) {
   const arq = Arquivos.comando(texto); if (arq) { falar(arq, "bot", "📁 seus arquivos"); return; }
   if (await seguir(texto)) return;
 
-  /* Dicionário e tradução (traduções, sinônimos, antônimos, /dicionario) */
+  /* Dicionário e tradução */
   const pedidoDic = Dic.detectar(texto);
+  if (pedidoDic && pedidoDic.q === "__ALVO__") {
+    pedidoDic.q = (alvo || ultimoBotTexto() || "").slice(0, 500);
+  }
   if (pedidoDic && pedidoDic.tipo !== "def") {
     passo("🌍 Consultando dicionário e tradutor...");
     const respDic = await Dic.consultar(pedidoDic, passo);
     if (respDic) {
-      if (pedidoDic.q) RizikBrain.logTopic(pedidoDic.q);
+      if (pedidoDic.q && pedidoDic.q !== "__ALVO__") RizikBrain.logTopic(pedidoDic.q.slice(0, 60));
       falar(respDic, "bot", "🌍 dicionário e tradução");
       return;
     }
@@ -573,6 +584,10 @@ async function rotear(texto) {
 
   if (!Mente.jogando()) {
     const eu = Fatos.sobreMim(texto); if (eu) { falar(eu, "bot", "🧠 sobre mim"); return; }
+    if (Fatos.sobreVoce(texto) && /\b(bug|bugado|bugada|bugou|travado|travada|travando|quebrado|quebrada|doido|doida|maluc|lento|lenta)\b/i.test(sn(texto))) {
+      falar("Opa, parece que algo saiu errado mesmo! 😅 Estou evoluindo aos poucos porque rodo por regras e busca local. Se eu errei alguma resposta, me avise o que foi ou ensine com: corrija: pergunta => resposta certa.", "bot", "🧠 sobre mim");
+      return;
+    }
     const fato = Fatos.responder(texto);
     if (fato) {
       ultimoTema = Mente.tema(texto) || texto;
@@ -609,6 +624,10 @@ async function rotear(texto) {
   const prog = Prog.responder(texto); if (prog) { falar(prog, "bot", "💻 programação"); return; }
   const k = Saber.buscarConhecimento(texto); if (k) { falar(k, "bot", "📚 o que aprendi"); return; }
   if (Mente.pergunta(texto)) {
+    if (Fatos.sobreVoce(texto)) {
+      falar("Como eu sou a BACH AI (um sistema em evolução rodando no seu navegador), talvez eu não tenha entendido sua pergunta sobre mim! 😅 Tente perguntar de outro jeito ou digite “ajuda”.", "bot", "🧠 sobre mim");
+      return;
+    }
     const tm = Mente.tema(texto);
     if (tm && tm.length >= 2) return pesquisaProfunda(texto, true);
     falar("Não entendi qual assunto você quer saber 🤔. Me diga a pergunta completa!");
