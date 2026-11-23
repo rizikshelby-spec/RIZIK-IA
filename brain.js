@@ -1,4 +1,4 @@
-/* BACH AI - CÉREBRO 0.9
+/* BACH AI - CÉREBRO 0.9.1
    Conversa, memória automática do usuário e dos assuntos, aprendizado, autocorreção e backup. */
 
 const KEY = "rizik_brain_v1";
@@ -87,7 +87,7 @@ const CORE_WORDS = (
   "ate mais horas hora agora data hoje amanha ontem meu minha nome beleza legal massa show bora vamos partiu " +
   "pesquisa pesquisar procura procurar explicar explica resume resumir traduz traduzir significa significado " +
   "sinonimo antonimo dicionario idioma lingua ingles espanhol frances italiano alemão japones " +
-  "filme filmes serie series anime desenho desenho animado jogo jogos musica livro historia ciencia tecnologia " +
+  "filme filmes serie series anime animes desenho desenho animado jogo jogos musica livro historia ciencia tecnologia " +
   "programacao codigo javascript python html css sql github arquivo pasta imagem foto video texto " +
   "ajuda ajudar aprender ensinar estudar escrever falar ouvir ler criar jogar lembrar esquecer memoria " +
   "gosto adoro curto odeio moro cidade idade trabalho projeto ideia problema solucao resposta pergunta " +
@@ -261,7 +261,7 @@ function analyzeText(txt) {
   const code = /(\bconst\b|\bfunction\b|=>|<\/?[a-z]+>|\bimport\b|\breturn\b)/.test(txt);
   return "Recebi um texto grande: " + words + " palavras e " + txt.length + " caracteres." +
     (code ? " Parece código de programação." : "") +
-    "\n\nPosso resumir, listar as funções e revisar o código por regras, ou pesquisar assuntos sobre ele.";
+    "\n\nPosso resumir, explicar o funcionamento, montar uma cadeia de uso ou revisar o código.";
 }
 
 const HELP =
@@ -272,18 +272,19 @@ const HELP =
   "• esqueça: pergunta\n" +
   "• sinônimo: gíria = palavra (ou sinônimos: top, daora = legal)\n" +
   "• meu nome é ... / eu gosto de ... / moro em ...\n\n" +
-  "🔎 Pesquisar, traduzir e modos\n" +
+  "🔎 Pesquisar, recomendar e traduzir\n" +
   "• Use os 10 modos no topo (Automático, Raciocínio, Pesquisa, Programação, Visão...)\n" +
   "• pesquise sobre ... / pesquise a fundo sobre ...\n" +
-  "• o que significa ... / como se diz ... em inglês (ou qualquer língua)\n" +
+  "• recomenda filmes de drama / sertanejo / animes / séries\n" +
+  "• escreva um e-mail / plano de estudos / diferença entre X e Y\n" +
+  "• o que significa ... / como se diz ... em inglês\n" +
   "• clima em (sua cidade)\n\n" +
-  "🛠️ Ferramentas e IA\n" +
-  "• /modulos • /calc • /converter • /juros • /fisica • /golpe • /quiz\n" +
-  "• /ia status (configurar Ollama local, API compatível ou Gemini) • /chave\n\n" +
+  "🛠️ Ferramentas rápidas\n" +
+  "• /calc • /converter • /juros • /fisica • /golpe • /quiz\n\n" +
   "📁 Arquivos e Histórico\n" +
   "• botão + para anexar fotos, vídeos e textos\n" +
   "• /arquivos, /abrir nome, /buscar palavra, /apagar nome\n" +
-  "• /historico • /nova • /basedados • /clear";
+  "• /historico • /nova • /clear";
 
 function buildMemorySummary() {
   const nome = recall("userName");
@@ -391,7 +392,7 @@ function think(message) {
   const intent = classify(original);
 
   if (intent === "identity") {
-    return R("Sou a BACH AI! 🧠 Fui criada no seu projeto BACH AI, desenvolvido por você. Tenho memória, vocabulário, tradução, código, pesquisa na internet e modos inteligentes.", intent);
+    return R("Sou a BACH AI! 🧠 Fui criada no seu projeto BACH AI. Tenho memória, leitura de fotos/códigos, recomendações, escrita, cálculos, tradução e pesquisa na internet.", intent);
   }
 
   const { item, score } = bestExample(original);
@@ -414,8 +415,8 @@ function think(message) {
     case "wellbeing": return R("Estou ótima e pronta para conversar com você! 😄", intent);
     case "thanks": return R(pick(["Por nada! Sempre que precisar, estou aqui. 😊", "Disponha! 💜"]), intent);
     case "goodbye": return R(pick(["Até mais! 👋", "Até logo! Volte sempre! 💜"]), intent);
-    case "capabilities": return R("Posso conversar, lembrar do que você me conta, aprender respostas e palavras novas, traduzir em 18+ idiomas, revisar códigos, calcular, jogar e pesquisar na internet. Digite “ajuda” ou veja os modos no topo! 🧠", intent);
-    case "canread": return R("Sim! Leio textos, códigos, arquivos anexados, links e imagens (OCR e visão com motor conectado). Resumo, explico funções e reviso por regras.", intent);
+    case "capabilities": return R("Posso conversar, lembrar do que você me conta, aprender respostas, traduzir idiomas, ler fotos e códigos, recomendar filmes/animes/músicas, escrever textos, calcular, jogar e pesquisar na internet! 🧠", intent);
+    case "canread": return R("Sim! Leio textos, códigos, links, fotos (inclusive prints em modo escuro) e vídeos. Resumo, explico funções e reviso códigos.", intent);
     case "time": return R("Agora são " + new Date().toLocaleTimeString("pt-BR") + ".", intent);
     case "date": return R("Hoje é " + new Date().toLocaleDateString("pt-BR") + ".", intent);
     case "name": return R(nome ? "Seu nome é " + nome + "." : "Ainda não sei seu nome. Diga: meu nome é ...", intent);
@@ -439,7 +440,7 @@ function getStats() {
 }
 
 export const RizikBrain = {
-  version: "0.9.0",
+  version: "0.9.1",
   think, learn, forget, remember, recall, classify, getStats,
   getProfile, logTopic, getRecentTopics
 };
