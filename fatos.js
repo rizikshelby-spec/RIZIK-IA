@@ -1,10 +1,8 @@
 import { MAIS } from "./saberes.js?v=1";
 
-/* BACH AI 2.1
+/* BACH AI 2.2
    Base de fatos verificados + respostas sobre a própria BACH.
-   Respostas sempre iguais para a mesma pergunta (nada aleatório).
-   Só responde quando a pergunta cobre bem o assunto; senão devolve null
-   e o sistema segue para a pesquisa na internet. */
+   Sem lookbehind (compatível com todas as versões de iOS/Android). */
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
@@ -187,9 +185,9 @@ const FATOS = [
 ["claude",
  "🤖 Claude é uma família de assistentes de IA desenvolvida pela Anthropic, baseada em grandes modelos de linguagem."],
 ["gemini|gemini google",
- "🤖 Gemini é a família de modelos de IA do Google. É o que a BACH usa quando você conecta uma chave do Google AI Studio com /chave."],
+ "🤖 Gemini é a família de modelos de IA do Google. Pode ser conectado como motor opcional da BACH via /chave."],
 ["llm|modelo linguagem|grande modelo linguagem|modelos linguagem",
- "🤖 LLM (grande modelo de linguagem) é uma rede neural treinada com enormes quantidades de texto para prever a próxima palavra. Dessa tarefa simples surge a capacidade de conversar, resumir, traduzir e programar. É o que está por trás do ChatGPT, Claude e Gemini."],
+ "🤖 LLM (grande modelo de linguagem) é uma rede neural treinada com enormes quantidades de texto para prever a próxima palavra. Dessa tarefa simples surge a capacidade de conversar, resumir, traduzir e programar. É o que está por trás do ChatGPT, Claude, Gemini e Llama."],
 ["bit|byte|quantos bits byte",
  "💾 Bit é a menor unidade de informação (0 ou 1). 1 byte = 8 bits. 1 KB = 1.000 bytes (ou 1.024 no uso binário, KiB), 1 MB = 1.000 KB, 1 GB = 1.000 MB."],
 ["sistema binario|binario|numero binario",
@@ -294,16 +292,15 @@ function responder(texto) {
   return melhor ? melhor.r : null;
 }
 
-/* ---------- Perguntas sobre a própria BACH ---------- */
 const SOBRE = {
   nome: "Meu nome é BACH AI 🧠.",
-  quem: "Sou a BACH AI 🧠, uma assistente que roda inteira no seu navegador, criada por você neste projeto. Converso, guardo o que você me ensina e o que conversamos, traduzo em vários idiomas, pesquiso na Wikipédia e na web, leio textos e códigos e ajudo com programação.",
-  servir: "Eu sirvo para:\n• conversar, lembrar do que você me conta e aprender respostas novas (ensine: pergunta => resposta)\n• traduzir e explicar palavras em vários idiomas (dicionario.js)\n• responder perguntas comuns com minha base de fatos\n• pesquisar na Wikipédia e na web e resumir citando as fontes (pesquise a fundo sobre ...)\n• ler textos, códigos e links que você colar ou anexar\n• explicar programação e montar apps e jogos simples\n• guardar arquivos em pastas e o histórico de conversas\n• contar piadas, curiosidades e charadas\n\nLimite: sem chave de IA externa eu não raciocino como o ChatGPT ou o Claude; eu sigo regras, memória e busca. Para esse nível, conecte uma chave do Google AI Studio com /chave.",
-  como: "Funciono por regras, memória local e busca, tudo no seu navegador: entendo sua frase, verifico o que lembro de você e o que você me ensinou, consulto minha base de fatos/dicionário e, se precisar, pesquiso na internet comparando fontes. Se você conectar uma chave Gemini (/chave), passo a responder com uma IA de linguagem de verdade.",
-  ia: "Sou uma IA de regras, memória e busca, não um modelo de linguagem grande como o ChatGPT ou o Claude. Isso me deixa previsível, privada (roda no seu aparelho) e honesta sobre o que não sei. Com uma chave Gemini (/chave) eu uso uma IA de linguagem de verdade.",
-  erro: "Você tem razão em cobrar. Sem IA externa eu erro quando a pergunta foge da minha base ou quando a busca traz páginas sem relação. Para me corrigir: corrija: pergunta => resposta certa.",
-  limite: "Meus limites: não raciocino em várias etapas como um modelo grande; não executo código; não reconheço o que aparece em vídeos e, em fotos, só leio texto escrito (ainda não reconheço objetos ou pessoas). Em troca eu aviso quando não sei e cito as fontes. Para mais precisão, conecte uma chave Gemini com /chave.",
-  melhor: "Sinceramente: não sou melhor que o ChatGPT ou o Claude em conhecimento e raciocínio, porque eles são modelos enormes. Meu ponto forte é rodar no seu navegador, aprender o que você ensina e mostrar de onde veio cada resposta. Conectando uma chave Gemini (/chave) você ganha o melhor dos dois."
+  quem: "Sou a BACH AI 🧠, uma assistente modular criada por você. Converso, guardo memórias, traduzo idiomas, pesquiso na web, analiso documentos/imagens, calculo e ajudo com programação.",
+  servir: "Eu sirvo para:\n• conversar, lembrar do que você me conta e aprender respostas novas (ensine: pergunta => resposta)\n• atuar em 10 modos (Automático, Raciocínio, Pesquisa, Aprendizado, Programação, Matemática, Imagens, Voz, Criatividade, Documentos)\n• traduzir e explicar palavras em vários idiomas\n• pesquisar na Wikipédia e na web citando as fontes\n• ler textos, códigos, links e imagens\n• rodar tanto 100% offline quanto conectada a modelos locais (Ollama) ou online (/ia status).",
+  como: "Funciono de forma híbrida: uno meu cérebro local (regras, memória, ferramentas matemáticas, dicionário e pesquisa) com um motor de linguagem configurável (Ollama local, API compatível ou Gemini) via /ia status.",
+  ia: "Sou a BACH AI — um sistema modular próprio que funciona offline com regras, memória e busca, e fica ainda mais fluido quando conectado a um modelo de linguagem local ou online via /ia.",
+  erro: "Você tem razão em cobrar. Quando estou sem modelo de linguagem conectado, dependo das minhas regras e busca na web. Para me corrigir: corrija: pergunta => resposta certa, ou conecte um motor com /ia status.",
+  limite: "Sem motor multimodal conectado (/ia), não reconheço objetos ou cenas em fotos/vídeos (apenas cores e texto OCR) e não executo código diretamente.",
+  melhor: "Meu ponto forte é ser 100% sua, rodar leve no navegador, guardar suas memórias e juntar ferramentas locais com qualquer modelo de IA que você quiser conectar (/ia status)."
 };
 
 function sobreMim(texto) {
@@ -330,6 +327,7 @@ function sobreMim(texto) {
 const semEmoji = s => String(s).replace(/^[^\p{L}\p{N}"“(]+/u, "").trim();
 const maiuscula = s => s.charAt(0).toUpperCase() + s.slice(1);
 const corpo = t => String(t || "").split(/\n\s*(?:Fontes|🔍|ℹ️|💾|🚫)/)[0].trim();
+const dividirFrases = str => String(str || "").replace(/([.!?])\s+/g, "$1\n").split("\n").map(x => x.trim()).filter(Boolean);
 
 function enumerar(texto) {
   const base = corpo(texto);
@@ -342,13 +340,13 @@ function enumerar(texto) {
   }
   const linhas = base.split("\n").map(l => l.replace(/^[•\-*]\s*|^\d+[.)]\s*/, "").replace(/\s*\[\d+\]/g, "").trim())
     .filter(l => l.length > 25 && !/^(Além disso|Fontes|Sobre|Pesquisei|Aqui está)/.test(l));
-  const fr = (linhas.length >= 2 ? linhas : plano.split(/(?<=[.!?])\s+/).map(semEmoji).filter(l => l.length > 25)).slice(0, 12);
+  const fr = (linhas.length >= 2 ? linhas : dividirFrases(plano).map(semEmoji).filter(l => l.length > 25)).slice(0, 12);
   return fr.length >= 2 ? "🔢 Em numeração:\n" + fr.map((x, i) => (i + 1) + ". " + x).join("\n") : null;
 }
 
 function resumir(texto) {
   const base = corpo(texto).replace(/\s*\[\d+\]/g, "").replace(/\s+/g, " ");
-  const fr = base.split(/(?<=[.!?])\s+/).map(semEmoji).filter(s => s.length > 25);
+  const fr = dividirFrases(base).map(semEmoji).filter(s => s.length > 25);
   return fr.length ? "📝 Resumindo: " + fr.slice(0, 2).join(" ") : null;
 }
 
