@@ -1,6 +1,6 @@
 import { MAIS } from "./saberes.js?v=1";
 
-/* BACH AI 2.3
+/* BACH AI 2.4
    Base de fatos verificados + respostas sobre a própria BACH.
    Sem lookbehind (compatível com todas as versões de iOS/Android). */
 
@@ -185,7 +185,7 @@ const FATOS = [
 ["claude",
  "🤖 Claude é uma família de assistentes de IA desenvolvida pela Anthropic, baseada em grandes modelos de linguagem."],
 ["gemini|gemini google",
- "🤖 Gemini é uma família de modelos de IA desenvolvida pelo Google."],
+ "🤖 Gemini é a família de modelos de IA desenvolvida pelo Google."],
 ["llm|modelo linguagem|grande modelo linguagem|modelos linguagem",
  "🤖 LLM (grande modelo de linguagem) é uma rede neural treinada com enormes quantidades de texto para prever a próxima palavra. Dessa tarefa simples surge a capacidade de conversar, resumir, traduzir e programar."],
 ["bit|byte|quantos bits byte",
@@ -294,9 +294,9 @@ function responder(texto) {
 
 const SOBRE = {
   nome: "Meu nome é BACH AI 🧠.",
-  quem: "Sou a BACH AI 🧠, sua assistente inteligente própria! Converso, guardo memórias, traduzo idiomas, pesquiso na web, analiso textos, códigos, fotos e vídeos, calculo e jogo com você.",
-  servir: "Eu sirvo para:\n• conversar, lembrar do que você me conta e aprender respostas novas (ensine: pergunta => resposta)\n• atuar em 10 modos (Automático, Raciocínio, Pesquisa, Aprendizado, Programação, Matemática, Imagens, Voz, Criatividade, Documentos)\n• traduzir e explicar palavras em vários idiomas\n• pesquisar na internet citando as fontes\n• ler textos, códigos, links, fotos e vídeos\n• fazer cálculos, conversões, recomendações e jogos no chat.",
-  como: "Funciono de forma integrada, juntando memória local, raciocínio por regras, ferramentas próprias (cálculo, código, dicionário, OCR de imagens) e pesquisa online automática quando preciso de informação atual.",
+  quem: "Sou a BACH AI 🧠, sua assistente inteligente própria! Converso, guardo memórias, traduzo idiomas, pesquiso na web, analiso textos, códigos, fotos e vídeos, escrevo rascunhos, calculo e jogo com você.",
+  servir: "Eu sirvo para:\n• conversar, lembrar do que você me conta e aprender respostas novas (ensine: pergunta => resposta)\n• atuar em 10 modos (Automático, Raciocínio, Pesquisa, Aprendizado, Programação, Matemática, Imagens, Voz, Criatividade, Documentos)\n• recomendar filmes por gênero, séries, animes e músicas\n• escrever textos, e-mails, planos de estudo e comparações\n• traduzir palavras e pesquisar na internet citando as fontes\n• ler textos, códigos, links, fotos e vídeos.",
+  como: "Funciono de forma integrada, juntando memória local, compreensão natural, ferramentas próprias (cálculo, código, dicionário, OCR de imagens) e pesquisa online automática quando preciso de informação atual.",
   ia: "Sou a BACH AI — uma inteligência própria desenvolvida especialmente no seu projeto, privada, rápida e que aprende com o que você ensina.",
   erro: "Você tem razão em cobrar. Quando alguma resposta sair fora do alvo, você pode reformular com mais contexto ou me ensinar a resposta certa com: corrija: pergunta => resposta certa.",
   limite: "Ainda estou evoluindo: em vídeos e fotos sem texto escrito eu descrevo cores, dimensões e iluminação (e leio textos escritos em prints!), mas não identifico rostos nem executo código diretamente.",
@@ -304,20 +304,20 @@ const SOBRE = {
 };
 
 function sobreMim(texto) {
-  const t = norm(texto).replace(/\bbash\b/g, "bach").replace(/\b(oque)\b/g, "o que").replace(/\bvc\b/g, "voce");
+  const t = norm(texto).replace(/\bbash\b/g, "bach").replace(/\b(oq|oqe|oque)\b/g, "o que").replace(/\bvc\b/g, "voce").replace(/\bpra\b/g, "para");
   const eu = "(?:voce|a bach|bach|a bach ai|bach ai)";
   if (/\b(qual|como) (e )?(o )?(seu nome|voce se chama)\b/.test(t) || /^como voce se chama$/.test(t)) return SOBRE.nome;
   if (new RegExp("\\b(quem|o que) (e|eh) " + eu + "\\b").test(t) || /^quem e voce/.test(t)) return SOBRE.quem;
-  if (new RegExp("\\b(para|pra) (que|o que) " + eu + " (serve|presta|e usada|funciona)\\b").test(t) ||
-      new RegExp("\\b(para|pra) que serve " + eu + "\\b").test(t) ||
+  if ((/\b(voce|bach)\b/.test(t) && /\b(serve|servir|presta|funciona|utilidade)\b/.test(t)) ||
       /\b(qual|quais) (e )?(a |as )?(sua|suas) (funcao|funcoes|utilidade|objetivo|proposito|capacidades)\b/.test(t) ||
       /\bpara que voce foi (criada|feita|criado|feito)\b/.test(t)) return SOBRE.servir;
   if (new RegExp("\\bcomo " + eu + " (funciona|pensa|aprende|responde|e feita)\\b").test(t) ||
-      /\bvoce (usa|roda|funciona com|e feita com) (ia|inteligencia artificial|chatgpt|gemini|claude|internet|api)\b/.test(t)) return SOBRE.como;
+      /\bvoce (usa|roda|funciona com|e feita com) (ia|inteligencia artificial|internet|api)\b/.test(t)) return SOBRE.como;
   if (/\bvoce e (uma |um )?(ia|inteligencia artificial|robo|chatgpt|humana|gente|pessoa|real)\b/.test(t)) return SOBRE.ia;
   if (/\bvoce (esta|ta|anda|so|vive|sempre|muito|ainda) (errando|errada|falhando|dando errado|entendendo)\b/.test(t) ||
-      /\bvoce (so |sempre |muito |ainda )?(erra|errou)\b/.test(t) || /\b(respostas?) (erradas?|diferentes|trocadas)\b/.test(t) ||
-      /\bvoce errou\b/.test(t) || /\bpor que voce nao entende\b/.test(t) || /\bvoce nao (entende|entendeu)\b/.test(t)) return SOBRE.erro;
+      /\b(errando voce|falou errado|voce errou|voce esta errando|ta errando)\b/.test(t) ||
+      /\b(respostas?) (erradas?|diferentes|trocadas)\b/.test(t) ||
+      /\bpor que voce nao entende\b/.test(t) || /\bvoce nao (entende|entendeu)\b/.test(t)) return SOBRE.erro;
   if (/\b(suas|quais (sao )?(as )?(suas )?) ?(limitacoes|limites)\b/.test(t) || /\bvoce nao (consegue|sabe) tudo\b/.test(t)) return SOBRE.limite;
   if (/\bvoce e (melhor|igual|parecida?) (que|do|de|ao|com) (o )?(chatgpt|claude|gemini)\b/.test(t) ||
       /\b(melhor|igual) (que|do|de|ao) (o )?(chatgpt|claude|gemini)\b.*\bvoce\b/.test(t)) return SOBRE.melhor;
