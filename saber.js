@@ -117,6 +117,17 @@ const kr = t => kw(t).map(radical);
 
 const DESAMBIGUA = /(pode (se )?referir-se a|pode significar|pode designar|p[áa]gina de desambigua|desambigua[çc][ãa]o)/i;
 
+/* Perguntas sobre lançamentos FUTUROS de entretenimento (filmes, séries, animes
+   "que vão estrear", "mês que vem", "em breve"...) não têm resposta confiável
+   numa enciclopédia: a busca por palavra-chave pode trazer qualquer artigo que
+   contenha "filme", "série" etc., incluindo resultados impróprios ou sem
+   nenhuma relação. Melhor recusar com honestidade do que arriscar isso. */
+const FUTURO_ENTRETENIMENTO = /\b(filmes?|series?|animes?|desenhos?|jogos?)\b[\s\S]{0,40}\b(mes que vem|proximo mes|proximos meses|em breve|vai estrear|vao estrear|vai lancar|vao lancar|lancamentos?|que (vai|vao) sair|que esta(o)? vindo|vindo ai)\b|\b(mes que vem|proximo mes|em breve|lancamentos?|vai estrear|vao estrear)\b[\s\S]{0,40}\b(filmes?|series?|animes?|desenhos?|jogos?)\b/;
+
+/* "pesquisa isso que você me disse", "o que você quis dizer com isso" etc. não são
+   temas de pesquisa: são pedidos para a BACH explicar a própria resposta anterior. */
+const META_REFERENCIA = /\b(isso|aquilo|essa resposta|sua resposta)\b[\s\S]{0,25}\b(que (me |voce |vc )?(disse|falou|respondeu|mandou|explicou))\b|\bo que (voce|vc) (quis dizer|falou|disse|respondeu)\b/;
+
 function paragrafos(texto) {
   const corte = String(texto || "").split(/\n(?:Ver também|Referências|Ligações externas|Notas|Bibliografia|Leitura adicional)\s*\n/)[0];
   const out = [];
@@ -391,6 +402,14 @@ function compor(q, fontes, n = 4) {
 }
 
 async function pesquisaProfunda(q, progresso = () => {}, fundo = true) {
+  const qn = norm(q);
+  if (FUTURO_ENTRETENIMENTO.test(qn)) {
+    throw new Error("sem-dados-futuros");
+  }
+  if (META_REFERENCIA.test(qn)) {
+    throw new Error("meta-referencia");
+  }
+
   const qk = kw(q);
   const qs = new Set(qk.map(radical));
   const fontes = [];
