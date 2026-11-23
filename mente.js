@@ -1,7 +1,7 @@
-/* BACH AI - MENTE 2.0
-   Entende contexto, texto colado, jogos, criação de apps, pastas, vocabulário expandido e perguntas.
-   100% sua, sem IA externa. */
-import { Saber } from "./saber.js?v=5";
+/* BACH AI - MENTE 2.1
+   Entende contexto, texto/código colado (singular e plural), jogos, criação de apps,
+   pastas, vocabulário expandido e perguntas. 100% sua, sem IA externa. */
+import { Saber } from "./saber.js?v=8";
 import { KB, ERROS } from "./conhecimento.js?v=1";
 
 const KF = "bach_arquivos_v1";
@@ -32,7 +32,8 @@ const VOCAB = {
   zap: "whatsapp", wpp: "whatsapp", yt: "youtube", insta: "instagram", face: "facebook",
   cod: "codigo", progamacao: "programacao", programaçao: "programacao", codigo: "codigo",
   iries: "iris", bash: "bach", bax: "bach", arcoiris: "arco iris", sao: "sao",
-  ola: "ola", oii: "oi", oie: "oi", eae: "e ai", eai: "e ai", flw: "falou", bora: "bora",
+  ola: "ola", oii: "oi", oiii: "oi", oie: "oi", roi: "oi", roii: "oi", roiii: "oi",
+  eae: "e ai", eai: "e ai", flw: "falou", bora: "bora",
   tmj: "tamo junto", slc: "voce e louco", slk: "voce e louco", mds: "meu deus",
   pco: "pouco", mlr: "melhor", mior: "melhor", btf: "boto fe", tlg: "ta ligado", tlgd: "ta ligado",
   daora: "legal", massa: "legal", brabo: "bom", braba: "boa", top: "bom", show: "bom",
@@ -50,8 +51,8 @@ const BASE_LEX = (
   "cores azul verde vermelho amarelo preto branco rosa roxo laranja marrom cinza dourado prateado pintar pintura quadro quadros desenho desenhar " +
   "musica cantar dancar instrumento violao guitarra piano bateria banda show album letra " +
   "filme filmes serie series anime animes desenho desenhos livro livros historia conto novela cinema ator atriz diretor lancamento estreia trailer sinopse critica nota " +
-  "jogo jogos game games console computador celular internet site pagina rede social aplicativo programa codigo algoritmo dado dados banco servidor nuvem " +
-  "erro bug falha problema solucao texto resumo explicar explicacao significa significado diferenca exemplo pergunta resposta ajuda ajudar " +
+  "jogo jogos game games console computador celular internet site pagina rede social aplicativo programa codigo codigos algoritmo dado dados banco servidor nuvem " +
+  "erro bug falha problema solucao texto textos resumo explicar explicacao significa significado diferenca exemplo pergunta resposta ajuda ajudar " +
   "aprender ensinar estudar escrever falar ouvir ler ver assistir pensar lembrar esquecer comecar terminar continuar tentar conseguir " +
   "criar fazer construir montar editar apagar excluir salvar abrir fechar buscar procurar pesquisar encontrar saber entender conhecer " +
   "esporte futebol basquete volei tenis corrida natacao luta campeonato copa time jogador gol " +
@@ -93,7 +94,7 @@ function lev(a, b) {
 
 function corrigir(w) {
   if (w.length < 5 || /\d/.test(w)) return w;
-  if (/^(passe|passa|passar|passou|arroz|manda|mande|pede|pedir|quero|prece|pesse|lancou|lanca|lancar|estreou|saiu|presta|recomenda|indica)$/.test(w)) return w;
+  if (/^(passe|passa|passar|passou|arroz|manda|mande|pede|pedir|quero|prece|pesse|lancou|lanca|lancar|estreou|saiu|presta|recomenda|indica|bugado|bugada|fazem)$/.test(w)) return w;
   const L = lexico();
   if (L.has(w)) return w;
   const max = w.length >= 8 ? 2 : 1;
@@ -127,11 +128,6 @@ const prep = t => " " + normSimples(t)
   .map(w => (ctx.vocab && ctx.vocab[w]) || VOCAB[w] || w)
   .map(corrigir).join(" ") + " ";
 
-/* Tira comandos, palavras de pergunta e enchimento, deixando só o assunto principal:
-   "Me explica" -> ""
-   "Pesquisa na net sobre filmes de desenho legais" -> "filmes de desenho"
-   "Gta 6 já lançou?" -> "gta 6"
-   "Filme cinderela e bom?" -> "filme cinderela" */
 function tema(t) {
   let x = prep(t).trim();
   const CMD = /^(?:(?:pode|poderia|consegue|faz|faca|fazer|quero|gostaria)\s+)?(?:me\s+)?(?:explica|explique|explicar|fala|fale|falar|diz|diga|conta|conte|mostra|mostre|pesquisa|pesquise|pesquisar|procure|procura|procurar|busca|busque|buscar|indica|indique|recomenda|recomende)(?:\s+uma\s+pesquisa)?(?:\s+na\s+(?:internet|web|net)|no\s+google|\s+online)?(?:\s+pra\s+mim|\s+por\s+favor)?(?:\s+(?:sobre|de|por|a\s+respeito\s+de))?(?:\s+|$)/;
@@ -169,9 +165,17 @@ function persist() {
   } catch {}
 }
 
-const setTexto = (nome, texto) => { ctx.nome = nome; ctx.texto = texto; ctx.ultimo = { t: "texto" }; persist(); };
+const setTexto = (nome, texto) => {
+  ctx.nome = nome;
+  ctx.texto = texto;
+  ctx.tema = null; // novo arquivo/código vira o foco principal
+  ctx.ultimo = { t: "texto" };
+  persist();
+};
+
 const setMidia = (nome, tipo, textoExtraido = "") => {
   ctx.ultimoMidia = { nome, tipo };
+  ctx.tema = null;
   if (textoExtraido && textoExtraido.trim().length > 10) {
     ctx.nome = nome;
     ctx.texto = textoExtraido;
@@ -227,21 +231,22 @@ function revisar(t) {
 function explicarCodigoLocal(t) {
   const linhas = t.split("\n").length;
   const partes = [];
-  if (/\bimport\b/.test(t)) partes.push("• Importa funções ou dados de outros arquivos.");
+  if (/<!doctype html>|<html|<head|<body|<style|<script/i.test(t)) partes.push("• Monta uma página web completa (HTML com estrutura da tela, estilos CSS e lógica em JavaScript).");
+  if (/\bimport\b/.test(t)) partes.push("• Importa funções, módulos ou dados de outros arquivos.");
   if (/\bexport\b/.test(t)) partes.push("• Exporta funções/objetos para serem usados em outros módulos.");
-  if (/localStorage/.test(t)) partes.push("• Salva e carrega dados no navegador usando localStorage.");
-  if (/fetch\(/.test(t)) partes.push("• Busca dados externos na internet usando fetch().");
-  if (/addEventListener|onclick/.test(t)) partes.push("• Escuta ações do usuário na tela (cliques, teclas, etc.).");
-  if (/RegExp|\/.+\/[gimsuy]*|\.test\(|\.match\(|\.replace\(/.test(t)) partes.push("• Usa expressões regulares (regex) para limpar, validar ou procurar padrões em textos.");
-  if (/try\s*\{[\s\S]*catch/.test(t)) partes.push("• Usa blocos try/catch para evitar que erros travem o programa.");
-  if (/async\s+function|await\s+/.test(t)) partes.push("• Executa tarefas assíncronas (async/await), esperando respostas sem congelar a tela.");
-  if (/if\s*\(/.test(t)) partes.push("• Toma decisões com condicionais (if/else).");
-  if (/\b(for|while)\s*\(|\.forEach\(|\.map\(|\.filter\(/.test(t)) partes.push("• Percorre listas ou repete ações com loops/métodos de array.");
+  if (/localStorage/.test(t)) partes.push("• Salva e carrega dados localmente no navegador (localStorage).");
+  if (/fetch\(/.test(t)) partes.push("• Faz chamadas na internet/APIs usando fetch().");
+  if (/addEventListener|onclick|onkeydown|onchange/.test(t)) partes.push("• Reage a ações do usuário na tela (cliques, envio de arquivos, teclado, voz).");
+  if (/RegExp|\.test\(|\.match\(|\.replace\(/.test(t)) partes.push("• Usa expressões regulares (regex) para interpretar frases, limpar texto ou procurar padrões.");
+  if (/try\s*\{[\s\S]*catch/.test(t)) partes.push("• Usa blocos try/catch para evitar que erros quebrem o app.");
+  if (/async\s+function|await\s+/.test(t)) partes.push("• Executa tarefas assíncronas (async/await), esperando respostas da rede ou leitura de arquivos sem travar a tela.");
+  if (/if\s*\(/.test(t)) partes.push("• Toma decisões com condicionais (if/else) para escolher qual resposta ou ação executar.");
+  if (/\b(for|while)\s*\(|\.forEach\(|\.map\(|\.filter\(/.test(t)) partes.push("• Percorre listas ou repete ações com loops e métodos de array.");
 
   const leitura = Saber.lerTexto(t);
   return "🧠 Explicação de **" + ctx.nome + "** (" + linhas + " linhas):\n\n" +
     leitura +
-    (partes.length ? "\n\n⚙️ Como ele funciona por dentro:\n" + partes.join("\n") : "") +
+    (partes.length ? "\n\n⚙️ O que esses códigos fazem na prática:\n" + partes.join("\n") : "") +
     "\n\n💡 Diga “revisar” para caçar erros ou “resumir” para encurtar.";
 }
 
@@ -252,7 +257,7 @@ function sobreTexto(p) {
     return r.length ? "📝 Resumo de " + ctx.nome + ":\n• " + r.join("\n• ") : Saber.lerTexto(t);
   }
   if (cod && has(p, /erro|problema|bug|revis|melhor|conserta|arruma/)) return revisar(t);
-  if (cod && has(p, /explic|o que faz|entend|como funciona|o que e/)) return explicarCodigoLocal(t);
+  if (cod && has(p, /explic|o que faz|faz o que|fazem o que|o que fazem|para que serve|pra que serve|entend|como funciona|o que e/)) return explicarCodigoLocal(t);
   return "📄 " + ctx.nome + "\n" + Saber.lerTexto(t) + "\n\nPosso também: explicar em detalhes, resumir, revisar o código ou guardar numa pasta (/pasta Nome).";
 }
 
@@ -448,7 +453,7 @@ function responder(msg) {
     if (!ctx.nome) return { texto: "Não tenho nenhum arquivo recente guardado pra apagar. Veja os nomes com /arquivos e use /apagar nome.", origem: "📂 arquivos" };
     return { apagar: ctx.nome };
   }
-  if (has(p, / (manda|mande|envia|reenvia|repete|coloca) /) && has(p, / (codigo|texto|isso|arquivo) /) && has(p, / (de novo|novamente|outra vez|ai|aqui) /)) {
+  if (has(p, / (manda|mande|envia|reenvia|repete|coloca) /) && has(p, / (codigo|codigos|texto|isso|arquivo) /) && has(p, / (de novo|novamente|outra vez|ai|aqui) /)) {
     if (!ctx.texto) return { texto: "Não tenho nenhum texto ou código guardado agora. Cole ou anexe de novo. 📎", origem: "🧠 contexto" };
     const lang = Saber.isCode(ctx.texto) ? "js" : "txt";
     return { texto: "📄 " + ctx.nome + "\n\n```" + lang + "\n" + ctx.texto.slice(0, 3500) + (ctx.texto.length > 3500 ? "\n\n[...]" : "") + "\n```", origem: "📄 reenvio" };
@@ -463,11 +468,13 @@ function responder(msg) {
     };
   }
 
-  /* Pedidos diretos de explicação/resumo/revisão sem assunto novo ("me explica", "explica", "o que e isso", "resume") */
-  const PEDIDO_TEXTO_BARE = /^ ?((me\s+)?explic\w*|resum\w*|revis\w*|analis\w*|conserta\w*|arruma\w*|o que (e|faz) isso)(\s+(isso|esse texto|esse codigo|o codigo|o texto|essa imagem|essa foto))? ?$/;
-  if (PEDIDO_TEXTO_BARE.test(p) || (has(p, / (esse|este|isso|texto|codigo|arquivo|ele|imagem|foto) /) && has(p, /(o que e|explica|explique|resum|o que faz|pra que serve|erro|problema|entend|leia|le |analis|revis|conserta|arruma)/))) {
+  /* Pedidos sobre o último texto/código enviado (singular e plural: "esses codigos fazem o que?") */
+  const PEDIDO_TEXTO_BARE = /^ ?((me\s+)?explic\w*|resum\w*|revis\w*|analis\w*|conserta\w*|arruma\w*|o que (e|faz|fazem) isso)(\s+(isso|esse texto|esse codigo|esses codigos|o codigo|os codigos|o texto|essa imagem|essa foto))? ?$/;
+  const REF_ARQUIVO = / (esse|este|esses|estes|isso|texto|textos|codigo|codigos|arquivo|arquivos|ele|eles|imagem|foto) /;
+  const ACAO_ARQUIVO = /(o que e|o que faz|faz o que|fazem o que|o que fazem|para que serve|pra que serve|como funciona|explica|explique|resum|erro|problema|entend|leia|le |analis|revis|conserta|arruma)/;
+  if (PEDIDO_TEXTO_BARE.test(p) || (has(p, REF_ARQUIVO) && has(p, ACAO_ARQUIVO))) {
     if (ctx.texto) return { texto: sobreTexto(p), origem: "📖 leitura do seu texto" };
-    if (ctx.ultimoMidia) return { texto: "Na última mídia (“" + ctx.ultimoMidia.nome + "”) eu não encontrei texto suficiente para explicar. Se tiver algo específico nela que você quer saber, me diga o assunto! 🖼️", origem: "🧠 contexto" };
+    if (ctx.ultimoMidia) return { texto: "Na última mídia (“" + ctx.ultimoMidia.nome + "”) eu não encontrei texto suficiente para explicar. 🖼️", origem: "🧠 contexto" };
     if (ctx.tema) return { pesquisa: ctx.tema, fundo: true };
     return { texto: "O que você quer que eu explique? Cole o texto/código aqui ou me diga o assunto (ex.: “me explica o que é API”). 🤔", origem: "🧠 contexto" };
   }
@@ -491,7 +498,7 @@ function responder(msg) {
   const cap = p.match(/^ (?:voce )?(?:sabe|consegue|pode|poderia|sabe me) (.+)/);
   if (cap && !has(p, / (horas|hora) /)) {
     const x = cap[1].trim();
-    if (has(p, / (programar|codigo|codar|jogar|resumir|pesquisar|escrever|criar|calcular|ler|traduzir) /) && !has(p, / (quadro|desenho|musica|carro|cozinhar|dancar|cantar) /)) return { texto: "Sim! 😊 Eu sei: programar (JS, Python, HTML, CSS, SQL), jogar (forca, velha, quiz, adivinhação), resumir e revisar textos, criar apps prontos, pesquisar na internet, contar e guardar arquivos em pastas.\nDiga o que quer fazer!", origem: "🧠 minhas habilidades" };
+    if (has(p, / (programar|codigo|codar|jogar|resumir|pesquisar|escrever|criar|calcular|ler|traduzir) /) && !has(p, / (quadro|desenho|musica|carro|cozinhar|dancar|cantar) /)) return { texto: "Sim! 😊 Eu sei: programar (JS, Python, HTML, CSS, SQL), jogar (forca, velha, quiz, adivinhação), resumir e revisar textos, criar apps prontos, pesquisar na internet, traduzir idiomas e guardar arquivos em pastas.\nDiga o que quer fazer!", origem: "🧠 minhas habilidades" };
     const tmCap = tema(x) || x;
     if (tmCap.length >= 2) { lembrarTema(tmCap); return { pesquisa: tmCap, fundo: true }; }
   }
