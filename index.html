@@ -117,18 +117,19 @@ textarea#entrada{flex:1;min-width:0;padding:11px;border:1px solid #44465d;border
 
 <script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <script type="module">
-import { RizikBrain } from "./brain.js?v=16";
-import { Saber } from "./saber.js?v=10";
+import { RizikBrain } from "./brain.js?v=17";
+import { Saber } from "./saber.js?v=11";
 import { Prog } from "./programacao.js?v=4";
 import { Arquivos } from "./arquivos.js?v=3";
-import { Mente } from "./mente.js?v=13";
-import { Fatos } from "./fatos.js?v=6";
+import { Mente } from "./mente.js?v=14";
+import { Fatos } from "./fatos.js?v=7";
 import { Conversa } from "./conversa.js?v=5";
 import { Dic } from "./dicionario.js?v=4";
 import { Historico } from "./historico.js?v=3";
-import { Base } from "./base.js?v=4";
+import { Base } from "./base.js?v=5";
 import { SkillRouter } from "./registry.js?v=2";
 import { LLM } from "./llm.js?v=1";
+import { CerebroAvancado } from "./cerebro_avancado.js?v=1";
 
 const $ = id => document.getElementById(id);
 const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status"), hist = $("hist");
@@ -153,7 +154,7 @@ try {
   if (!Array.isArray(history)) history = [];
 } catch { history = []; }
 
-const statusPadrao = () => "BACH AI • " + (NOMES_MODOS[modoAtual] || "🤖 Automático") + " • Online + Offline Automático";
+const statusPadrao = () => "BACH AI • " + (NOMES_MODOS[modoAtual] || "🤖 Automático");
 
 const salvarHist = () => {
   try {
@@ -358,7 +359,7 @@ async function pesquisaProfunda(q, fundo = true) {
   passo((usarFundo ? "🔎 Pesquisando a fundo: " : "🔎 Pesquisando: ") + temaLimpo);
   try {
     const r = await Saber.pesquisaProfunda(q, passo, usarFundo);
-    const tx = r.texto.replace(/\n\n💬 Em poucas palavras:[^\n]*/, "").replace(/\n\n🔍 Como cheguei nisso:[^\n]*/, "").replace(/\nℹ️ Eu escolho[^\n]*/, "").replace(/\n\n💾 Guardei[^\n]*/, "").replace(/\n\n🚫 Não guardei[^\n]*/, "");
+    const tx = r.texto.replace(/\n\n💬 Em poucas palavras:[^\n]*/, "").replace(/\n\n🔍 Como cheguei nisso:[^\n]*/, "").replace(/\nℹ️[^\n]*/, "").replace(/\n\n💾 Guardei[^\n]*/, "").replace(/\n\n🚫 Não guardei[^\n]*/, "");
     if (r.conf !== "baixa") {
       Mente.lembrarTema(temaLimpo);
       RizikBrain.logTopic(temaLimpo);
@@ -370,14 +371,14 @@ async function pesquisaProfunda(q, fundo = true) {
     console.error(e);
     if (e.message === "irrelevante" && deuFato) return;
     if (e.message === "sem-dados-futuros") {
-      falar("Não consigo prever uma lista completa de lançamentos futuros do próximo mês sem um calendário específico. 🎬 Se quiser, posso te recomendar ótimos filmes ou animes agora mesmo — é só pedir: “me recomenda 10 filmes” ou “me recomenda animes”!");
+      falar("Não consigo prever uma lista completa de lançamentos futuros do próximo mês sem um calendário específico. 🎬 Se quiser, posso te recomendar ótimos filmes ou animes agora mesmo — é só pedir: “me recomenda filmes de ação” ou “me recomenda animes”!");
       return;
     }
     if (e.message === "meta-referencia") {
       falar("Acho que você está falando sobre algo que eu mesma disse! 🤔 Me diga o assunto com outras palavras ou use ↩ Responder no balão.");
       return;
     }
-    falar(e.message === "irrelevante" ? "Procurei, mas nada estava claramente ligado a “" + temaLimpo + "”, e prefiro não chutar. Tente outras palavras. 🔍" : "Não consegui consultar a internet agora. No modo local continuo respondendo normalmente!");
+    falar(e.message === "irrelevante" ? "Não achei resultados confiáveis para “" + temaLimpo + "”, e prefiro não chutar. Tente perguntar de outro jeito! 🔍" : "Não consegui consultar a internet agora. No modo local continuo respondendo normalmente!");
   }
 }
 
@@ -485,7 +486,6 @@ async function processarArquivo(f, silenciosoSeTexto = false) {
     const r = await Arquivos.lerMidia(f, passo);
     if (r.preview) mostrarPreview(r.preview);
     let resposta = r.resumo, pasta = r.pasta, texto = "";
-    ultimaMidiaInfo = { nome: f.name, tipo: r.tipo, resumo: r.resumo };
 
     if (r.tipo === "texto") {
       passo("📖 Lendo o conteúdo...");
@@ -495,13 +495,16 @@ async function processarArquivo(f, silenciosoSeTexto = false) {
       Mente.setTexto(f.name, r.texto);
       ultimoArquivo = { nome: f.name, texto: r.texto };
       ultimaImagem = null;
+      ultimaMidiaInfo = null;
     } else if (r.tipo === "imagem") {
+      ultimaMidiaInfo = { nome: f.name, tipo: r.tipo, resumo: r.resumo };
       ultimaImagem = await imagemParaBase64(f);
       const ocrMatch = String(r.resumo || "").match(/Texto que consegui ler na imagem:\s*\n[“"]([\s\S]+)[”"]\s*$/);
       const ocrTexto = ocrMatch ? ocrMatch[1].trim() : "";
       Mente.setMidia(f.name, r.tipo, ocrTexto);
       ultimoArquivo = ocrTexto ? { nome: f.name, texto: ocrTexto } : null;
     } else {
+      ultimaMidiaInfo = { nome: f.name, tipo: r.tipo, resumo: r.resumo };
       ultimaImagem = null;
       const vidOcr = String(r.resumo || "").match(/Texto visível no quadro do vídeo:\s*\n[“"]([\s\S]+)[”"]\s*$/);
       const vidTexto = vidOcr ? vidOcr[1].trim() : "";
@@ -527,6 +530,7 @@ async function processarArquivo(f, silenciosoSeTexto = false) {
 function novaConversa() {
   try { speechSynthesis.cancel(); } catch {}
   Historico.nova(); history = []; try { localStorage.removeItem(HISTORY_KEY); } catch {}
+  ultimoArquivo = null; ultimaImagem = null; ultimaMidiaInfo = null; ultimoTema = null;
   chat.innerHTML = ""; hist.classList.remove("aberto");
   falar("Nova conversa! 🧹 A anterior ficou guardada no histórico (menu +). Sua memória de aprendizado continua salva.", "bot", "", true);
 }
@@ -603,9 +607,10 @@ async function lerLinkMsg(url, texto, temIA) {
     const r = await Saber.lerLink(url), leitura = Saber.lerTexto(r.texto);
     const a = Arquivos.salvar({ nome: r.nome, pasta: Mente.pasta(Saber.isCode(r.texto) ? "Códigos" : "Textos"), texto: r.texto, resumo: leitura.slice(0, 300), tipo: "link" });
     ultimoArquivo = { nome: a.nome, texto: r.texto }; Mente.setTexto(a.nome, r.texto);
+    ultimaImagem = null; ultimaMidiaInfo = null;
     RizikBrain.logTopic(a.nome);
     if (temIA && texto.replace(url, "").trim().length > 3) { await perguntarIA(texto); return; }
-    falar("🔗 Abri " + r.url + "\n\n" + leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\n💡 Pergunte: “o que é esse texto?”, “explica”, “resume” ou “revisa o código”.", "bot", "🔗 link");
+    falar("🔗 Abri " + r.url + "\n\n" + leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\n💡 Pergunte: “o que é esse texto?”, “explica”, “cadeia de códigos”, “resume” ou “revisa”.", "bot", "🔗 link");
   } catch (e) { console.error(e); falar("Não consegui abrir esse link. Se for privado ou bloquear leitura, copie o texto e cole aqui. 📋"); }
 }
 
@@ -635,7 +640,8 @@ async function seguir(texto, temIA) {
   }
 
   const pedeExplicarArquivo = /Guardei em:|Texto que consegui ler|Texto visível|Li o texto|Funções que encontrei|Parece (HTML|JavaScript|Python|código)/i.test(base) &&
-    (/(esse|este|esses|estes|isso|aqui|codigo|codigos|texto|arquivo|foto|imagem|print|cadeia).*(faz|fazem|serve|servem|explic|funciona|o que e|escrito|diz|copiar)/.test(nt) || /^(me\s+)?(explica|explique|explicar|o que faz|fazem o que|o que e isso|o que esta escrito)/.test(nt));
+    (/(esse|este|esses|estes|isso|aqui|codigo|codigos|texto|arquivo|foto|imagem|print|cadeia|ele|ela).*(faz|fazem|serve|servem|explic|funciona|o que e|o que|escrito|diz|copiar)/.test(nt) ||
+     /^(me\s+)?(explica|explique|explicar|o que faz|fazem o que|ele faz|para que serve|o que e isso|o que esta escrito)/.test(nt));
   if (pedeExplicarArquivo && ultimoArquivo?.texto && !temIA) {
     const resp = Mente.responder(texto);
     if (resp?.texto) { falar(resp.texto, "bot", "📖 leitura do arquivo"); return true; }
@@ -663,7 +669,7 @@ function ctxConversa() {
   };
 }
 
-/* ---------- roteamento central (Automático + 10 Modos) ---------- */
+/* ---------- roteamento central (Automático + 10 Modos + CerebroAvancado) ---------- */
 const sn = t => String(t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 
 async function rotear(texto) {
@@ -691,7 +697,7 @@ async function rotear(texto) {
     if (mtCmd) { falar(mtCmd.texto, "bot", mtCmd.origem); return; }
   }
 
-  // 3) Ferramentas exatas e departamentos (comandos de ADM como /modulos funcionam aqui em segredo)
+  // 3) Ferramentas exatas e departamentos (comandos de ADM como /modulos funcionam em segredo)
   const dept = SkillRouter.handle(texto, { hasAI: temIA, history, mode: modoAtual });
   if (dept) { falar(dept.texto, "bot", dept.origem); return; }
 
@@ -701,8 +707,33 @@ async function rotear(texto) {
     return lerLinkMsg(links[0], texto, temIA);
   }
 
-  // 5) Pergunta direta sobre texto/foto/vídeo recente ("oque esta escrito aqui?", "oque diz na foto?")
-  const perguntaMidiaLocal = /\b(escrito|escrita|diz|dizendo|texto|conteudo|aparece|tem aqui|nessa foto|nesta foto|na foto|nessa imagem|na imagem|no print|nesse print|nesse video|no video)\b/.test(tn) &&
+  // 5) Memória, ensino explícito e textos/códigos grandes (ANTES de pergunta de mídia!)
+  passo("🧠 Consultando minha memória...");
+  const r = RizikBrain.think(texto);
+  if (r.intent === "longtext") {
+    const cod = Saber.isCode(texto), leitura = Saber.lerTexto(texto);
+    const a = Arquivos.salvar({ texto, pasta: Mente.pasta(cod ? "Códigos" : "Textos"), resumo: leitura.slice(0, 300) });
+    ultimoArquivo = { nome: a.nome, texto }; Mente.setTexto(a.nome, texto);
+    ultimaImagem = null; ultimaMidiaInfo = null;
+    RizikBrain.logTopic(a.nome);
+    if (temIA) { await perguntarIA(texto); return; }
+    falar(leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos\n💡 Agora pergunte: “o que é esse texto?”, “explica”, “cadeia de códigos”, “resume” ou “revisa”.");
+    return;
+  }
+
+  const MEMORIA_DIRETA = new Set([
+    "learning", "forget", "synonym", "name-set", "note", "notes", "export", "import",
+    "stats", "help", "profile-memory", "autocorrected", "declined", "confirm", "memorySummary", "learned"
+  ]);
+  if (r.handled && MEMORIA_DIRETA.has(r.intent)) {
+    falar(r.text, "bot", "🧠 minha memória");
+    return;
+  }
+
+  // 6) Pergunta curta direta sobre foto/vídeo/print recente ("oque ta escrito aqui?")
+  const ehCurtaNaoCodigo = !Saber.isCode(texto) && texto.length <= 140 && tn.split(" ").length <= 15;
+  const perguntaMidiaLocal = ehCurtaNaoCodigo &&
+    /\b(escrito|escrita|diz|dizendo|aparece|tem aqui|nessa foto|nesta foto|na foto|nessa imagem|na imagem|no print|nesse print|nesse video|no video)\b/.test(tn) &&
     /\b(aqui|foto|imagem|print|video|isso|essa|esse|nele|nela)\b/.test(tn);
   if (perguntaMidiaLocal && (ultimaMidiaInfo || ultimoArquivo)) {
     if (temIA && ultimaImagem) { await perguntarIA(texto); return; }
@@ -716,7 +747,7 @@ async function rotear(texto) {
     }
   }
 
-  // 6) Clima
+  // 7) Clima
   const cidSalva = (() => { try { return localStorage.getItem("bach_cidade"); } catch { return null; } })();
   if (/^(?:(?:qual|como)\s+(?:(?:est[aá]|[ée])\s+)?(?:a\s+|o\s+)?)?(?:clima|tempo|previs[aã]o(?:\s+do\s+tempo)?)(?:\s+(?:hoje|agora|amanh[aã]))?\s*\??$/i.test(texto) ||
       /^(?:tem|vai|vem|est[aá]|esta)\s+.{0,15}(?:chuva|chover|chovendo)(?:\s+(?:hoje|agora|amanh[aã]))?\s*\??$/i.test(texto)) {
@@ -725,7 +756,7 @@ async function rotear(texto) {
   }
   const cid = extrairClima(texto); if (cid) return clima(cid);
 
-  // 7) Modos específicos selecionados na barra superior
+  // 8) Modos específicos selecionados na barra superior
   if (modoAtual === "pesquisa") {
     return pesquisaProfunda(extrairProfundo(texto) || extrairPesquisa(texto) || texto, true);
   }
@@ -740,15 +771,6 @@ async function rotear(texto) {
   }
   if (modoAtual === "documentos") {
     if (!ultimoArquivo) {
-      const rDoc = RizikBrain.think(texto);
-      if (rDoc.intent === "longtext") {
-        const leitura = Saber.lerTexto(texto);
-        const a = Arquivos.salvar({ texto, pasta: Mente.pasta(Saber.isCode(texto) ? "Códigos" : "Textos"), resumo: leitura.slice(0, 300) });
-        ultimoArquivo = { nome: a.nome, texto }; Mente.setTexto(a.nome, texto);
-        if (temIA) return perguntarIA("Analise e resuma este documento: " + texto.slice(0, 300));
-        falar(leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome);
-        return;
-      }
       falar("📄 Modo Documentos ativo: cole um texto longo, um link ou anexe um arquivo pelo +.");
       return;
     }
@@ -758,33 +780,7 @@ async function rotear(texto) {
     return;
   }
 
-  // 8) Pedidos explícitos de pesquisa online
-  const prof = extrairProfundo(texto); if (prof !== null) return pesquisaProfunda(prof, true);
-  const cons = extrairPesquisa(texto); if (cons !== null) return pesquisaProfunda(cons, modoProfundo);
-
-  // 9) Memória, ensino explícito e textos grandes
-  passo("🧠 Consultando minha memória...");
-  const r = RizikBrain.think(texto);
-  if (r.intent === "longtext") {
-    const cod = Saber.isCode(texto), leitura = Saber.lerTexto(texto);
-    const a = Arquivos.salvar({ texto, pasta: Mente.pasta(cod ? "Códigos" : "Textos"), resumo: leitura.slice(0, 300) });
-    ultimoArquivo = { nome: a.nome, texto }; Mente.setTexto(a.nome, texto);
-    RizikBrain.logTopic(a.nome);
-    if (temIA) { await perguntarIA(texto); return; }
-    falar(leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos\n💡 Agora pergunte: “o que é esse texto?”, “explica”, “resume” ou “revisa o código”.");
-    return;
-  }
-
-  const MEMORIA_DIRETA = new Set([
-    "learning", "forget", "synonym", "name-set", "note", "notes", "export", "import",
-    "stats", "help", "profile-memory", "autocorrected", "declined", "confirm", "memorySummary", "learned"
-  ]);
-  if (r.handled && MEMORIA_DIRETA.has(r.intent)) {
-    falar(r.text, "bot", "🧠 minha memória");
-    return;
-  }
-
-  // 10) Jogos e notícias explícitos
+  // 9) Jogos e notícias explícitos
   if (/\b(jogar|jogo da velha|forca|adivinhe o numero)\b/i.test(tn) && !/\b(crie|criar|faca|fazer|programe|explique|o que e)\b/i.test(tn)) {
     const mtJ = Mente.responder(texto);
     if (mtJ?.texto) { falar(mtJ.texto, "bot", mtJ.origem || "🎮 jogos"); return; }
@@ -793,13 +789,29 @@ async function rotear(texto) {
     return noticias(/brasil/i.test(texto) ? "ultimas noticias do brasil hoje" : "ultimas noticias do mundo hoje");
   }
 
-  // 11) Se houver motor estendido configurado pelo ADM, responde com ele
+  // 10) Motor estendido opcional (quando ativado pelo ADM)
   if (temIA) {
     await perguntarIA(texto);
     return;
   }
 
-  // 12) Cérebro local + pesquisa automática online (sem mencionar motores externos)
+  // 11) Cérebro Avançado (NLU, recomendações por gênero, comparações, escrita, feedback de erro, contexto)
+  const av = await CerebroAvancado.responder(texto, { ultimoArquivo, ultimoTema, ultimaMidiaInfo });
+  if (av) {
+    if (av.usarMenteTexto && ultimoArquivo?.texto) {
+      const mtTex = Mente.responder(texto) || { texto: Saber.lerTexto(ultimoArquivo.texto), origem: "📖 leitura do arquivo" };
+      falar(mtTex.texto, "bot", mtTex.origem || "📖 leitura do arquivo");
+      return;
+    }
+    if (av.pesquisarTema) return pesquisaProfunda(av.pesquisarTema, true);
+    if (av.texto) { falar(av.texto, "bot", av.origem || "🧠 BACH AI"); return; }
+  }
+
+  // 12) Pedidos explícitos de pesquisa online
+  const prof = extrairProfundo(texto); if (prof !== null) return pesquisaProfunda(prof, true);
+  const cons = extrairPesquisa(texto); if (cons !== null) return pesquisaProfunda(cons, modoProfundo);
+
+  // 13) Respostas em cadeia, dicionário, fatos, conversa, mente, programação e busca automática
   if (await seguir(texto, false)) return;
 
   const pedidoDic = Dic.detectar(texto);
@@ -855,7 +867,7 @@ async function rotear(texto) {
     return;
   }
 
-  falar(Prog.desconhecido(texto) + "\n\nVocê pode:\n• perguntar sobre qualquer tema (ciência, história, código, curiosidades)\n• pedir recomendações de filmes, animes ou músicas\n• enviar uma foto ou código para eu ler e explicar\n• usar os modos acima ou ferramentas: /calc, /converter, /juros, /fisica, /golpe\n• me ensinar: ensine: pergunta => resposta");
+  falar(Prog.desconhecido(texto) + "\n\nVocê pode:\n• perguntar sobre qualquer tema (ciência, história, código, curiosidades)\n• pedir recomendações de filmes, séries, animes ou músicas (ex.: “me recomenda sertanejo”)\n• pedir para eu escrever e-mails, textos, planos de estudo ou comparações\n• enviar uma foto ou código para eu ler e explicar\n• me ensinar: ensine: pergunta => resposta");
 }
 
 function ajustar() { entrada.style.height = "auto"; entrada.style.height = Math.min(entrada.scrollHeight, 130) + "px"; }
@@ -887,7 +899,6 @@ async function enviar() {
     if (/^(\/clear|\/limpar|\/nova|nova conversa|limpar histórico)$/i.test(texto)) { alvo = null; novaConversa(); return; }
     if (/^(\/historico|\/histórico|histórico|historico)(\s+\d+)?$/i.test(texto)) { alvo = null; abrirHistorico(parseInt((texto.match(/\d+/) || [1])[0], 10) || 1); return; }
 
-    // Comandos secretos de ADM continuam funcionando se você digitar manualmente
     const cmdLLM = LLM.command(texto);
     if (cmdLLM) {
       alvo = null;
@@ -967,7 +978,7 @@ entrada.addEventListener("input", ajustar);
 
 try { Historico.salvarAtual(history); } catch {}
 restaurar(); status.textContent = statusPadrao();
-if (!history.length) falar("Olá! Sou a BACH AI 🧠. Converso, traduzo idiomas, lembro do que falamos, analiso fotos, vídeos e documentos, programo, calculo, crio jogos e pesquiso na internet. Digite “ajuda” para ver tudo.");
+if (!history.length) falar("Olá! Sou a BACH AI 🧠. Converso, traduzo idiomas, lembro do que falamos, analiso fotos, vídeos e documentos, programo, escrevo textos, recomendo filmes e músicas e pesquiso na internet. Digite “ajuda” para ver tudo.");
 </script>
 </body>
 </html>
