@@ -1,6 +1,6 @@
-/* BACH AI - CONVERSA 2.0
-   Personalidade: cumprimentos por hora do dia (e multi-idioma), empatia, curiosidades,
-   charadas, motivação, papo espontâneo, "meus dados" e proteção de dados pessoais. */
+/* BACH AI - CONVERSA 2.1
+   Personalidade: cumprimentos, interjeições brasileiras, empatia, idiomas que fala/traduz,
+   curiosidades, charadas, motivação, "meus dados" e proteção de dados pessoais. */
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
@@ -31,7 +31,7 @@ const CURIOSIDADES = [
   "🦒 A girafa tem 7 vértebras no pescoço, o mesmo número que os humanos (só que bem maiores).",
   "🪐 Um ano em Netuno dura cerca de 165 anos terrestres.",
   "🐝 O mel quase não estraga: foram encontrados potes de mel comestível em tumbas egípcias com milhares de anos.",
-  "🌿 O Pantanal é considerado a maior planície alagável do mundo.",
+  "🌿 O Pantanal é considerada a maior planície alagável do mundo.",
   "🧠 O corpo humano tem algo em torno de 37 trilhões de células, segundo estimativas científicas.",
   "🎮 O jogo Tetris foi criado em 1984 pelo engenheiro russo Alexey Pajitnov enquanto testava um computador antigo.",
   "🌌 Existem mais estrelas no universo observável do que grãos de areia em todas as praias da Terra.",
@@ -96,8 +96,8 @@ const SABER = [
   [/\b(piada|piadas|humor)\b/, "Sei sim! 😄 Diga “conta uma piada” (ou “piada de programador”)."],
   [/\b(pesquisar|pesquisa|internet|buscar)\b/,
    "Sim! 🔎 Pesquiso na Wikipédia e na web, comparo as fontes e resumo mostrando de onde veio. Diga “pesquise sobre ...” ou “pesquise a fundo sobre ...”."],
-  [/\b(traduzir|traducao|idiomas|linguas|ingles|espanhol|frances|italiano|alemao|japones)\b/,
-   "Sim! 🌍 Traduzo palavras e frases em inglês, espanhol, francês, italiano, alemão (inclusive offline) e mais de 15 idiomas online! Experimente: “como se diz obrigado em japonês?” ou “traduz bom dia para inglês”."],
+  [/\b(traduzir|traducao|idiomas|linguas|ingles|espanhol|frances|italiano|alemao|japones|chines|coreano|russo|arabe|latim|portugues)\b/,
+   "Sim! 🌍 Traduzo palavras e frases em inglês, espanhol, francês, italiano, alemão (inclusive offline) e mais de 15 idiomas online! Experimente: “como se diz obrigado em italiano?” ou “traduz para português: Good morning”."],
   [/\b(desenhar|desenho|imagem|imagens|foto|fotos)\b/,
    "Leio texto escrito em fotos, mas não desenho nem reconheço objetos, pessoas ou cenas ainda. 🖼️"]
 ];
@@ -150,8 +150,8 @@ function responder(texto, ctx = {}) {
     return "Sinto muito que você esteja passando por isso. Você não está sozinho(a), e o que você sente importa. 💜\n\nPor favor, fale agora com alguém: no Brasil o CVV atende 24 horas pelo telefone 188 (ligação gratuita) e pelo site cvv.org.br. Se estiver em perigo imediato, ligue 192 (SAMU) ou vá ao pronto-socorro mais próximo. Se tiver alguém de confiança por perto, conte para essa pessoa agora.\n\nEstou aqui com você.";
   }
 
-  // cumprimentos (PT + outros idiomas)
-  if (/^(oi+|ola+|eai|e ai|opa|salve|fala|hey|hello|hi|oie|alo|hola|bonjour|ciao|hallo)( bach| bach ai| tudo bem)?$/.test(t)) {
+  // cumprimentos (PT + variações tipo "roii" + outros idiomas)
+  if (/^(o+i+|r?o+i+|o+l+a+|eai|e ai|opa|salve|fala|hey|hello|hi|o+i+e+|alo+|hola|bonjour|ciao|hallo)( bach| bach ai| tudo bem)?$/.test(t)) {
     const s = SAUD[periodo(h)];
     return girar("saud", [
       s[1].replace("!", n + "!") + " Sou a BACH AI 🧠. Como você está?",
@@ -172,13 +172,23 @@ function responder(texto, ctx = {}) {
       "Tudo certo! Pronta para ajudar. Como está você" + n + "?"
     ]);
   }
+
+  // interjeições e reações rápidas do dia a dia
+  if (/^(ue+|u+e+|oush+|oxe+|oxente|eita+|vixe+|vish+|nossa+|caramba+|aff+|puts+|misericordia|mds|slc|slk|serio|jura|sera|real|e mesmo|mentira)$/.test(t)) {
+    return girar("reacao", [
+      "Haha, o que foi? 😄 Se algo saiu estranho ou se quiser perguntar outra coisa, manda aí!",
+      "Pois é! 😅 Me diz o que você achou estranho ou o que quer fazer agora.",
+      "👀 Opa! Quer que eu explique melhor ou tente de outro jeito?"
+    ]);
+  }
+
   if (/^(to|estou|tou|ando|me sinto) (bem|otimo|otima|feliz|animado|animada|tranquilo|tranquila|de boa)/.test(t) || /^(tudo bem sim|bem sim|de boa)$/.test(t)) {
     return girar("feliz", ["Que bom ouvir isso! 😄 Vamos aproveitar: o que você quer fazer?", "Show! 🙌 Se quiser, te conto uma curiosidade ou a gente resolve algo juntos.", "Fico feliz" + n + "! 💜 Como posso ajudar?"]);
   }
   if (/^(to|estou|tou|me sinto|ando) (muito )?(mal|triste|cansado|cansada|chateado|chateada|ansioso|ansiosa|desanimado|desanimada|estressado|estressada|sem animo|pra baixo)/.test(t)) {
     return girar("triste", [
       "Poxa" + n + ", sinto muito que você esteja assim. 💜 Quer me contar o que aconteceu? Se preferir só distrair a cabeça, posso contar uma curiosidade ou uma piada.",
-      "Dias assim acontecem, e tudo bem não estar bem. 🫂 Respira fundo. Se quiser desabafar, estou aqui; se quiser distração, é só pedir. E se isso estiver pesado há muito tempo, vale conversar com alguém de confiança.",
+      "Dias assim acontecem, e tudo bem não estar bem. 🫂 Respira fundo. Se quiser desabafar, estou aqui; se quiser distração, é só pedir.",
       "Estou com você" + n + ". 💜 Quer conversar sobre isso ou prefere algo leve, como uma charada ou uma curiosidade?"
     ]);
   }
@@ -192,7 +202,7 @@ function responder(texto, ctx = {}) {
     return "Bora resolver isso! 🎮 Posso: contar uma piada, soltar uma curiosidade, lançar uma charada ou jogar forca, jogo da velha ou quiz com você. Qual vai ser?";
   }
 
-  // gratidão, despedida, risadas
+  // gratidão, despedida, risadas, confirmações curtas
   if (/^(muito )?(obrigad[oa]|obg|valeu|vlw|brigado|brigada|agradecid[oa]|valeu demais|thanks|thank you|gracias|merci|grazie|danke)( bach| viu| mesmo)?$/.test(t)) {
     return girar("obg", ["Por nada" + n + "! Sempre que precisar, estou aqui. 😊", "Disponha! 💜", "Imagina! Fico feliz em ajudar. 🙌"]);
   }
@@ -253,8 +263,8 @@ function responder(texto, ctx = {}) {
   if (/^(vamos conversar|conversa comigo|fala comigo|puxa assunto|me faz uma pergunta|vamos bater papo|bora conversar|quero conversar)/.test(t)) return girar("perg", PERGUNTAS);
   if (/^(me ajuda|me ajude|preciso de ajuda|ajuda|socorro)$/.test(t)) return "Claro" + n + "! 🤝 Me diga o que você precisa: aprender um assunto, traduzir algo, resolver um erro de código, pesquisar ou criar um app simples.";
 
-  // "você sabe / entende de X?"
-  const sb = t.match(/^(?:bach |bach ai )?(?:voce )?(?:sabe|entende|conhece|manja|domina|consegue|sabe sobre|entende de|sabe de)\s+(?:de |sobre |a respeito de )?(.+)$/);
+  // "você sabe / fala / entende de X?"
+  const sb = t.match(/^(?:bach |bach ai )?(?:voce )?(?:sabe|fala|falar|entende|conhece|manja|domina|consegue|traduz|sabe sobre|entende de|sabe de)\s+(?:de |sobre |a respeito de |em )?(.+)$/);
   if (sb) {
     const alvo = sb[1];
     for (const [re, resp] of SABER) if (re.test(alvo)) return resp;
