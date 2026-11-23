@@ -1,5 +1,5 @@
-/* BACH AI - MENTE 1.0
-   Entende contexto, texto colado, jogos, criação de apps, pastas e perguntas.
+/* BACH AI - MENTE 2.0
+   Entende contexto, texto colado, jogos, criação de apps, pastas, vocabulário expandido e perguntas.
    100% sua, sem IA externa. */
 import { Saber } from "./saber.js?v=5";
 import { KB, ERROS } from "./conhecimento.js?v=1";
@@ -8,49 +8,180 @@ const KF = "bach_arquivos_v1";
 const lf = () => { try { return JSON.parse(localStorage.getItem(KF)) || []; } catch { return []; } };
 const sf = a => { try { localStorage.setItem(KF, JSON.stringify(a.slice(-300))); } catch (e) { console.warn(e); } };
 const pick = a => a[Math.floor(Math.random() * a.length)];
-/* Vocabulário: gírias, abreviações e jeitos de escrever -> forma padrão */
-const VOCAB = { oque: "o que", oq: "o que", oqe: "o que", vc: "voce", vce: "voce", voces: "voces", pq: "porque", pk: "porque", q: "que", ke: "que", qe: "que",
-  tb: "tambem", tbm: "tambem", tmb: "tambem", mt: "muito", mto: "muito", mta: "muita", blz: "beleza", vlw: "valeu", vlws: "valeu", obg: "obrigado", obgd: "obrigado",
-  hj: "hoje", td: "tudo", tds: "todos", msm: "mesmo", ctz: "certeza", dnv: "de novo", denovo: "de novo", ta: "esta", tao: "estao", to: "estou", tava: "estava", tamo: "estamos",
-  pra: "para", pro: "para o", pras: "para as", pros: "para os", ngm: "ninguem", msg: "mensagem", pf: "por favor", pfv: "por favor", plis: "por favor", pls: "por favor",
-  n: "nao", naum: "nao", nn: "nao", s: "sim", ss: "sim", eh: "e", kd: "cade", qnd: "quando", qdo: "quando", qm: "quem", cm: "como", qto: "quanto", qtos: "quantos",
-  agr: "agora", vdd: "verdade", fds: "fim de semana", sdds: "saudade", add: "adicionar", app: "app", apps: "app", cel: "celular", pc: "computador", net: "internet",
-  iries: "iris", bash: "bach", bax: "bach", arcoiris: "arco iris", sao: "sao", ola: "ola", oii: "oi", oie: "oi", eae: "e ai", eai: "e ai", flw: "falou", vamo: "vamos", bora: "bora",
-  progamacao: "programacao", programaçao: "programacao", codigo: "codigo", kd: "cade", cmo: "como", cmg: "comigo", ctg: "contigo", dps: "depois", ate: "ate", gnt: "gente", mlr: "mulher" };
-/* Léxico: palavras que ela conhece (corrige erros de digitação como "mindo" -> "mundo") */
-const BASE_LEX = ("mundo noticia noticias hoje agora ontem amanha tempo clima chuva calor frio sol lua estrela terra planeta pais cidade estado brasil pessoa gente homem mulher crianca amigo familia casa escola trabalho dinheiro comida agua cafe carne fruta animal cachorro gato cavalo passaro peixe pato planta arvore flor cores azul verde vermelho amarelo preto branco rosa roxo laranja marrom cinza pintar pintura quadro quadros desenho desenhar musica cantar dancar filme livro historia jogo esporte futebol campeonato carro moto aviao onibus trem viagem hotel hospital medico doenca saude remedio corpo cabeca coracao amor feliz triste raiva medo computador celular internet site programa codigo erro texto resumo explicar explicacao significa significado diferenca exemplo pergunta resposta ajuda ajudar aprender ensinar estudar escrever falar ouvir fazer criar jogar pesquisar procurar encontrar saber entender lembrar esquecer comecar terminar importante facil dificil grande pequeno melhor pior rapido devagar muito pouco alguem ninguem sempre nunca depois antes porque quando quanto qualquer outro mesmo primeiro ultimo ultimas politica economia ciencia tecnologia cultura arte geografia matematica fisica quimica biologia presidente governo guerra energia imagem video foto praia montanha floresta deserto neve vento tempestade tinta pincel tela").split(" ");
+
+/* Vocabulário: gírias, abreviações, erros comuns e termos multi-idioma -> forma padrão */
+const VOCAB = {
+  oque: "o que", oq: "o que", oqe: "o que", q: "que", ke: "que", qe: "que",
+  vc: "voce", vce: "voce", vcs: "voces", voces: "voces", nois: "nos", gnt: "gente",
+  pq: "porque", pk: "porque", prq: "porque",
+  tb: "tambem", tbm: "tambem", tmb: "tambem",
+  mt: "muito", mto: "muito", mta: "muita", mts: "muitos",
+  blz: "beleza", fmz: "firmeza", suave: "tranquilo", dboa: "de boa", deboa: "de boa",
+  vlw: "valeu", vlws: "valeu", obg: "obrigado", obgd: "obrigado", obgda: "obrigada",
+  hj: "hoje", ontm: "ontem", amnh: "amanha", agr: "agora", dps: "depois", smp: "sempre", nnc: "nunca",
+  td: "tudo", tdo: "tudo", tds: "todos", nd: "nada", nda: "nada", msm: "mesmo", ctz: "certeza",
+  dnv: "de novo", denovo: "de novo", vdd: "verdade", fds: "fim de semana", sdds: "saudade",
+  ta: "esta", tao: "estao", to: "estou", tava: "estava", tamo: "estamos", vamo: "vamos",
+  pra: "para", pro: "para o", pras: "para as", pros: "para os",
+  ngm: "ninguem", algm: "alguem", msg: "mensagem",
+  pf: "por favor", pfv: "por favor", plis: "por favor", pls: "por favor",
+  n: "nao", naum: "nao", nn: "nao", s: "sim", ss: "sim", eh: "e",
+  kd: "cade", qnd: "quando", qdo: "quando", qm: "quem", cm: "como", cmo: "como",
+  qto: "quanto", qtos: "quantos", qtas: "quantas", cmg: "comigo", ctg: "contigo",
+  add: "adicionar", app: "app", apps: "app", cel: "celular", pc: "computador", net: "internet",
+  zap: "whatsapp", wpp: "whatsapp", yt: "youtube", insta: "instagram", face: "facebook",
+  cod: "codigo", progamacao: "programacao", programaçao: "programacao", codigo: "codigo",
+  iries: "iris", bash: "bach", bax: "bach", arcoiris: "arco iris", sao: "sao",
+  ola: "ola", oii: "oi", oie: "oi", eae: "e ai", eai: "e ai", flw: "falou", bora: "bora",
+  tmj: "tamo junto", slc: "voce e louco", slk: "voce e louco", mds: "meu deus",
+  pco: "pouco", mlr: "melhor", mior: "melhor", btf: "boto fe", tlg: "ta ligado", tlgd: "ta ligado",
+  daora: "legal", massa: "legal", brabo: "bom", braba: "boa", top: "bom", show: "bom",
+  hello: "ola", hi: "ola", hey: "oi", thanks: "obrigado", thx: "obrigado", please: "por favor", sorry: "desculpa",
+  hola: "ola", gracias: "obrigado", bonjour: "ola", merci: "obrigado", ciao: "ola", hallo: "ola", danke: "obrigado"
+};
+
+/* Léxico: palavras conhecidas (corrige erros de digitação como "mindo" -> "mundo") */
+const BASE_LEX = (
+  "mundo noticia noticias hoje agora ontem amanha semana mes ano seculo tempo clima chuva calor frio sol lua estrela terra planeta universo galaxia " +
+  "pais cidade estado capital brasil mundo pessoa gente homem mulher crianca jovem adulto idoso amigo amiga familia pai mae irmao irma filho filha " +
+  "casa apartamento quarto cozinha sala rua bairro escola faculdade universidade trabalho emprego empresa dinheiro banco salario preco compra venda " +
+  "comida agua cafe leite pao arroz feijao carne frango peixe fruta banana maca laranja doce bolo pizza lanche suco cerveja vinho " +
+  "animal cachorro gato cavalo passaro peixe pato leao tigre urso lobo macaco cobra tubarao baleia dinossauro inseto planta arvore flor floresta " +
+  "cores azul verde vermelho amarelo preto branco rosa roxo laranja marrom cinza dourado prateado pintar pintura quadro quadros desenho desenhar " +
+  "musica cantar dancar instrumento violao guitarra piano bateria banda show album letra " +
+  "filme filmes serie series anime animes desenho desenhos livro livros historia conto novela cinema ator atriz diretor lancamento estreia trailer sinopse critica nota " +
+  "jogo jogos game games console computador celular internet site pagina rede social aplicativo programa codigo algoritmo dado dados banco servidor nuvem " +
+  "erro bug falha problema solucao texto resumo explicar explicacao significa significado diferenca exemplo pergunta resposta ajuda ajudar " +
+  "aprender ensinar estudar escrever falar ouvir ler ver assistir pensar lembrar esquecer comecar terminar continuar tentar conseguir " +
+  "criar fazer construir montar editar apagar excluir salvar abrir fechar buscar procurar pesquisar encontrar saber entender conhecer " +
+  "esporte futebol basquete volei tenis corrida natacao luta campeonato copa time jogador gol " +
+  "carro moto bicicleta aviao onibus trem navio viagem turismo hotel mapa estrada transito " +
+  "hospital medico doenca saude remedio vacina corpo cabeca olho boca mao pe coracao cerebro sangue " +
+  "amor feliz felicidade triste tristeza raiva medo susto calma paz alegria saudade sonho esperanca " +
+  "importante facil dificil grande pequeno alto baixo novo velho rapido devagar muito pouco tudo nada algum alguem ninguem " +
+  "sempre nunca depois antes durante porque quando quanto onde quem qual qualquer outro mesmo primeiro ultimo ultimas " +
+  "politica economia ciencia tecnologia cultura arte geografia matematica fisica quimica biologia filosofia psicologia direito " +
+  "presidente governo eleicao lei guerra paz energia eletricidade bateria motor robo inteligencia artificial " +
+  "imagem video foto audio som voz tela teclado mouse camera microfone arquivo pasta documento " +
+  "praia montanha rio mar oceano lago ilha deserto neve vento tempestade raio trovao fogo gelo pedra areia " +
+  "javascript python html css sql java php csharp ruby rust go kotlin swift react node linux windows android ios github"
+).split(" ");
+
 let LEXS = null;
-const lexico = () => { if (!LEXS) { LEXS = new Set(BASE_LEX); KB.forEach(e => e[0].split("|").forEach(k => k.split(" ").forEach(w => w.length > 3 && LEXS.add(w)))); Object.values(VOCAB).forEach(v => v.split(" ").forEach(w => w.length > 3 && LEXS.add(w))); (ctx.lex || []).forEach(w => LEXS.add(w)); } return LEXS; };
-function lev(a, b) { const m = a.length, n = b.length; let pr = Array.from({ length: n + 1 }, (_, j) => j); for (let i = 1; i <= m; i++) { const c = [i]; for (let j = 1; j <= n; j++) c[j] = Math.min(pr[j] + 1, c[j - 1] + 1, pr[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); pr = c; } return pr[n]; }
+const lexico = () => {
+  if (!LEXS) {
+    LEXS = new Set(BASE_LEX);
+    KB.forEach(e => e[0].split("|").forEach(k => k.split(" ").forEach(w => w.length > 3 && LEXS.add(w))));
+    Object.values(VOCAB).forEach(v => v.split(" ").forEach(w => w.length > 3 && LEXS.add(w)));
+    (ctx.lex || []).forEach(w => LEXS.add(w));
+  }
+  return LEXS;
+};
+
+function lev(a, b) {
+  const m = a.length, n = b.length;
+  let pr = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    const c = [i];
+    for (let j = 1; j <= n; j++) {
+      c[j] = Math.min(pr[j] + 1, c[j - 1] + 1, pr[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    pr = c;
+  }
+  return pr[n];
+}
+
 function corrigir(w) {
   if (w.length < 5 || /\d/.test(w)) return w;
-  if (/^(passe|passa|passar|passou|arroz|manda|mande|pede|pedir|quero|prece|pesse)$/.test(w)) return w;
-  const L = lexico(); if (L.has(w)) return w;
-  const max = w.length >= 8 ? 2 : 1; let best = w, bd = max + 1;
-  for (const c of L) { if (c[0] !== w[0] || Math.abs(c.length - w.length) > max || w.startsWith(c) || c.startsWith(w)) continue; const d = lev(w, c); if (d < bd) { bd = d; best = c; } }
+  if (/^(passe|passa|passar|passou|arroz|manda|mande|pede|pedir|quero|prece|pesse|lancou|lanca|lancar|estreou|saiu|presta|recomenda|indica)$/.test(w)) return w;
+  const L = lexico();
+  if (L.has(w)) return w;
+  const max = w.length >= 8 ? 2 : 1;
+  let best = w, bd = max + 1;
+  for (const c of L) {
+    if (c[0] !== w[0] || Math.abs(c.length - w.length) > max || w.startsWith(c) || c.startsWith(w)) continue;
+    const d = lev(w, c);
+    if (d < bd) { bd = d; best = c; }
+  }
   return bd <= max ? best : w;
 }
-function lembrarTema(q) { const t = String(q || "").trim(); if (!t) return; ctx.tema = t; (ctx.lex = ctx.lex || []); prep(t).split(" ").forEach(w => w.length > 3 && !ctx.lex.includes(w) && ctx.lex.push(w)); ctx.lex = ctx.lex.slice(-300); LEXS = null; persist(); }
-const prep = t => " " + String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-  .replace(/(?<=[a-z])-(?=[a-z])/g, " ").replace(/[^a-z0-9+\-*/().,\s]/g, " ").replace(/[.,]+(?=\s|$)/g, " ")
-  .split(/\s+/).filter(Boolean).map(w => (ctx.vocab && ctx.vocab[w]) || VOCAB[w] || w).map(corrigir).join(" ") + " ";
-/* tira as palavras de pergunta e fica só com o assunto: "o que é um pato?" -> "pato" */
+
+function lembrarTema(q) {
+  const t = String(q || "").trim();
+  if (!t) return;
+  ctx.tema = t;
+  ctx.lex = ctx.lex || [];
+  prep(t).split(" ").forEach(w => w.length > 3 && !ctx.lex.includes(w) && ctx.lex.push(w));
+  ctx.lex = ctx.lex.slice(-300);
+  LEXS = null;
+  persist();
+}
+
+const normSimples = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+const prep = t => " " + normSimples(t)
+  .replace(/(?<=[a-z])-(?=[a-z])/g, " ")
+  .replace(/[^a-z0-9+\-*/().,\s]/g, " ")
+  .replace(/[.,]+(?=\s|$)/g, " ")
+  .split(/\s+/).filter(Boolean)
+  .map(w => (ctx.vocab && ctx.vocab[w]) || VOCAB[w] || w)
+  .map(corrigir).join(" ") + " ";
+
+/* Tira comandos, palavras de pergunta e enchimento, deixando só o assunto principal:
+   "Me explica" -> ""
+   "Pesquisa na net sobre filmes de desenho legais" -> "filmes de desenho"
+   "Gta 6 já lançou?" -> "gta 6"
+   "Filme cinderela e bom?" -> "filme cinderela" */
 function tema(t) {
   let x = prep(t).trim();
-  const A = /^(me )?(explica|explique|fala|fale|diz|diga|conta|conte|mostra|mostre|pesquisa|pesquise|procure)\s+(sobre |de |a respeito de )?/;
-  const B = /^(o que|quem|quais|qual|quantos|quantas|quanto|onde|quando|como|por que|porque)\s+(e |sao |foi |foram |era |eram |esta |estao |significa |significam |funciona |funcionam |aconteceu |existe |existem |fica |ficam |fazer |faz |faco |tem )?/;
-  const C = /^(a |o |as |os |um |uma |uns |umas |de |do |da |dos |das |no |na |nos |nas |que |sobre )+/;
-  for (let k = 0; k < 3; k++) x = x.replace(A, "").replace(B, "").replace(C, "").trim();
+  const CMD = /^(?:(?:pode|poderia|consegue|faz|faca|fazer|quero|gostaria)\s+)?(?:me\s+)?(?:explica|explique|explicar|fala|fale|falar|diz|diga|conta|conte|mostra|mostre|pesquisa|pesquise|pesquisar|procure|procura|procurar|busca|busque|buscar|indica|indique|recomenda|recomende)(?:\s+uma\s+pesquisa)?(?:\s+na\s+(?:internet|web|net)|no\s+google|\s+online)?(?:\s+pra\s+mim|\s+por\s+favor)?(?:\s+(?:sobre|de|por|a\s+respeito\s+de))?(?:\s+|$)/;
+  const PERG = /^(?:o\s+que|quem|quais|qual|quantos|quantas|quanto|onde|quando|como|por\s+que|porque|para\s+que|sera\s+que)\s+(?:e|sao|foi|foram|era|eram|esta|estao|significa|significam|funciona|funcionam|aconteceu|existe|existem|fica|ficam|fazer|faz|faco|tem|vai|vao)?\s*/;
+  const ART = /^(?:a|o|as|os|um|uma|uns|umas|de|do|da|dos|das|no|na|nos|nas|que|sobre|na\s+internet|na\s+web|no\s+google|por\s+favor|pra\s+mim)\s+/;
+  const SUF = /\s+(?:ja\s+lancou|lancou|vai\s+lancar|ja\s+saiu|vai\s+sair|e\s+bom|e\s+boa|sao\s+bons|sao\s+boas|vale\s+a\s+pena|presta|e\s+legal|sao\s+legais|legais|legal|bom|boa|melhor|melhores|hoje|agora|atualmente|por\s+favor)$/;
+
+  for (let k = 0; k < 4; k++) {
+    x = x.replace(CMD, "").replace(PERG, "").replace(ART, "").replace(SUF, "").trim();
+  }
+  if (/^(isso|aquilo|ele|ela|eles|elas|esse|essa|este|esta)$/.test(x)) return "";
   return x;
 }
+
 const has = (p, re) => re.test(p);
 
 const KC = "bach_mente_v1";
 const ctx = { texto: null, nome: "", pasta: null, jogo: null, ultimo: null, ultimoMidia: null, assuntos: [], esperando: null, vocab: {}, tema: null, lex: [] };
-try { const o = JSON.parse(localStorage.getItem(KC)); if (o) Object.assign(ctx, { texto: o.texto, nome: o.nome || "", pasta: o.pasta, ultimo: o.ultimo, ultimoMidia: o.ultimoMidia || null, assuntos: o.assuntos || [], vocab: o.vocab || {}, tema: o.tema || null, lex: o.lex || [] }); } catch {}
-function persist() { try { localStorage.setItem(KC, JSON.stringify({ texto: ctx.texto && ctx.texto.slice(0, 60000), nome: ctx.nome, pasta: ctx.pasta, ultimo: ctx.ultimo, ultimoMidia: ctx.ultimoMidia, assuntos: ctx.assuntos, vocab: ctx.vocab, tema: ctx.tema, lex: (ctx.lex || []).slice(-300) })); } catch {} }
+try {
+  const o = JSON.parse(localStorage.getItem(KC));
+  if (o) Object.assign(ctx, {
+    texto: o.texto, nome: o.nome || "", pasta: o.pasta, ultimo: o.ultimo,
+    ultimoMidia: o.ultimoMidia || null, assuntos: o.assuntos || [],
+    vocab: o.vocab || {}, tema: o.tema || null, lex: o.lex || []
+  });
+} catch {}
+
+function persist() {
+  try {
+    localStorage.setItem(KC, JSON.stringify({
+      texto: ctx.texto && ctx.texto.slice(0, 60000),
+      nome: ctx.nome, pasta: ctx.pasta, ultimo: ctx.ultimo, ultimoMidia: ctx.ultimoMidia,
+      assuntos: ctx.assuntos, vocab: ctx.vocab, tema: ctx.tema, lex: (ctx.lex || []).slice(-300)
+    }));
+  } catch {}
+}
+
 const setTexto = (nome, texto) => { ctx.nome = nome; ctx.texto = texto; ctx.ultimo = { t: "texto" }; persist(); };
-const setMidia = (nome, tipo) => { ctx.ultimoMidia = { nome, tipo }; ctx.ultimo = { t: "midia", tipo }; persist(); };
+const setMidia = (nome, tipo, textoExtraido = "") => {
+  ctx.ultimoMidia = { nome, tipo };
+  if (textoExtraido && textoExtraido.trim().length > 10) {
+    ctx.nome = nome;
+    ctx.texto = textoExtraido;
+    ctx.ultimo = { t: "texto" };
+  } else {
+    ctx.texto = null;
+    ctx.ultimo = { t: "midia", tipo };
+  }
+  persist();
+};
 const pasta = def => ctx.pasta || def;
 
 /* ---------- pastas ---------- */
@@ -58,7 +189,7 @@ function comandoPasta(t) {
   let m = t.match(/^\/pasta(?:\s+(.+))?$/i);
   if (m) {
     if (!m[1]) return ctx.pasta ? "📂 Pasta atual: " + ctx.pasta + "\nPara sair: /pasta sair" : "Nenhuma pasta escolhida. Use: /pasta Estudos/IA (pode criar pastas dentro de pastas com /).";
-    if (/^sair$/i.test(m[1].trim())) { ctx.pasta = null; return "Voltei para as pastas automáticas."; }
+    if (/^sair$/i.test(m[1].trim())) { ctx.pasta = null; persist(); return "Voltei para as pastas automáticas."; }
     ctx.pasta = m[1].trim().replace(/\s*\/\s*/g, "/").slice(0, 60); persist();
     return "📂 Pasta atual: " + ctx.pasta + "\nTudo que eu guardar agora (textos, pesquisas, arquivos) vai para ela.";
   }
@@ -77,7 +208,7 @@ function comandoPasta(t) {
   return null;
 }
 
-/* ---------- ler/analisar o texto atual ---------- */
+/* ---------- ler/analisar/explicar o texto atual ---------- */
 function revisar(t) {
   const p = [];
   if (/localStorage\.getItem/.test(t) && !/try\s*\{/.test(t)) p.push("Usa localStorage sem try/catch (pode quebrar em modo privado).");
@@ -92,11 +223,37 @@ function revisar(t) {
   return "🔍 Revisão rápida do código (" + t.split("\n").length + " linhas):\n" + (p.length ? p.map(s => "• " + s).join("\n") : "• Não achei problemas óbvios.") +
     "\n\nObs.: sou uma revisão por regras; não executo o código.";
 }
+
+function explicarCodigoLocal(t) {
+  const linhas = t.split("\n").length;
+  const partes = [];
+  if (/\bimport\b/.test(t)) partes.push("• Importa funções ou dados de outros arquivos.");
+  if (/\bexport\b/.test(t)) partes.push("• Exporta funções/objetos para serem usados em outros módulos.");
+  if (/localStorage/.test(t)) partes.push("• Salva e carrega dados no navegador usando localStorage.");
+  if (/fetch\(/.test(t)) partes.push("• Busca dados externos na internet usando fetch().");
+  if (/addEventListener|onclick/.test(t)) partes.push("• Escuta ações do usuário na tela (cliques, teclas, etc.).");
+  if (/RegExp|\/.+\/[gimsuy]*|\.test\(|\.match\(|\.replace\(/.test(t)) partes.push("• Usa expressões regulares (regex) para limpar, validar ou procurar padrões em textos.");
+  if (/try\s*\{[\s\S]*catch/.test(t)) partes.push("• Usa blocos try/catch para evitar que erros travem o programa.");
+  if (/async\s+function|await\s+/.test(t)) partes.push("• Executa tarefas assíncronas (async/await), esperando respostas sem congelar a tela.");
+  if (/if\s*\(/.test(t)) partes.push("• Toma decisões com condicionais (if/else).");
+  if (/\b(for|while)\s*\(|\.forEach\(|\.map\(|\.filter\(/.test(t)) partes.push("• Percorre listas ou repete ações com loops/métodos de array.");
+
+  const leitura = Saber.lerTexto(t);
+  return "🧠 Explicação de **" + ctx.nome + "** (" + linhas + " linhas):\n\n" +
+    leitura +
+    (partes.length ? "\n\n⚙️ Como ele funciona por dentro:\n" + partes.join("\n") : "") +
+    "\n\n💡 Diga “revisar” para caçar erros ou “resumir” para encurtar.";
+}
+
 function sobreTexto(p) {
   const t = ctx.texto, cod = Saber.isCode(t);
-  if (has(p, /resum/)) { const r = Saber.summarize(t, 4); return r.length ? "📝 Resumo de " + ctx.nome + ":\n• " + r.join("\n• ") : Saber.lerTexto(t); }
+  if (has(p, /resum/)) {
+    const r = Saber.summarize(t, 4);
+    return r.length ? "📝 Resumo de " + ctx.nome + ":\n• " + r.join("\n• ") : Saber.lerTexto(t);
+  }
   if (cod && has(p, /erro|problema|bug|revis|melhor|conserta|arruma/)) return revisar(t);
-  return "📄 " + ctx.nome + "\n" + Saber.lerTexto(t) + "\n\nPosso também: resumir, revisar o código ou guardar numa pasta (/pasta Nome).";
+  if (cod && has(p, /explic|o que faz|entend|como funciona|o que e/)) return explicarCodigoLocal(t);
+  return "📄 " + ctx.nome + "\n" + Saber.lerTexto(t) + "\n\nPosso também: explicar em detalhes, resumir, revisar o código ou guardar numa pasta (/pasta Nome).";
 }
 
 /* ---------- jogos no chat ---------- */
@@ -120,6 +277,7 @@ function mm(b, p) {
 const tab = b => [0, 3, 6].map(i => [0, 1, 2].map(j => b[i + j] === "X" ? "❌" : b[i + j] === "O" ? "⭕" : ["1️⃣","2️⃣","3️⃣","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣","9️⃣"][i + j]).join(" ")).join("\n");
 const forca = j => "Palavra: " + j.p.split("").map(c => j.ok.includes(c) ? c : "_").join(" ") + "\nVidas: " + "❤️".repeat(6 - j.er.length) + (j.er.length ? "\nErros: " + j.er.join(" ") : "");
 const MENU = "🎮 Escolha um jogo:\n• forca\n• jogo da velha\n• adivinhe o número\n• quiz\n\nDiga, por exemplo: jogar forca. (Para sair: sair)";
+const perg = i => (i + 1) + ") " + QUIZ[i][0] + "\n" + QUIZ[i][1].map((o, k) => "abc"[k] + ") " + o).join("\n");
 
 function iniciar(p) {
   if (has(p, /forca/)) { ctx.jogo = { t: "forca", p: pick(PAL), ok: [], er: [] }; return "🪢 FORCA! Mande uma letra (ou chute a palavra inteira).\n\n" + forca(ctx.jogo); }
@@ -128,24 +286,26 @@ function iniciar(p) {
   if (has(p, /quiz|pergunta/)) { ctx.jogo = { t: "quiz", i: 0, pts: 0 }; return "🧠 QUIZ!\n\n" + perg(0); }
   return MENU;
 }
-const perg = i => (i + 1) + ") " + QUIZ[i][0] + "\n" + QUIZ[i][1].map((o, k) => "abc"[k] + ") " + o).join("\n");
 
 function jogar(p, raw) {
   const j = ctx.jogo, w = p.trim();
-  if (/^(sair|parar|desistir|chega)$/.test(w)) { ctx.jogo = null; return "Jogo encerrado. Quando quiser, é só dizer: jogar ..."; }
-  if (w.split(" ").length > 2) return null; // frase normal durante o jogo: deixa responder
+  const rawClean = normSimples(raw).trim();
+  if (/^(sair|parar|desistir|chega)$/.test(rawClean) || /^(sair|parar|desistir|chega)$/.test(w)) { ctx.jogo = null; return "Jogo encerrado. Quando quiser, é só dizer: jogar ..."; }
+  if (rawClean.split(/\s+/).length > 2) return null;
   if (j.t === "forca") {
-    if (w.length === 1 && /[a-z]/.test(w)) {
-      if (j.ok.includes(w) || j.er.includes(w)) return "Você já tentou “" + w + "”.\n\n" + forca(j);
-      j.p.includes(w) ? j.ok.push(w) : j.er.push(w);
-    } else if (w.length > 1) { if (w === j.p) j.ok = [...j.p]; else j.er.push(w.slice(0, 6) + "…"); }
-    else return "Mande uma letra.";
+    const ch = rawClean.length === 1 && /[a-z]/.test(rawClean) ? rawClean : w;
+    if (ch.length === 1 && /[a-z]/.test(ch)) {
+      if (j.ok.includes(ch) || j.er.includes(ch)) return "Você já tentou “" + ch + "”.\n\n" + forca(j);
+      j.p.includes(ch) ? j.ok.push(ch) : j.er.push(ch);
+    } else if (rawClean.length > 1 && /^[a-z]+$/.test(rawClean)) {
+      if (rawClean === j.p) j.ok = [...j.p]; else j.er.push(rawClean.slice(0, 6) + "…");
+    } else return "Mande uma letra.";
     if (j.p.split("").every(c => j.ok.includes(c))) { ctx.jogo = null; return "🎉 Acertou! A palavra era “" + j.p + "”."; }
     if (j.er.length >= 6) { ctx.jogo = null; return "💀 Perdeu! A palavra era “" + j.p + "”. Diga “jogar forca” para outra."; }
     return forca(j);
   }
   if (j.t === "velha") {
-    const n = parseInt(w, 10) - 1;
+    const n = parseInt(rawClean, 10) - 1;
     if (!(n >= 0 && n < 9) || j.b[n]) return "Escolha uma casa livre de 1 a 9.\n\n" + tab(j.b);
     j.b[n] = "X"; let r = venc(j.b);
     if (!r) { j.b[mm(j.b, "O").i] = "O"; r = venc(j.b); }
@@ -153,12 +313,12 @@ function jogar(p, raw) {
     return tab(j.b);
   }
   if (j.t === "num") {
-    const v = parseInt(w, 10); if (isNaN(v)) return "Mande um número de 1 a 100.";
+    const v = parseInt(rawClean, 10); if (isNaN(v)) return "Mande um número de 1 a 100.";
     j.c++; if (v === j.n) { ctx.jogo = null; return "🎉 Acertou em " + j.c + " tentativa(s)!"; }
     return v < j.n ? "⬆️ Maior!" : "⬇️ Menor!";
   }
   if (j.t === "quiz") {
-    const k = "abc".indexOf(w[0]); if (k < 0 || w.length > 2) return "Responda com a, b ou c.";
+    const k = "abc".indexOf(rawClean[0]); if (k < 0 || rawClean.length > 2) return "Responda com a, b ou c.";
     const q = QUIZ[j.i], ok = k === q[2]; if (ok) j.pts++;
     const fb = ok ? "✅ Certo!" : "❌ Errado. Era: " + q[1][q[2]];
     if (++j.i >= QUIZ.length) { ctx.jogo = null; return fb + "\n\n🏁 Fim! Você fez " + j.pts + "/" + QUIZ.length + " pontos."; }
@@ -209,10 +369,8 @@ function achaTopico(p) {
   });
   return sc >= 1 ? best : null;
 }
-/* Evita confundir "cliquei/toquei no módulo" (ação na tela, menu do app) com o
-   tópico de programação "módulo" (import/export). Só entra na base de
-   programação se a frase não falar de clicar/apertar/tocar em algo da tela. */
-const ACAO_TELA = /\b(cliquei|clique|cliquem|clicar|clica|cliquei nisso|toquei|toca|tocar|apertei|aperta|apertar|botao|botão|menu|aba|tela|opcao|opção)\b/;
+
+const ACAO_TELA = /\b(cliquei|clique|cliquem|clicar|clica|cliquei nisso|toquei|toca|tocar|apertei|aperta|apertar|botao|menu|aba|tela|opcao)\b/;
 function topico(i, p) {
   const [, b, ex, av] = KB[i], fundo = has(p, /avancad|profund|detalhad|completo/);
   ctx.ultimo = { t: "prog", i };
@@ -236,17 +394,25 @@ function seguimento(p, w) {
   }
   return null;
 }
-function ajudaProg(p) {
+function ajudaProg() {
   ctx.esperando = "prog"; persist();
   return "Claro! 💻 Me diga o que você quer:\n• aprender um assunto (ex.: “o que é função?”)\n• corrigir um erro (cole a mensagem de erro ou o código)\n• criar algo (ex.: “crie uma calculadora”)\n\nLinguagens que conheço: JavaScript, Python, HTML, CSS e SQL.\nAssuntos: " + ASSUNTOS + ".";
 }
+
 /* ---------- principal ---------- */
 function responder(msg) {
   const raw = String(msg || "").trim();
   const cp = comandoPasta(raw); if (cp) return { texto: cp, origem: "📂 pastas" };
   const mv = raw.match(/^\/palavra\s+(\S+)\s*=\s*(.+)$/i);
-  if (mv) { const k = mv[1].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); ctx.vocab[k] = prep(mv[2]).trim(); persist(); return { texto: "📚 Aprendi: “" + k + "” = “" + ctx.vocab[k] + "”.\nAgora entendo isso em qualquer frase.", origem: "📚 vocabulário" }; }
-  if (/^\/palavras$/i.test(raw)) return { texto: "📚 Sei " + (Object.keys(VOCAB).length + Object.keys(ctx.vocab).length) + " gírias e abreviações (como vc, pq, oque, hj, blz, tbm).\nEnsine mais: /palavra tbm = também", origem: "📚 vocabulário" };
+  if (mv) {
+    const k = normSimples(mv[1]);
+    ctx.vocab[k] = prep(mv[2]).trim();
+    persist();
+    return { texto: "📚 Aprendi: “" + k + "” = “" + ctx.vocab[k] + "”.\nAgora entendo isso em qualquer frase.", origem: "📚 vocabulário" };
+  }
+  if (/^\/palavras$/i.test(raw)) {
+    return { texto: "📚 Sei " + (Object.keys(VOCAB).length + Object.keys(ctx.vocab).length) + " gírias/abreviações e " + lexico().size + " palavras no dicionário base.\nEnsine mais: /palavra tbm = também", origem: "📚 vocabulário" };
+  }
   if (raw.length > 160) return null;
   const p = prep(raw), w = p.trim();
 
@@ -255,7 +421,12 @@ function responder(msg) {
   const mat = raw.match(/^(?:quanto (?:e|é)\s+|calcule\s+|calcula\s+)?([\d\s+\-*/x×÷().,]{3,})\??$/i);
   if (mat && /[+\-*/x×÷]/.test(mat[1].replace(/^\s*-/, "")) && /\d/.test(mat[1])) {
     const ex = mat[1].replace(/[x×]/gi, "*").replace(/÷/g, "/").replace(/,/g, ".");
-    if (/^[\d+\-*/().\s]+$/.test(ex)) { try { const v = Function("return (" + ex + ")")(); if (isFinite(v)) return { texto: "🧮 " + mat[1].trim() + " = " + +v.toFixed(8), origem: "🧮 conta" }; } catch {} }
+    if (/^[\d+\-*/().\s]+$/.test(ex)) {
+      try {
+        const v = Function("return (" + ex + ")")();
+        if (isFinite(v)) return { texto: "🧮 " + mat[1].trim() + " = " + +v.toFixed(8), origem: "🧮 conta" };
+      } catch {}
+    }
   }
 
   const sg = seguimento(p, w); if (sg) return { texto: sg, origem: "🧠 lembrei do assunto" };
@@ -282,9 +453,7 @@ function responder(msg) {
     const lang = Saber.isCode(ctx.texto) ? "js" : "txt";
     return { texto: "📄 " + ctx.nome + "\n\n```" + lang + "\n" + ctx.texto.slice(0, 3500) + (ctx.texto.length > 3500 ? "\n\n[...]" : "") + "\n```", origem: "📄 reenvio" };
   }
-  /* "qual o nome desse filme/vídeo" depois de enviar uma foto/vídeo: ela ainda
-     não reconhece o conteúdo de imagens além de texto escrito, nem vídeos.
-     Antes isso virava uma pesquisa aleatória na internet; agora ela avisa. */
+
   if (ctx.ultimoMidia && (!ctx.texto) && has(p, / (esse|essa|esses|essas|este|nesse|nessa) /) && has(p, / (filme|video|cena|imagem|foto|pessoa|objeto|lugar) /)) {
     return {
       texto: ctx.ultimoMidia.tipo === "video"
@@ -293,40 +462,66 @@ function responder(msg) {
       origem: "🧠 contexto"
     };
   }
-  const PEDIDO_TEXTO_BARE = /^ ?(resum\w*|revis\w*|analis\w*|conserta\w*|arruma\w*)(\s+(isso|esse texto|esse codigo|o codigo|o texto))? ?$/;
-  if (PEDIDO_TEXTO_BARE.test(p) || (has(p, / (esse|este|isso|texto|codigo|arquivo|ele) /) && has(p, /(o que e|explica|explique|resum|o que faz|pra que serve|erro|problema|entend|leia|le |analis|revis|conserta|arruma)/))) {
-    if (!ctx.texto) return { texto: "Ainda não tenho nenhum texto seu. Cole o texto aqui ou anexe um arquivo no botão + e depois me pergunte. 📎", origem: "🧠 contexto" };
-    return { texto: sobreTexto(p), origem: "📖 leitura do seu texto" };
+
+  /* Pedidos diretos de explicação/resumo/revisão sem assunto novo ("me explica", "explica", "o que e isso", "resume") */
+  const PEDIDO_TEXTO_BARE = /^ ?((me\s+)?explic\w*|resum\w*|revis\w*|analis\w*|conserta\w*|arruma\w*|o que (e|faz) isso)(\s+(isso|esse texto|esse codigo|o codigo|o texto|essa imagem|essa foto))? ?$/;
+  if (PEDIDO_TEXTO_BARE.test(p) || (has(p, / (esse|este|isso|texto|codigo|arquivo|ele|imagem|foto) /) && has(p, /(o que e|explica|explique|resum|o que faz|pra que serve|erro|problema|entend|leia|le |analis|revis|conserta|arruma)/))) {
+    if (ctx.texto) return { texto: sobreTexto(p), origem: "📖 leitura do seu texto" };
+    if (ctx.ultimoMidia) return { texto: "Na última mídia (“" + ctx.ultimoMidia.nome + "”) eu não encontrei texto suficiente para explicar. Se tiver algo específico nela que você quer saber, me diga o assunto! 🖼️", origem: "🧠 contexto" };
+    if (ctx.tema) return { pesquisa: ctx.tema, fundo: true };
+    return { texto: "O que você quer que eu explique? Cole o texto/código aqui ou me diga o assunto (ex.: “me explica o que é API”). 🤔", origem: "🧠 contexto" };
   }
+
   if (has(p, /(o que (a gente |nos |voce )?(falou|falamos|conversou|conversamos|vimos)|voce lembra|lembra do que|do que falamos)/))
     return { texto: ctx.assuntos.length ? "🧠 Lembro que falamos de:\n• " + ctx.assuntos.join("\n• ") + (ctx.texto ? "\n\nE guardei o texto “" + ctx.nome + "”." : "") : "Ainda não conversamos sobre nada que eu tenha guardado. 😊", origem: "🧠 memória" };
+
   for (const [k, r] of ERROS) if (new RegExp(k, "i").test(raw)) return { texto: "🛠️ " + r + "\n\nSe quiser, cole o código e eu reviso.", origem: "🐛 erros comuns" };
+
   const rb = p.match(/ resum\w* (?:de |do |da )?(?:um |uma |o |a )?(livro|filme|serie|historia|conto|desenho|novela|anime) (?:de |do |da |chamado |chamada )?(.+)/);
   if (rb) { lembrarTema(rb[2].trim()); return { pesquisa: rb[2].trim() + " sinopse", fundo: true }; }
+
   if (has(p, / (noticia|noticias|novidades|novidade|manchete|manchetes|acontecendo) /)) { ctx.tema = "noticias"; return { noticias: true, q: has(p, / brasil /) ? "ultimas noticias do brasil hoje" : "ultimas noticias do mundo hoje" }; }
+
   const ti = ACAO_TELA.test(p) ? null : achaTopico(p);
   if (ti !== null) return { texto: topico(ti, p), origem: "💻 programação" };
   const lg = Object.keys(LING).find(l => w === l);
   if (lg) return { texto: "📘 " + LING[lg] + "\n\n" + ROTEIRO, origem: "💻 programação" };
-  if (has(p, /(programa|codigo|codar|codificar|desenvolv)/) && has(p, /(ajud|ensin|aprend|duvida|como|quero|preciso)/)) return { texto: ajudaProg(p), origem: "💻 programação" };
+  if (has(p, /(programa|codigo|codar|codificar|desenvolv)/) && has(p, /(ajud|ensin|aprend|duvida|como|quero|preciso)/)) return { texto: ajudaProg(), origem: "💻 programação" };
+
   const cap = p.match(/^ (?:voce )?(?:sabe|consegue|pode|poderia|sabe me) (.+)/);
   if (cap && !has(p, / (horas|hora) /)) {
     const x = cap[1].trim();
     if (has(p, / (programar|codigo|codar|jogar|resumir|pesquisar|escrever|criar|calcular|ler|traduzir) /) && !has(p, / (quadro|desenho|musica|carro|cozinhar|dancar|cantar) /)) return { texto: "Sim! 😊 Eu sei: programar (JS, Python, HTML, CSS, SQL), jogar (forca, velha, quiz, adivinhação), resumir e revisar textos, criar apps prontos, pesquisar na internet, contar e guardar arquivos em pastas.\nDiga o que quer fazer!", origem: "🧠 minhas habilidades" };
-    lembrarTema("como " + x); return { pesquisa: "como " + x, fundo: true };
+    const tmCap = tema(x) || x;
+    if (tmCap.length >= 2) { lembrarTema(tmCap); return { pesquisa: tmCap, fundo: true }; }
   }
+
   if (ctx.tema && has(p, / (essa|essas|esse|esses|isso|isto|disso|dele|dela|deles|delas|nisso|aquilo|ele|ela|eles|elas) /) && (pergunta(raw) || has(p, / (faz|fazem|serve|servem|significa) /))) {
     const PR = new Set("essa essas esse esses isso isto disso dele dela deles delas nisso aquilo ele ela eles elas faz fazem fazer serve servem o que e sao por para qual quais como me explica".split(" "));
-    const seen = new Set(prep(ctx.tema).split(" ")), novo = p.trim().split(" ").filter(w => !PR.has(w) && !seen.has(w) && w.length > 2);
+    const seen = new Set(prep(ctx.tema).split(" ")), novo = p.trim().split(" ").filter(x => !PR.has(x) && !seen.has(x) && x.length > 2);
     if (!novo.length) return { texto: "Estamos falando de “" + ctx.tema + "”. O que você quer saber sobre isso? Por exemplo: significado, origem, como funciona ou para que serve. 🤔", origem: "🧠 lembrei do assunto" };
     return { pesquisa: ctx.tema + " " + novo.join(" "), fundo: true };
   }
-  if (pergunta(raw) && !has(p, / (voce|horas|hora|dia|data|bach|meu nome|seu nome) /)) { const tm = tema(raw); if (tm.length > 2) { lembrarTema(tm); return { pesquisa: tm, fundo: true }; } }
+
+  if (pergunta(raw) && !has(p, / (voce|horas|hora|dia|data|bach|meu nome|seu nome) /)) {
+    const tm = tema(raw);
+    if (tm.length >= 2) {
+      lembrarTema(tm);
+      return { pesquisa: raw, fundo: true };
+    }
+  }
+
   if (ctx.esperando === "prog") { ctx.esperando = null; if (w.split(" ").length <= 3 && w.length > 3) return { pesquisa: w + " programação", fundo: false }; }
   return null;
 }
+
 const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo)/;
-const pergunta = t => { const p = prep(t); if (has(p, SMALL)) return false; return has(p, /^ ?(o que|quem|quais|qual|quantos|quantas|quanto|onde|quando|como|por que|porque|para que|me explica|explique|explica|fale sobre|fala sobre|fala de|me fala|diga)/) || (/\?\s*$/.test(String(t)) && p.trim().split(" ").length >= 3); };
+const pergunta = t => {
+  const p = prep(t);
+  if (has(p, SMALL)) return false;
+  return has(p, /^ ?(o que|quem|quais|qual|quantos|quantas|quanto|onde|quando|como|por que|porque|para que|me explica|explique|explica|fale sobre|fala sobre|fala de|me fala|diga)/) ||
+    (/\?\s*$/.test(String(t)) && p.trim().split(" ").length >= 2);
+};
 
 const stats = () => ({ girias: Object.keys(VOCAB).length, lexBase: BASE_LEX.length, kbProg: KB.length, erros: ERROS.length, jogos: 4, modelosApps: Object.keys(TEMPLATES).length, pasta: ctx.pasta, tema: ctx.tema });
 const jogando = () => !!ctx.jogo;
