@@ -1,11 +1,12 @@
-/* BACH AI 4.0 — base de dados e backup completo.
+/* BACH AI 4.1 — base de dados e backup completo.
  * Exporta memórias, conversas, arquivos e o código de todos os módulos.
- * A chave do Gemini nunca é incluída no backup.
+ * Chaves secretas (Gemini / APIs) nunca são incluídas no backup.
  */
 
 export const ARQUIVOS = [
-  ["index.html", "Interface, chat, roteamento, IA e pesquisa"],
-  ["brain.js", "Cérebro, memória e aprendizado"],
+  ["index.html", "Interface, 10 modos, roteamento, visão e chat"],
+  ["llm.js", "Provedor híbrido de IA (Offline, Ollama local, OpenAI-compatível e Gemini)"],
+  ["brain.js", "Cérebro, memória de longo prazo e aprendizado"],
   ["mente.js", "Contexto, jogos, criação de apps e pastas"],
   ["conversa.js", "Personalidade e conversação"],
   ["fatos.js", "Base de fatos"],
@@ -17,7 +18,7 @@ export const ARQUIVOS = [
   ["programacao.js", "Programação e humor existente"],
   ["historico.js", "Histórico de conversas"],
   ["base.js", "Exportação e importação de backup"],
-  ["registry.js", "Catálogo e roteador de módulos"],
+  ["registry.js", "Catálogo, instruções de modo e roteador de habilidades"],
   ["intelligence.js", "Cálculo local e raciocínio aritmético"],
   ["personality.js", "Piadas e humor local"],
   ["creativity.js", "Ideias, personagens e histórias offline"],
@@ -32,6 +33,7 @@ export const ARQUIVOS = [
 
 export const COMANDOS = [
   "/modulos", "/statusmodulos", "/modulo ID on", "/modulo ID off",
+  "/ia status", "/ia offline", "/ia ollama llama3.2", "/ia openai URL CHAVE MODELO",
   "/calc (2+3)*4", "/converter 10 km para m",
   "/juros simples 1000 2 12",
   "/fisica velocidade 100 2",
@@ -68,21 +70,13 @@ const CONHECIDAS = {
 };
 
 const analisar = value => {
-  try {
-    return JSON.parse(value);
-  } catch {
-    return value;
-  }
+  try { return JSON.parse(value); }
+  catch { return value; }
 };
 
-const tamanhoKB = value =>
-  +(new Blob([value]).size / 1024).toFixed(1);
-
-const quantidade = value =>
-  Array.isArray(value) ? value.length : Object.keys(value || {}).length;
-
-const pad = (value, size) =>
-  String(value).padEnd(size);
+const tamanhoKB = value => +(new Blob([value]).size / 1024).toFixed(1);
+const quantidade = value => Array.isArray(value) ? value.length : Object.keys(value || {}).length;
+const pad = (value, size) => String(value).padEnd(size);
 
 function lerArmazenamento() {
   const dados = {};
@@ -91,16 +85,11 @@ function lerArmazenamento() {
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-
       if (!key || key === CHAVE_SECRETA) continue;
 
       const value = analisar(localStorage.getItem(key));
-
-      if (CONHECIDAS[key]) {
-        dados[CONHECIDAS[key]] = value;
-      } else if (/^(bach|rizik)_/i.test(key)) {
-        outros[key] = value;
-      }
+      if (CONHECIDAS[key]) dados[CONHECIDAS[key]] = value;
+      else if (/^(bach|rizik)_/i.test(key)) outros[key] = value;
     }
   } catch (error) {
     console.warn("Não foi possível ler todo o armazenamento:", error);
@@ -112,11 +101,7 @@ function lerArmazenamento() {
 async function lerFonte(path) {
   try {
     const response = await fetch("./" + path + "?v=" + Date.now());
-
-    if (!response.ok) {
-      throw new Error("HTTP " + response.status);
-    }
-
+    if (!response.ok) throw new Error("HTTP " + response.status);
     return await response.text();
   } catch (error) {
     console.warn("Não foi possível incluir no backup:", path, error);
@@ -130,10 +115,7 @@ async function montar(context = {}) {
 
   for (const [path, funcao] of ARQUIVOS) {
     const source = await lerFonte(path);
-
-    if (source !== null) {
-      fontes[path] = source;
-    }
+    if (source !== null) fontes[path] = source;
 
     modulos.push({
       arquivo: path,
@@ -144,27 +126,15 @@ async function montar(context = {}) {
   }
 
   if (!fontes["index.html"]) {
-    fontes["index.html"] =
-      "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+    fontes["index.html"] = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
   }
 
   const { dados: memoria, outros } = lerArmazenamento();
-
   const cerebro = memoria.memoria || {};
-
-  const arquivos = Array.isArray(memoria.arquivos)
-    ? memoria.arquivos
-    : [];
-
-  const pesquisas = Array.isArray(memoria.pesquisas)
-    ? memoria.pesquisas
-    : [];
-
+  const arquivos = Array.isArray(memoria.arquivos) ? memoria.arquivos : [];
+  const pesquisas = Array.isArray(memoria.pesquisas) ? memoria.pesquisas : [];
   const mente = memoria.mente || {};
-
-  const sessoes = Array.isArray(memoria.conversas)
-    ? memoria.conversas
-    : [];
+  const sessoes = Array.isArray(memoria.conversas) ? memoria.conversas : [];
 
   const totalMensagens = sessoes.reduce(
     (sum, session) => sum + (session.msgs || []).length,
@@ -191,43 +161,30 @@ async function montar(context = {}) {
     ["Arquivos de código listados", ARQUIVOS.length]
   ];
 
-  const width =
-    Math.max(...contagens.map(item => item[0].length)) + 2;
+  const width = Math.max(...contagens.map(item => item[0].length)) + 2;
 
   const tabelaModulos =
-    pad("ARQUIVO", 32) +
-    pad("LINHAS", 14) +
-    pad("KB", 12) +
-    "FUNÇÃO\n" +
+    pad("ARQUIVO", 32) + pad("LINHAS", 14) + pad("KB", 12) + "FUNÇÃO\n" +
     modulos.map(item =>
-      pad(item.arquivo, 32) +
-      pad(item.linhas, 14) +
-      pad(item.kb, 12) +
-      item.funcao
+      pad(item.arquivo, 32) + pad(item.linhas, 14) + pad(item.kb, 12) + item.funcao
     ).join("\n");
 
   const tabelaDados =
-    pad("DADO", width) +
-    "QTD\n" +
-    contagens.map(item =>
-      pad(item[0], width) + item[1]
-    ).join("\n");
+    pad("DADO", width) + "QTD\n" +
+    contagens.map(item => pad(item[0], width) + item[1]).join("\n");
 
-  const css =
-    (fontes["index.html"].match(/<style>([\s\S]*?)<\/style>/) || [])[1] || "";
+  const css = (fontes["index.html"].match(/<style>([\s\S]*?)<\/style>/) || [])[1] || "";
 
   const backup = {
     bach: {
-      versao: "4.0",
+      versao: "4.1",
       geradoEm: new Date().toISOString()
     },
-
     tabelas: {
       modulos,
       contagens: Object.fromEntries(contagens),
       comandos: COMANDOS
     },
-
     interface: {
       arquivo: "index.html",
       linhas: fontes["index.html"].split("\n").length,
@@ -241,13 +198,11 @@ async function montar(context = {}) {
         idioma: navigator.language
       }
     },
-
     conversas: {
       aberta: context.history || [],
       historico: sessoes,
       idAtual: context.idAtual || null
     },
-
     memoria: cerebro,
     arquivos,
     pesquisas,
@@ -255,9 +210,7 @@ async function montar(context = {}) {
     mente,
     outrosDados: outros,
     codigo: fontes,
-
-    aviso:
-      "A chave da IA externa (Gemini) foi excluída deste backup por segurança."
+    aviso: "Chaves secretas de APIs externas foram excluídas deste backup por segurança."
   };
 
   const json = JSON.stringify(backup, null, 1);
@@ -295,18 +248,12 @@ function importar(obj) {
   }
 
   if (Array.isArray(obj.conversas?.historico)) {
-    localStorage.setItem(
-      "bach_sessoes_v1",
-      JSON.stringify(obj.conversas.historico)
-    );
+    localStorage.setItem("bach_sessoes_v1", JSON.stringify(obj.conversas.historico));
     feitos++;
   }
 
   if (Array.isArray(obj.conversas?.aberta)) {
-    localStorage.setItem(
-      "bach_chat_history_v1",
-      JSON.stringify(obj.conversas.aberta)
-    );
+    localStorage.setItem("bach_chat_history_v1", JSON.stringify(obj.conversas.aberta));
     feitos++;
   }
 
