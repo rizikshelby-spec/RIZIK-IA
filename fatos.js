@@ -1,6 +1,6 @@
 import { MAIS } from "./saberes.js?v=1";
 
-/* BACH AI - FATOS 2.0
+/* BACH AI 2.0
    Base de fatos verificados + respostas sobre a própria BACH.
    Respostas sempre iguais para a mesma pergunta (nada aleatório).
    Só responde quando a pergunta cobre bem o assunto; senão devolve null
@@ -12,7 +12,7 @@ const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ
 const SEM_VALOR = new Set(("qual quais quem quanto quantos quantas como onde quando porque por que para pra o a os as um uma uns umas " +
   "de do da dos das em no na nos nas e eh ao aos me se fale fala falar diga dizer explique explica explicar sobre significa " +
   "significado definicao conceito mesmo voce vc eu sao foi ser ha tem existe existem exatamente basicamente resumo resuma " +
-  "conte conta pode poderia favor pf entao ai tipo seria era passe passa manda mande quero preciso gostaria queria crie cria faca fazer ajuda ajude algum alguma uns umas pesquise pesquisa busque procure ensina ensine mostra mostre bach").split(" "));
+  "conte conta pode poderia favor pf entao ai tipo seria era passe passa manda mande quero preciso gostaria crie cria faca fazer ajuda ajude algum alguma uns umas pesquise pesquisa busque procure ensina ensine mostra mostre bach").split(" "));
 
 const stem = w => {
   w = w.replace(/(coes|oes|aes)$/, "ao");
@@ -184,7 +184,7 @@ const FATOS = [
  "🔺 As pirâmides de Gizé (Egito) foram construídas como tumbas de faraós há cerca de 4.500 anos. A Grande Pirâmide é a de Quéops (~2560 a.C.), com ~139 m de altura atual."],
 ["internet|o que e internet",
  "🌐 Internet é a rede mundial de redes de computadores interligadas, que trocam dados por protocolos como o TCP/IP. A Web (sites, navegadores, HTTP) é só um dos serviços que rodam nela. Sua origem é a ARPANET, nos anos 1960-70."],
-["inteligencia artificial|ia",
+["inteligencia artificial",
  "🤖 Inteligência artificial é a área da computação que cria sistemas capazes de executar tarefas que normalmente exigem inteligência humana, como entender linguagem, reconhecer imagens ou tomar decisões. Hoje a maior parte vem de aprendizado de máquina, em que o sistema aprende padrões a partir de dados."],
 ["chatgpt|chat gpt",
  "🤖 ChatGPT é um assistente conversacional de IA da OpenAI, baseado em grandes modelos de linguagem (família GPT), lançado em novembro de 2022."],
@@ -286,6 +286,12 @@ function responder(texto) {
   let melhor = null, nota = 0;
   for (const e of BASE) {
     for (const f of e.frases) {
+      /* Uma "frase-chave" de uma só palavra e curta (ex.: a sigla "ue" de
+         União Europeia, ou "ia" de Inteligência Artificial) não pode, sozinha,
+         decidir uma resposta: ela colide com palavras e interjeições comuns
+         do dia a dia ("ué", "eu ia..."). Só conta quando vem acompanhada de
+         outras palavras no mesmo alias (ex.: "uniao europeia"). */
+      if (f.size === 1 && [...f][0].length < 4) continue;
       let tudo = true;
       for (const w of f) if (!q.has(w)) { tudo = false; break; }
       if (!tudo) continue;
@@ -306,7 +312,7 @@ const SOBRE = {
   como: "Funciono por regras e busca, tudo no seu navegador: entendo sua frase, procuro primeiro no que você me ensinou e na minha base de fatos, e só depois pesquiso na internet, comparando fontes. Eu não invento texto: escolho os melhores trechos e mostro a confiança. Se você conectar uma chave Gemini (/chave), passo a responder com uma IA de linguagem de verdade.",
   ia: "Sou uma IA de regras e busca, não um modelo de linguagem grande como o ChatGPT ou o Claude. Isso me deixa previsível, privada (roda no seu aparelho) e honesta sobre o que não sei, mas menos flexível. Com uma chave Gemini (/chave) eu uso uma IA de linguagem de verdade.",
   erro: "Você tem razão em cobrar. Sem IA externa eu erro quando a pergunta foge da minha base ou quando a busca traz páginas sem relação. O que mudou: a mesma pergunta agora sempre recebe a mesma resposta, só guardo pesquisas de confiança média ou alta, e quando não tenho certeza eu aviso. Para me corrigir: corrija: pergunta => resposta certa.",
-  limite: "Meus limites: não raciocino em várias etapas como um modelo grande; não executo código; não reconheço o que aparece em fotos e vídeos (só cores e tamanho); e posso errar em temas fora da base. Em troca eu aviso quando não sei e cito as fontes. Para mais precisão, conecte uma chave Gemini com /chave.",
+  limite: "Meus limites: não raciocino em várias etapas como um modelo grande; não executo código; não reconheço o que aparece em vídeos e, em fotos, só leio texto escrito (ainda não reconheço objetos ou pessoas); e posso errar em temas fora da base. Em troca eu aviso quando não sei e cito as fontes. Para mais precisão, conecte uma chave Gemini com /chave.",
   melhor: "Sinceramente: não sou melhor que o ChatGPT ou o Claude em conhecimento e raciocínio, porque eles são modelos enormes. Meu ponto forte é rodar no seu navegador, aprender o que você ensina e mostrar de onde veio cada resposta. Conectando uma chave Gemini (/chave) você ganha o melhor dos dois."
 };
 
@@ -322,8 +328,9 @@ function sobreMim(texto) {
   if (new RegExp("\\bcomo " + eu + " (funciona|pensa|aprende|responde|e feita)\\b").test(t) ||
       /\bvoce (usa|roda|funciona com|e feita com) (ia|inteligencia artificial|chatgpt|gemini|claude|internet|api)\b/.test(t)) return SOBRE.como;
   if (/\bvoce e (uma |um )?(ia|inteligencia artificial|robo|chatgpt|humana|gente|pessoa|real)\b/.test(t)) return SOBRE.ia;
-  if (/\bvoce (esta|ta|anda|so|vive|sempre|muito|ainda) (errando|errada|falhando|dando errado)\b/.test(t) || /\bvoce (so |sempre |muito |ainda )?(erra|errou)\b/.test(t) || /\b(respostas?) (erradas?|diferentes|trocadas)\b/.test(t) ||
-      /\bvoce errou\b/.test(t)) return SOBRE.erro;
+  if (/\bvoce (esta|ta|anda|so|vive|sempre|muito|ainda) (errando|errada|falhando|dando errado|entendendo)\b/.test(t) ||
+      /\bvoce (so |sempre |muito |ainda )?(erra|errou)\b/.test(t) || /\b(respostas?) (erradas?|diferentes|trocadas)\b/.test(t) ||
+      /\bvoce errou\b/.test(t) || /\bpor que voce nao entende\b/.test(t) || /\bvoce nao (entende|entendeu)\b/.test(t)) return SOBRE.erro;
   if (/\b(suas|quais (sao )?(as )?(suas )?) ?(limitacoes|limites)\b/.test(t) || /\bvoce nao (consegue|sabe) tudo\b/.test(t)) return SOBRE.limite;
   if (/\bvoce e (melhor|igual|parecida?) (que|do|de|ao|com) (o )?(chatgpt|claude|gemini)\b/.test(t) ||
       /\b(melhor|igual) (que|do|de|ao) (o )?(chatgpt|claude|gemini)\b.*\bvoce\b/.test(t)) return SOBRE.melhor;
