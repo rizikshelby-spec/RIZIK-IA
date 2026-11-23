@@ -1,11 +1,12 @@
-/* BACH AI 4.1 — base de dados e backup completo.
+/* BACH AI 4.2 — base de dados e backup completo.
  * Exporta memórias, conversas, arquivos e o código de todos os módulos.
- * Chaves secretas (Gemini / APIs) nunca são incluídas no backup.
+ * Chaves secretas nunca são incluídas no backup.
  */
 
 export const ARQUIVOS = [
   ["index.html", "Interface, 10 modos, roteamento, visão e chat"],
-  ["llm.js", "Provedor híbrido de IA (Offline, Ollama local, OpenAI-compatível e Gemini)"],
+  ["cerebro_avancado.js", "NLU, recomendações por gênero, comparações e escrita estruturada"],
+  ["llm.js", "Provedor híbrido opcional (ADM)"],
   ["brain.js", "Cérebro, memória de longo prazo e aprendizado"],
   ["mente.js", "Contexto, jogos, criação de apps e pastas"],
   ["conversa.js", "Personalidade e conversação"],
@@ -14,7 +15,7 @@ export const ARQUIVOS = [
   ["conhecimento.js", "Conhecimento de programação"],
   ["saber.js", "Leitura de textos, código, links e pesquisa"],
   ["dicionario.js", "Dicionário, definições e tradução"],
-  ["arquivos.js", "Arquivos e leitura de mídia"],
+  ["arquivos.js", "Arquivos e leitura de mídia/OCR"],
   ["programacao.js", "Programação e humor existente"],
   ["historico.js", "Histórico de conversas"],
   ["base.js", "Exportação e importação de backup"],
@@ -32,8 +33,6 @@ export const ARQUIVOS = [
 ];
 
 export const COMANDOS = [
-  "/modulos", "/statusmodulos", "/modulo ID on", "/modulo ID off",
-  "/ia status", "/ia offline", "/ia ollama llama3.2", "/ia openai URL CHAVE MODELO",
   "/calc (2+3)*4", "/converter 10 km para m",
   "/juros simples 1000 2 12",
   "/fisica velocidade 100 2",
@@ -42,14 +41,12 @@ export const COMANDOS = [
   "/ideia assunto", "/historia tema",
   "/personagem tema", "/plano objetivo",
   "/automacao tarefa", "/humor",
-  "/basedados", "/importarbase",
   "/historico", "/nova", "/arquivos",
   "/abrir nome", "/buscar palavra", "/apagar nome",
   "/pasta Nome/Sub", "/pastas",
   "/mover nome para Pasta",
   "/palavra gíria = significado",
   "/palavras", "/profundo assunto",
-  "/chave SUA_CHAVE", "/modelo nome",
   "/clear", "ensine: pergunta => resposta",
   "corrija: pergunta => nova",
   "esqueça: pergunta", "sinônimo: a = b",
@@ -177,7 +174,7 @@ async function montar(context = {}) {
 
   const backup = {
     bach: {
-      versao: "4.1",
+      versao: "4.2",
       geradoEm: new Date().toISOString()
     },
     tabelas: {
@@ -210,7 +207,7 @@ async function montar(context = {}) {
     mente,
     outrosDados: outros,
     codigo: fontes,
-    aviso: "Chaves secretas de APIs externas foram excluídas deste backup por segurança."
+    aviso: "Chaves secretas foram excluídas deste backup por segurança."
   };
 
   const json = JSON.stringify(backup, null, 1);
