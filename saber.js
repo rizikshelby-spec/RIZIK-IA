@@ -122,7 +122,7 @@ const DESAMBIGUA = /(pode (se )?referir-se a|pode significar|pode designar|p[áa
    numa enciclopédia: a busca por palavra-chave pode trazer qualquer artigo que
    contenha "filme", "série" etc., incluindo resultados impróprios ou sem
    nenhuma relação. Melhor recusar com honestidade do que arriscar isso. */
-const FUTURO_ENTRETENIMENTO = /\b(filmes?|series?|animes?|desenhos?|jogos?)\b[\s\S]{0,40}\b(mes que vem|proximo mes|proximos meses|em breve|vai estrear|vao estrear|vai lancar|vao lancar|lancamentos?|que (vai|vao) sair|que esta(o)? vindo|vindo ai)\b|\b(mes que vem|proximo mes|em breve|lancamentos?|vai estrear|vao estrear)\b[\s\S]{0,40}\b(filmes?|series?|animes?|desenhos?|jogos?)\b/;
+const FUTURO_ENTRETENIMENTO = /\b(filmes?|series?|animes?|desenhos?|jogos?|apps?|aplicativos?)\b[\s\S]{0,40}\b(mes que vem|proximo mes|proximos meses|em breve|vai estrear|vao estrear|vai lancar|vao lancar|lancamentos?|que (vai|vao|ira|irao) (sair|vir|vim)|que esta(o)? vindo|vindo ai)\b|\b(mes que vem|proximo mes|em breve|lancamentos?|vai estrear|vao estrear)\b[\s\S]{0,40}\b(filmes?|series?|animes?|desenhos?|jogos?|apps?|aplicativos?)\b/;
 
 /* "pesquisa isso que você me disse", "o que você quis dizer com isso" etc. não são
    temas de pesquisa: são pedidos para a BACH explicar a própria resposta anterior. */
