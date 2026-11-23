@@ -1,6 +1,6 @@
-/* BACH AI - SABER 2.8
+/* BACH AI - SABER 2.9
    Leitura de textos, código e links + pesquisa inteligente (Wikipédia, Web, Jikan Animes),
-   bloqueio de previsões futuras impossíveis e sem lookbehind de regex. */
+   bloqueio de previsões futuras impossíveis e de palavras soltas sem sentido. */
 
 const KB_KEY = "bach_conhecimento_v2";
 
@@ -13,7 +13,8 @@ const STOP = new Set((
   "passa passe manda mande uns umas alguem alguma algum quero preciso gostaria fale fala conte diga diz " +
   "pesquisa pesquisar pesquise procure procura buscar busque explica explicar explique resume resumir " +
   "net internet web google online pra pro pros pras ai ta to ne la ca vc pq oq oque aqui escrito escrita " +
-  "nisso nisto disso mes meses ano anos semana semanas dia dias hoje amanha ontem falar perguntei perguntar"
+  "nisso nisto disso mes meses ano anos semana semanas dia dias hoje amanha ontem falar perguntei perguntar " +
+  "serve servem servir servisse presta errando errado errada corrigir arrumar falou disse respondeu"
 ).split(" "));
 
 const INTENCAO_STOP = new Set((
@@ -132,7 +133,6 @@ const kr = t => kwAssunto(t).map(radical);
 const DESAMBIGUA = /(pode (se )?referir-se a|pode significar|pode designar|p[áa]gina de desambigua|desambigua[çc][ãa]o)/i;
 const CONTEUDO_ADULTO = /\b(pornogr[áa]fic[oa]|porn[oô]|er[óo]tic[oa]|sexo expl[íi]cito|hentai|xvideos|pornhub|onlyfans|adult film)\b/i;
 
-/* Detecta perguntas genéricas de lançamentos futuros SEM título específico */
 function ehFuturoGenerico(qn) {
   const temMidia = /\b(filmes?|series?|animes?|desenhos?|jogos?|apps?|aplicativos?)\b/.test(qn);
   const temFuturo = /\b(mes que vem|proximo mes|proximos meses|em breve|vai estrear|vao estrear|vai lancar|vao lancar|lancamentos?|vao\s+(?:sair|vir|vim|lancar|estrear|chegar)|vai\s+(?:sair|vir|vim|lancar|estrear|chegar)|que (?:vai|vao|ira|irao) (?:sair|vir|vim)|que esta(?:o)? vindo|vindo ai)\b/.test(qn);
@@ -143,7 +143,6 @@ function ehFuturoGenerico(qn) {
 
 const META_REFERENCIA = /\b(isso|aquilo|essa resposta|sua resposta)\b[\s\S]{0,25}\b(que (me |voce |vc )?(disse|falou|respondeu|mandou|explicou))\b|\bo que (voce|vc) (quis dizer|falou|disse|respondeu)\b/;
 
-/* Animes ao vivo via Jikan API (gratuita, aberta e sem chave) */
 async function buscarAnimesJikan(qn, assunto, progresso) {
   progresso("⛩️ Consultando catálogo ao vivo de animes...");
   const ehTop = /\b(recomenda\w*|melhor\w*|top|indica\w*|bom|bons|assistir|populares)\b/.test(qn) || assunto === "anime" || assunto === "animes";
@@ -470,14 +469,34 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true) {
   const info = limparConsulta(q);
   const assunto = info.assunto || q;
   const qk = info.termos;
-  if (!qk.length) throw new Error("irrelevante");
+  if (!qk.length || (qk.length === 1 && /^(serve|fazer|falar|dizer|ver|ter|ir|vir|dar|saber|poder|querer|achar|ficar)$/.test(qk[0]))) {
+    throw new Error("irrelevante");
+  }
 
-  // Busca ao vivo para animes na Jikan API (gratuita e sem chave)
   if (/\b(anime|animes)\b/.test(qn) && !/\b(significa|historia|origem|o que e)\b/.test(qn)) {
     try {
       const ja = await buscarAnimesJikan(qn, assunto, progresso);
       if (ja) return ja;
     } catch (e) { console.warn("jikan", e); }
+  }
+
+  if (/\b(filme|filmes)\b/.test(qn) && /\b(bom|bons|boa|boas|recomenda\w*|indica\w*|melhor\w*|assistir|procura\w*)\b/.test(qn) && qk.length <= 3) {
+    return {
+      texto: "🎬 **10 filmes muito bem avaliados para assistir:**\n\n" +
+        "1. Interestelar (2014) — Ficção / Aventura\n" +
+        "2. A Origem (2010) — Ficção / Suspense\n" +
+        "3. Parasita (2019) — Drama / Suspense\n" +
+        "4. Um Sonho de Liberdade (1994) — Drama\n" +
+        "5. Batman: O Cavaleiro das Trevas (2008) — Ação\n" +
+        "6. Ilha do Medo (2010) — Mistério / Suspense\n" +
+        "7. À Espera de um Milagre (1999) — Drama\n" +
+        "8. Duna: Parte Dois (2024) — Aventura / Ficção\n" +
+        "9. Homem-Aranha no Aranhaverso (2018) — Animação\n" +
+        "10. O Auto da Compadecida (2000) — Comédia Brasileira\n\n" +
+        "💡 Quer de um gênero específico (drama, terror, ação, aventura, comédia, romance)? É só pedir!",
+      conf: "alta",
+      fontes: []
+    };
   }
 
   const qs = new Set(qk.map(radical));
