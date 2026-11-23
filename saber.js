@@ -1,7 +1,7 @@
-/* BACH AI - SABER 2.6
+/* BACH AI - SABER 2.7
    Leitura de textos, código e links + pesquisa inteligente com limpeza de pergunta,
-   proteção contra resultados adultos acidentais, bloqueio de listas futuras genéricas
-   e ranking BM25 + base de conhecimento. */
+   proteção contra resultados adultos acidentais, bloqueio de listas futuras genéricas,
+   ranking BM25, base de conhecimento e sem lookbehind de regex. */
 
 const KB_KEY = "bach_conhecimento_v2";
 
@@ -112,7 +112,7 @@ function lerTexto(text) {
 
 /* ---------- Pesquisa profunda ---------- */
 
-async function get(url, ms = 20000, json = false) {
+async function get(url, ms = 14000, json = false) {
   const c = new AbortController();
   const t = setTimeout(() => c.abort(), ms);
   try {
@@ -132,7 +132,6 @@ const kr = t => kwAssunto(t).map(radical);
 const DESAMBIGUA = /(pode (se )?referir-se a|pode significar|pode designar|p[áa]gina de desambigua|desambigua[çc][ãa]o)/i;
 const CONTEUDO_ADULTO = /\b(pornogr[áa]fic[oa]|porn[oô]|er[óo]tic[oa]|sexo expl[íi]cito|hentai|xvideos|pornhub|onlyfans|adult film)\b/i;
 
-/* Detecta perguntas genéricas de lançamentos futuros SEM um título específico ("filme do mes que vem") */
 function ehFuturoGenerico(qn) {
   const temMidia = /\b(filmes?|series?|animes?|desenhos?|jogos?|apps?|aplicativos?)\b/.test(qn);
   const temFuturo = /\b(mes que vem|proximo mes|proximos meses|em breve|vai estrear|vao estrear|vai lancar|vao lancar|lancamentos?|que (vai|vao|ira|irao) (sair|vir|vim)|que esta(o)? vindo|vindo ai)\b/.test(qn);
@@ -163,7 +162,11 @@ function paragrafos(texto) {
   for (const p of corte.split(/\n+/)) {
     const t = p.replace(/\s+/g, " ").trim();
     if (t.length < 45) continue;
-    for (const s of t.split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9"“])/)) out.push(s.trim());
+    const marcado = t.replace(/([.!?])\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9"“])/g, "$1\n");
+    for (const s of marcado.split("\n")) {
+      const limpoS = s.trim();
+      if (limpoS) out.push(limpoS);
+    }
   }
   return out;
 }
@@ -174,7 +177,7 @@ async function wiki(q, qk, permiteAdulto = false) {
   const base = "https://pt.wikipedia.org/w/api.php?";
   const buscar = async termo => get(base + new URLSearchParams({
     action: "query", list: "search", srsearch: termo, srlimit: "6", srinfo: "suggestion", format: "json", origin: "*"
-  }), 20000, true);
+  }), 14000, true);
 
   let d = await buscar(q);
   let res = d?.query?.search || [];
@@ -198,7 +201,7 @@ async function wiki(q, qk, permiteAdulto = false) {
     const p = await get(base + new URLSearchParams({
       action: "query", prop: "extracts", explaintext: "1", exsectionformat: "plain", redirects: "1",
       titles: c.titulo, format: "json", origin: "*"
-    }), 25000, true);
+    }), 15000, true);
     const pg = Object.values(p?.query?.pages || {})[0];
     const texto = (pg?.extract || "").slice(0, 60000);
     if (!texto || DESAMBIGUA.test(texto.slice(0, 500))) return;
@@ -225,7 +228,7 @@ const limparMd = t => String(t || "")
 const host = u => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
 
 async function web(q) {
-  const txt = await get("https://r.jina.ai/http://html.duckduckgo.com/html/?q=" + encodeURIComponent(q), 25000);
+  const txt = await get("https://r.jina.ai/http://html.duckduckgo.com/html/?q=" + encodeURIComponent(q), 12000);
   const ms = [...txt.matchAll(/^## \[(.*?)\]\((https?:\/\/[^)\s]+)\)/gm)];
   const out = [], seen = new Set();
   for (let i = 0; i < ms.length && out.length < 8; i++) {
@@ -266,7 +269,7 @@ function cleanPage(t) {
 }
 
 async function readPage(link, qs) {
-  const txt = cleanPage(await get("https://r.jina.ai/" + link.url, 22000));
+  const txt = cleanPage(await get("https://r.jina.ai/" + link.url, 10000));
   return best(paragrafos(txt), s => {
     const n = new Set(kr(s));
     const hits = [...qs].filter(w => n.has(w)).length;
@@ -288,7 +291,7 @@ async function lerLink(url) {
   let nome = host(u);
   try { nome = decodeURIComponent(new URL(u).pathname.split("/").filter(Boolean).pop() || nome); } catch {}
   const raw = /raw\.githubusercontent\.com/.test(u);
-  let texto = raw ? await get(u, 25000) : String(await get("https://r.jina.ai/" + u, 30000)).replace(/!\[[^\]]*\]\([^)]*\)/g, " ");
+  let texto = raw ? await get(u, 15000) : String(await get("https://r.jina.ai/" + u, 15000)).replace(/!\[[^\]]*\]\([^)]*\)/g, " ");
   texto = texto.trim();
   if (texto.length < 20) throw new Error("vazio");
   return { texto: texto.slice(0, 200000), nome, url: u };
@@ -459,7 +462,7 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true) {
     : info.ehOpiniao ? assunto + " critica opiniao"
     : assunto;
   try { links = await web(consultaWeb); } catch (e) { console.warn("web", e); }
-  if (fundo) {
+  if (fundo && links.length < 3) {
     try {
       const extra = info.ehLancamento ? assunto + " lancou" : assunto + " explicacao resumo";
       const mais = await web(extra);
@@ -473,9 +476,9 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true) {
   const webFontes = links.map(l => ({ nome: host(l.url) + " — " + l.titulo.slice(0, 60), url: l.url, frases: l.snippet ? [l.snippet] : [] }));
   fontes.push(...webFontes);
 
-  if (fundo) {
+  if (fundo && webFontes.length) {
     progresso("📖 Abrindo as melhores páginas...");
-    await Promise.allSettled(webFontes.slice(0, 5).map(async f => {
+    await Promise.allSettled(webFontes.slice(0, 4).map(async f => {
       progresso("🌐 Lendo " + host(f.url));
       f.frases.push(...await readPage(f, qs));
     }));
