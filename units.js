@@ -1,4 +1,6 @@
-/* BACH AI 4.0 — conversão local de unidades comuns. */
+/* BACH AI 4.1 — conversão local de unidades comuns.
+ * Aceita símbolos (km, m, kg) e nomes completos em português (metros, quilos, litros) + pontuação final.
+ */
 
 const UNITS = {
   km: { group: "length", factor: 1000, name: "km" },
@@ -21,18 +23,36 @@ const UNITS = {
   cm3: { group: "volume", factor: 0.001, name: "cm³" }
 };
 
-const TEMP = new Set([
-  "c", "°c", "celsius",
-  "f", "°f", "fahrenheit"
-]);
+const ALIASES = {
+  quilometro: "km", quilometros: "km",
+  metro: "m", metros: "m",
+  centimetro: "cm", centimetros: "cm",
+  milimetro: "mm", milimetros: "mm",
+  milha: "mi", milhas: "mi",
+  pe: "ft", pes: "ft",
+  polegada: "in", polegadas: "in",
+  quilo: "kg", quilos: "kg", quilograma: "kg", quilogramas: "kg",
+  grama: "g", gramas: "g",
+  miligrama: "mg", miligramas: "mg",
+  tonelada: "t", toneladas: "t",
+  libra: "lb", libras: "lb",
+  litro: "l", litros: "l",
+  mililitro: "ml", mililitros: "ml",
+  "°c": "c", celsius: "c", "graus celsius": "c", "grau celsius": "c",
+  "°f": "f", fahrenheit: "f", "graus fahrenheit": "f", "grau fahrenheit": "f"
+};
+
+const TEMP = new Set(["c", "f"]);
 
 function normalizeUnit(u) {
-  const s = String(u).toLowerCase().replace(/\s/g, "");
+  const s = String(u || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 
-  if (["°c", "celsius"].includes(s)) return "c";
-  if (["°f", "fahrenheit"].includes(s)) return "f";
-
-  return s;
+  return ALIASES[s] || s.replace(/\s/g, "");
 }
 
 function format(value) {
@@ -46,13 +66,8 @@ function convert(value, fromRaw, toRaw) {
   const to = normalizeUnit(toRaw);
 
   if (TEMP.has(from) && TEMP.has(to)) {
-    const c = from === "f"
-      ? (value - 32) * 5 / 9
-      : value;
-
-    return to === "f"
-      ? c * 9 / 5 + 32
-      : c;
+    const c = from === "f" ? (value - 32) * 5 / 9 : value;
+    return to === "f" ? c * 9 / 5 + 32 : c;
   }
 
   const a = UNITS[from];
@@ -66,10 +81,12 @@ function convert(value, fromRaw, toRaw) {
 }
 
 function handle(text) {
-  const raw = String(text || "").trim();
+  const raw = String(text || "").trim().replace(/[?!.]+$/, "").trim();
 
   const unitPattern =
-    "km|m|cm|mm|mi|ft|in|kg|g|mg|t|lb|l|ml|m3|cm3|°c|celsius|°f|fahrenheit|c|f";
+    "km|quil[oô]metros?|metros?|m|cent[ií]metros?|cm|mil[ií]metros?|mm|milhas?|mi|p[eé]s?|ft|polegadas?|in|" +
+    "kg|quilos?|quilogramas?|gramas?|g|miligramas?|mg|toneladas?|t|libras?|lb|" +
+    "litros?|l|mililitros?|ml|m3|cm3|graus?\\s+celsius|°c|celsius|graus?\\s+fahrenheit|°f|fahrenheit|c|f";
 
   const re = new RegExp(
     "^(?:\\/converter\\s+|converta\\s+|converter\\s+|quanto\\s+(?:é|e)\\s+)?(-?\\d+(?:[.,]\\d+)?)\\s*(" +
@@ -81,16 +98,13 @@ function handle(text) {
   );
 
   const m = raw.match(re);
-
   if (!m) return null;
 
   const amount = Number(m[1].replace(",", "."));
 
   try {
     const result = convert(amount, m[2], m[3]);
-
-    return "📏 " + format(amount) + " " + m[2] +
-      " = " + format(result) + " " + m[3];
+    return "📏 " + format(amount) + " " + m[2] + " = " + format(result) + " " + m[3];
   } catch (error) {
     return "Não consegui converter: " + error.message;
   }
