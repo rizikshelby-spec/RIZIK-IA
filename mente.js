@@ -330,4 +330,4 @@ const pergunta = t => { const p = prep(t); if (has(p, SMALL)) return false; retu
 
 const stats = () => ({ girias: Object.keys(VOCAB).length, lexBase: BASE_LEX.length, kbProg: KB.length, erros: ERROS.length, jogos: 4, modelosApps: Object.keys(TEMPLATES).length, pasta: ctx.pasta, tema: ctx.tema });
 const jogando = () => !!ctx.jogo;
-export const Mente = { jogando, responder, setTexto, pasta, pergunta, tema, lembrarTema, stats };
+export const Mente = { jogando, responder, setTexto, setMidia, pasta, pergunta, tema, lembrarTema, stats };
