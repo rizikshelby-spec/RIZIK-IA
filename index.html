@@ -9,14 +9,19 @@
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;background:#10111a;color:#f5f5fb;font-family:Arial,sans-serif;display:flex;flex-direction:column;height:100dvh}
-header{padding:12px 16px;background:#191b29;border-bottom:1px solid #303247;flex:none}
-h2{margin:0 0 3px;color:#b5a8ff;font-size:20px}
+header{padding:10px 14px;background:#191b29;border-bottom:1px solid #303247;flex:none}
+.htop{display:flex;align-items:center;justify-content:space-between;gap:8px}
+h2{margin:0 0 2px;color:#b5a8ff;font-size:19px}
 #status{color:#aaaabd;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#modos{display:flex;gap:6px;overflow-x:auto;padding:7px 10px;background:#141624;border-bottom:1px solid #303247;flex:none}
+#modos::-webkit-scrollbar{display:none}
+.modo{flex:none;padding:5px 11px;font-size:12px;font-weight:normal;background:#222538;border:1px solid #3a3e59;border-radius:999px;color:#d6d6ea;cursor:pointer}
+.modo.on{background:#7864ed;border-color:#a292ff;color:#fff;font-weight:bold}
 #chat{flex:1;overflow:auto;padding:10px 10px 14px;width:100%;max-width:850px;margin:0 auto}
-.msg{padding:8px 11px;margin:6px 0;border-radius:14px;max-width:82%;width:fit-content;line-height:1.45;overflow-wrap:anywhere;font-size:14px;backdrop-filter:blur(6px)}
+.msg{padding:8px 11px;margin:6px 0;border-radius:14px;max-width:84%;width:fit-content;line-height:1.45;overflow-wrap:anywhere;font-size:14px;backdrop-filter:blur(6px)}
 .msg .t{white-space:pre-wrap}
-.bot{background:rgba(34,37,56,.55);border:1px solid rgba(90,96,130,.35);margin-right:auto}
-.user{background:rgba(81,65,160,.55);border:1px solid rgba(140,120,240,.3);margin-left:auto}
+.bot{background:rgba(34,37,56,.62);border:1px solid rgba(90,96,130,.35);margin-right:auto}
+.user{background:rgba(81,65,160,.58);border:1px solid rgba(140,120,240,.3);margin-left:auto}
 .pensando{opacity:.85;border-style:dashed;white-space:pre-line}
 .acoes{display:flex;gap:6px;margin:-2px 0 6px}
 .acoes button{padding:3px 9px;font-size:12px;font-weight:normal;background:rgba(255,255,255,.08);border-radius:10px}
@@ -37,7 +42,7 @@ button{padding:10px 14px;border:0;border-radius:12px;background:#7864ed;color:#f
 button.stop{background:#c0392b}
 #mais,#mic{width:42px;padding:0;font-size:20px;background:#303247}
 #mic.gravando{background:#c0392b}
-#menu{display:none;position:fixed;left:10px;bottom:calc(64px + env(safe-area-inset-bottom));background:#222538;border:1px solid #3a3e59;border-radius:14px;padding:6px;z-index:5;min-width:250px}
+#menu{display:none;position:fixed;left:10px;bottom:calc(64px + env(safe-area-inset-bottom));background:#222538;border:1px solid #3a3e59;border-radius:14px;padding:6px;z-index:5;min-width:255px}
 #menu.aberto{display:block}
 #menu button{display:block;width:100%;text-align:left;background:none;padding:11px 12px;font-weight:normal;font-size:15px}
 #hist{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10;align-items:flex-end;justify-content:center}
@@ -68,60 +73,99 @@ textarea#entrada{flex:1;min-width:0;padding:11px;border:1px solid #44465d;border
 </style>
 </head>
 <body>
-<header><h2>BACH AI 🧠</h2><div id="status">Carregando...</div></header>
+<header>
+  <div class="htop"><h2>BACH AI 🧠</h2></div>
+  <div id="status">Carregando...</div>
+</header>
+
+<nav id="modos" aria-label="Modos de funcionamento">
+  <button class="modo on" data-modo="auto">🤖 Automático</button>
+  <button class="modo" data-modo="raciocinio">🧠 Raciocínio</button>
+  <button class="modo" data-modo="pesquisa">🌐 Pesquisa</button>
+  <button class="modo" data-modo="aprendizado">📚 Aprendizado</button>
+  <button class="modo" data-modo="programacao">💻 Programação</button>
+  <button class="modo" data-modo="matematica">🔢 Matemática</button>
+  <button class="modo" data-modo="visao">👁️ Imagens</button>
+  <button class="modo" data-modo="voz">🎙️ Voz</button>
+  <button class="modo" data-modo="criatividade">✍️ Criatividade</button>
+  <button class="modo" data-modo="documentos">📄 Documentos</button>
+</nav>
+
 <main id="chat"></main>
 <div id="barras"><div id="citbar" hidden></div><div id="anexos" hidden></div></div>
-<footer>
-<button id="mais" aria-label="Mais opções">+</button>
-<textarea id="entrada" rows="1" enterkeyhint="enter" placeholder="Converse ou digite 'ajuda'..." autocomplete="off"></textarea>
-<button id="mic" aria-label="Falar">🎤</button>
-<button id="enviar">Enviar</button>
-</footer>
-<div id="menu">
-<button data-acao="anexar">📎 Anexar foto, vídeo ou arquivo</button>
-<button data-acao="profundo">🧠 Pensar bastante: desligado</button>
-<button data-acao="voz">🔊 Ler respostas sozinha: desligado</button>
-<button data-acao="historico">🕘 Histórico de conversas</button>
-<button data-acao="nova">➕ Nova conversa</button>
-<button data-acao="arquivos">📁 Meus arquivos</button>
-<button data-acao="modulos">🧩 Departamentos da BACH</button>
-<button data-acao="jogo">🎮 Jogar um joguinho</button>
-</div>
-<input id="seletor" type="file" hidden multiple accept="image/*,video/*,.txt,.md,.js,.html,.css,.json,.csv,.py,.xml,.log,.ts,.java,.c,.cpp,.sql,.yml,.yaml">
 
+<footer>
+  <button id="mais" aria-label="Mais opções">+</button>
+  <textarea id="entrada" rows="1" enterkeyhint="enter" placeholder="Converse ou digite 'ajuda'..." autocomplete="off"></textarea>
+  <button id="mic" aria-label="Falar">🎤</button>
+  <button id="enviar">Enviar</button>
+</footer>
+
+<div id="menu">
+  <button data-acao="anexar">📎 Anexar foto, vídeo ou arquivo</button>
+  <button data-acao="profundo">🧠 Pensar bastante: desligado</button>
+  <button data-acao="voz">🔊 Ler respostas sozinha: desligado</button>
+  <button data-acao="historico">🕘 Histórico de conversas</button>
+  <button data-acao="nova">➕ Nova conversa</button>
+  <button data-acao="arquivos">📁 Meus arquivos</button>
+  <button data-acao="modulos">🧩 Departamentos da BACH</button>
+  <button data-acao="ia">🤖 Motor de IA (/ia status)</button>
+  <button data-acao="jogo">🎮 Jogar um joguinho</button>
+</div>
+
+<input id="seletor" type="file" hidden multiple accept="image/*,video/*,.txt,.md,.js,.html,.css,.json,.csv,.py,.xml,.log,.ts,.java,.c,.cpp,.sql,.yml,.yaml">
 <div id="hist"></div>
 <input id="seletorBase" type="file" hidden accept=".json,application/json">
 
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <script type="module">
-import { RizikBrain } from "./brain.js?v=15";
-import { Saber } from "./saber.js?v=8";
+import { RizikBrain } from "./brain.js?v=16";
+import { Saber } from "./saber.js?v=9";
 import { Prog } from "./programacao.js?v=4";
 import { Arquivos } from "./arquivos.js?v=2";
-import { Mente } from "./mente.js?v=11";
-import { Fatos } from "./fatos.js?v=4";
+import { Mente } from "./mente.js?v=12";
+import { Fatos } from "./fatos.js?v=5";
 import { Conversa } from "./conversa.js?v=4";
-import { Dic } from "./dicionario.js?v=3";
-import { Historico } from "./historico.js?v=2";
-import { Base } from "./base.js?v=3";
-import { SkillRouter } from "./registry.js?v=1";
+import { Dic } from "./dicionario.js?v=4";
+import { Historico } from "./historico.js?v=3";
+import { Base } from "./base.js?v=4";
+import { SkillRouter } from "./registry.js?v=2";
+import { LLM } from "./llm.js?v=1";
 
 const $ = id => document.getElementById(id);
 const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status"), hist = $("hist");
-const HISTORY_KEY = "bach_chat_history_v1", KEY_API = "bach_gemini_key", KEY_MODEL = "bach_gemini_model";
-const STATUS = "BACH AI 4.0 • Conversa, código, dicionário, jogos, arquivos, memória e pesquisa";
+const HISTORY_KEY = "bach_chat_history_v1";
 const LONGO = 700;
+const NOMES_MODOS = {
+  auto: "🤖 Automático", raciocinio: "🧠 Raciocínio", pesquisa: "🌐 Pesquisa",
+  aprendizado: "📚 Aprendizado", programacao: "💻 Programação", matematica: "🔢 Matemática",
+  visao: "👁️ Imagens", voz: "🎙️ Voz", criatividade: "✍️ Criatividade", documentos: "📄 Documentos"
+};
 
-let history = [], pensando = null, modoProfundo = false, lerAuto = false;
+let history = [], pensando = null, modoProfundo = false, lerAuto = false, modoAtual = "auto";
 let ultimoTema = null, ultimaOrigem = "", aguardaCidade = false, citacao = null, alvo = null, pendentes = [];
-let ocupado = false, cancelado = false, ctrl = null, ultimoArquivo = null;
-try { history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); if (!Array.isArray(history)) history = []; } catch { history = []; }
+let ocupado = false, cancelado = false, ctrl = null, ultimoArquivo = null, ultimaImagem = null;
+
+try {
+  history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+  if (!Array.isArray(history)) history = [];
+} catch { history = []; }
+
+const statusPadrao = () => "BACH AI 4.1 • " + (NOMES_MODOS[modoAtual] || "🤖 Automático") + " • Motor: " + LLM.label();
+
 const salvarHist = () => {
-  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-40).map(h => ({ ...h, text: String(h.text).slice(0, 20000) })))); } catch (e) { console.warn(e); }
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-30).map(h => ({ ...h, text: String(h.text).slice(0, 8000) }))));
+  } catch (e) { console.warn(e); }
   try { Historico.salvarAtual(history); } catch (e) { console.warn(e); }
 };
 
-function busy(b) { ocupado = b; botao.textContent = b ? "⏹" : "Enviar"; botao.classList.toggle("stop", b); if (!b) status.textContent = STATUS; }
+function busy(b) {
+  ocupado = b;
+  botao.textContent = b ? "⏹" : "Enviar";
+  botao.classList.toggle("stop", b);
+  if (!b) status.textContent = statusPadrao();
+}
 
 /* ---------- utilitários ---------- */
 async function copiar(t, btn) {
@@ -194,11 +238,15 @@ function falar(texto, tipo = "bot", origem = "", forcar = false, cit = "") {
   chat.scrollTop = chat.scrollHeight;
   history.push({ text: String(texto), type: tipo, ...(cit ? { cit } : {}) }); salvarHist();
   if (tipo === "bot") ultimaOrigem = origem;
-  if (tipo === "bot" && lerAuto) ler(texto);
+  if (tipo === "bot" && (lerAuto || modoAtual === "voz")) ler(texto);
 }
 function restaurar() {
-  history = history.slice(-40);
-  for (const h of history) { const u = h.type === "user"; chat.appendChild(montar(h.text || "", u ? "user" : "bot", h.cit || "")); chat.appendChild(acoes(h.text || "", u)); }
+  history = history.slice(-30);
+  for (const h of history) {
+    const u = h.type === "user";
+    chat.appendChild(montar(h.text || "", u ? "user" : "bot", h.cit || ""));
+    chat.appendChild(acoes(h.text || "", u));
+  }
   chat.scrollTop = chat.scrollHeight;
 }
 function criarResultado(titulo, resumo, url) {
@@ -214,7 +262,10 @@ function pensar() {
   const div = mk("div", "msg bot pensando"), t0 = performance.now(), linhas = [];
   const render = () => { div.textContent = "🤔 Pensando... " + ((performance.now() - t0) / 1000).toFixed(1) + " s\n" + linhas.join("\n") + "\n(toque em ⏹ para cancelar)"; };
   const timer = setInterval(render, 200); chat.appendChild(div); render(); chat.scrollTop = chat.scrollHeight;
-  return { passo(t) { linhas.push("• " + t); if (linhas.length > 5) linhas.shift(); render(); }, fim() { clearInterval(timer); div.remove(); return (performance.now() - t0) / 1000; } };
+  return {
+    passo(t) { linhas.push("• " + t); if (linhas.length > 5) linhas.shift(); render(); },
+    fim() { clearInterval(timer); div.remove(); return (performance.now() - t0) / 1000; }
+  };
 }
 function passo(t) { if (pensando) pensando.passo(t); status.textContent = t; }
 function parar() {
@@ -224,7 +275,7 @@ function parar() {
   falar("⏹ Cancelei. Pode mandar outra coisa.", "bot", "", true);
 }
 
-/* ---------- rede ---------- */
+/* ---------- rede / clima / notícias / pesquisa ---------- */
 async function requisicao(url, tempo = 20000) {
   const c = new AbortController(), t = setTimeout(() => c.abort(), tempo);
   try { const r = await fetch(url, { signal: c.signal }); if (!r.ok) throw new Error("HTTP " + r.status); return r; } finally { clearTimeout(t); }
@@ -238,7 +289,12 @@ async function clima(cidade) {
     try { localStorage.setItem("bach_cidade", l.name); } catch {}
     RizikBrain.logTopic("clima em " + l.name);
     passo("🌡️ Buscando a previsão de " + l.name + "...");
-    const p = new URLSearchParams({ latitude: l.latitude, longitude: l.longitude, current: "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m", daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max", timezone: "auto", forecast_days: "3" });
+    const p = new URLSearchParams({
+      latitude: l.latitude, longitude: l.longitude,
+      current: "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m",
+      daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
+      timezone: "auto", forecast_days: "3"
+    });
     const d = await (await requisicao("https://api.open-meteo.com/v1/forecast?" + p)).json(), c = d.current;
     const cond = k => k === 0 ? "Céu limpo" : [1, 2, 3].includes(k) ? "Nublado" : [45, 48].includes(k) ? "Neblina" : [51, 53, 55, 61, 63, 65, 80, 81, 82].includes(k) ? "Chuva ou garoa" : [95, 96, 99].includes(k) ? "Tempestade" : "Variável";
     let r = "🌤️ CLIMA: " + l.name + "\n\nTemperatura: " + c.temperature_2m + "°C (sensação " + c.apparent_temperature + "°C)\nCondição: " + cond(c.weather_code) + "\nUmidade: " + c.relative_humidity_2m + "%\nVento: " + c.wind_speed_10m + " km/h\n\nPREVISÃO:\n";
@@ -267,7 +323,7 @@ const limpo = x => lim(String(x).replace(/!\[[^\]]*\]\([^)]*\)/g, " ").replace(/
 async function noticias(q) {
   passo("📰 Buscando as manchetes de hoje...");
   try {
-    const txt = await (await requisicao("https://r.jina.ai/http://html.duckduckgo.com/html/?df=d&q=" + encodeURIComponent(q), 25000)).text();
+    const txt = await (await requisicao("https://r.jina.ai/http://html.duckduckgo.com/html/?df=d&q=" + encodeURIComponent(q), 15000)).text();
     const ms = [...txt.matchAll(/^## \[(.*?)\]\((https?:\/\/[^)\s]+)\)/gm)], itens = [], vistos = new Set();
     for (let i = 0; i < ms.length && itens.length < 6; i++) {
       let l = ms[i][2]; try { const u = new URL(l); if (u.hostname.includes("duckduckgo.com")) l = u.searchParams.get("uddg") || l; } catch {}
@@ -289,12 +345,14 @@ async function pesquisaProfunda(q, fundo = true) {
   q = temas[0] || q;
   const temaLimpo = Mente.tema(q) || q;
   ultimoTema = temaLimpo;
-  const usarFundo = modoProfundo || fundo;
+  const usarFundo = modoProfundo || modoAtual === "raciocinio" || fundo;
 
   let deuFato = false;
   if (/\b(piadas?|humor|engra[cç]ad[oa]s?)\b/i.test(q)) { falar("Piada eu tenho de sobra! 😄\n\n" + Prog.humor("conta uma piada"), "bot", "😄 meu repertório"); return; }
   const fato = Fatos.responder(temaLimpo) || Fatos.responder(q);
-  if (fato) { deuFato = true; RizikBrain.logTopic(temaLimpo); falar(fato, "bot", "📘 base de fatos"); if (!usarFundo) return; }
+  if (fato && !usarFundo) { deuFato = true; RizikBrain.logTopic(temaLimpo); falar(fato, "bot", "📘 base de fatos"); return; }
+  if (fato) { deuFato = true; RizikBrain.logTopic(temaLimpo); falar(fato, "bot", "📘 base de fatos"); }
+
   passo((usarFundo ? "🔎 Pesquisando a fundo: " : "🔎 Pesquisando: ") + temaLimpo);
   try {
     const r = await Saber.pesquisaProfunda(q, passo, usarFundo);
@@ -310,95 +368,170 @@ async function pesquisaProfunda(q, fundo = true) {
     console.error(e);
     if (e.message === "irrelevante" && deuFato) return;
     if (e.message === "sem-dados-futuros") { falar("Isso eu não consigo responder direito: não tenho uma lista atualizada de lançamentos futuros de filmes, séries ou animes. Sites como IMDb, Omelete ou Letterboxd têm isso sempre atualizado. 🎬"); return; }
-    if (e.message === "meta-referencia") { falar("Acho que você quer que eu explique melhor algo que eu mesma disse, não que eu pesquise isso na internet. 🤔 Me diga qual parte não ficou clara, ou copie o trecho que você quer entender melhor."); return; }
+    if (e.message === "meta-referencia") { falar("Acho que você quer que eu explique melhor algo que eu mesma disse, não que eu pesquise na internet. 🤔 Me diga qual parte não ficou clara ou use ↩ Responder no balão."); return; }
     falar(e.message === "irrelevante" ? "Procurei, mas nada estava claramente ligado a “" + temaLimpo + "”, e prefiro não inventar. Tente outras palavras. 🔍" : "Não consegui pesquisar agora. Tente de novo em instantes.");
   }
 }
 
-/* ---------- IA (Gemini) ---------- */
+/* ---------- IA (via llm.js — local ou online, mantendo identidade BACH AI) ---------- */
 const SISTEMA =
-`Você é a BACH AI, assistente em português do Brasil criada pelo usuário. Seja simpática, direta e clara; explique para iniciantes, mas vá fundo quando pedirem nível intermediário ou avançado.
-Você sabe: conversar; escrever e resumir textos; interpretar textos e códigos colados (explique o que são, o que fazem e o que está errado); programar em JavaScript, HTML, CSS, Python, SQL e outras; criar telas, sites, jogos e aplicativos; e ensinar a criar uma IA do zero.
+`Você é a BACH AI, uma assistente inteligente em português do Brasil criada pelo usuário. Seja simpática, direta, precisa e adaptável: explique simples para iniciantes ou aprofunde quando pedirem.
+Você possui memória, pesquisa, análise de documentos, programação, cálculo, criatividade, voz e visão.
 REGRAS DE FORMATO:
-- Todo código, arquivo ou texto que o usuário vá copiar vai em bloco de código com três crases e a linguagem (ex.: html, js). O app mostra cada bloco como um cartão com botões Copiar e Baixar. Nunca coloque código solto no meio do texto.
-- Antes de cada bloco diga em 1 linha o nome do arquivo e onde colar. Entregue o arquivo COMPLETO, pronto para colar, nunca pedaços soltos, a menos que peçam só uma correção.
+- Todo código, arquivo ou texto para copiar vai em bloco com três crases e a linguagem (ex.: html, js, python). O app transforma em cartão com botões Copiar e Baixar.
+- Antes de cada bloco diga o nome do arquivo em 1 linha. Entregue o arquivo completo quando pedirem um programa/site/jogo.
 - Para jogos e apps simples, entregue um único arquivo HTML (CSS e JS dentro) que funcione no celular.
-- Respostas curtas para perguntas simples. Em tarefas grandes, dê o passo a passo numerado.
-HONESTIDADE: se não souber, diga. Não invente fatos, links ou funções. Use o histórico e a memória do usuário para entender "isso", "esse texto", "ele" e lembrar do que já conversaram.`;
+- Respostas objetivas para perguntas simples; passo a passo numerado para tarefas complexas.
+HONESTIDADE: se não souber, admita. Não invente fatos, links ou resultados.`;
 
-async function perguntarIA(texto) {
-  const key = localStorage.getItem(KEY_API), model = localStorage.getItem(KEY_MODEL) || "gemini-3.5-flash-lite";
-  passo("🤖 Pensando com a IA...");
-  ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), 60000);
+async function perguntarIA(texto, extraCtx = "") {
+  passo("🤖 BACH pensando (" + LLM.label() + ")...");
+  ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 60000);
   try {
-    let contents = history.filter(h => h.type === "user" || h.type === "bot").slice(-12).map(h => ({ role: h.type === "user" ? "user" : "model", parts: [{ text: (h.cit ? "[Respondendo a: " + h.cit + "]\n" : "") + String(h.text).slice(0, 12000) }] }));
-    while (contents.length && contents[0].role !== "user") contents.shift();
-    if (alvo && contents.length) { const u = contents[contents.length - 1]; u.parts[0].text = "[O usuário está respondendo a esta mensagem: " + alvo.slice(0, 1500) + "]\n" + u.parts[0].text; }
+    let msgs = history
+      .filter(h => h.type === "user" || h.type === "bot")
+      .slice(-14)
+      .map(h => ({
+        role: h.type === "user" ? "user" : "assistant",
+        content: (h.cit ? "[Respondendo a: " + h.cit + "]\n" : "") + String(h.text).slice(0, 10000)
+      }));
+
+    while (msgs.length && msgs[0].role !== "user") msgs.shift();
+    if (alvo && msgs.length) {
+      msgs[msgs.length - 1].content = "[O usuário está respondendo a esta mensagem: " + alvo.slice(0, 1500) + "]\n" + msgs[msgs.length - 1].content;
+    }
+
     const perf = RizikBrain.getProfile();
     const rec = RizikBrain.getRecentTopics(8).map(x => x.topic);
-    let sis = SISTEMA;
-    if (perf.userName) sis += "\nO usuário se chama " + perf.userName + ".";
-    if (perf.city) sis += "\nCidade do usuário: " + perf.city + ".";
-    if (perf.age) sis += "\nIdade do usuário: " + perf.age + " anos.";
-    if (perf.likes?.length) sis += "\nCoisas que o usuário gosta: " + perf.likes.join(", ") + ".";
-    if (perf.projects?.length) sis += "\nProjetos/estudos atuais do usuário: " + perf.projects.join(", ") + ".";
-    if (rec.length) sis += "\nAssuntos recentes que vocês conversaram: " + rec.join(", ") + ".";
-    if (ultimoArquivo) sis += "\n\nARQUIVO/TEXTO MAIS RECENTE DO USUÁRIO (" + ultimoArquivo.nome + "):\n" + ultimoArquivo.texto.slice(0, 30000);
-    const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent", {
-      method: "POST", signal: ctrl.signal, headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify({ systemInstruction: { parts: [{ text: sis }] }, contents, generationConfig: { maxOutputTokens: 8192, temperature: 0.3, topP: 0.9 } })
+
+    let sis = SISTEMA + "\n\n" + SkillRouter.modePrompt(modoAtual) + "\n\n" + SkillRouter.instructions();
+    if (perf.userName) sis += "\nNome do usuário: " + perf.userName + ".";
+    if (perf.city) sis += "\nCidade: " + perf.city + ".";
+    if (perf.age) sis += "\nIdade: " + perf.age + " anos.";
+    if (perf.likes?.length) sis += "\nGostos do usuário: " + perf.likes.join(", ") + ".";
+    if (perf.projects?.length) sis += "\nProjetos/estudos atuais: " + perf.projects.join(", ") + ".";
+    if (rec.length) sis += "\nAssuntos recentes: " + rec.join(", ") + ".";
+    if (ultimoArquivo) sis += "\n\nARQUIVO/TEXTO ATUAL (" + ultimoArquivo.nome + "):\n" + ultimoArquivo.texto.slice(0, 25000);
+    if (extraCtx) sis += "\n\nCONTEXTO ADICIONAL DE FERRAMENTAS:\n" + extraCtx;
+
+    const enviarImg = Boolean(ultimaImagem && (modoAtual === "visao" || /foto|imagem|print|tela|desenho|grafico|gráfico|leia|veja|olhe|aparece|nela|nisso|isso/i.test(texto)));
+    const temp = modoAtual === "criatividade" ? 0.75 : modoAtual === "matematica" || modoAtual === "programacao" ? 0.2 : 0.35;
+
+    const res = await LLM.generate({
+      system: sis,
+      messages: msgs,
+      image: enviarImg ? ultimaImagem : null,
+      temperature: temp,
+      signal: ctrl.signal
     });
-    if (!r.ok) {
-      falar(r.status === 400 || r.status === 403 ? "A chave parece inválida. Gere outra em aistudio.google.com e use /chave SUA_CHAVE."
-        : r.status === 404 ? "Esse modelo não está disponível pra sua chave. Troque com /modelo gemini-3.8-flash"
-        : r.status === 429 ? "Atingi o limite grátis por agora. Aguarde um minuto e tente de novo."
-        : "A IA retornou erro " + r.status + ". Tente novamente.");
-      return;
-    }
-    const d = await r.json(), cand = d?.candidates?.[0];
-    let resp = (cand?.content?.parts || []).map(x => x.text || "").join("").trim();
-    if (cand?.finishReason === "MAX_TOKENS") resp += "\n\n(Resposta cortada pelo limite. Peça: continue)";
-    falar(resp || "A IA não devolveu resposta. Tente reformular.", "bot", "🤖 IA conectada");
+
+    let resp = res.text || "Não obtive resposta do modelo. Tente reformular.";
+    if (res.truncated) resp += "\n\n(Resposta cortada pelo limite. Peça: continue)";
+    falar(resp, "bot", "🤖 " + LLM.label() + (enviarImg ? " + 👁️ visão" : ""));
   } catch (e) {
-    if (e.name !== "AbortError") { console.error(e); falar("Não consegui falar com a IA agora. Verifique a internet e tente de novo."); }
-  } finally { clearTimeout(timer); ctrl = null; }
+    if (e.name !== "AbortError") {
+      console.error(e);
+      if (e.status === 400 || e.status === 401 || e.status === 403) {
+        falar("Erro de autenticação ou requisição (" + e.status + "): " + e.message + "\nConfira sua configuração com /ia status ou /chave SUA_CHAVE.");
+      } else if (e.status === 404) {
+        falar("Modelo não encontrado (" + e.status + "): " + e.message + "\nTroque com /modelo nome-do-modelo.");
+      } else if (e.status === 429) {
+        falar("Limite de uso atingido no momento (429). Aguarde um minuto ou use /ia offline.");
+      } else {
+        falar("Falha ao consultar o motor de IA: " + (e.message || "verifique a conexão ou /ia status."));
+      }
+    }
+  } finally {
+    clearTimeout(timer);
+    ctrl = null;
+  }
 }
 
-/* ---------- arquivos ---------- */
-function mostrarPreview(p) {
-  const d = mk("div", "msg bot"), el = document.createElement(p.kind === "video" ? "video" : "img"); el.src = p.url;
-  if (p.kind === "video") { el.controls = true; el.muted = true; el.playsInline = true; }
-  d.appendChild(el); chat.appendChild(d);
+/* ---------- arquivos e imagem multimodal ---------- */
+function imagemParaBase64(file) {
+  return new Promise(resolve => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    const timer = setTimeout(() => { URL.revokeObjectURL(url); resolve(null); }, 10000);
+    img.onload = () => {
+      clearTimeout(timer);
+      try {
+        const max = 1280;
+        const esc = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+        const c = document.createElement("canvas");
+        c.width = Math.max(1, Math.round(img.naturalWidth * esc));
+        c.height = Math.max(1, Math.round(img.naturalHeight * esc));
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        const dataUrl = c.toDataURL("image/jpeg", 0.85);
+        resolve({ mimeType: "image/jpeg", base64: dataUrl.split(",")[1] });
+      } catch { resolve(null); }
+      finally { URL.revokeObjectURL(url); }
+    };
+    img.onerror = () => { clearTimeout(timer); URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
 }
-async function processarArquivo(f) {
+
+function mostrarPreview(p) {
+  const d = mk("div", "msg bot"), el = document.createElement(p.kind === "video" ? "video" : "img");
+  el.src = p.url;
+  if (p.kind === "video") { el.controls = true; el.muted = true; el.playsInline = true; }
+  d.appendChild(el);
+  chat.appendChild(d);
+}
+
+async function processarArquivo(f, silenciosoSeTexto = false) {
   busy(true); cancelado = false; falar("📎 " + f.name, "user"); pensando = pensar();
   passo("📂 Abrindo " + f.name + "...");
   try {
     const r = await Arquivos.lerMidia(f, passo);
     if (r.preview) mostrarPreview(r.preview);
     let resposta = r.resumo, pasta = r.pasta, texto = "";
+
     if (r.tipo === "texto") {
       passo("📖 Lendo o conteúdo...");
-      resposta = Saber.lerTexto(r.texto); pasta = Mente.pasta(Saber.isCode(r.texto) ? "Códigos" : "Textos"); texto = r.texto; Mente.setTexto(f.name, r.texto);
+      resposta = Saber.lerTexto(r.texto);
+      pasta = Mente.pasta(Saber.isCode(r.texto) ? "Códigos" : "Textos");
+      texto = r.texto;
+      Mente.setTexto(f.name, r.texto);
       ultimoArquivo = { nome: f.name, texto: r.texto };
-    } else {
+      ultimaImagem = null;
+    } else if (r.tipo === "imagem") {
+      ultimaImagem = await imagemParaBase64(f);
       const ocrMatch = String(r.resumo || "").match(/Texto que consegui ler na imagem:\s*\n[“"]([\s\S]+)[”"]\s*$/);
       const ocrTexto = ocrMatch ? ocrMatch[1].trim() : "";
       Mente.setMidia(f.name, r.tipo, ocrTexto);
       ultimoArquivo = ocrTexto ? { nome: f.name, texto: ocrTexto } : null;
+    } else {
+      ultimaImagem = null;
+      Mente.setMidia(f.name, r.tipo, "");
+      ultimoArquivo = null;
     }
+
     const a = Arquivos.salvar({ nome: f.name, pasta, texto, resumo: resposta.slice(0, 300), tipo: r.tipo });
-    falar(resposta + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos" + ((texto || ultimoArquivo) && localStorage.getItem(KEY_API) ? "\n💡 Pergunte qualquer coisa sobre esse arquivo." : ""));
-  } catch (e) { console.error(e); falar("Não consegui abrir esse arquivo. " + (e.message || "")); }
-  finally { busy(false); }
+    if (!silenciosoSeTexto) {
+      const dicaIA = LLM.hasModel()
+        ? (r.tipo === "imagem" ? "\n💡 Pergunte qualquer coisa sobre esta imagem!" : "\n💡 Pergunte qualquer coisa sobre esse arquivo.")
+        : (r.tipo === "imagem" ? "\n💡 Para análise visual completa (objetos, cenas e gráficos), conecte um motor com /ia ou /chave." : "");
+      falar(resposta + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos" + dicaIA);
+    } else if (pensando) {
+      pensando.fim(); pensando = null;
+    }
+  } catch (e) {
+    console.error(e);
+    falar("Não consegui abrir esse arquivo. " + (e.message || ""));
+  } finally {
+    busy(false);
+  }
 }
 
-/* ---------- histórico de conversas (15 páginas) ---------- */
+/* ---------- histórico de conversas ---------- */
 function novaConversa() {
   try { speechSynthesis.cancel(); } catch {}
   Historico.nova(); history = []; try { localStorage.removeItem(HISTORY_KEY); } catch {}
   chat.innerHTML = ""; hist.classList.remove("aberto");
-  falar("Nova conversa! 🧹 A anterior ficou guardada no histórico (menu +). Sua memória de aprendizado continua guardada.", "bot", "", true);
+  falar("Nova conversa! 🧹 A anterior ficou guardada no histórico (menu +). Sua memória de aprendizado continua salva.", "bot", "", true);
 }
 function abrirConversa(id) {
   const msgs = Historico.abrir(id); if (!msgs) return;
@@ -421,18 +554,33 @@ function abrirHistorico(pag = 1, termo = "") {
     const li = mk("div", "hitem" + (s.id === r.atual ? " atual" : "")), info = mk("div", "hinfo"), del = mk("button", "", "🗑");
     info.append(mk("div", "htit", s.titulo), mk("div", "hmeta", new Date(s.em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) + " • " + s.qtd + " msgs" + (s.id === r.atual ? " • atual" : "")));
     info.onclick = () => abrirConversa(s.id);
-    del.onclick = e => { e.stopPropagation(); if (!confirm("Apagar esta conversa do histórico?")) return; const nova = Historico.apagar(s.id); if (nova) { history = []; try { localStorage.removeItem(HISTORY_KEY); } catch {} chat.innerHTML = ""; falar("Conversa apagada. Começamos uma nova! 🧹", "bot", "", true); } abrirHistorico(r.pagina, termo); };
+    del.onclick = e => {
+      e.stopPropagation();
+      if (!confirm("Apagar esta conversa do histórico?")) return;
+      const nova = Historico.apagar(s.id);
+      if (nova) { history = []; try { localStorage.removeItem(HISTORY_KEY); } catch {} chat.innerHTML = ""; falar("Conversa apagada. Começamos uma nova! 🧹", "bot", "", true); }
+      abrirHistorico(r.pagina, termo);
+    };
     li.append(info, del); lista.append(li);
   }
   const pg = mk("div", "hpag"), ant = mk("button", "", "◀"), prox = mk("button", "", "▶");
   ant.disabled = r.pagina <= 1; prox.disabled = r.pagina >= r.paginas;
   ant.onclick = () => abrirHistorico(r.pagina - 1, termo); prox.onclick = () => abrirHistorico(r.pagina + 1, termo);
   pg.append(ant);
-  for (let p = 1; p <= r.paginas; p++) { const b = mk("button", p === r.pagina ? "on" : p > r.totalPaginas ? "vazia" : "", String(p)); b.onclick = () => abrirHistorico(p, termo); pg.append(b); }
+  for (let p = 1; p <= r.paginas; p++) {
+    const b = mk("button", p === r.pagina ? "on" : p > r.totalPaginas ? "vazia" : "", String(p));
+    b.onclick = () => abrirHistorico(p, termo);
+    pg.append(b);
+  }
   pg.append(prox);
   const rod = mk("div", "hrod"), novo = mk("button", "", "➕ Nova conversa"), tudo = mk("button", "", "🗑 Apagar tudo");
   novo.onclick = novaConversa;
-  tudo.onclick = () => { if (!confirm("Apagar TODO o histórico de conversas? A memória de aprendizado não é apagada.")) return; Historico.limparTudo(); history = []; try { localStorage.removeItem(HISTORY_KEY); } catch {} chat.innerHTML = ""; hist.classList.remove("aberto"); falar("Histórico apagado. Sua memória de aprendizado continua guardada.", "bot", "", true); };
+  tudo.onclick = () => {
+    if (!confirm("Apagar TODO o histórico de conversas? A memória de aprendizado não é apagada.")) return;
+    Historico.limparTudo(); history = []; try { localStorage.removeItem(HISTORY_KEY); } catch {}
+    chat.innerHTML = ""; hist.classList.remove("aberto");
+    falar("Histórico apagado. Sua memória de aprendizado continua guardada.", "bot", "", true);
+  };
   rod.append(mk("span", "", r.total + " conversa(s) • página " + r.pagina + " de " + r.paginas), novo, tudo);
   box.append(top, lista, pg, rod); hist.append(box);
 }
@@ -440,12 +588,13 @@ function abrirHistorico(pag = 1, termo = "") {
 /* ---------- /basedados ---------- */
 async function exportarBase() {
   passo("📦 Reunindo memória, conversas, interface e módulos...");
+  const cfg = LLM.getConfig();
   const b = await Base.montar({
-    history, idAtual: Historico.idAtual(), status: STATUS, statsMente: Mente.stats(), totalFatos: Fatos.total,
-    estado: { modoProfundo, lerAuto, temChaveIA: !!localStorage.getItem(KEY_API), modelo: localStorage.getItem(KEY_MODEL) || "padrão" },
+    history, idAtual: Historico.idAtual(), status: statusPadrao(), statsMente: Mente.stats(), totalFatos: Fatos.total,
+    estado: { modoProfundo, lerAuto, modoAtual, temChaveIA: LLM.hasModel(), modelo: cfg.model, provedor: cfg.provider },
     menu: [...document.querySelectorAll("#menu button")].map(x => x.textContent.trim())
   });
-  falar("📦 BASE DE DADOS DA BACH — " + new Date().toLocaleString("pt-BR") + "\n\nTabela da criação dela:\n```txt\n" + b.tabelaModulos + "\n```\nMemória e dados:\n```txt\n" + b.tabelaDados + "\n```\nBackup completo: " + b.tamanhoKb + " KB, com " + b.conversas + " conversa(s) do histórico, memória, arquivos, pesquisas, vocabulário, o estado da tela (interface) e o código de todos os módulos. Use os botões do cartão abaixo. A chave da IA externa nunca entra. Para restaurar depois: /importarbase", "bot", "📦 /basedados");
+  falar("📦 BASE DE DADOS DA BACH — " + new Date().toLocaleString("pt-BR") + "\n\nTabela da criação dela:\n```txt\n" + b.tabelaModulos + "\n```\nMemória e dados:\n```txt\n" + b.tabelaDados + "\n```\nBackup completo: " + b.tamanhoKb + " KB, com " + b.conversas + " conversa(s). Chaves secretas nunca entram. Para restaurar: /importarbase", "bot", "📦 /basedados");
   chat.appendChild(cartao("📦 " + b.nome + " • " + b.tamanhoKb + " KB", b.json, b.nome, false, 2500));
   chat.scrollTop = chat.scrollHeight;
 }
@@ -459,27 +608,28 @@ async function lerLinkMsg(url, texto, temIA) {
     ultimoArquivo = { nome: a.nome, texto: r.texto }; Mente.setTexto(a.nome, r.texto);
     RizikBrain.logTopic(a.nome);
     if (temIA && texto.replace(url, "").trim().length > 3) { await perguntarIA(texto); return; }
-    falar("🔗 Abri " + r.url + "\n\n" + leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\n💡 Agora pergunte: “o que é esse texto?”, “explica”, “resume” ou “revisa o código”.", "bot", "🔗 link");
-  } catch (e) { console.error(e); falar("Não consegui abrir esse link. Se for repositório privado ou uma página que bloqueia leitura, copie o texto e cole aqui. 📋"); }
+    falar("🔗 Abri " + r.url + "\n\n" + leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\n💡 Pergunte: “o que é esse texto?”, “explica”, “resume” ou “revisa o código”.", "bot", "🔗 link");
+  } catch (e) { console.error(e); falar("Não consegui abrir esse link. Se for privado ou bloquear leitura, copie o texto e cole aqui. 📋"); }
 }
 
-/* ---------- respostas em cadeia, contexto e conversa ---------- */
+/* ---------- respostas em cadeia ---------- */
 function ultimoBotTexto() {
   if (alvo) return alvo;
   for (let i = history.length - 1; i >= 0; i--) if (history[i].type !== "user") return String(history[i].text);
   return "";
 }
-async function seguir(texto) {
+async function seguir(texto, temIA) {
   const ntBruto = sn(texto);
   if (ntBruto.split(" ").length > 10) return false;
-  // Remove cumprimentos/confirmações no início: "certo, resume" -> "resume"
   const nt = ntBruto.replace(/^(?:(?:ah|oh|sim|ok|okay|certo|blz|beleza|entendi|tendi|saquei|ta|tudo bem|bom|entao|agora|por favor|pfv|pf)\s+)+/, "").trim();
   const base = ultimoBotTexto(); if (!base) return false;
 
   if (/\b(numeracao|numerado|numerada|numerar|enumere|enumera|enumerar|em lista|em topicos|em itens|em passos|listar isso|lista isso)\b/.test(nt)) {
+    if (temIA) return false;
     falar(Fatos.enumerar(base) || "Não achei uma lista para numerar nessa resposta. 🤔", "bot", "🔢 formatação"); return true;
   }
   if (/^(resuma|resume|resumir|resumo|mais curto|encurta|encurte|resumindo)( isso| tudo| a resposta)?$/.test(nt)) {
+    if (temIA) return false;
     if (ultimoArquivo?.texto && /Guardei em:|Li o texto|Funções que encontrei/i.test(base)) {
       const resp = Mente.responder("resuma esse texto");
       if (resp?.texto) { falar(resp.texto, "bot", "📝 resumo do arquivo"); return true; }
@@ -489,21 +639,20 @@ async function seguir(texto) {
 
   const pedeExplicarArquivo = /Guardei em:|Texto que consegui ler|Li o texto|Funções que encontrei|Parece (HTML|JavaScript|Python|código)/i.test(base) &&
     (/(esse|este|esses|estes|isso|codigo|codigos|texto|arquivo).*(faz|fazem|serve|servem|explic|funciona|o que e)/.test(nt) || /^(me\s+)?(explica|explique|explicar|o que faz|fazem o que|o que e isso)/.test(nt));
-  if (pedeExplicarArquivo && ultimoArquivo?.texto) {
+  if (pedeExplicarArquivo && ultimoArquivo?.texto && !temIA) {
     const resp = Mente.responder("explica esse codigo");
     if (resp?.texto) { falar(resp.texto, "bot", "📖 explicação do código/texto"); return true; }
   }
 
-  if (/^(me\s+)?(explica|explique|explicar)(\s+isso|\s+melhor|\s+o\s+que\s+(e|eh)\s+isso)?$/.test(nt) ||
-      /^(mais detalhes|detalhe|detalhes|aprofunde|aprofunda|me explique mais|conte mais|conta mais|fale mais|continue|e mais)( isso| sobre isso)?$/.test(nt)) {
+  if (!temIA && (/^(me\s+)?(explica|explique|explicar)(\s+isso|\s+melhor|\s+o\s+que\s+(e|eh)\s+isso)?$/.test(nt) ||
+      /^(mais detalhes|detalhe|detalhes|aprofunde|aprofunda|me explique mais|conte mais|conta mais|fale mais|continue|e mais)( isso| sobre isso)?$/.test(nt))) {
     if (ultimoTema && /fatos|internet|dicionário/.test(ultimaOrigem)) {
       await pesquisaProfunda(ultimoTema, true); return true;
     }
     if (base.length > 140) {
-      falar("📌 Resumindo o que eu acabei de dizer:\n\n" + (Fatos.resumir(base) || base.slice(0, 500)) + "\n\nSe quiser que eu detalhe algo específico, me diga o assunto ou use ↩ Responder!", "bot", "🧠 explicação do contexto");
+      falar("📌 Resumindo:\n\n" + (Fatos.resumir(base) || base.slice(0, 500)) + "\n\nMe diga o assunto específico ou use ↩ Responder!", "bot", "🧠 contexto");
       return true;
     }
-    return false;
   }
   return false;
 }
@@ -517,28 +666,44 @@ function ctxConversa() {
   };
 }
 
-/* ---------- roteamento ---------- */
+/* ---------- roteamento central (Automático + 10 Modos) ---------- */
 const sn = t => String(t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 
 async function rotear(texto) {
-  const cmd = texto.toLowerCase().trim(), temIA = !!localStorage.getItem(KEY_API);
+  const cmd = texto.toLowerCase().trim(), temIA = LLM.hasModel();
+
   if (aguardaCidade) {
     aguardaCidade = false;
     if (!/^\//.test(texto) && texto.split(/\s+/).length <= 5) return clima(texto.replace(/^(em|na|no|de|para)\s+/i, "").replace(/[?!.]+$/, ""));
   }
+
   if (/^\/(basedados|dadosbach)\b/.test(cmd)) return exportarBase();
   if (/^\/importarbase\b/.test(cmd)) { falar("📥 Escolha o arquivo .json que você baixou com /basedados."); $("seletorBase").click(); return; }
-  if (cmd.startsWith("/modelo ")) { localStorage.setItem(KEY_MODEL, texto.slice(8).trim()); falar("Modelo trocado para: " + texto.slice(8).trim()); return; }
 
-  const dept = SkillRouter.handle(texto, { hasAI: temIA, history });
+  // 1) Se um jogo no chat está ativo, entrega direto ao jogo antes de calculadoras!
+  if (Mente.jogando()) {
+    const mtJogo = Mente.responder(texto);
+    if (mtJogo) { falar(mtJogo.texto, "bot", mtJogo.origem || "🎮 jogo"); return; }
+  }
+
+  // 2) Comandos de arquivos (/arquivos, /abrir, /buscar, /apagar) e pastas (/pasta)
+  const arq = Arquivos.comando(texto); if (arq) { falar(arq, "bot", "📁 seus arquivos"); return; }
+  if (/^\/(pastas?|mover|palavras?)\b/i.test(texto)) {
+    const mtCmd = Mente.responder(texto);
+    if (mtCmd) { falar(mtCmd.texto, "bot", mtCmd.origem); return; }
+  }
+
+  // 3) Ferramentas exatas e departamentos (unidades antes de cálculo!)
+  const dept = SkillRouter.handle(texto, { hasAI: temIA, history, mode: modoAtual });
   if (dept) { falar(dept.texto, "bot", dept.origem); return; }
 
+  // 4) Links colados
   const links = Saber.urlsEm(texto);
-  if (links.length && texto.length < 400 && !Saber.isCode(texto) && texto.replace(links[0], "").trim().split(/\s+/).filter(Boolean).length <= 12) return lerLinkMsg(links[0], texto, temIA);
+  if (links.length && texto.length < 400 && !Saber.isCode(texto) && texto.replace(links[0], "").trim().split(/\s+/).filter(Boolean).length <= 12) {
+    return lerLinkMsg(links[0], texto, temIA);
+  }
 
-  const prof = extrairProfundo(texto); if (prof !== null) return pesquisaProfunda(prof, true);
-  const cons = extrairPesquisa(texto); if (cons !== null) return pesquisaProfunda(cons, modoProfundo);
-
+  // 5) Clima
   const cidSalva = (() => { try { return localStorage.getItem("bach_cidade"); } catch { return null; } })();
   if (/^(?:(?:qual|como)\s+(?:(?:est[aá]|[ée])\s+)?(?:a\s+|o\s+)?)?(?:clima|tempo|previs[aã]o(?:\s+do\s+tempo)?)(?:\s+(?:hoje|agora|amanh[aã]))?\s*\??$/i.test(texto) ||
       /^(?:tem|vai|vem|est[aá]|esta)\s+.{0,15}(?:chuva|chover|chovendo)(?:\s+(?:hoje|agora|amanh[aã]))?\s*\??$/i.test(texto)) {
@@ -547,14 +712,85 @@ async function rotear(texto) {
   }
   const cid = extrairClima(texto); if (cid) return clima(cid);
 
-  const arq = Arquivos.comando(texto); if (arq) { falar(arq, "bot", "📁 seus arquivos"); return; }
-  if (await seguir(texto)) return;
-
-  /* Dicionário e tradução */
-  const pedidoDic = Dic.detectar(texto);
-  if (pedidoDic && pedidoDic.q === "__ALVO__") {
-    pedidoDic.q = (alvo || ultimoBotTexto() || "").slice(0, 500);
+  // 6) Modos específicos selecionados na barra superior
+  if (modoAtual === "pesquisa") {
+    return pesquisaProfunda(extrairProfundo(texto) || extrairPesquisa(texto) || texto, true);
   }
+  if (modoAtual === "visao") {
+    if (!ultimaImagem) {
+      falar("👁️ Modo Imagens ativo: anexe uma foto pelo botão + para eu analisar!");
+      return;
+    }
+    if (temIA) return perguntarIA(texto);
+    falar("Sem um motor multimodal conectado (/ia ou /chave), só consigo mostrar cores e texto lido (OCR) ao anexar a imagem. " + (ultimoArquivo?.texto ? "\n\nTexto extraído:\n" + ultimoArquivo.texto : ""));
+    return;
+  }
+  if (modoAtual === "documentos") {
+    if (!ultimoArquivo) {
+      const rDoc = RizikBrain.think(texto);
+      if (rDoc.intent === "longtext") {
+        const leitura = Saber.lerTexto(texto);
+        const a = Arquivos.salvar({ texto, pasta: Mente.pasta(Saber.isCode(texto) ? "Códigos" : "Textos"), resumo: leitura.slice(0, 300) });
+        ultimoArquivo = { nome: a.nome, texto }; Mente.setTexto(a.nome, texto);
+        if (temIA) return perguntarIA("Analise e resuma este documento: " + texto.slice(0, 300));
+        falar(leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome);
+        return;
+      }
+      falar("📄 Modo Documentos ativo: cole um texto longo, um link ou anexe um arquivo pelo +.");
+      return;
+    }
+    if (temIA) return perguntarIA(texto);
+    const mtDoc = Mente.responder(texto);
+    falar(mtDoc?.texto || Saber.lerTexto(ultimoArquivo.texto), "bot", "📄 documentos");
+    return;
+  }
+
+  // 7) Pedidos explícitos de pesquisa online
+  const prof = extrairProfundo(texto); if (prof !== null) return pesquisaProfunda(prof, true);
+  const cons = extrairPesquisa(texto); if (cons !== null) return pesquisaProfunda(cons, modoProfundo);
+
+  // 8) Memória, ensino explícito (ensine:, corrija:, meu nome é, lembre:) e textos grandes
+  passo("🧠 Consultando minha memória...");
+  const r = RizikBrain.think(texto);
+  if (r.intent === "longtext") {
+    const cod = Saber.isCode(texto), leitura = Saber.lerTexto(texto);
+    const a = Arquivos.salvar({ texto, pasta: Mente.pasta(cod ? "Códigos" : "Textos"), resumo: leitura.slice(0, 300) });
+    ultimoArquivo = { nome: a.nome, texto }; Mente.setTexto(a.nome, texto);
+    RizikBrain.logTopic(a.nome);
+    if (temIA) { await perguntarIA(texto); return; }
+    falar(leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos\n💡 Agora pergunte: “o que é esse texto?”, “explica”, “resume” ou “revisa o código”.");
+    return;
+  }
+
+  const MEMORIA_DIRETA = new Set([
+    "learning", "forget", "synonym", "name-set", "note", "notes", "export", "import",
+    "stats", "help", "profile-memory", "autocorrected", "declined", "confirm", "memorySummary", "learned"
+  ]);
+  if (r.handled && MEMORIA_DIRETA.has(r.intent)) {
+    falar(r.text, "bot", "🧠 minha memória e regras");
+    return;
+  }
+
+  // 9) Jogos e notícias explícitos funcionam mesmo com IA conectada
+  if (/\b(jogar|jogo da velha|forca|adivinhe o numero)\b/i.test(sn(texto)) && !/\b(crie|criar|faca|fazer|programe|explique|o que e)\b/i.test(sn(texto))) {
+    const mtJ = Mente.responder(texto);
+    if (mtJ?.texto) { falar(mtJ.texto, "bot", mtJ.origem || "🎮 jogos"); return; }
+  }
+  if (/^\s*(?:quais\s+(?:sao\s+)?(?:as\s+)?)?(?:ultimas\s+)?noticias(?:\s+(?:do|de)\s+(?:brasil|mundo|hoje))?\s*\??$/i.test(sn(texto))) {
+    return noticias(/brasil/i.test(texto) ? "ultimas noticias do brasil hoje" : "ultimas noticias do mundo hoje");
+  }
+
+  // 10) Se tem motor de IA conectado (Ollama / API / Gemini), ele assume o raciocínio fluido!
+  if (temIA) {
+    await perguntarIA(texto);
+    return;
+  }
+
+  // 11) Modo Offline completo (quando não há motor externo configurado)
+  if (await seguir(texto, false)) return;
+
+  const pedidoDic = Dic.detectar(texto);
+  if (pedidoDic && pedidoDic.q === "__ALVO__") pedidoDic.q = (alvo || ultimoBotTexto() || "").slice(0, 500);
   if (pedidoDic && pedidoDic.tipo !== "def") {
     passo("🌍 Consultando dicionário e tradutor...");
     const respDic = await Dic.consultar(pedidoDic, passo);
@@ -565,67 +801,39 @@ async function rotear(texto) {
     }
   }
 
-  /* Memória, ensino, perfil automático e textos grandes */
-  passo("🧠 Consultando minha memória...");
-  const r = RizikBrain.think(texto);
-  if (r.intent === "longtext") {
-    const cod = Saber.isCode(texto), leitura = Saber.lerTexto(texto);
-    const a = Arquivos.salvar({ texto, pasta: Mente.pasta(cod ? "Códigos" : "Textos"), resumo: leitura.slice(0, 300) });
-    ultimoArquivo = { nome: a.nome, texto }; Mente.setTexto(a.nome, texto);
-    RizikBrain.logTopic(a.nome);
-    if (temIA) { await perguntarIA(texto); return; }
-    falar(leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos\n💡 Agora pergunte: “o que é esse texto?”, “explica”, “resume” ou “revisa o código”."); return;
-  }
-  const INTENTS_CONVERSA = new Set(["greeting", "wellbeing", "thanks", "goodbye", "encouragement", "positive"]);
-  if (r.handled && !INTENTS_CONVERSA.has(r.intent)) {
-    falar(r.text, "bot", "🧠 minha memória e regras");
+  const eu = Fatos.sobreMim(texto); if (eu) { falar(eu, "bot", "🧠 sobre mim"); return; }
+  const fato = Fatos.responder(texto);
+  if (fato) {
+    ultimoTema = Mente.tema(texto) || texto;
+    RizikBrain.logTopic(ultimoTema);
+    falar(fato, "bot", "📘 base de fatos");
     return;
   }
-
-  if (!Mente.jogando()) {
-    const eu = Fatos.sobreMim(texto); if (eu) { falar(eu, "bot", "🧠 sobre mim"); return; }
-    if (Fatos.sobreVoce(texto) && /\b(bug|bugado|bugada|bugou|travado|travada|travando|quebrado|quebrada|doido|doida|maluc|lento|lenta)\b/i.test(sn(texto))) {
-      falar("Opa, parece que algo saiu errado mesmo! 😅 Estou evoluindo aos poucos porque rodo por regras e busca local. Se eu errei alguma resposta, me avise o que foi ou ensine com: corrija: pergunta => resposta certa.", "bot", "🧠 sobre mim");
-      return;
-    }
-    const fato = Fatos.responder(texto);
-    if (fato) {
-      ultimoTema = Mente.tema(texto) || texto;
-      RizikBrain.logTopic(ultimoTema);
-      falar(fato, "bot", "📘 base de fatos");
-      return;
-    }
-    if (pedidoDic && pedidoDic.tipo === "def") {
-      passo("📖 Consultando dicionário...");
-      const respDic = await Dic.consultar(pedidoDic, passo);
-      if (respDic) {
-        ultimoTema = pedidoDic.q;
-        RizikBrain.logTopic(pedidoDic.q);
-        falar(respDic, "bot", "📖 dicionário");
-        return;
-      }
-    }
-    const papo = Conversa.responder(texto, ctxConversa()); if (papo) { falar(papo, "bot", "💬 conversa"); return; }
+  if (pedidoDic && pedidoDic.tipo === "def") {
+    passo("📖 Consultando dicionário...");
+    const respDic = await Dic.consultar(pedidoDic, passo);
+    if (respDic) { ultimoTema = pedidoDic.q; RizikBrain.logTopic(pedidoDic.q); falar(respDic, "bot", "📖 dicionário"); return; }
   }
+
+  const papo = Conversa.responder(texto, ctxConversa()); if (papo) { falar(papo, "bot", "💬 conversa"); return; }
 
   const mt = Mente.responder(texto);
   if (mt) {
     if (mt.noticias) return noticias(mt.q);
-    if (mt.pesquisa) { if (temIA) return perguntarIA(texto); return pesquisaProfunda(mt.pesquisa, mt.fundo !== false); }
+    if (mt.pesquisa) return pesquisaProfunda(mt.pesquisa, mt.fundo !== false);
     if (mt.apagar) { const resAp = Arquivos.comando("/apagar " + mt.apagar); falar(resAp || "Não consegui apagar esse arquivo.", "bot", "🗑️ arquivos"); return; }
     falar(mt.texto, "bot", mt.origem || "🧠 minha mente"); return;
   }
 
   if (r.handled) { falar(r.text, "bot", "🧠 minha memória e regras"); return; }
 
-  if (temIA) { await perguntarIA(texto); return; }
-
   const graca = Prog.humor(texto); if (graca) { falar(graca, "bot", "😄 meu repertório"); return; }
   const prog = Prog.responder(texto); if (prog) { falar(prog, "bot", "💻 programação"); return; }
   const k = Saber.buscarConhecimento(texto); if (k) { falar(k, "bot", "📚 o que aprendi"); return; }
+
   if (Mente.pergunta(texto)) {
     if (Fatos.sobreVoce(texto)) {
-      falar("Como eu sou a BACH AI (um sistema em evolução rodando no seu navegador), talvez eu não tenha entendido sua pergunta sobre mim! 😅 Tente perguntar de outro jeito ou digite “ajuda”.", "bot", "🧠 sobre mim");
+      falar("Sou a BACH AI 🧠! Talvez eu não tenha entendido sua pergunta sobre mim no modo offline. Tente perguntar de outro jeito, digite “ajuda” ou configure um motor de IA com /ia status.", "bot", "🧠 sobre mim");
       return;
     }
     const tm = Mente.tema(texto);
@@ -633,13 +841,18 @@ async function rotear(texto) {
     falar("Não entendi qual assunto você quer saber 🤔. Me diga a pergunta completa!");
     return;
   }
-  falar(Prog.desconhecido(texto) + "\n\nVocê pode:\n• me pedir: jogar forca, crie uma calculadora, o que é ...\n• traduzir ou consultar palavras: como se diz ... em inglês / o que significa ...\n• perguntar: /modulos (departamentos), /calc, /converter, /juros, /fisica\n• me ensinar: ensine: pergunta => resposta\n• pedir: pesquise a fundo sobre o assunto\n• colar um link para eu ler\n• clima em (sua cidade)\n\nDigite \"ajuda\" para ver tudo.");
+
+  falar(Prog.desconhecido(texto) + "\n\nNo modo offline você pode:\n• usar os modos e ferramentas: /modulos, /calc, /converter, /juros, /fisica, /golpe\n• jogar (forca, velha, quiz), criar apps simples ou pesquisar na web\n• me ensinar: ensine: pergunta => resposta\n• ou conectar um motor local/online com /ia status ou /chave");
 }
 
 function ajustar() { entrada.style.height = "auto"; entrada.style.height = Math.min(entrada.scrollHeight, 130) + "px"; }
 function desenharAnexos() {
   const box = $("anexos"); box.innerHTML = ""; box.hidden = !pendentes.length;
-  pendentes.forEach((f, i) => { const c = mk("span", "chip", "📎 " + f.name), x = mk("button", "", "✕"); x.onclick = () => { pendentes.splice(i, 1); desenharAnexos(); }; c.append(x); box.append(c); });
+  pendentes.forEach((f, i) => {
+    const c = mk("span", "chip", "📎 " + f.name), x = mk("button", "", "✕");
+    x.onclick = () => { pendentes.splice(i, 1); desenharAnexos(); };
+    c.append(x); box.append(c);
+  });
 }
 function limparCit() { citacao = null; const b = $("citbar"); b.hidden = true; b.innerHTML = ""; }
 function responderA(texto, tipo) {
@@ -649,7 +862,6 @@ function responderA(texto, tipo) {
   entrada.focus();
 }
 
-/* Nada é enviado sozinho: só o botão Enviar manda. Enter do teclado pula de linha. */
 async function enviar() {
   if (ocupado) { parar(); return; }
   const texto = entrada.value.trim(), arquivos = pendentes.splice(0);
@@ -657,29 +869,51 @@ async function enviar() {
   entrada.value = ""; ajustar(); desenharAnexos();
   const cit = citacao ? (citacao.tipo === "user" ? "Você: " : "BACH: ") + citacao.texto.replace(/\s+/g, " ").slice(0, 160) : "";
   alvo = citacao ? citacao.texto : null; limparCit();
+
   if (!arquivos.length) {
     if (/^(\/clear|\/limpar|\/nova|nova conversa|limpar histórico)$/i.test(texto)) { alvo = null; novaConversa(); return; }
     if (/^(\/historico|\/histórico|histórico|historico)(\s+\d+)?$/i.test(texto)) { alvo = null; abrirHistorico(parseInt((texto.match(/\d+/) || [1])[0], 10) || 1); return; }
-    if (/^\/chave\s+/i.test(texto)) {
+
+    const cmdLLM = LLM.command(texto);
+    if (cmdLLM) {
       alvo = null;
-      const v = texto.replace(/^\/chave\s+/i, "").trim(); falar("/chave ••••••", "user");
-      if (v.toLowerCase() === "apagar") { localStorage.removeItem(KEY_API); falar("Chave apagada. Voltei ao modo sem IA externa."); }
-      else if (v.length < 20) falar("Essa chave parece curta demais. Copie a chave inteira do Google AI Studio.");
-      else { localStorage.setItem(KEY_API, v); falar("Chave salva neste aparelho ✅ Agora respondo tudo com IA: textos, código, jogos e apps."); }
+      falar(cmdLLM.secret ? texto.split(/\s+/)[0] + " ••••••" : texto, "user", "", false, cit);
+      falar(cmdLLM.text, "bot", "⚙️ motor de IA", true);
+      status.textContent = statusPadrao();
       return;
     }
   }
+
   if (arquivos.length) {
-    for (const f of arquivos) { if (cancelado) break; await processarArquivo(f); }
+    const vaiIA = Boolean(texto && LLM.hasModel());
+    for (const f of arquivos) { if (cancelado) break; await processarArquivo(f, vaiIA); }
     if (!texto || cancelado) { alvo = null; return; }
   }
-  cancelado = false; busy(true); falar(texto, "user", "", false, cit); pensando = pensar(); passo("👀 Lendo sua mensagem...");
+
+  cancelado = false; busy(true);
+  falar(texto, "user", "", false, cit);
+  pensando = pensar();
+  passo("👀 Analisando sua mensagem...");
   try { await rotear(texto); }
-  catch (e) { console.error(e); falar("Deu um erro inesperado. Tente de novo."); }
+  catch (e) { console.error(e); falar("Deu um erro inesperado: " + (e.message || "tente novamente.")); }
   finally { if (pensando) { pensando.fim(); pensando = null; } alvo = null; busy(false); }
 }
 
-/* ---------- menu, voz, eventos ---------- */
+/* ---------- modos, menu, voz, eventos ---------- */
+$("modos").onclick = e => {
+  const b = e.target.closest("button[data-modo]");
+  if (!b) return;
+  document.querySelectorAll("#modos .modo").forEach(x => x.classList.remove("on"));
+  b.classList.add("on");
+  modoAtual = b.dataset.modo;
+  if (modoAtual === "voz") {
+    lerAuto = true;
+    const bv = menu.querySelector('[data-acao="voz"]');
+    if (bv) bv.textContent = "🔊 Ler respostas sozinha: ligado";
+  }
+  status.textContent = statusPadrao();
+};
+
 const menu = $("menu"), seletor = $("seletor");
 $("mais").onclick = () => menu.classList.toggle("aberto");
 menu.onclick = e => {
@@ -692,6 +926,7 @@ menu.onclick = e => {
   if (a === "nova") novaConversa();
   if (a === "arquivos") { entrada.value = "/arquivos"; enviar(); }
   if (a === "modulos") { entrada.value = "/modulos"; enviar(); }
+  if (a === "ia") { entrada.value = "/ia status"; enviar(); }
   if (a === "jogo") { entrada.value = "vamos jogar"; enviar(); }
 };
 $("seletorBase").onchange = async () => {
@@ -701,7 +936,7 @@ $("seletorBase").onchange = async () => {
 };
 seletor.onchange = () => {
   const L = [...seletor.files]; seletor.value = ""; pendentes.push(...L); desenharAnexos();
-  status.textContent = "📎 " + pendentes.length + " anexo(s) prontos. Escreva sua pergunta (se quiser) e toque em Enviar.";
+  status.textContent = "📎 " + pendentes.length + " anexo(s) prontos. Escreva sua pergunta e toque em Enviar.";
   entrada.focus();
 };
 
@@ -710,7 +945,7 @@ $("mic").onclick = () => {
   if (!SR) { falar("Seu navegador não tem reconhecimento de voz. Tente no Chrome.", "bot", "", true); return; }
   if (rec) { rec.stop(); return; }
   rec = new SR(); rec.lang = "pt-BR"; rec.interimResults = true; $("mic").classList.add("gravando");
-  rec.onresult = e => { entrada.value = [...e.results].map(r => r[0].transcript).join(" "); };
+  rec.onresult = e => { entrada.value = [...e.results].map(r => r[0].transcript).join(" "); ajustar(); };
   rec.onend = () => { rec = null; $("mic").classList.remove("gravando"); if (entrada.value.trim()) entrada.focus(); };
   rec.onerror = () => { rec = null; $("mic").classList.remove("gravando"); };
   rec.start();
@@ -719,8 +954,8 @@ botao.onclick = enviar;
 entrada.addEventListener("input", ajustar);
 
 try { Historico.salvarAtual(history); } catch {}
-restaurar(); status.textContent = STATUS;
-if (!history.length) falar("Olá! Sou a BACH AI 🧠. Converso, traduzo idiomas, lembro do que falamos, resumo textos, programo, calculo, crio jogos e apps e pesquiso na internet. Digite \"ajuda\" ou \"/modulos\" para ver tudo.");
+restaurar(); status.textContent = statusPadrao();
+if (!history.length) falar("Olá! Sou a BACH AI 🧠. Escolha um dos 10 modos acima (ou deixe em Automático), converse, pesquise, envie fotos/documentos ou digite “ajuda” e “/ia status”.");
 </script>
 </body>
 </html>
