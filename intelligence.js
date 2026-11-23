@@ -1,5 +1,6 @@
-/* BACH AI 4.0 — inteligência e raciocínio local
+/* BACH AI 4.1 — inteligência e raciocínio aritmético local
  * Calculadora segura: parser próprio, sem eval() ou Function().
+ * Corrigida para não bloquear perguntas normais, jogos nem conversão de unidades.
  */
 
 function parseExpression(expression) {
@@ -8,9 +9,10 @@ function parseExpression(expression) {
   }
 
   const source = expression
+    .replace(/,/g, ".")
+    .replace(/(\d+(?:\.\d+)?)\s*%\s*de\s*(\d+(?:\.\d+)?)/gi, "(($1/100)*$2)")
     .replace(/[×x]/gi, "*")
     .replace(/÷/g, "/")
-    .replace(/,/g, ".")
     .replace(/(\d+(?:\.\d+)?)\s*%/g, "($1/100)")
     .replace(/\s+/g, "");
 
@@ -137,28 +139,34 @@ function formatNumber(value) {
 function handle(text) {
   const raw = String(text || "").trim();
 
-  const command = raw.match(
-    /^(?:\/calc|\/calcular|calcule|calcular|resolva|resolver|quanto\s+(?:é|e))\s*:?\s*(.+)$/i
-  );
+  const explicitCmd = raw.match(/^\/(?:calc|calcular)\s*:?\s*(.+)$/i);
+  const naturalCmd = raw.match(/^(?:calcule|calcular|resolva|resolver|quanto\s+(?:é|e))\s*:?\s*(.+)$/i);
 
-  let expression = command ? command[1].trim() : null;
+  let expression = explicitCmd
+    ? explicitCmd[1].trim()
+    : naturalCmd
+      ? naturalCmd[1].trim()
+      : null;
 
-  if (
+  const isBareMath =
     !expression &&
-    /^[\d\s()+\-*/^×÷x%,.]+$/.test(raw) &&
-    /\d/.test(raw)
-  ) {
+    /^[\d\s()+\-*/^×÷x%,.?]+$/.test(raw) &&
+    /\d/.test(raw) &&
+    /[+\-*/^×÷%]/.test(raw);
+
+  if (isBareMath) {
     expression = raw;
   }
 
   if (!expression) return null;
 
+  expression = expression.replace(/[?!.]+$/, "").trim();
+
   try {
     const result = parseExpression(expression);
-
     return "🔢 " + expression + " = " + formatNumber(result);
   } catch (error) {
-    return command
+    return explicitCmd
       ? "Não consegui calcular: " + error.message
       : null;
   }
