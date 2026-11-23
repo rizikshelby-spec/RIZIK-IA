@@ -1,25 +1,25 @@
-/* BACH AI - SABER 2.7
-   Leitura de textos, código e links + pesquisa inteligente com limpeza de pergunta,
-   proteção contra resultados adultos acidentais, bloqueio de listas futuras genéricas,
-   ranking BM25, base de conhecimento e sem lookbehind de regex. */
+/* BACH AI - SABER 2.8
+   Leitura de textos, código e links + pesquisa inteligente (Wikipédia, Web, Jikan Animes),
+   bloqueio de previsões futuras impossíveis e sem lookbehind de regex. */
 
 const KB_KEY = "bach_conhecimento_v2";
 
 const STOP = new Set((
-  "a o as os um uma uns umas de do da dos das em no na nos nas por para com sem que e eh se ao aos " +
+  "a o as os um uma uns umas de do da dos das em no na nos nas por para oara praa com sem que e eh se ao aos " +
   "mais menos como mas foi ser ou ja tambem seu sua seus suas isso isto este esta esse essa sao tem ha foram sobre entre " +
   "ate quando muito muitos muita muitas nao sim me te lhe eu tu ele ela nos vos eles elas meu minha meus minhas " +
   "teu tua seus suas pode podem pelo pela pelos pelas era eram sera serao cada outro outra outros outras qual quais onde " +
-  "quem quanto quantos quantas porque mesmo voce voces entao seria fazer faz faco vai vou vamos vem ter tinha " +
+  "quem quanto quantos quantas porque mesmo voce voces entao seria fazer faz faco vai vou vao vamos vem vim vir ter tinha " +
   "passa passe manda mande uns umas alguem alguma algum quero preciso gostaria fale fala conte diga diz " +
   "pesquisa pesquisar pesquise procure procura buscar busque explica explicar explique resume resumir " +
-  "net internet web google online pra pro pros pras ai ta to ne la ca vc pq oq"
+  "net internet web google online pra pro pros pras ai ta to ne la ca vc pq oq oque aqui escrito escrita " +
+  "nisso nisto disso mes meses ano anos semana semanas dia dias hoje amanha ontem falar perguntei perguntar"
 ).split(" "));
 
 const INTENCAO_STOP = new Set((
   "bom boa bons boas legal legais ruim melhor melhores pior piores presta vale pena " +
-  "lancou lanca lancar lancamento estreou estreia estrear saiu sair sai " +
-  "recomenda recomende indica indique assistir assisto ver saber proximo proxima proximos mes vem vim"
+  "lancou lanca lancar lancamento lancamentos estreou estreia estrear saiu sair sai " +
+  "recomenda recomende indica indique assistir assisto ver saber proximo proxima proximos proximas vem vim vir chegar"
 ).split(" "));
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -96,7 +96,7 @@ function analyzeCode(text) {
   if (funcs.size) out += "\n\nFunções que encontrei (" + funcs.size + "): " + [...funcs].slice(0, 15).join(", ") + (funcs.size > 15 ? "..." : "");
   if (feats.length) out += "\n\nO que ele faz:\n• " + feats.join("\n• ");
   if (urls.length) out += "\n\nEndereços usados:\n• " + urls.join("\n• ");
-  return out + "\n\nSe quiser que eu guarde algo disso, use: ensine: pergunta => resposta";
+  return out + "\n\n💡 Agora você pode pedir: “explica”, “revisa o código” ou “faz uma cadeia de códigos”.";
 }
 
 function lerTexto(text) {
@@ -132,19 +132,47 @@ const kr = t => kwAssunto(t).map(radical);
 const DESAMBIGUA = /(pode (se )?referir-se a|pode significar|pode designar|p[áa]gina de desambigua|desambigua[çc][ãa]o)/i;
 const CONTEUDO_ADULTO = /\b(pornogr[áa]fic[oa]|porn[oô]|er[óo]tic[oa]|sexo expl[íi]cito|hentai|xvideos|pornhub|onlyfans|adult film)\b/i;
 
+/* Detecta perguntas genéricas de lançamentos futuros SEM título específico */
 function ehFuturoGenerico(qn) {
   const temMidia = /\b(filmes?|series?|animes?|desenhos?|jogos?|apps?|aplicativos?)\b/.test(qn);
-  const temFuturo = /\b(mes que vem|proximo mes|proximos meses|em breve|vai estrear|vao estrear|vai lancar|vao lancar|lancamentos?|que (vai|vao|ira|irao) (sair|vir|vim)|que esta(o)? vindo|vindo ai)\b/.test(qn);
+  const temFuturo = /\b(mes que vem|proximo mes|proximos meses|em breve|vai estrear|vao estrear|vai lancar|vao lancar|lancamentos?|vao\s+(?:sair|vir|vim|lancar|estrear|chegar)|vai\s+(?:sair|vir|vim|lancar|estrear|chegar)|que (?:vai|vao|ira|irao) (?:sair|vir|vim)|que esta(?:o)? vindo|vindo ai)\b/.test(qn);
   if (!temMidia || !temFuturo) return false;
-  const sobra = kwAssunto(qn).filter(w => !/^(filmes?|series?|animes?|desenhos?|jogos?|apps?|aplicativos?|estrear|estreia|sair|vir|vim|vindo|ter|novo|novos|nova|novas|esse|este|breve|meses|ano)$/.test(w));
+  const sobra = kwAssunto(qn).filter(w => !/^(filmes?|series?|animes?|desenhos?|jogos?|apps?|aplicativos?|estrear|estreia|sair|vir|vim|vindo|ter|novo|novos|nova|novas|esse|este|breve|mes|meses|ano|anos|semana|semanas|vao|vai|vou|proximo|proxima|proximos|proximas|chegar)$/.test(w));
   return sobra.length === 0;
 }
 
 const META_REFERENCIA = /\b(isso|aquilo|essa resposta|sua resposta)\b[\s\S]{0,25}\b(que (me |voce |vc )?(disse|falou|respondeu|mandou|explicou))\b|\bo que (voce|vc) (quis dizer|falou|disse|respondeu)\b/;
 
+/* Animes ao vivo via Jikan API (gratuita, aberta e sem chave) */
+async function buscarAnimesJikan(qn, assunto, progresso) {
+  progresso("⛩️ Consultando catálogo ao vivo de animes...");
+  const ehTop = /\b(recomenda\w*|melhor\w*|top|indica\w*|bom|bons|assistir|populares)\b/.test(qn) || assunto === "anime" || assunto === "animes";
+  const url = ehTop
+    ? "https://api.jikan.moe/v4/top/anime?sfw&limit=8"
+    : "https://api.jikan.moe/v4/anime?q=" + encodeURIComponent(assunto) + "&sfw&limit=6&order_by=score&sort=desc";
+  const data = await get(url, 10000, true);
+  const lista = data?.data || [];
+  if (!lista.length) return null;
+
+  const linhas = lista.slice(0, 8).map((a, i) => {
+    const nota = a.score ? " • Nota " + a.score : "";
+    const eps = a.episodes ? " (" + a.episodes + " eps)" : "";
+    const gen = (a.genres || []).slice(0, 3).map(g => g.name).join(", ");
+    return (i + 1) + ". " + a.title + eps + nota + (gen ? " — " + gen : "");
+  });
+
+  return {
+    texto: "⛩️ **Animes encontrados (" + (ehTop ? "mais bem avaliados" : "busca: " + assunto) + "):**\n\n" +
+      linhas.join("\n") +
+      "\n\n💡 Quer a sinopse de algum específico? Peça: “pesquise sobre [nome do anime]”.",
+    conf: "alta",
+    fontes: lista.slice(0, 3).map(a => ({ titulo: "MyAnimeList: " + a.title, url: a.url }))
+  };
+}
+
 function limparConsulta(q) {
   const n = norm(q)
-    .replace(/^(?:me\s+)?(?:explica|explique|pesquisa|pesquise|procure|busca|busque)\s+(?:na\s+(?:net|internet|web)|no\s+google)?\s*(?:sobre\s+)?/i, "")
+    .replace(/^(?:me\s+)?(?:explica|explique|pesquisa|pesquise|procure|procura|busca|busque)\s+(?:na\s+(?:net|internet|web)|no\s+google)?\s*(?:sobre\s+)?/i, "")
     .trim();
   const termos = kwAssunto(n);
   return {
@@ -422,15 +450,14 @@ function compor(q, fontes, n = 4, permiteAdulto = false) {
   const conf = principal && (apoio >= 1 || forte >= 2) ? "alta" : principal || apoio >= 1 || usados.length >= 2 && forte >= 2 ? "média" : "baixa";
 
   let t = "🧠 " + pickFixo([
-    "Sobre “" + q + "”, foi isso que entendi:",
-    "Pesquisei “" + q + "” e separei o que mais apareceu nas fontes:",
-    "Aqui está o resumo do que encontrei sobre “" + q + "”:"
-  ], norm(q)) + "\n\n" + (conf === "baixa" ? "⚠️ Não tenho certeza dessa resposta; confira nas fontes.\n\n" : "") + corpo;
+    "Sobre “" + q + "”, foi isso que encontrei:",
+    "Pesquisei “" + q + "” e organizei os pontos principais:",
+    "Aqui está o resumo sobre “" + q + "”:"
+  ], norm(q)) + "\n\n" + (conf === "baixa" ? "⚠️ Não tenho certeza total dessa resposta; confira nas fontes.\n\n" : "") + corpo;
 
-  t += "\n\n🔍 Como cheguei nisso: olhei " + fontes.length + " fonte(s), separei " + total +
-    " frase(s) ligadas à sua pergunta e fiquei com " + sel.length + ", descartando repetidas e fora do assunto. Confiança " + conf +
-    (conf === "baixa" ? " (poucas fontes falaram disso)" : apoio ? " (fontes diferentes dizem coisas parecidas)" : principal ? " (artigo principal da Wikipédia)" : "") + ".";
-  t += "\nℹ️ Eu escolho e organizo os melhores trechos; não reescrevo do zero como uma IA grande faria.";
+  t += "\n\n🔍 Como cheguei nisso: analisei " + fontes.length + " fonte(s), separei " + total +
+    " trecho(s) ligados ao tema e resumi os " + sel.length + " mais confiáveis" +
+    (apoio ? " (confirmados por fontes diferentes)" : principal ? " (artigo principal da Wikipédia)" : "") + ".";
   t += "\n\nFontes:\n" + usados.map((fi, i) => "[" + (i + 1) + "] " + fontes[fi].nome).join("\n");
   return { texto: t, corpo, conf, usados };
 }
@@ -444,6 +471,15 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true) {
   const assunto = info.assunto || q;
   const qk = info.termos;
   if (!qk.length) throw new Error("irrelevante");
+
+  // Busca ao vivo para animes na Jikan API (gratuita e sem chave)
+  if (/\b(anime|animes)\b/.test(qn) && !/\b(significa|historia|origem|o que e)\b/.test(qn)) {
+    try {
+      const ja = await buscarAnimesJikan(qn, assunto, progresso);
+      if (ja) return ja;
+    } catch (e) { console.warn("jikan", e); }
+  }
+
   const qs = new Set(qk.map(radical));
   const fontes = [];
 
@@ -456,10 +492,10 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true) {
     }));
   } catch (e) { console.warn("wiki", e); }
 
-  progresso("🦆 Buscando na internet...");
+  progresso("🌐 Buscando na internet...");
   let links = [];
   const consultaWeb = info.ehLancamento ? assunto + " data de lancamento"
-    : info.ehOpiniao ? assunto + " critica opiniao"
+    : info.ehOpiniao ? assunto + " recomendacao critica"
     : assunto;
   try { links = await web(consultaWeb); } catch (e) { console.warn("web", e); }
   if (fundo && links.length < 3) {
