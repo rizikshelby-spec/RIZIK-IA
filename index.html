@@ -3,79 +3,121 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#10111a">
+<meta name="theme-color" content="#0d0e1a">
 <title>BACH AI</title>
 <style>
+:root{
+  --bg:#0d0e1a;--panel:rgba(22,24,42,.88);--panel2:rgba(16,18,32,.92);
+  --border:rgba(138,118,255,.28);--accent:#8266ff;--accent2:#e056fd;
+  --text:#f5f6ff;--muted:#a4a8c8;--bot:rgba(30,34,60,.74);--user:rgba(98,66,220,.72);
+  --orb1:#8c6eff;--orb2:#ff4fd8;--orbGlow:rgba(140,110,255,.55);
+}
 *{box-sizing:border-box}
 html,body{height:100%}
-body{margin:0;background:#10111a;color:#f5f5fb;font-family:Arial,sans-serif;display:flex;flex-direction:column;height:100dvh}
-header{padding:10px 14px;background:#191b29;border-bottom:1px solid #303247;flex:none}
-.htop{display:flex;align-items:center;justify-content:space-between;gap:8px}
-h2{margin:0 0 2px;color:#b5a8ff;font-size:19px}
-#status{color:#aaaabd;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#modos{display:flex;gap:6px;overflow-x:auto;padding:7px 10px;background:#141624;border-bottom:1px solid #303247;flex:none}
+body{margin:0;background:radial-gradient(circle at top,rgba(255,255,255,.04),transparent 55%),var(--bg);color:var(--text);font-family:Arial,sans-serif;display:flex;flex-direction:column;height:100dvh;overflow:hidden;transition:background .4s ease}
+#orb-bg{position:fixed;left:50%;top:50%;width:clamp(180px,42vw,260px);height:clamp(180px,42vw,260px);border-radius:50%;background:radial-gradient(circle at 32% 30%,rgba(255,255,255,.45),var(--orb1) 36%,var(--orb2) 78%,transparent 100%);box-shadow:0 0 65px var(--orbGlow),inset 0 0 30px rgba(255,255,255,.25);opacity:.38;pointer-events:none;z-index:0;animation:orbMove 14s ease-in-out infinite;transition:background .5s ease,box-shadow .5s ease}
+@keyframes orbMove{
+  0%{transform:translate(-50%,-50%) translate(0px,0px) scale(1)}
+  20%{transform:translate(-50%,-50%) translate(44px,-36px) scale(1.08)}
+  40%{transform:translate(-50%,-50%) translate(-46px,-28px) scale(.94)}
+  60%{transform:translate(-50%,-50%) translate(40px,38px) scale(1.06)}
+  80%{transform:translate(-50%,-50%) translate(-38px,34px) scale(.97)}
+  100%{transform:translate(-50%,-50%) translate(0px,0px) scale(1)}
+}
+header,#modos,#chat,#barras,footer{position:relative;z-index:1}
+header{padding:10px 14px;background:var(--panel);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);flex:none}
+.htop{display:flex;align-items:center;gap:10px}
+#btnDrawer{width:38px;height:38px;padding:0;font-size:20px;background:rgba(255,255,255,.08);border:1px solid var(--border);border-radius:11px;display:flex;align-items:center;justify-content:center}
+.hbrand{flex:1;min-width:0}
+.htitle{display:flex;align-items:center;gap:8px}
+h2{margin:0;background:linear-gradient(90deg,#fff,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent;font-size:19px}
+#verBadge{font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.1);border:1px solid var(--border);color:var(--text);cursor:pointer;font-weight:bold}
+#verBadge.nova{background:linear-gradient(90deg,var(--accent),var(--accent2));border-color:transparent}
+#status{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+#modos{display:flex;gap:6px;overflow-x:auto;padding:7px 10px;background:var(--panel2);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);flex:none}
 #modos::-webkit-scrollbar{display:none}
-.modo{flex:none;padding:5px 11px;font-size:12px;font-weight:normal;background:#222538;border:1px solid #3a3e59;border-radius:999px;color:#d6d6ea;cursor:pointer}
-.modo.on{background:#7864ed;border-color:#a292ff;color:#fff;font-weight:bold}
-#chat{flex:1;overflow:auto;padding:10px 10px 14px;width:100%;max-width:850px;margin:0 auto}
-.msg{padding:8px 11px;margin:6px 0;border-radius:14px;max-width:84%;width:fit-content;line-height:1.45;overflow-wrap:anywhere;font-size:14px;backdrop-filter:blur(6px)}
+.modo{flex:none;padding:5px 11px;font-size:12px;font-weight:normal;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:999px;color:var(--text);cursor:pointer;transition:.2s}
+.modo.on{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent;color:#fff;font-weight:bold;box-shadow:0 2px 12px var(--orbGlow)}
+#chat{flex:1;overflow:auto;padding:12px 10px 16px;width:100%;max-width:850px;margin:0 auto}
+.msg{padding:9px 12px;margin:6px 0;border-radius:15px;max-width:85%;width:fit-content;line-height:1.48;overflow-wrap:anywhere;font-size:14px;backdrop-filter:blur(12px)}
 .msg .t{white-space:pre-wrap}
-.bot{background:rgba(34,37,56,.62);border:1px solid rgba(90,96,130,.35);margin-right:auto}
-.user{background:rgba(81,65,160,.58);border:1px solid rgba(140,120,240,.3);margin-left:auto}
-.pensando{opacity:.85;border-style:dashed;white-space:pre-line}
+.bot{background:var(--bot);border:1px solid var(--border);margin-right:auto}
+.user{background:var(--user);border:1px solid rgba(255,255,255,.2);margin-left:auto;box-shadow:0 3px 14px rgba(0,0,0,.22)}
+.pensando{opacity:.88;border-style:dashed;white-space:pre-line}
 .acoes{display:flex;gap:6px;margin:-2px 0 6px}
-.acoes button{padding:3px 9px;font-size:12px;font-weight:normal;background:rgba(255,255,255,.08);border-radius:10px}
-.meta{color:#8d8fa6;font-size:11px;margin:2px 4px 4px;white-space:pre-line}
-.cartao{border:1px solid rgba(120,100,237,.4);border-radius:10px;margin:6px 0;background:rgba(0,0,0,.25);overflow:hidden;min-width:230px}
-.topo{display:flex;align-items:center;gap:6px;padding:6px 8px;font-size:12px;color:#c5baff}
+.acoes button{padding:3px 9px;font-size:12px;font-weight:normal;background:rgba(255,255,255,.09);border-radius:10px;color:var(--text)}
+.meta{color:var(--muted);font-size:11px;margin:2px 4px 4px;white-space:pre-line}
+.cartao{border:1px solid var(--border);border-radius:10px;margin:6px 0;background:rgba(0,0,0,.35);overflow:hidden;min-width:230px}
+.topo{display:flex;align-items:center;gap:6px;padding:6px 8px;font-size:12px;color:#e4ddff}
 .topo span{flex:1}
-.topo button{padding:4px 9px;font-size:12px;font-weight:normal;background:rgba(255,255,255,.1);border-radius:8px}
-.cartao details{border-top:1px solid rgba(255,255,255,.08)}
-.cartao summary{padding:5px 8px;font-size:12px;color:#aaaabd;cursor:pointer}
-.cartao pre{margin:0;padding:8px;max-height:320px;overflow:auto;font-size:12px;line-height:1.4;white-space:pre-wrap;color:#e4e4ee}
-.result{background:rgba(32,36,55,.6);border:1px solid #3a3e59;border-radius:12px;padding:10px;margin:6px 0;max-width:88%;font-size:13px}
-.result h3{margin:0 0 6px;color:#c5baff;font-size:14px}.result a{color:#b9adff;overflow-wrap:anywhere}
+.topo button{padding:4px 9px;font-size:12px;font-weight:normal;background:rgba(255,255,255,.12);border-radius:8px}
+.cartao details{border-top:1px solid rgba(255,255,255,.1)}
+.cartao summary{padding:5px 8px;font-size:12px;color:var(--muted);cursor:pointer}
+.cartao pre{margin:0;padding:8px;max-height:320px;overflow:auto;font-size:12px;line-height:1.4;white-space:pre-wrap;color:#eef0ff}
+.result{background:var(--bot);border:1px solid var(--border);border-radius:12px;padding:10px;margin:6px 0;max-width:88%;font-size:13px;backdrop-filter:blur(10px)}
+.result h3{margin:0 0 6px;color:#fff;font-size:14px}.result a{color:var(--accent2);overflow-wrap:anywhere;font-weight:bold}
 .msg img,.msg video{max-width:100%;border-radius:10px;display:block}
-footer{flex:none;display:flex;gap:6px;padding:8px 10px;background:#191b29;padding-bottom:max(8px,env(safe-area-inset-bottom));border-top:1px solid #303247}
-input[type=text]{flex:1;min-width:0;padding:11px;border:1px solid #44465d;border-radius:12px;background:#10111a;color:#fff;font-size:16px}
-button{padding:10px 14px;border:0;border-radius:12px;background:#7864ed;color:#fff;font-weight:bold;cursor:pointer}
+footer{flex:none;display:flex;gap:6px;padding:8px 10px;background:var(--panel);backdrop-filter:blur(12px);padding-bottom:max(8px,env(safe-area-inset-bottom));border-top:1px solid var(--border)}
+input[type=text]{flex:1;min-width:0;padding:11px;border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.35);color:#fff;font-size:16px}
+button{padding:10px 14px;border:0;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:bold;cursor:pointer}
 button.stop{background:#c0392b}
-#mais,#mic{width:42px;padding:0;font-size:20px;background:#303247}
+#mais,#mic{width:42px;padding:0;font-size:20px;background:rgba(255,255,255,.1);border:1px solid var(--border)}
 #mic.gravando{background:#c0392b}
-#menu{display:none;position:fixed;left:10px;bottom:calc(64px + env(safe-area-inset-bottom));background:#222538;border:1px solid #3a3e59;border-radius:14px;padding:6px;z-index:5;min-width:255px}
+#menu{display:none;position:fixed;left:10px;bottom:calc(64px + env(safe-area-inset-bottom));background:var(--panel);backdrop-filter:blur(14px);border:1px solid var(--border);border-radius:14px;padding:6px;z-index:12;min-width:240px}
 #menu.aberto{display:block}
 #menu button{display:block;width:100%;text-align:left;background:none;padding:11px 12px;font-weight:normal;font-size:15px}
-#hist{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10;align-items:flex-end;justify-content:center}
-#hist.aberto{display:flex}
-.hbox{background:#191b29;border:1px solid #303247;border-radius:16px 16px 0 0;width:100%;max-width:640px;max-height:88dvh;display:flex;flex-direction:column;padding:12px;gap:8px}
-.htopo{display:flex;gap:8px;align-items:center}.htopo b{color:#c5baff;white-space:nowrap}
-.htopo input{padding:8px 10px;font-size:14px}.htopo button{padding:8px 12px;background:#303247}
+#drawerBack{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);z-index:20}
+#drawerBack.aberto{display:flex}
+#drawer{width:min(310px,84vw);height:100%;background:var(--panel2);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:14px;gap:8px;overflow:auto}
+.dhead{display:flex;align-items:center;justify-content:space-between;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.dhead b{font-size:17px;color:#fff}
+.dsub{font-size:11px;color:var(--muted);margin-top:2px}
+.dclose{padding:6px 10px;background:rgba(255,255,255,.1);border-radius:9px}
+.dbtn{width:100%;text-align:left;background:rgba(255,255,255,.06);border:1px solid var(--border);padding:10px 12px;font-weight:normal;font-size:14px;border-radius:12px}
+.dtemas{display:flex;flex-wrap:wrap;gap:6px;padding:6px 2px}
+.tpill{padding:6px 10px;font-size:12px;border-radius:999px;border:1px solid rgba(255,255,255,.22);font-weight:bold;background:rgba(255,255,255,.08)}
+.tpill.on{box-shadow:0 0 0 2px #fff}
+.dinfo{margin-top:auto;padding-top:10px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);line-height:1.5}
+#hist,#sobre{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:30;align-items:flex-end;justify-content:center}
+#hist.aberto,#sobre.aberto{display:flex}
+.hbox,.sbox{background:var(--panel2);border:1px solid var(--border);border-radius:18px 18px 0 0;width:100%;max-width:640px;max-height:88dvh;display:flex;flex-direction:column;padding:14px;gap:10px;overflow:auto}
+.sbox{border-radius:18px;margin:auto 12px;max-width:520px}
+.htopo{display:flex;gap:8px;align-items:center}.htopo b{color:#fff;white-space:nowrap}
+.htopo input{padding:8px 10px;font-size:14px}.htopo button{padding:8px 12px;background:rgba(255,255,255,.12)}
 .hlista{overflow:auto;flex:1;display:flex;flex-direction:column;gap:6px;min-height:120px}
-.hitem{display:flex;gap:6px;align-items:center;background:rgba(34,37,56,.6);border:1px solid #3a3e59;border-radius:12px;padding:8px 10px}
-.hitem.atual{border-color:#7864ed}.hinfo{flex:1;min-width:0;cursor:pointer}
-.htit{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hmeta{font-size:11px;color:#8d8fa6;margin-top:2px}
-.hitem button{background:none;padding:6px 8px}.hvazio{color:#8d8fa6;text-align:center;padding:24px 0;font-size:14px}
+.hitem{display:flex;gap:6px;align-items:center;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:12px;padding:8px 10px}
+.hitem.atual{border-color:var(--accent)}.hinfo{flex:1;min-width:0;cursor:pointer}
+.htit{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hmeta{font-size:11px;color:var(--muted);margin-top:2px}
+.hitem button{background:none;padding:6px 8px}.hvazio{color:var(--muted);text-align:center;padding:24px 0;font-size:14px}
 .hpag{display:flex;flex-wrap:wrap;gap:4px;justify-content:center}
-.hpag button{min-width:32px;padding:6px 0;font-size:13px;background:#303247}
-.hpag button.on{background:#7864ed}.hpag button.vazia{opacity:.35}.hpag button:disabled{opacity:.3}
-.hrod{display:flex;gap:8px;justify-content:space-between;align-items:center;font-size:12px;color:#8d8fa6}
-.hrod button{padding:6px 10px;font-size:12px;background:#303247}
+.hpag button{min-width:32px;padding:6px 0;font-size:13px;background:rgba(255,255,255,.1)}
+.hpag button.on{background:var(--accent)}.hpag button.vazia{opacity:.35}.hpag button:disabled{opacity:.3}
+.hrod{display:flex;gap:8px;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted)}
+.hrod button{padding:6px 10px;font-size:12px;background:rgba(255,255,255,.1)}
+.scard{background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.5}
 [hidden]{display:none!important}
-textarea#entrada{flex:1;min-width:0;padding:11px;border:1px solid #44465d;border-radius:12px;background:#10111a;color:#fff;font-size:16px;font-family:inherit;line-height:1.35;resize:none;max-height:130px;overflow-y:auto}
-#barras{flex:none;background:#191b29;border-top:1px solid #303247}
-#citbar,#anexos{display:flex;align-items:center;gap:8px;padding:6px 12px;font-size:12px;color:#c5baff;flex-wrap:wrap}
-#citbar{flex-wrap:nowrap;border-left:3px solid #7864ed}
+textarea#entrada{flex:1;min-width:0;padding:11px;border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.35);color:#fff;font-size:16px;font-family:inherit;line-height:1.35;resize:none;max-height:130px;overflow-y:auto}
+#barras{flex:none;background:var(--panel);border-top:1px solid var(--border)}
+#citbar,#anexos{display:flex;align-items:center;gap:8px;padding:6px 12px;font-size:12px;color:#e5dcff;flex-wrap:wrap}
+#citbar{flex-wrap:nowrap;border-left:3px solid var(--accent)}
 #citbar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#citbar button,#anexos button{padding:2px 8px;font-size:12px;background:#303247}
-.chip{display:flex;gap:6px;align-items:center;background:rgba(255,255,255,.08);border-radius:10px;padding:3px 4px 3px 9px;max-width:100%;overflow-wrap:anywhere}
-.cit{border-left:3px solid #7864ed;background:rgba(0,0,0,.25);border-radius:6px;padding:4px 8px;margin-bottom:6px;font-size:12px;color:#b9adff;white-space:pre-wrap;overflow-wrap:anywhere}
+#citbar button,#anexos button{padding:2px 8px;font-size:12px;background:rgba(255,255,255,.12)}
+.chip{display:flex;gap:6px;align-items:center;background:rgba(255,255,255,.1);border-radius:10px;padding:3px 4px 3px 9px;max-width:100%;overflow-wrap:anywhere}
+.cit{border-left:3px solid var(--accent2);background:rgba(0,0,0,.28);border-radius:6px;padding:4px 8px;margin-bottom:6px;font-size:12px;color:#e9dfff;white-space:pre-wrap;overflow-wrap:anywhere}
 .acoes.user{justify-content:flex-end}
 </style>
 </head>
 <body>
+<div id="orb-bg" aria-hidden="true"></div>
+
 <header>
-  <div class="htop"><h2>BACH AI 🧠</h2></div>
-  <div id="status">Carregando...</div>
+  <div class="htop">
+    <button id="btnDrawer" aria-label="Abrir menu">☰</button>
+    <div class="hbrand">
+      <div class="htitle"><h2>BACH AI 🧠</h2><span id="verBadge" title="Sobre e novidades">v4.5</span></div>
+      <div id="status">Carregando...</div>
+    </div>
+  </div>
 </header>
 
 <nav id="modos" aria-label="Modos de funcionamento">
@@ -105,39 +147,75 @@ textarea#entrada{flex:1;min-width:0;padding:11px;border:1px solid #44465d;border
   <button data-acao="anexar">📎 Anexar foto, vídeo ou arquivo</button>
   <button data-acao="profundo">🧠 Pensar bastante: desligado</button>
   <button data-acao="voz">🔊 Ler respostas sozinha: desligado</button>
-  <button data-acao="historico">🕘 Histórico de conversas</button>
-  <button data-acao="nova">➕ Nova conversa</button>
   <button data-acao="arquivos">📁 Meus arquivos</button>
   <button data-acao="jogo">🎮 Jogar um joguinho</button>
+  <button data-acao="sobre">ℹ️ Sobre a BACH AI</button>
+</div>
+
+<div id="drawerBack">
+  <aside id="drawer" aria-label="Menu do aplicativo">
+    <div class="dhead">
+      <div>
+        <b>BACH AI 🧠</b>
+        <div class="dsub" id="drawerUser">Criada por Rizik • Gratuita</div>
+      </div>
+      <button class="dclose" id="fecharDrawer">✕</button>
+    </div>
+    <button class="dbtn" data-d="nova">➕ Nova conversa</button>
+    <button class="dbtn" data-d="historico">🕘 Histórico de conversas</button>
+    <button class="dbtn" data-d="arquivos">📁 Meus arquivos</button>
+    <button class="dbtn" data-d="anexar">📎 Anexar mídia / documento</button>
+    <button class="dbtn" data-d="jogo">🎮 Jogos no chat</button>
+    <div style="font-size:12px;color:var(--muted);margin-top:4px">🎨 Temas e Cores (ou peça no chat!):</div>
+    <div class="dtemas" id="listaTemas"></div>
+    <button class="dbtn" data-d="sobre">ℹ️ Sobre o App &amp; Atualizações</button>
+    <div class="dinfo">
+      <b>Criador:</b> Rizik<br>
+      <b>Versão:</b> 4.5 (2026)<br>
+      Suas conversas e memórias ficam salvas quando você volta ao site.
+    </div>
+  </aside>
 </div>
 
 <input id="seletor" type="file" hidden multiple accept="image/*,video/*,.txt,.md,.js,.html,.css,.json,.csv,.py,.xml,.log,.ts,.java,.c,.cpp,.sql,.yml,.yaml">
 <div id="hist"></div>
+<div id="sobre"></div>
 <input id="seletorBase" type="file" hidden accept=".json,application/json">
 
 <script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <script type="module">
-import { RizikBrain } from "./brain.js?v=17";
-import { Saber } from "./saber.js?v=11";
-import { Prog } from "./programacao.js?v=4";
+import { RizikBrain } from "./brain.js?v=18";
+import { Saber } from "./saber.js?v=12";
+import { Prog } from "./programacao.js?v=5";
 import { Arquivos } from "./arquivos.js?v=3";
-import { Mente } from "./mente.js?v=14";
+import { Mente } from "./mente.js?v=15";
 import { Fatos } from "./fatos.js?v=7";
 import { Conversa } from "./conversa.js?v=5";
 import { Dic } from "./dicionario.js?v=4";
 import { Historico } from "./historico.js?v=3";
 import { Base } from "./base.js?v=5";
-import { SkillRouter } from "./registry.js?v=2";
+import { SkillRouter } from "./registry.js?v=3";
 import { LLM } from "./llm.js?v=1";
-import { CerebroAvancado } from "./cerebro_avancado.js?v=1";
+import { CerebroAvancado } from "./cerebro_avancado.js?v=2";
 
 const $ = id => document.getElementById(id);
-const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status"), hist = $("hist");
-const HISTORY_KEY = "bach_chat_history_v1";
+const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status"), hist = $("hist"), sobreEl = $("sobre");
+const HISTORY_KEY = "bach_chat_history_v1", KEY_TEMA = "bach_theme_v1", KEY_CRIADOR = "bach_creator_v1", KEY_VER = "bach_last_version";
+const APP_VER = "4.5", APP_CRIADA = "2026", APP_ATUALIZADA = "23/11/2026";
 const LONGO = 700;
 const BT = "\x60\x60\x60";
 const RE_CERCA_ALL = new RegExp("\\x60\\x60\\x60", "g");
 const RE_CERCA_SPLIT = new RegExp("\\x60\\x60\\x60([\\w+-]*)[ \\t]*\\n?([\\s\\S]*?)\\x60\\x60\\x60", "g");
+
+const TEMAS = {
+  roxo:     { nome: "💜 Roxo",     bg:"#0d0e1a", panel:"rgba(22,24,42,.88)", panel2:"rgba(16,18,32,.94)", border:"rgba(138,118,255,.3)",  accent:"#8266ff", accent2:"#e056fd", bot:"rgba(30,34,60,.74)", user:"rgba(98,66,220,.72)", orb1:"#8c6eff", orb2:"#ff4fd8", glow:"rgba(140,110,255,.55)" },
+  vermelho: { nome: "❤️ Vermelho", bg:"#16070b", panel:"rgba(36,14,20,.88)", panel2:"rgba(26,10,14,.94)", border:"rgba(255,70,95,.32)",   accent:"#ff3555", accent2:"#ff7c43", bot:"rgba(44,18,26,.76)", user:"rgba(195,28,55,.74)", orb1:"#ff2a4b", orb2:"#ff8533", glow:"rgba(255,50,80,.55)" },
+  azul:     { nome: "💙 Azul",     bg:"#07101f", panel:"rgba(14,24,44,.88)", panel2:"rgba(10,18,34,.94)", border:"rgba(55,165,255,.3)",   accent:"#2997ff", accent2:"#00e5ff", bot:"rgba(18,34,60,.76)", user:"rgba(24,108,210,.74)", orb1:"#2997ff", orb2:"#00f2fe", glow:"rgba(40,160,255,.55)" },
+  verde:    { nome: "💚 Verde",    bg:"#06150f", panel:"rgba(12,32,24,.88)", panel2:"rgba(8,24,18,.94)",  border:"rgba(25,215,140,.3)",   accent:"#10d48e", accent2:"#7dff7a", bot:"rgba(16,44,34,.76)", user:"rgba(14,142,96,.72)",  orb1:"#0fd68c", orb2:"#4dff88", glow:"rgba(20,215,140,.5)" },
+  rosa:     { nome: "🩷 Rosa",     bg:"#170713", panel:"rgba(36,14,32,.88)", panel2:"rgba(26,10,24,.94)", border:"rgba(255,85,185,.32)",  accent:"#ff4db8", accent2:"#a66bff", bot:"rgba(46,20,42,.76)", user:"rgba(196,40,136,.72)", orb1:"#ff3ea5", orb2:"#a66bff", glow:"rgba(255,65,175,.55)" },
+  dourado:  { nome: "💛 Dourado",  bg:"#150f05", panel:"rgba(34,25,12,.88)", panel2:"rgba(24,18,8,.94)",  border:"rgba(255,180,45,.32)",  accent:"#ffb020", accent2:"#ff662b", bot:"rgba(44,34,16,.76)", user:"rgba(186,115,15,.74)", orb1:"#ffb020", orb2:"#ff5e36", glow:"rgba(255,175,35,.52)" },
+  neon:     { nome: "⚡ Neon",     bg:"#090716", panel:"rgba(18,16,38,.9)",  panel2:"rgba(12,11,28,.95)", border:"rgba(0,245,212,.32)",   accent:"#00e5c8", accent2:"#f15bb5", bot:"rgba(22,26,56,.76)", user:"rgba(126,38,215,.72)", orb1:"#00f5d4", orb2:"#f15bb5", glow:"rgba(0,240,210,.52)" }
+};
 
 const NOMES_MODOS = {
   auto: "🤖 Automático", raciocinio: "🧠 Raciocínio", pesquisa: "🌐 Pesquisa",
@@ -148,13 +226,57 @@ const NOMES_MODOS = {
 let history = [], pensando = null, modoProfundo = false, lerAuto = false, modoAtual = "auto";
 let ultimoTema = null, ultimaOrigem = "", aguardaCidade = false, citacao = null, alvo = null, pendentes = [];
 let ocupado = false, cancelado = false, ctrl = null, ultimoArquivo = null, ultimaImagem = null, ultimaMidiaInfo = null;
+let temaAtual = "roxo", modoCriador = false, atualizouAgora = false;
 
 try {
   history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
   if (!Array.isArray(history)) history = [];
+  temaAtual = localStorage.getItem(KEY_TEMA) || "roxo";
+  modoCriador = localStorage.getItem(KEY_CRIADOR) === "1";
+  const prevV = localStorage.getItem(KEY_VER);
+  if (prevV !== APP_VER) { atualizouAgora = true; localStorage.setItem(KEY_VER, APP_VER); }
 } catch { history = []; }
 
-const statusPadrao = () => "BACH AI • " + (NOMES_MODOS[modoAtual] || "🤖 Automático");
+function aplicarTema(nome) {
+  const k = TEMAS[nome] ? nome : "roxo";
+  const t = TEMAS[k];
+  temaAtual = k;
+  const r = document.documentElement.style;
+  r.setProperty("--bg", t.bg); r.setProperty("--panel", t.panel); r.setProperty("--panel2", t.panel2);
+  r.setProperty("--border", t.border); r.setProperty("--accent", t.accent); r.setProperty("--accent2", t.accent2);
+  r.setProperty("--bot", t.bot); r.setProperty("--user", t.user);
+  r.setProperty("--orb1", t.orb1); r.setProperty("--orb2", t.orb2); r.setProperty("--orbGlow", t.glow);
+  const mc = document.querySelector('meta[name="theme-color"]');
+  if (mc) mc.setAttribute("content", t.bg);
+  try { localStorage.setItem(KEY_TEMA, k); } catch {}
+  desenharTemas();
+  return t.nome;
+}
+
+function desenharTemas() {
+  const box = $("listaTemas");
+  if (!box) return;
+  box.innerHTML = "";
+  for (const [k, t] of Object.entries(TEMAS)) {
+    const b = mk("button", "tpill" + (k === temaAtual ? " on" : ""), t.nome);
+    b.style.borderColor = t.accent;
+    b.onclick = () => {
+      aplicarTema(k);
+      falar("🎨 Tema alterado para **" + t.nome + "**! Ficou salvo para quando você voltar.", "bot", "🎨 tema", true);
+    };
+    box.append(b);
+  }
+}
+
+function atualizarBadge() {
+  const b = $("verBadge");
+  b.textContent = atualizouAgora ? "✨ v" + APP_VER + " NOVA" : "v" + APP_VER;
+  b.classList.toggle("nova", atualizouAgora);
+  const du = $("drawerUser");
+  if (du) du.textContent = (modoCriador ? "👑 Criador Rizik conectado" : "Criada por Rizik • Gratuita");
+}
+
+const statusPadrao = () => "BACH AI • " + (NOMES_MODOS[modoAtual] || "🤖 Automático") + (modoCriador ? " • 👑 Criador" : "");
 
 const salvarHist = () => {
   try {
@@ -260,6 +382,48 @@ function criarResultado(titulo, resumo, url) {
   chat.appendChild(c); chat.scrollTop = chat.scrollHeight;
 }
 
+/* ---------- Sobre a BACH AI ---------- */
+function abrirSobre() {
+  atualizouAgora = false;
+  atualizarBadge();
+  const st = RizikBrain.getStats();
+  let arqs = 0; try { arqs = (JSON.parse(localStorage.getItem("bach_arquivos_v1")) || []).length; } catch {}
+  sobreEl.innerHTML = "";
+  sobreEl.classList.add("aberto");
+  sobreEl.onclick = e => { if (e.target === sobreEl) sobreEl.classList.remove("aberto"); };
+
+  const box = mk("div", "sbox"), top = mk("div", "htopo"), fechar = mk("button", "", "✕");
+  fechar.onclick = () => sobreEl.classList.remove("aberto");
+  top.append(mk("b", "", "ℹ️ Sobre a BACH AI"), mk("span", "", ""), fechar);
+  top.children[1].style.flex = "1";
+
+  const info = mk("div", "scard");
+  info.innerHTML =
+    "<b>Nome:</b> BACH AI 🧠<br>" +
+    "<b>Versão atual:</b> v" + APP_VER + " (atualizada em " + APP_ATUALIZADA + ")<br>" +
+    "<b>Ano de criação:</b> " + APP_CRIADA + "<br>" +
+    "<b>Criador:</b> Rizik<br>" +
+    "<b>Motivo da criação:</b> Criar uma inteligência artificial própria, gratuita e livre para ajudar todo mundo no dia a dia — com memória persistente, pesquisa, leitura de fotos/vídeos e programação.";
+
+  const nov = mk("div", "scard");
+  nov.innerHTML =
+    "<b>✨ Novidades da v" + APP_VER + ":</b><br>" +
+    "• Fundo vivo com esfera animada e <b>7 temas</b> (peça “tema vermelho”, “tema azul”, etc.)<br>" +
+    "• Menu lateral de aplicativo e tela Sobre<br>" +
+    "• Reconhecimento do criador (<b>@rizik2442</b>) com pesquisa sem limites<br>" +
+    "• Correção de nome do usuário, eleições/notícias atuais e gírias brasileiras<br>" +
+    "• OCR melhorado para prints escuros e leitura estável de vídeos";
+
+  const dados = mk("div", "scard");
+  dados.innerHTML =
+    "<b>📊 Memória salva neste aparelho:</b><br>" +
+    "• Respostas ensinadas: " + st.examples + " • Notas: " + st.notes + "<br>" +
+    "• Arquivos guardados: " + arqs + " • Conversas: " + Historico.listar(1).total;
+
+  box.append(top, info, nov, dados);
+  sobreEl.append(box);
+}
+
 /* ---------- pensando / cancelar ---------- */
 function pensar() {
   const div = mk("div", "msg bot pensando"), t0 = performance.now(), linhas = [];
@@ -348,7 +512,7 @@ async function pesquisaProfunda(q, fundo = true) {
   q = temas[0] || q;
   const temaLimpo = Mente.tema(q) || q;
   ultimoTema = temaLimpo;
-  const usarFundo = modoProfundo || modoAtual === "raciocinio" || fundo;
+  const usarFundo = modoProfundo || modoCriador || modoAtual === "raciocinio" || fundo;
 
   let deuFato = false;
   if (/\b(piadas?|humor|engra[cç]ad[oa]s?)\b/i.test(q)) { falar("Piada eu tenho de sobra! 😄\n\n" + Prog.humor("conta uma piada"), "bot", "😄 meu repertório"); return; }
@@ -358,12 +522,9 @@ async function pesquisaProfunda(q, fundo = true) {
 
   passo((usarFundo ? "🔎 Pesquisando a fundo: " : "🔎 Pesquisando: ") + temaLimpo);
   try {
-    const r = await Saber.pesquisaProfunda(q, passo, usarFundo);
+    const r = await Saber.pesquisaProfunda(q, passo, usarFundo, { semLimite: modoCriador });
     const tx = r.texto.replace(/\n\n💬 Em poucas palavras:[^\n]*/, "").replace(/\n\n🔍 Como cheguei nisso:[^\n]*/, "").replace(/\nℹ️[^\n]*/, "").replace(/\n\n💾 Guardei[^\n]*/, "").replace(/\n\n🚫 Não guardei[^\n]*/, "");
-    if (r.conf !== "baixa") {
-      Mente.lembrarTema(temaLimpo);
-      RizikBrain.logTopic(temaLimpo);
-    }
+    if (r.conf !== "baixa") { Mente.lembrarTema(temaLimpo); RizikBrain.logTopic(temaLimpo); }
     falar(tx, "bot", "🌐 internet, filtrada e resumida");
     if (r.conf !== "baixa") Arquivos.salvar({ nome: "pesquisa-" + temaLimpo.slice(0, 24), pasta: Mente.pasta("Pesquisas"), texto: r.texto, tipo: "pesquisa" });
     r.fontes.forEach(f => criarResultado(f.titulo, "", f.url));
@@ -378,91 +539,49 @@ async function pesquisaProfunda(q, fundo = true) {
       falar("Acho que você está falando sobre algo que eu mesma disse! 🤔 Me diga o assunto com outras palavras ou use ↩ Responder no balão.");
       return;
     }
-    falar(e.message === "irrelevante" ? "Não achei resultados confiáveis para “" + temaLimpo + "”, e prefiro não chutar. Tente perguntar de outro jeito! 🔍" : "Não consegui consultar a internet agora. No modo local continuo respondendo normalmente!");
+    falar(e.message === "irrelevante" ? "Não achei resultados confiáveis para “" + temaLimpo + "”. Tente perguntar com outras palavras! 🔍" : "Não consegui consultar a internet agora. No modo local continuo respondendo normalmente!");
   }
 }
 
-/* ---------- Motor interno opcional de linguagem (ADM) ---------- */
-const SISTEMA =
-`Você é a BACH AI, uma assistente inteligente em português do Brasil criada pelo usuário. Seja simpática, direta, precisa e adaptável.
-REGRAS DE FORMATO:
-- Todo código ou arquivo vai em bloco com três crases e a linguagem.
-- Antes de cada bloco diga o nome do arquivo em 1 linha. Entregue o arquivo completo quando pedirem um programa/site/jogo.
-HONESTIDADE: se não souber, admita. Não invente fatos ou links.`;
-
+/* ---------- Motor opcional ---------- */
+const SISTEMA = `Você é a BACH AI, criada por Rizik, assistente inteligente em português do Brasil. Seja simpática, direta e precisa.`;
 async function perguntarIA(texto, extraCtx = "") {
   passo("🧠 Raciocinando...");
   ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 60000);
   try {
-    let msgs = history
-      .filter(h => h.type === "user" || h.type === "bot")
-      .slice(-14)
-      .map(h => ({
-        role: h.type === "user" ? "user" : "assistant",
-        content: (h.cit ? "[Respondendo a: " + h.cit + "]\n" : "") + String(h.text).slice(0, 10000)
-      }));
-
+    let msgs = history.filter(h => h.type === "user" || h.type === "bot").slice(-14).map(h => ({ role: h.type === "user" ? "user" : "assistant", content: (h.cit ? "[Respondendo a: " + h.cit + "]\n" : "") + String(h.text).slice(0, 10000) }));
     while (msgs.length && msgs[0].role !== "user") msgs.shift();
-    if (alvo && msgs.length) {
-      msgs[msgs.length - 1].content = "[O usuário está respondendo a esta mensagem: " + alvo.slice(0, 1500) + "]\n" + msgs[msgs.length - 1].content;
-    }
-
-    const perf = RizikBrain.getProfile();
-    const rec = RizikBrain.getRecentTopics(8).map(x => x.topic);
-
+    if (alvo && msgs.length) msgs[msgs.length - 1].content = "[Respondendo a: " + alvo.slice(0, 1500) + "]\n" + msgs[msgs.length - 1].content;
+    const perf = RizikBrain.getProfile(), rec = RizikBrain.getRecentTopics(8).map(x => x.topic);
     let sis = SISTEMA + "\n\n" + SkillRouter.modePrompt(modoAtual) + "\n\n" + SkillRouter.instructions();
     if (perf.userName) sis += "\nNome do usuário: " + perf.userName + ".";
+    if (modoCriador) sis += "\nO usuário atual é Rizik, o seu criador.";
     if (perf.city) sis += "\nCidade: " + perf.city + ".";
-    if (perf.age) sis += "\nIdade: " + perf.age + " anos.";
-    if (perf.likes?.length) sis += "\nGostos do usuário: " + perf.likes.join(", ") + ".";
-    if (perf.projects?.length) sis += "\nProjetos/estudos atuais: " + perf.projects.join(", ") + ".";
+    if (perf.likes?.length) sis += "\nGostos: " + perf.likes.join(", ") + ".";
     if (rec.length) sis += "\nAssuntos recentes: " + rec.join(", ") + ".";
-    if (ultimoArquivo) sis += "\n\nARQUIVO/TEXTO ATUAL (" + ultimoArquivo.nome + "):\n" + ultimoArquivo.texto.slice(0, 25000);
-    if (extraCtx) sis += "\n\nCONTEXTO ADICIONAL:\n" + extraCtx;
-
-    const enviarImg = Boolean(ultimaImagem && (modoAtual === "visao" || /foto|imagem|print|tela|desenho|grafico|gráfico|leia|veja|olhe|aparece|escrito|nela|nisso|isso|aqui/i.test(texto)));
-    const temp = modoAtual === "criatividade" ? 0.75 : modoAtual === "matematica" || modoAtual === "programacao" ? 0.2 : 0.35;
-
-    const res = await LLM.generate({
-      system: sis,
-      messages: msgs,
-      image: enviarImg ? ultimaImagem : null,
-      temperature: temp,
-      signal: ctrl.signal
-    });
-
-    let resp = res.text || "Não consegui formular a resposta. Tente reformular.";
-    if (res.truncated) resp += "\n\n(Resposta cortada pelo limite. Peça: continue)";
-    falar(resp, "bot", "🧠 BACH AI" + (enviarImg ? " + 👁️ visão" : ""));
+    if (ultimoArquivo) sis += "\n\nARQUIVO ATUAL (" + ultimoArquivo.nome + "):\n" + ultimoArquivo.texto.slice(0, 25000);
+    if (extraCtx) sis += "\n\nCONTEXTO:\n" + extraCtx;
+    const enviarImg = Boolean(ultimaImagem && (modoAtual === "visao" || /foto|imagem|print|tela|leia|veja|olhe|escrito|nela|isso|aqui/i.test(texto)));
+    const res = await LLM.generate({ system: sis, messages: msgs, image: enviarImg ? ultimaImagem : null, temperature: modoAtual === "criatividade" ? 0.75 : 0.35, signal: ctrl.signal });
+    falar(res.text || "Não consegui formular a resposta.", "bot", "🧠 BACH AI");
   } catch (e) {
-    if (e.name !== "AbortError") {
-      console.error(e);
-      falar("Tive um problema na consulta estendida (" + (e.message || "erro de conexão") + "). Tente novamente.");
-    }
-  } finally {
-    clearTimeout(timer);
-    ctrl = null;
-  }
+    if (e.name !== "AbortError") { console.error(e); falar("Tive um problema na consulta (" + (e.message || "erro de conexão") + ")."); }
+  } finally { clearTimeout(timer); ctrl = null; }
 }
 
 /* ---------- arquivos e imagem multimodal ---------- */
 function imagemParaBase64(file) {
   return new Promise(resolve => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
+    const url = URL.createObjectURL(file), img = new Image();
     const timer = setTimeout(() => { URL.revokeObjectURL(url); resolve(null); }, 10000);
     img.onload = () => {
       clearTimeout(timer);
       try {
-        const max = 1280;
-        const esc = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
-        const c = document.createElement("canvas");
-        c.width = Math.max(1, Math.round(img.naturalWidth * esc));
-        c.height = Math.max(1, Math.round(img.naturalHeight * esc));
+        const max = 1280, esc = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement("canvas");
+        c.width = Math.max(1, Math.round(img.naturalWidth * esc)); c.height = Math.max(1, Math.round(img.naturalHeight * esc));
         c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-        const dataUrl = c.toDataURL("image/jpeg", 0.85);
-        resolve({ mimeType: "image/jpeg", base64: dataUrl.split(",")[1] });
+        resolve({ mimeType: "image/jpeg", base64: c.toDataURL("image/jpeg", 0.85).split(",")[1] });
       } catch { resolve(null); }
       finally { URL.revokeObjectURL(url); }
     };
@@ -475,8 +594,7 @@ function mostrarPreview(p) {
   const d = mk("div", "msg bot"), el = document.createElement(p.kind === "video" ? "video" : "img");
   el.src = p.url;
   if (p.kind === "video") { el.controls = true; el.muted = true; el.playsInline = true; }
-  d.appendChild(el);
-  chat.appendChild(d);
+  d.appendChild(el); chat.appendChild(d);
 }
 
 async function processarArquivo(f, silenciosoSeTexto = false) {
@@ -491,11 +609,8 @@ async function processarArquivo(f, silenciosoSeTexto = false) {
       passo("📖 Lendo o conteúdo...");
       resposta = Saber.lerTexto(r.texto);
       pasta = Mente.pasta(Saber.isCode(r.texto) ? "Códigos" : "Textos");
-      texto = r.texto;
-      Mente.setTexto(f.name, r.texto);
-      ultimoArquivo = { nome: f.name, texto: r.texto };
-      ultimaImagem = null;
-      ultimaMidiaInfo = null;
+      texto = r.texto; Mente.setTexto(f.name, r.texto);
+      ultimoArquivo = { nome: f.name, texto: r.texto }; ultimaImagem = null; ultimaMidiaInfo = null;
     } else if (r.tipo === "imagem") {
       ultimaMidiaInfo = { nome: f.name, tipo: r.tipo, resumo: r.resumo };
       ultimaImagem = await imagemParaBase64(f);
@@ -513,26 +628,19 @@ async function processarArquivo(f, silenciosoSeTexto = false) {
     }
 
     const a = Arquivos.salvar({ nome: f.name, pasta, texto, resumo: resposta.slice(0, 300), tipo: r.tipo });
-    if (!silenciosoSeTexto) {
-      falar(resposta + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos");
-    } else if (pensando) {
-      pensando.fim(); pensando = null;
-    }
-  } catch (e) {
-    console.error(e);
-    falar("Não consegui abrir esse arquivo. " + (e.message || ""));
-  } finally {
-    busy(false);
-  }
+    if (!silenciosoSeTexto) falar(resposta + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos");
+    else if (pensando) { pensando.fim(); pensando = null; }
+  } catch (e) { console.error(e); falar("Não consegui abrir esse arquivo. " + (e.message || "")); }
+  finally { busy(false); }
 }
 
-/* ---------- histórico de conversas ---------- */
+/* ---------- histórico ---------- */
 function novaConversa() {
   try { speechSynthesis.cancel(); } catch {}
   Historico.nova(); history = []; try { localStorage.removeItem(HISTORY_KEY); } catch {}
   ultimoArquivo = null; ultimaImagem = null; ultimaMidiaInfo = null; ultimoTema = null;
   chat.innerHTML = ""; hist.classList.remove("aberto");
-  falar("Nova conversa! 🧹 A anterior ficou guardada no histórico (menu +). Sua memória de aprendizado continua salva.", "bot", "", true);
+  falar("Nova conversa! 🧹 A anterior ficou guardada no histórico. Tudo que eu aprendi sobre você continua salvo!", "bot", "", true);
 }
 function abrirConversa(id) {
   const msgs = Historico.abrir(id); if (!msgs) return;
@@ -570,8 +678,7 @@ function abrirHistorico(pag = 1, termo = "") {
   pg.append(ant);
   for (let p = 1; p <= r.paginas; p++) {
     const b = mk("button", p === r.pagina ? "on" : p > r.totalPaginas ? "vazia" : "", String(p));
-    b.onclick = () => abrirHistorico(p, termo);
-    pg.append(b);
+    b.onclick = () => abrirHistorico(p, termo); pg.append(b);
   }
   pg.append(prox);
   const rod = mk("div", "hrod"), novo = mk("button", "", "➕ Nova conversa"), tudo = mk("button", "", "🗑 Apagar tudo");
@@ -592,15 +699,14 @@ async function exportarBase() {
   const cfg = LLM.getConfig();
   const b = await Base.montar({
     history, idAtual: Historico.idAtual(), status: statusPadrao(), statsMente: Mente.stats(), totalFatos: Fatos.total,
-    estado: { modoProfundo, lerAuto, modoAtual, temChaveIA: LLM.hasModel(), modelo: cfg.model, provedor: cfg.provider },
+    estado: { modoProfundo, lerAuto, modoAtual, temaAtual, modoCriador, temChaveIA: LLM.hasModel(), modelo: cfg.model },
     menu: [...document.querySelectorAll("#menu button")].map(x => x.textContent.trim())
   });
-  falar("📦 BASE DE DADOS DA BACH — " + new Date().toLocaleString("pt-BR") + "\n\nTabela da criação dela:\n" + BT + "txt\n" + b.tabelaModulos + "\n" + BT + "\nMemória e dados:\n" + BT + "txt\n" + b.tabelaDados + "\n" + BT + "\nBackup completo: " + b.tamanhoKb + " KB, com " + b.conversas + " conversa(s). Para restaurar: /importarbase", "bot", "📦 /basedados");
+  falar("📦 BASE DE DADOS DA BACH — " + new Date().toLocaleString("pt-BR") + "\n\nTabela:\n" + BT + "txt\n" + b.tabelaModulos + "\n" + BT + "\nDados:\n" + BT + "txt\n" + b.tabelaDados + "\n" + BT + "\nBackup: " + b.tamanhoKb + " KB.", "bot", "📦 /basedados");
   chat.appendChild(cartao("📦 " + b.nome + " • " + b.tamanhoKb + " KB", b.json, b.nome, false, 2500));
   chat.scrollTop = chat.scrollHeight;
 }
 
-/* ---------- ler link colado ---------- */
 async function lerLinkMsg(url, texto, temIA) {
   passo("🔗 Abrindo o link: " + url.slice(0, 60) + "...");
   try {
@@ -610,11 +716,10 @@ async function lerLinkMsg(url, texto, temIA) {
     ultimaImagem = null; ultimaMidiaInfo = null;
     RizikBrain.logTopic(a.nome);
     if (temIA && texto.replace(url, "").trim().length > 3) { await perguntarIA(texto); return; }
-    falar("🔗 Abri " + r.url + "\n\n" + leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\n💡 Pergunte: “o que é esse texto?”, “explica”, “cadeia de códigos”, “resume” ou “revisa”.", "bot", "🔗 link");
-  } catch (e) { console.error(e); falar("Não consegui abrir esse link. Se for privado ou bloquear leitura, copie o texto e cole aqui. 📋"); }
+    falar("🔗 Abri " + r.url + "\n\n" + leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\n💡 Pergunte: “explica”, “cadeia de códigos”, “resume” ou “revisa”.", "bot", "🔗 link");
+  } catch (e) { console.error(e); falar("Não consegui abrir esse link. Se for privado, copie o texto e cole aqui. 📋"); }
 }
 
-/* ---------- respostas em cadeia ---------- */
 function ultimoBotTexto() {
   if (alvo) return alvo;
   for (let i = history.length - 1; i >= 0; i--) if (history[i].type !== "user") return String(history[i].text);
@@ -649,13 +754,8 @@ async function seguir(texto, temIA) {
 
   if (!temIA && (/^(me\s+)?(explica|explique|explicar)(\s+isso|\s+melhor|\s+o\s+que\s+(e|eh)\s+isso)?$/.test(nt) ||
       /^(mais detalhes|detalhe|detalhes|aprofunde|aprofunda|me explique mais|conte mais|conta mais|fale mais|continue|e mais)( isso| sobre isso)?$/.test(nt))) {
-    if (ultimoTema && /fatos|internet|dicionário/.test(ultimaOrigem)) {
-      await pesquisaProfunda(ultimoTema, true); return true;
-    }
-    if (base.length > 140) {
-      falar("📌 Resumindo:\n\n" + (Fatos.resumir(base) || base.slice(0, 500)) + "\n\nMe diga o assunto específico ou use ↩ Responder!", "bot", "🧠 contexto");
-      return true;
-    }
+    if (ultimoTema && /fatos|internet|dicionário/.test(ultimaOrigem)) { await pesquisaProfunda(ultimoTema, true); return true; }
+    if (base.length > 140) { falar("📌 Resumindo:\n\n" + (Fatos.resumir(base) || base.slice(0, 500)), "bot", "🧠 contexto"); return true; }
   }
   return false;
 }
@@ -665,16 +765,31 @@ function ctxConversa() {
   return {
     nome: perf.userName, cidade: perf.city, gostos: perf.likes, projetos: perf.projects,
     hora: new Date().getHours(), aprendidas: st.examples, notas: st.notes, arquivos,
-    conversas: Historico.listar(1).total
+    conversas: Historico.listar(1).total, modoCriador
   };
 }
 
-/* ---------- roteamento central (Automático + 10 Modos + CerebroAvancado) ---------- */
+/* ---------- roteamento central ---------- */
 const sn = t => String(t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 
 async function rotear(texto) {
   const cmd = texto.toLowerCase().trim(), temIA = LLM.hasModel();
   const tn = sn(texto);
+
+  // 0) Reconhecimento do criador (@rizik2442)
+  if (/@rizik2442/i.test(texto)) {
+    modoCriador = true;
+    try { localStorage.setItem(KEY_CRIADOR, "1"); } catch {}
+    RizikBrain.remember("userName", "Rizik");
+    atualizarBadge();
+    status.textContent = statusPadrao();
+    const semTag = texto.replace(/@rizik2442/gi, "").trim();
+    if (!semTag) {
+      falar("👑 E aí, **Rizik**! Reconheci você, meu criador!\n\nAtivei seu acesso de criador permanente (lembro de você mesmo se sair e voltar ao site) e liberei pesquisa profunda sem limites. O que vamos fazer ou melhorar agora? 🚀", "bot", "👑 criador");
+      return;
+    }
+    texto = semTag;
+  }
 
   if (aguardaCidade) {
     aguardaCidade = false;
@@ -683,21 +798,22 @@ async function rotear(texto) {
 
   if (/^\/(basedados|dadosbach)\b/.test(cmd)) return exportarBase();
   if (/^\/importarbase\b/.test(cmd)) { falar("📥 Escolha o arquivo .json que você baixou com /basedados."); $("seletorBase").click(); return; }
+  if (/^(sobre|sobre a bach|versao|quem criou|sobre o app)$/i.test(tn)) { abrirSobre(); return; }
 
-  // 1) Se um jogo está ativo, entrega direto ao jogo
+  // 1) Jogo ativo
   if (Mente.jogando()) {
     const mtJogo = Mente.responder(texto);
     if (mtJogo) { falar(mtJogo.texto, "bot", mtJogo.origem || "🎮 jogo"); return; }
   }
 
-  // 2) Comandos de arquivos (/arquivos, /abrir, /buscar, /apagar) e pastas (/pasta)
+  // 2) Arquivos e pastas
   const arq = Arquivos.comando(texto); if (arq) { falar(arq, "bot", "📁 seus arquivos"); return; }
   if (/^\/(pastas?|mover|palavras?)\b/i.test(texto)) {
     const mtCmd = Mente.responder(texto);
     if (mtCmd) { falar(mtCmd.texto, "bot", mtCmd.origem); return; }
   }
 
-  // 3) Ferramentas exatas e departamentos (comandos de ADM como /modulos funcionam em segredo)
+  // 3) Ferramentas exatas e departamentos
   const dept = SkillRouter.handle(texto, { hasAI: temIA, history, mode: modoAtual });
   if (dept) { falar(dept.texto, "bot", dept.origem); return; }
 
@@ -707,7 +823,7 @@ async function rotear(texto) {
     return lerLinkMsg(links[0], texto, temIA);
   }
 
-  // 5) Memória, ensino explícito e textos/códigos grandes (ANTES de pergunta de mídia!)
+  // 5) Memória, ensino explícito e textos/códigos grandes (ANTES de mídia!)
   passo("🧠 Consultando minha memória...");
   const r = RizikBrain.think(texto);
   if (r.intent === "longtext") {
@@ -723,28 +839,33 @@ async function rotear(texto) {
 
   const MEMORIA_DIRETA = new Set([
     "learning", "forget", "synonym", "name-set", "note", "notes", "export", "import",
-    "stats", "help", "profile-memory", "autocorrected", "declined", "confirm", "memorySummary", "learned"
+    "stats", "help", "profile-memory", "autocorrected", "declined", "confirm", "memorySummary", "learned", "name"
   ]);
   if (r.handled && MEMORIA_DIRETA.has(r.intent)) {
     falar(r.text, "bot", "🧠 minha memória");
     return;
   }
 
-  // 6) Pergunta curta direta sobre foto/vídeo/print recente ("oque ta escrito aqui?")
-  const ehCurtaNaoCodigo = !Saber.isCode(texto) && texto.length <= 140 && tn.split(" ").length <= 15;
+  // 6) Pergunta sobre áudio de vídeo ou texto de foto/vídeo recente
+  const ehCurtaNaoCodigo = !Saber.isCode(texto) && texto.length <= 160 && tn.split(" ").length <= 18;
+  if (ehCurtaNaoCodigo && ultimaMidiaInfo?.tipo === "video" && /\b(audio|som|voz|fala|falou|disse|falei|cantou)\b/.test(tn)) {
+    falar("🎬 Eu ainda não transcrevo a fala ou áudio dentro de vídeos — por enquanto analiso duração, resolução, cores predominantes e textos escritos na tela do vídeo.", "bot", "🎬 análise de vídeo");
+    return;
+  }
   const perguntaMidiaLocal = ehCurtaNaoCodigo &&
     /\b(escrito|escrita|diz|dizendo|aparece|tem aqui|nessa foto|nesta foto|na foto|nessa imagem|na imagem|no print|nesse print|nesse video|no video)\b/.test(tn) &&
-    /\b(aqui|foto|imagem|print|video|isso|essa|esse|nele|nela)\b/.test(tn);
+    /\b(aqui|foto|imagem|print|video|isso|essa|esse|nele|nela|escrito)\b/.test(tn);
   if (perguntaMidiaLocal && (ultimaMidiaInfo || ultimoArquivo)) {
     if (temIA && ultimaImagem) { await perguntarIA(texto); return; }
     if (ultimoArquivo?.texto) {
-      falar("📝 Texto encontrado em **" + ultimoArquivo.nome + "**:\n\n“" + ultimoArquivo.texto.slice(0, 2000) + "”", "bot", "👁️ leitura direta");
+      const querCodigo = /\b(codigo|copiar|bloco|txt)\b/.test(tn);
+      falar(querCodigo
+        ? "📝 Texto de **" + ultimoArquivo.nome + "** pronto para copiar:\n\n" + BT + "txt\n" + ultimoArquivo.texto.slice(0, 3000) + "\n" + BT
+        : "📝 Texto encontrado em **" + ultimoArquivo.nome + "**:\n\n“" + ultimoArquivo.texto.slice(0, 2000) + "”",
+        "bot", "👁️ leitura direta");
       return;
     }
-    if (ultimaMidiaInfo) {
-      falar(ultimaMidiaInfo.resumo, "bot", "👁️ análise de mídia");
-      return;
-    }
+    if (ultimaMidiaInfo) { falar(ultimaMidiaInfo.resumo, "bot", "👁️ análise de mídia"); return; }
   }
 
   // 7) Clima
@@ -756,32 +877,22 @@ async function rotear(texto) {
   }
   const cid = extrairClima(texto); if (cid) return clima(cid);
 
-  // 8) Modos específicos selecionados na barra superior
-  if (modoAtual === "pesquisa") {
-    return pesquisaProfunda(extrairProfundo(texto) || extrairPesquisa(texto) || texto, true);
-  }
+  // 8) Modos específicos da barra
+  if (modoAtual === "pesquisa") return pesquisaProfunda(extrairProfundo(texto) || extrairPesquisa(texto) || texto, true);
   if (modoAtual === "visao") {
-    if (!ultimaImagem && !ultimaMidiaInfo) {
-      falar("👁️ Modo Imagens ativo: toque no + para enviar uma foto ou vídeo!");
-      return;
-    }
+    if (!ultimaImagem && !ultimaMidiaInfo) { falar("👁️ Modo Imagens ativo: toque no + para enviar uma foto ou vídeo!"); return; }
     if (temIA && ultimaImagem) return perguntarIA(texto);
-    falar(ultimaMidiaInfo?.resumo || "Envie uma foto pelo + para eu analisar.", "bot", "👁️ análise de imagem");
-    return;
+    falar(ultimaMidiaInfo?.resumo || "Envie uma foto pelo + para eu analisar.", "bot", "👁️ análise de imagem"); return;
   }
   if (modoAtual === "documentos") {
-    if (!ultimoArquivo) {
-      falar("📄 Modo Documentos ativo: cole um texto longo, um link ou anexe um arquivo pelo +.");
-      return;
-    }
+    if (!ultimoArquivo) { falar("📄 Modo Documentos ativo: cole um texto longo, um link ou anexe um arquivo pelo +."); return; }
     if (temIA) return perguntarIA(texto);
     const mtDoc = Mente.responder(texto);
-    falar(mtDoc?.texto || Saber.lerTexto(ultimoArquivo.texto), "bot", "📄 documentos");
-    return;
+    falar(mtDoc?.texto || Saber.lerTexto(ultimoArquivo.texto), "bot", "📄 documentos"); return;
   }
 
   // 9) Jogos e notícias explícitos
-  if (/\b(jogar|jogo da velha|forca|adivinhe o numero)\b/i.test(tn) && !/\b(crie|criar|faca|fazer|programe|explique|o que e)\b/i.test(tn)) {
+  if (/\b(jogar|jogo da velha|jogo da forca|forca|adivinhe o numero)\b/i.test(tn) && !/\b(crie|criar|faca|fazer|programe|explique|o que e)\b/i.test(tn)) {
     const mtJ = Mente.responder(texto);
     if (mtJ?.texto) { falar(mtJ.texto, "bot", mtJ.origem || "🎮 jogos"); return; }
   }
@@ -789,15 +900,17 @@ async function rotear(texto) {
     return noticias(/brasil/i.test(texto) ? "ultimas noticias do brasil hoje" : "ultimas noticias do mundo hoje");
   }
 
-  // 10) Motor estendido opcional (quando ativado pelo ADM)
-  if (temIA) {
-    await perguntarIA(texto);
-    return;
-  }
+  // 10) Motor opcional
+  if (temIA) { await perguntarIA(texto); return; }
 
-  // 11) Cérebro Avançado (NLU, recomendações por gênero, comparações, escrita, feedback de erro, contexto)
-  const av = await CerebroAvancado.responder(texto, { ultimoArquivo, ultimoTema, ultimaMidiaInfo });
+  // 11) Cérebro Avançado (temas por voz/texto, criador, NLU, gírias, recomendações, escrita, contexto)
+  const av = await CerebroAvancado.responder(texto, { ultimoArquivo, ultimoTema, ultimaMidiaInfo, ultimoBot: ultimoBotTexto(), modoCriador });
   if (av) {
+    if (av.tema) {
+      const nomeT = aplicarTema(av.tema);
+      falar("🎨 Pronto! Mudei o visual para **" + nomeT + "** (inclusive a esfera animada do fundo!). Se sair do site e voltar, ele continua assim. ✨", "bot", "🎨 temas");
+      return;
+    }
     if (av.usarMenteTexto && ultimoArquivo?.texto) {
       const mtTex = Mente.responder(texto) || { texto: Saber.lerTexto(ultimoArquivo.texto), origem: "📖 leitura do arquivo" };
       falar(mtTex.texto, "bot", mtTex.origem || "📖 leitura do arquivo");
@@ -807,11 +920,11 @@ async function rotear(texto) {
     if (av.texto) { falar(av.texto, "bot", av.origem || "🧠 BACH AI"); return; }
   }
 
-  // 12) Pedidos explícitos de pesquisa online
+  // 12) Pesquisa explícita
   const prof = extrairProfundo(texto); if (prof !== null) return pesquisaProfunda(prof, true);
-  const cons = extrairPesquisa(texto); if (cons !== null) return pesquisaProfunda(cons, modoProfundo);
+  const cons = extrairPesquisa(texto); if (cons !== null) return pesquisaProfunda(cons, modoProfundo || modoCriador);
 
-  // 13) Respostas em cadeia, dicionário, fatos, conversa, mente, programação e busca automática
+  // 13) Cadeia, dicionário, fatos, conversa, mente, programação
   if (await seguir(texto, false)) return;
 
   const pedidoDic = Dic.detectar(texto);
@@ -819,21 +932,12 @@ async function rotear(texto) {
   if (pedidoDic && pedidoDic.tipo !== "def") {
     passo("🌍 Consultando dicionário e tradutor...");
     const respDic = await Dic.consultar(pedidoDic, passo);
-    if (respDic) {
-      if (pedidoDic.q && pedidoDic.q !== "__ALVO__") RizikBrain.logTopic(pedidoDic.q.slice(0, 60));
-      falar(respDic, "bot", "🌍 dicionário e tradução");
-      return;
-    }
+    if (respDic) { if (pedidoDic.q && pedidoDic.q !== "__ALVO__") RizikBrain.logTopic(pedidoDic.q.slice(0, 60)); falar(respDic, "bot", "🌍 dicionário"); return; }
   }
 
   const eu = Fatos.sobreMim(texto); if (eu) { falar(eu, "bot", "🧠 sobre mim"); return; }
   const fato = Fatos.responder(texto);
-  if (fato) {
-    ultimoTema = Mente.tema(texto) || texto;
-    RizikBrain.logTopic(ultimoTema);
-    falar(fato, "bot", "📘 base de fatos");
-    return;
-  }
+  if (fato) { ultimoTema = Mente.tema(texto) || texto; RizikBrain.logTopic(ultimoTema); falar(fato, "bot", "📘 base de fatos"); return; }
   if (pedidoDic && pedidoDic.tipo === "def") {
     passo("📖 Consultando dicionário...");
     const respDic = await Dic.consultar(pedidoDic, passo);
@@ -857,17 +961,13 @@ async function rotear(texto) {
   const k = Saber.buscarConhecimento(texto); if (k) { falar(k, "bot", "📚 o que aprendi"); return; }
 
   if (Mente.pergunta(texto)) {
-    if (Fatos.sobreVoce(texto)) {
-      falar("Sou a BACH AI 🧠! Não entendi bem essa pergunta sobre mim, tente perguntar de outro jeito ou digite “ajuda”.", "bot", "🧠 sobre mim");
-      return;
-    }
+    if (Fatos.sobreVoce(texto)) { falar("Sou a BACH AI 🧠! Pode me perguntar de outro jeito ou digitar “ajuda” para ver tudo que sei fazer.", "bot", "🧠 sobre mim"); return; }
     const tm = Mente.tema(texto);
     if (tm && tm.length >= 2) return pesquisaProfunda(texto, true);
-    falar("Não entendi qual assunto você quer saber 🤔. Me diga a pergunta completa!");
-    return;
+    falar("Pode me explicar um pouquinho melhor o que você quer saber? 🤔"); return;
   }
 
-  falar(Prog.desconhecido(texto) + "\n\nVocê pode:\n• perguntar sobre qualquer tema (ciência, história, código, curiosidades)\n• pedir recomendações de filmes, séries, animes ou músicas (ex.: “me recomenda sertanejo”)\n• pedir para eu escrever e-mails, textos, planos de estudo ou comparações\n• enviar uma foto ou código para eu ler e explicar\n• me ensinar: ensine: pergunta => resposta");
+  falar(Prog.desconhecido(texto));
 }
 
 function ajustar() { entrada.style.height = "auto"; entrada.style.height = Math.min(entrada.scrollHeight, 130) + "px"; }
@@ -898,14 +998,11 @@ async function enviar() {
   if (!arquivos.length) {
     if (/^(\/clear|\/limpar|\/nova|nova conversa|limpar histórico)$/i.test(texto)) { alvo = null; novaConversa(); return; }
     if (/^(\/historico|\/histórico|histórico|historico)(\s+\d+)?$/i.test(texto)) { alvo = null; abrirHistorico(parseInt((texto.match(/\d+/) || [1])[0], 10) || 1); return; }
-
     const cmdLLM = LLM.command(texto);
     if (cmdLLM) {
       alvo = null;
       falar(cmdLLM.secret ? texto.split(/\s+/)[0] + " ••••••" : texto, "user", "", false, cit);
-      falar(cmdLLM.text, "bot", "⚙️ configuração", true);
-      status.textContent = statusPadrao();
-      return;
+      falar(cmdLLM.text, "bot", "⚙️ configuração", true); status.textContent = statusPadrao(); return;
     }
   }
 
@@ -917,29 +1014,39 @@ async function enviar() {
 
   cancelado = false; busy(true);
   falar(texto, "user", "", false, cit);
-  pensando = pensar();
-  passo("👀 Analisando sua mensagem...");
+  pensando = pensar(); passo("👀 Analisando sua mensagem...");
   try { await rotear(texto); }
   catch (e) { console.error(e); falar("Deu um erro inesperado: " + (e.message || "tente novamente.")); }
   finally { if (pensando) { pensando.fim(); pensando = null; } alvo = null; busy(false); }
 }
 
-/* ---------- modos, menu, voz, eventos ---------- */
+/* ---------- modos, drawer, menu, voz, eventos ---------- */
 $("modos").onclick = e => {
-  const b = e.target.closest("button[data-modo]");
-  if (!b) return;
+  const b = e.target.closest("button[data-modo]"); if (!b) return;
   document.querySelectorAll("#modos .modo").forEach(x => x.classList.remove("on"));
-  b.classList.add("on");
-  modoAtual = b.dataset.modo;
-  if (modoAtual === "voz") {
-    lerAuto = true;
-    const bv = menu.querySelector('[data-acao="voz"]');
-    if (bv) bv.textContent = "🔊 Ler respostas sozinha: ligado";
-  }
+  b.classList.add("on"); modoAtual = b.dataset.modo;
+  if (modoAtual === "voz") { lerAuto = true; const bv = menu.querySelector('[data-acao="voz"]'); if (bv) bv.textContent = "🔊 Ler respostas sozinha: ligado"; }
   status.textContent = statusPadrao();
 };
 
-const menu = $("menu"), seletor = $("seletor");
+const drawerBack = $("drawerBack"), menu = $("menu"), seletor = $("seletor");
+$("btnDrawer").onclick = () => drawerBack.classList.add("aberto");
+$("fecharDrawer").onclick = () => drawerBack.classList.remove("aberto");
+drawerBack.onclick = e => { if (e.target === drawerBack) drawerBack.classList.remove("aberto"); };
+$("verBadge").onclick = abrirSobre;
+
+$("drawer").onclick = e => {
+  const b = e.target.closest("button[data-d]"); if (!b) return;
+  drawerBack.classList.remove("aberto");
+  const d = b.dataset.d;
+  if (d === "nova") novaConversa();
+  if (d === "historico") abrirHistorico(1);
+  if (d === "arquivos") { entrada.value = "/arquivos"; enviar(); }
+  if (d === "anexar") seletor.click();
+  if (d === "jogo") { entrada.value = "vamos jogar"; enviar(); }
+  if (d === "sobre") abrirSobre();
+};
+
 $("mais").onclick = () => menu.classList.toggle("aberto");
 menu.onclick = e => {
   const b = e.target.closest("button[data-acao]"); if (!b) return; menu.classList.remove("aberto");
@@ -947,11 +1054,11 @@ menu.onclick = e => {
   if (a === "anexar") seletor.click();
   if (a === "profundo") { modoProfundo = !modoProfundo; b.textContent = "🧠 Pensar bastante: " + (modoProfundo ? "ligado" : "desligado"); falar(modoProfundo ? "Modo pensar bastante LIGADO 🧠" : "Modo pensar bastante desligado."); }
   if (a === "voz") { lerAuto = !lerAuto; b.textContent = "🔊 Ler respostas sozinha: " + (lerAuto ? "ligado" : "desligado"); if (!lerAuto) speechSynthesis.cancel(); }
-  if (a === "historico") abrirHistorico(1);
-  if (a === "nova") novaConversa();
   if (a === "arquivos") { entrada.value = "/arquivos"; enviar(); }
   if (a === "jogo") { entrada.value = "vamos jogar"; enviar(); }
+  if (a === "sobre") abrirSobre();
 };
+
 $("seletorBase").onchange = async () => {
   const f = $("seletorBase").files[0]; $("seletorBase").value = ""; if (!f) return;
   try { const n = Base.importar(JSON.parse(await f.text())); alert("✅ Backup restaurado (" + n + " partes). A tela vai recarregar."); location.reload(); }
@@ -976,9 +1083,10 @@ $("mic").onclick = () => {
 botao.onclick = enviar;
 entrada.addEventListener("input", ajustar);
 
+aplicarTema(temaAtual);
+atualizarBadge();
 try { Historico.salvarAtual(history); } catch {}
 restaurar(); status.textContent = statusPadrao();
-if (!history.length) falar("Olá! Sou a BACH AI 🧠. Converso, traduzo idiomas, lembro do que falamos, analiso fotos, vídeos e documentos, programo, escrevo textos, recomendo filmes e músicas e pesquiso na internet. Digite “ajuda” para ver tudo.");
-</script>
-</body>
-</html>
+if (!history.length) {
+  const nomeSalvo = RizikBrain.recall("userName");
+  falar((no
