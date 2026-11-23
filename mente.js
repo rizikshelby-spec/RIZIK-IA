@@ -208,9 +208,18 @@ function achaTopico(p) {
   });
   return sc >= 1 ? best : null;
 }
+/* Evita confundir "cliquei/toquei no módulo" (ação na tela, menu do app) com o
+   tópico de programação "módulo" (import/export). Só entra na base de
+   programação se a frase não falar de clicar/apertar/tocar em algo da tela. */
+const ACAO_TELA = /\b(cliquei|clique|cliquem|clicar|clica|cliquei nisso|toquei|toca|tocar|apertei|aperta|apertar|botao|botão|menu|aba|tela|opcao|opção)\b/;
 function topico(i, p) {
   const [, b, ex, av] = KB[i], fundo = has(p, /avancad|profund|detalhad|completo/);
-  ctx.ultimo = { t: "prog", i }; (ctx.assuntos = ctx.assuntos || []).push(b.slice(3, 28)); ctx.assuntos = ctx.assuntos.slice(-10); persist();
+  ctx.ultimo = { t: "prog", i };
+  const assunto = b.slice(3, 28);
+  ctx.assuntos = (ctx.assuntos || []).filter(a => a !== assunto);
+  ctx.assuntos.push(assunto);
+  ctx.assuntos = ctx.assuntos.slice(-10);
+  persist();
   return b + "\n\n```" + (i === 17 ? "python" : "js") + "\n" + ex + "\n```" + (fundo ? "\n\n" + av : "\n\nDiga “mais” para o nível avançado ou “outro exemplo”.");
 }
 function seguimento(p, w) {
@@ -263,7 +272,12 @@ function responder(msg) {
     return { texto: "✉️ Modelo:\n\nAssunto: " + t + "\n\nOlá,\n\nEspero que esteja bem. Escrevo para tratar de " + t + ".\n\n[explique seu pedido em 2 ou 3 frases]\n\nFico à disposição e agradeço desde já.\n\nAtenciosamente,\n[seu nome]", origem: "✍️ escrita" };
   }
 
-  if (has(p, / (esse|este|isso|texto|codigo|arquivo|ele) /) && has(p, /(o que e|explica|explique|resum|o que faz|pra que serve|erro|problema|entend|leia|le |analis|revis|conserta|arruma)/)) {
+  if (has(p, / (exclu\w*|apag\w*|deleta\w*) /) && has(p, / (isso|esse texto|esse arquivo|ele|este) /)) {
+    if (!ctx.nome) return { texto: "Não tenho nenhum arquivo recente guardado pra apagar. Veja os nomes com /arquivos e use /apagar nome.", origem: "📂 arquivos" };
+    return { apagar: ctx.nome };
+  }
+  const PEDIDO_TEXTO_BARE = /^ ?(resum\w*|revis\w*|analis\w*|conserta\w*|arruma\w*)(\s+(isso|esse texto|esse codigo|o codigo|o texto))? ?$/;
+  if (PEDIDO_TEXTO_BARE.test(p) || (has(p, / (esse|este|isso|texto|codigo|arquivo|ele) /) && has(p, /(o que e|explica|explique|resum|o que faz|pra que serve|erro|problema|entend|leia|le |analis|revis|conserta|arruma)/))) {
     if (!ctx.texto) return { texto: "Ainda não tenho nenhum texto seu. Cole o texto aqui ou anexe um arquivo no botão + e depois me pergunte. 📎", origem: "🧠 contexto" };
     return { texto: sobreTexto(p), origem: "📖 leitura do seu texto" };
   }
@@ -273,7 +287,7 @@ function responder(msg) {
   const rb = p.match(/ resum\w* (?:de |do |da )?(?:um |uma |o |a )?(livro|filme|serie|historia|conto|desenho|novela|anime) (?:de |do |da |chamado |chamada )?(.+)/);
   if (rb) { lembrarTema(rb[2].trim()); return { pesquisa: rb[2].trim() + " sinopse", fundo: true }; }
   if (has(p, / (noticia|noticias|novidades|novidade|manchete|manchetes|acontecendo) /)) { ctx.tema = "noticias"; return { noticias: true, q: has(p, / brasil /) ? "ultimas noticias do brasil hoje" : "ultimas noticias do mundo hoje" }; }
-  const ti = achaTopico(p);
+  const ti = ACAO_TELA.test(p) ? null : achaTopico(p);
   if (ti !== null) return { texto: topico(ti, p), origem: "💻 programação" };
   const lg = Object.keys(LING).find(l => w === l);
   if (lg) return { texto: "📘 " + LING[lg] + "\n\n" + ROTEIRO, origem: "💻 programação" };
