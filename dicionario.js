@@ -1,19 +1,18 @@
-/* BACH AI - DICIONÁRIO 1.0
-   Dicionário brasileiro + tradução em várias línguas.
-   • Offline: ~130 palavras/gírias em português, ~60 sinônimos, ~190 palavras e ~50 frases em en/es/fr/it/de.
-   • Online (quando houver internet): Wiktionary (pt e en), dictionaryapi.dev (inglês) e MyMemory (tradução de qualquer texto/idioma).
-   Nada é inventado: se não achar, ela diz que não achou. */
+/* BACH AI - DICIONÁRIO 2.0
+   Dicionário brasileiro expandido + sinônimos/antônimos + tradução em várias línguas.
+   • Offline: +210 palavras/gírias em português, +90 sinônimos, +50 antônimos e +230 traduções em 6 idiomas.
+   • Online (quando houver internet): Wiktionary (pt e en), dictionaryapi.dev (inglês) e MyMemory (18+ idiomas). */
 
-const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9\s'’-]/g, " ").replace(/\s+/g, " ").trim();
+const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s'’-]/g, " ").replace(/\s+/g, " ").trim();
 
 export const LINGUAS = {
   en: ["ingles", "english"], es: ["espanhol", "castelhano", "spanish"], fr: ["frances", "french"], it: ["italiano", "italian"],
   de: ["alemao", "german"], pt: ["portugues", "portuguese"], ja: ["japones", "japanese"], zh: ["chines", "mandarim", "chinese"],
-  ru: ["russo", "russian"], ko: ["coreano"], ar: ["arabe"], nl: ["holandes", "neerlandes"], tr: ["turco"], el: ["grego"], la: ["latim"], hi: ["hindi"], pl: ["polones"], sv: ["sueco"]
+  ru: ["russo", "russian"], ko: ["coreano", "korean"], ar: ["arabe", "arabic"], nl: ["holandes", "neerlandes", "dutch"],
+  tr: ["turco", "turkish"], el: ["grego", "greek"], la: ["latim", "latin"], hi: ["hindi"], pl: ["polones", "polish"], sv: ["sueco", "swedish"]
 };
 const NOME = { en: "inglês", es: "espanhol", fr: "francês", it: "italiano", de: "alemão", pt: "português", ja: "japonês", zh: "chinês", ru: "russo", ko: "coreano", ar: "árabe", nl: "holandês", tr: "turco", el: "grego", la: "latim", hi: "hindi", pl: "polonês", sv: "sueco" };
 const BANDEIRA = { en: "🇬🇧", es: "🇪🇸", fr: "🇫🇷", it: "🇮🇹", de: "🇩🇪", ja: "🇯🇵", zh: "🇨🇳", ru: "🇷🇺", ko: "🇰🇷", pt: "🇧🇷" };
-const WIKI_LANG = { en: "English", pt: "Portuguese", es: "Spanish", fr: "French", it: "Italian", de: "German", ja: "Japanese", zh: "Chinese", ru: "Russian", ko: "Korean", la: "Latin", nl: "Dutch", tr: "Turkish", el: "Greek", ar: "Arabic", hi: "Hindi", pl: "Polish", sv: "Swedish" };
 const lingua = n => { n = norm(n); for (const [c, v] of Object.entries(LINGUAS)) if (v.includes(n)) return c; return null; };
 const LRE = Object.values(LINGUAS).flat().join("|");
 
@@ -26,13 +25,14 @@ ambíguo|adjetivo|que permite mais de uma interpretação; duvidoso ou pouco cla
 resiliência|substantivo feminino|capacidade de se recuperar de dificuldades e se adaptar a mudanças; em física, de um material voltar à forma original.
 empatia|substantivo feminino|capacidade de entender o que o outro sente, colocando-se no lugar dele.
 simpatia|substantivo feminino|afinidade ou jeito agradável de tratar as pessoas. (Diferente de empatia, que é compreender o sentimento do outro.)
-ética|substantivo feminino|conjunto de princípios sobre o que é certo e errado na conduta das pessoas; também o estudo disso (filosofia moral).
+ética|substantivo feminino|conjunto de princípios sobre o que é certo e errado na conduta das pessoas; também o estudo disso.
 moral|substantivo feminino|conjunto de regras e valores de uma sociedade ou pessoa sobre o bem e o mal; também a lição de uma história.
 sarcasmo|substantivo masculino|ironia cortante, usada para ferir ou zombar, dizendo o contrário do que se quer dizer.
 ironia|substantivo feminino|dizer o contrário do que se pensa, ou situação que acontece de modo oposto ao esperado.
 paradoxo|substantivo masculino|afirmação ou situação aparentemente contraditória, mas que pode ter sentido. Ex.: "Menos é mais."
 eloquente|adjetivo|que fala bem e convence; expressivo.
 procrastinar|verbo|adiar tarefas importantes de forma repetida, deixando para depois.
+procrastinação|substantivo feminino|hábito de adiar tarefas importantes para depois.
 altruísmo|substantivo masculino|preocupação e ação em favor do bem dos outros, sem esperar algo em troca.
 egoísmo|substantivo masculino|amor excessivo a si mesmo, pensando só no próprio interesse.
 hipócrita|adjetivo e substantivo|quem finge ter virtudes ou sentimentos que não tem.
@@ -89,7 +89,54 @@ vicissitude|substantivo feminino|mudança de situação; altos e baixos da vida.
 zênite|substantivo masculino|ponto mais alto; auge. Ex.: "no zênite da carreira".
 ápice|substantivo masculino|ponto mais alto; topo, auge.
 acurácia|substantivo feminino|precisão, grau de acerto.
+inteligência|substantivo feminino|capacidade de compreender, aprender, raciocinar e resolver problemas.
+conhecimento|substantivo masculino|informação, experiência ou saber adquirido pelo estudo ou pela prática.
+sabedoria|substantivo feminino|uso sensato do conhecimento e da experiência de vida para tomar boas decisões.
+memória|substantivo feminino|capacidade de guardar e lembrar informações; na informática, onde os dados ficam armazenados.
+criatividade|substantivo feminino|capacidade de inventar ideias novas, soluções originais ou obras artísticas.
+lógica|substantivo feminino|forma organizada e coerente de raciocinar; na programação, sequência de regras que guia o código.
+foco|substantivo masculino|atenção concentrada em um objetivo ou tarefa.
+disciplina|substantivo feminino|constância e organização para cumprir objetivos mesmo sem vontade no momento.
+paciência|substantivo feminino|capacidade de esperar ou lidar com dificuldades mantendo a calma.
+respeito|substantivo masculino|consideração e cuidado com os direitos, sentimentos e limites dos outros.
+justiça|substantivo feminino|princípio moral e legal de dar a cada um o que é justo e correto.
+liberdade|substantivo feminino|direito e condição de escolher e agir por conta própria, respeitando os outros.
+honestidade|substantivo feminino|qualidade de agir com verdade, transparência e retidão.
+coragem|substantivo feminino|força para agir e enfrentar desafios mesmo sentindo medo.
+gratidão|substantivo feminino|reconhecimento e sentimento bom por algo que alguém fez ou pela vida.
+esperança|substantivo feminino|confiança de que algo bom pode acontecer no futuro.
+confiança|substantivo feminino|crença firme na honestidade, capacidade ou segurança de alguém ou de algo.
+amizade|substantivo feminino|relação de afeto, confiança e companheirismo entre pessoas.
+família|substantivo feminino|grupo de pessoas ligadas por parentesco, afeto ou convivência próxima.
+propósito|substantivo masculino|objetivo principal que dá sentido e direção ao que alguém faz.
+ansiedade|substantivo feminino|estado de preocupação intensa, inquietação ou expectativa sobre o que pode acontecer.
+estresse|substantivo masculino|reação física e mental de tensão diante de pressão ou excesso de exigências.
+autoestima|substantivo feminino|valor e respeito que uma pessoa sente por si mesma.
+frustração|substantivo feminino|sentimento de decepção quando algo não sai como esperado.
+euforia|substantivo feminino|estado de grande alegria, entusiasmo ou empolgação.
+tédio|substantivo masculino|sensação de desânimo ou falta de interesse por não ter algo estimulante para fazer.
+tecnologia|substantivo feminino|conjunto de conhecimentos, técnicas e ferramentas criadas para resolver problemas humanos.
+ciência|substantivo feminino|estudo sistemático do universo, da natureza e da sociedade baseado em observação e provas.
+história|substantivo feminino|estudo do passado humano; também uma narrativa real ou inventada.
+cultura|substantivo feminino|conjunto de costumes, artes, línguas, crenças e saberes de um povo.
+arte|substantivo feminino|expressão humana criativa por meio de música, pintura, cinema, literatura, dança e outras formas.
+economia|substantivo feminino|ciência e atividade ligada à produção, distribuição e uso de bens, serviços e dinheiro.
+política|substantivo feminino|atividade e debate sobre como organizar e governar uma sociedade.
+natureza|substantivo feminino|conjunto de seres vivos, paisagens, águas e elementos físicos do mundo natural.
+universo|substantivo masculino|tudo o que existe no espaço e no tempo: galáxias, estrelas, planetas, matéria e energia.
+energia|substantivo feminino|capacidade de realizar trabalho ou produzir movimento, calor e luz.
 algoritmo|substantivo masculino|sequência finita de passos para resolver um problema ou realizar uma tarefa.
+programação|substantivo feminino|ato de escrever instruções (código) para que computadores e aplicativos executem tarefas.
+código|substantivo masculino|conjunto de instruções escritas em uma linguagem de programação; também sistema de sinais secretos.
+variável|substantivo feminino|na programação, espaço na memória com um nome que guarda um valor que pode mudar.
+função|substantivo feminino|na programação, bloco de código reutilizável que executa uma tarefa e pode devolver um resultado.
+servidor|substantivo masculino|computador ou sistema que fornece dados, sites ou serviços para outros dispositivos pela rede.
+banco de dados|expressão|sistema organizado para guardar, buscar e atualizar grandes quantidades de informação.
+criptografia|substantivo feminino|técnica de embaralhar informações para que só quem tem a chave consiga ler.
+api|substantivo feminino|sigla de Interface de Programação de Aplicações: ponte que permite que dois programas conversem entre si.
+interface|substantivo feminino|ponto de contato entre duas coisas, como a tela e os botões que o usuário usa num app.
+navegador|substantivo masculino|programa usado para abrir sites na internet, como Chrome, Safari, Firefox ou Edge.
+repositório|substantivo masculino|pasta ou local online (como o GitHub) onde ficam guardados o código e o histórico de versões de um projeto.
 bug|substantivo masculino|erro em um programa que o faz funcionar de modo errado.
 cache|substantivo masculino|memória rápida que guarda dados usados com frequência para acelerar o acesso.
 nuvem|substantivo feminino|nuvem de chuva; em informática, serviços e armazenamento em servidores na internet.
@@ -104,6 +151,13 @@ rolê|substantivo masculino|gíria: passeio, saída para se divertir.
 bagulho|substantivo masculino|gíria: coisa, objeto qualquer (às vezes de pouco valor).
 zoar|verbo|gíria: fazer brincadeira, tirar sarro de alguém ou bagunçar.
 mó|advérbio|gíria: muito. Ex.: "mó legal".
+ranço|substantivo masculino|gíria: antipatia ou irritação forte por alguém ou algo.
+treta|substantivo feminino|gíria: briga, confusão ou problema complicado.
+hype|substantivo masculino|gíria: grande empolgação ou expectativa em volta de algo (filme, jogo, lançamento).
+spoiler|substantivo masculino|informação que revela partes importantes de um filme, série, jogo ou livro antes de a pessoa assistir.
+cringe|adjetivo|gíria: algo considerado sem graça, forçado ou que dá vergonha alheia.
+flopar|verbo|gíria: fracassar, não fazer o sucesso esperado.
+tankar|verbo|gíria (dos jogos): aguentar, suportar pressão, dano ou uma situação difícil.
 trem|substantivo masculino|veículo sobre trilhos; em Minas Gerais, "coisa" em geral ("passa o trem pra mim").
 uai|interjeição|expressão mineira de surpresa ou dúvida, como "ué".
 oxente|interjeição|expressão nordestina de surpresa ou espanto.
@@ -185,7 +239,52 @@ derrota: fracasso, revés, perda
 calmo: tranquilo, sereno, sossegado
 nervoso: agitado, ansioso, inquieto
 esquisito: estranho, bizarro, singular
-legal: bacana, bom, interessante, massa`.split("\n");
+legal: bacana, bom, interessante, massa, daora
+novo: recente, atual, moderno, inédito
+velho: antigo, idoso, ultrapassado, ancestral
+certo: correto, exato, adequado, preciso
+errado: incorreto, equivocado, falho, impróprio
+amor: afeto, carinho, paixão, estima
+ódio: rancor, aversão, repulsa, hostilidade
+coragem: bravura, ousadia, determinação, destemor
+criar: inventar, produzir, elaborar, construir
+destruir: arruinar, demolir, desmanchar, devastar
+aprender: estudar, assimilar, absorver, descobrir
+ensinar: instruir, educar, explicar, orientar
+lembrar: recordar, rememorar, memorizar
+esquecer: omitir, deixar de lado, deslembrar
+procurar: buscar, pesquisar, investigar, caçar
+achar: encontrar, descobrir, localizar, avistar
+gostar: apreciar, curtir, estimar, aprovar
+querer: desejar, pretender, almejar, ambicionar
+precisar: necessitar, carecer, exigir
+entender: compreender, captar, assimilar, perceber
+explicar: esclarecer, detalhar, expor, demonstrar
+mostrar: exibir, apresentar, revelar, indicar
+guardar: armazenar, conservar, proteger, salvar
+mudar: alterar, transformar, modificar, trocar
+aumentar: crescer, ampliar, elevar, expandir
+diminuir: reduzir, encurtar, baixar, atenuar
+problema: questão, obstáculo, dificuldade, contratempo
+solução: saída, resposta, resolução, remédio
+ideia: pensamento, conceito, noção, sugestão
+história: relato, narrativa, crônica, passado
+tempo: período, duração, época, momento
+lugar: local, espaço, região, ponto
+pessoa: indivíduo, ser humano, sujeito, cidadão
+grupo: conjunto, equipe, turma, bando
+força: vigor, energia, potência, intensidade
+paz: harmonia, tranquilidade, sossego, calma
+guerra: conflito, batalha, combate, luta
+frio: gelado, gélido, fresco, glacial
+quente: cálido, morno, ardente, fervente
+limpo: asseado, puro, higienizado, claro
+sujo: imundo, encardido, manchado, impuro
+cheio: lotado, repleto, completo, abarrotado
+vazio: oco, desocupado, deserto, vago
+seguro: protegido, firme, confiável, estável
+perigoso: arriscado, ameaçador, grave, inseguro
+simples: fácil, básico, descomplicado, modesto`.split("\n");
 
 const ANT = `feliz: triste
 grande: pequeno
@@ -211,7 +310,33 @@ chegar: partir
 vitória: derrota
 paz: guerra
 calmo: agitado
-presente: ausente`.split("\n");
+presente: ausente
+certo: errado
+coragem: medo
+amigo: inimigo
+comprar: vender
+dar: receber
+entrar: sair
+acordar: dormir
+lembrar: esquecer
+ganhar: perder
+construir: destruir
+aumentar: diminuir
+aceitar: recusar
+ligar: desligar
+seguro: perigoso
+limpo: sujo
+simples: complexo
+público: privado
+igual: diferente
+sempre: nunca
+tudo: nada
+muito: pouco
+cedo: tarde
+perto: longe
+dentro: fora
+antes: depois
+verdadeiro: falso`.split("\n");
 
 /* ---------- tradução (offline): pt | en | es | fr | it | de ---------- */
 const TRAD = `olá|hello|hola|bonjour|ciao|hallo
@@ -228,12 +353,20 @@ sim|yes|sí|oui|sì|ja
 não|no|no|non|no|nein
 de nada|you're welcome|de nada|de rien|prego|bitte schön
 tudo bem?|how are you?|¿cómo estás?|ça va ?|come stai?|wie geht's?
+eu não sei|I don't know|no lo sé|je ne sais pas|non lo so|ich weiß nicht
+pode me ajudar?|can you help me?|¿puedes ayudarme?|pouvez-vous m'aider ?|puoi aiutarmi?|kannst du mir helfen?
 eu te amo|I love you|te quiero|je t'aime|ti amo|ich liebe dich
 meu nome é|my name is|me llamo|je m'appelle|mi chiamo|ich heiße
 eu não entendo|I don't understand|no entiendo|je ne comprends pas|non capisco|ich verstehe nicht
 você fala português?|do you speak Portuguese?|¿hablas portugués?|parlez-vous portugais ?|parli portoghese?|sprichst du Portugiesisch?
 quanto custa?|how much is it?|¿cuánto cuesta?|combien ça coûte ?|quanto costa?|wie viel kostet das?
 onde fica o banheiro?|where is the bathroom?|¿dónde está el baño?|où sont les toilettes ?|dov'è il bagno?|wo ist die Toilette?
+estou com fome|I am hungry|tengo hambre|j'ai faim|ho fame|ich habe Hunger
+estou com sede|I am thirsty|tengo sed|j'ai soif|ho sete|ich habe Durst
+estou cansado|I am tired|estoy cansado|je suis fatigué|sono stanco|ich bin müde
+eu gosto disso|I like this|me gusta esto|j'aime ça|mi piace questo|das gefällt mir
+muito bom|very good|muy bueno|très bien|molto bene|sehr gut
+parabéns|congratulations|felicidades|félicitations|complimenti|Herzlichen Glückwunsch
 socorro|help|ayuda|au secours|aiuto|Hilfe
 saúde|cheers|salud|santé|salute|Prost
 feliz aniversário|happy birthday|feliz cumpleaños|joyeux anniversaire|buon compleanno|alles Gute zum Geburtstag
@@ -243,6 +376,9 @@ bem-vindo|welcome|bienvenido|bienvenue|benvenuto|willkommen
 boa sorte|good luck|buena suerte|bonne chance|buona fortuna|viel Glück
 casa|house|casa|maison|casa|Haus
 carro|car|coche|voiture|macchina|Auto
+ônibus|bus|autobús|bus|autobus|Bus
+trem|train|tren|train|treno|Zug
+avião|airplane|avión|avion|aereo|Flugzeug
 água|water|agua|eau|acqua|Wasser
 comida|food|comida|nourriture|cibo|Essen
 pão|bread|pan|pain|pane|Brot
@@ -286,6 +422,7 @@ menina|girl|chica|fille|ragazza|Mädchen
 amor|love|amor|amour|amore|Liebe
 vida|life|vida|vie|vita|Leben
 morte|death|muerte|mort|morte|Tod
+sonho|dream|sueño|rêve|sogno|Traum
 tempo|time|tiempo|temps|tempo|Zeit
 dia|day|día|jour|giorno|Tag
 noite|night|noche|nuit|notte|Nacht
@@ -384,6 +521,12 @@ dinheiro|money|dinero|argent|soldi|Geld
 telefone|phone|teléfono|téléphone|telefono|Telefon
 computador|computer|ordenador|ordinateur|computer|Computer
 internet|internet|internet|internet|internet|Internet
+programação|programming|programación|programmation|programmazione|Programmierung
+inteligência|intelligence|inteligencia|intelligence|intelligenza|Intelligenz
+memória|memory|memoria|mémoire|memoria|Gedächtnis
+código|code|código|code|codice|Code
+fogo|fire|fuego|feu|fuoco|Feuer
+terra|earth|tierra|terre|terra|Erde
 sol|sun|sol|soleil|sole|Sonne
 lua|moon|luna|lune|luna|Mond
 estrela|star|estrella|étoile|stella|Stern
@@ -415,11 +558,29 @@ língua|language|idioma|langue|lingua|Sprache
 música|music|música|musique|musica|Musik
 jogo|game|juego|jeu|gioco|Spiel
 filme|movie|película|film|film|Film
+história|history|historia|histoire|storia|Geschichte
+ciência|science|ciencia|science|scienza|Wissenschaft
+arte|art|arte|art|arte|Kunst
+futebol|soccer|fútbol|football|calcio|Fußball
 viagem|trip|viaje|voyage|viaggio|Reise
 aeroporto|airport|aeropuerto|aéroport|aeroporto|Flughafen
 hotel|hotel|hotel|hôtel|albergo|Hotel
 hospital|hospital|hospital|hôpital|ospedale|Krankenhaus
-médico|doctor|médico|médecin|medico|Arzt`.split("\n").map(l => l.split("|"));
+médico|doctor|médico|médecin|medico|Arzt
+comer|eat|comer|manger|mangiare|essen
+beber|drink|beber|boire|bere|trinken
+dormir|sleep|dormir|dormir|dormire|schlafen
+acordar|wake up|despertar|se réveiller|svegliarsi|aufwachen
+falar|speak|hablar|parler|parlare|sprechen
+ouvir|hear|oír|écouter|sentire|hören
+ler|read|leer|lire|leggere|lesen
+escrever|write|escribir|écrire|scrivere|schreiben
+aprender|learn|aprender|apprendre|imparare|lernen
+ensinar|teach|enseñar|enseigner|insegnare|lehren
+pensar|think|pensar|penser|pensare|denken
+criar|create|crear|créer|creare|erschaffen
+abrir|open|abrir|ouvrir|aprire|öffnen
+fechar|close|cerrar|fermer|chiudere|schließen`.split("\n").map(l => l.split("|"));
 
 /* ---------- utilidades ---------- */
 const PTX = PT.split("\n").map(l => { const [p, c, ...d] = l.split("|"); return { p, n: norm(p), c, d: d.join("|") }; });
@@ -444,14 +605,13 @@ function detectar(texto) {
   let t = norm(texto).replace(/\bvc\b/g, "voce");
   if (!t || t.length > 140) return null;
   let m;
-  // traduzir: "como se diz X em inglês", "traduz X para espanhol"
-  m = t.match(new RegExp("^(?:(?:bach |me )?(?:diga |diz |fala )?como (?:se )?(?:diz|fala|escreve|dizer|falar|escrevo)|(?:bach |me )?(?:traduz|traduza|traduzir|tradu[zc]\\w*)|traducao d[eoa]s?)\\s+(.+?)\\s+(?:em|para|pra|no|na|ao|pro|do|de|em lingua)\\s+(?:o |a |lingua )?(" + LRE + ")$"));
+  m = t.match(new RegExp("^(?:(?:pode|poderia|consegue)\\s+)?(?:(?:bach |me )?(?:diga |diz |fala )?como (?:se )?(?:diz|fala|escreve|dizer|falar|escrevo)|(?:bach |me )?(?:traduz|traduza|traduzir|tradu[zc]\\w*)|traducao d[eoa]s?)\\s+(.+?)\\s+(?:em|para|pra|no|na|ao|pro|do|de|em lingua)\\s+(?:o |a |lingua )?(" + LRE + ")$"));
   if (m) return { tipo: "trad", q: limpaAspas(m[1]), alvo: lingua(m[2]) };
-  m = t.match(new RegExp("^(?:(?:bach |me )?(?:traduz|traduza|traduzir))\\s+(.+)$"));
+  m = t.match(/^(?:(?:pode|poderia)\s+)?(?:(?:bach |me )?(?:traduz|traduza|traduzir))\s+(.+)$/);
   if (m && m[1].split(" ").length <= 12) return { tipo: "trad", q: limpaAspas(m[1]), alvo: null };
   m = t.match(/^(?:como (?:se )?(?:diz|fala|escreve|dizer|falar))\s+(.+)$/);
   if (m && m[1].split(" ").length <= 6 && !/\b(em|no|na)\s+(?:que|qual)/.test(m[1])) return { tipo: "trad", q: limpaAspas(m[1]), alvo: null };
-  // "o que significa X em japonês" / "X em inglês"
+
   m = t.match(new RegExp("^(?:o que (?:significa|quer dizer|quer dizer a palavra|significa a palavra)|significado d[eoa]s?|qual (?:e )?o significado d[eoa]s?|defin[ae]r?|definicao d[eoa]s?|dicionario(?: de)?|me (?:explica|diz|fala) o que (?:significa|quer dizer)|palavra|giria|qual (?:e )?o sentido d[eoa]s?)\\s+(?:a palavra |o termo |a expressao |a giria |a sigla )?(.+?)(?:\\s+(?:em|no|na|do|de)\\s+(?:o |a |lingua )?(" + LRE + "))?$"));
   if (m) {
     const q = limpaAspas(m[1]);
@@ -462,9 +622,11 @@ function detectar(texto) {
   if (m && m[1].split(" ").length <= 3) return { tipo: "sin", q: limpaAspas(m[1]) };
   m = t.match(/^(?:antonimos? d[eoa]s?|oposto d[eoa]s?|qual (?:e )?o (?:antonimo|oposto) d[eoa]s?|contrario d[eoa]s?)\s+(.+)$/);
   if (m && m[1].split(" ").length <= 3) return { tipo: "ant", q: limpaAspas(m[1]) };
-  // "X em inglês" (curto)
+
   m = t.match(new RegExp("^(.+?)\\s+em\\s+(?:o |a )?(" + LRE + ")$"));
-  if (m && m[1].split(" ").length <= 4 && !PERGUNTAS_NAO.test(m[1]) && !/\b(escreva|fale|conversa|responda|programa|codigo|site|texto|livro|filme)\b/.test(m[1])) return { tipo: "trad", q: limpaAspas(m[1]), alvo: lingua(m[2]) };
+  if (m && m[1].split(" ").length <= 4 && !PERGUNTAS_NAO.test(m[1]) && !/\b(escreva|fale|conversa|responda|programa|codigo|site|texto|livro|filme)\b/.test(m[1])) {
+    return { tipo: "trad", q: limpaAspas(m[1]), alvo: lingua(m[2]) };
+  }
   if (/^(?:dicionario|\/dicionario|idiomas|linguas|tradutor)$/.test(t)) return { tipo: "ajuda" };
   return null;
 }
@@ -494,7 +656,16 @@ async function traduzirNet(q, src, tgt) {
   if (!r || /MYMEMORY WARNING|INVALID/i.test(r)) return null;
   return limpa(r);
 }
-const parecePT = q => /[ãõçáàâéêíóú]/i.test(q) || /\b(o|a|os|as|de|que|um|uma|para|com|não|voce|você|eu|meu|minha|esta|isso|casa|bom|dia)\b/i.test(q);
+const parecePT = q => /[ãõçáàâéêíóú]/i.test(q) || /\b(o|a|os|as|de|que|um|uma|para|com|não|nao|voce|você|eu|meu|minha|esta|isso|casa|bom|dia)\b/i.test(q);
+function adivinharIdioma(q) {
+  const n = norm(q);
+  if (parecePT(q)) return "pt";
+  if (/[ñ¿¡]|\b(hola|gracias|buenos|como estas|donde|quien|por favor|coche|perro|amigo)\b/.test(n)) return "es";
+  if (/\b(bonjour|merci|salut|comment|je suis|maison|pourquoi|oui)\b/.test(n)) return "fr";
+  if (/\b(ciao|grazie|buongiorno|come stai|perche|amore|casa)\b/.test(n)) return "it";
+  if (/\b(hallo|danke|guten|wie geht|ich bin|nicht|ja)\b/.test(n)) return "de";
+  return "en";
+}
 
 async function defNet(q, lang, passo) {
   const w = q.trim();
@@ -542,7 +713,7 @@ async function defNet(q, lang, passo) {
   return null;
 }
 
-const AJUDA = "🌍 DICIONÁRIO E TRADUÇÃO\n\n• o que significa saudade\n• significado de efêmero\n• sinônimo de feliz / antônimo de rápido\n• como se diz obrigado em japonês\n• traduz \"good morning\" para português\n• o que significa \"serendipity\" em inglês\n\nLínguas: inglês, espanhol, francês, italiano, alemão (também offline) e japonês, chinês, russo, coreano, árabe, latim e outras (com internet).";
+const AJUDA = "🌍 DICIONÁRIO E TRADUÇÃO\n\n• o que significa saudade\n• significado de resiliência\n• sinônimo de feliz / antônimo de rápido\n• como se diz obrigado em japonês\n• traduz \"good morning\" para português\n• o que significa \"serendipity\" em inglês\n\nLínguas: inglês, espanhol, francês, italiano, alemão (também offline) e japonês, chinês, russo, coreano, árabe, latim e outras (com internet).";
 
 /* ---------- principal ---------- */
 async function consultar(d, passo) {
@@ -566,11 +737,10 @@ async function consultar(d, passo) {
       const s = SINX.find(x => x.n === norm(q));
       const net = await defNet(q, "pt", passo);
       if (net) return net;
-      // tenta como palavra estrangeira (inglês)
       if (!lang && !parecePT(q)) { const en = await defNet(q, "en", passo); if (en) return en; }
       if (s) return "🔁 Não tenho a definição completa de “" + q + "”, mas sinônimos: " + s.s + ".";
       const t = achaTrad(q);
-      if (t) return "🌍 “" + q + "” como palavra de outra língua:\n" + paraTodas(t.linha, t.col).replace(/^/, "") + "\n\n(Em português: " + t.linha[0] + ")";
+      if (t) return "🌍 “" + q + "” como palavra de outra língua:\n" + paraTodas(t.linha, t.col) + "\n\n(Em português: " + t.linha[0] + ")";
       return null;
     }
     return await defNet(q, lang, passo);
@@ -586,17 +756,22 @@ async function consultar(d, passo) {
       if (t.col === 0) return "🌍 “" + pt + "” nas principais línguas:\n\n" + paraTodas(t.linha, 0);
       return "🌍 “" + q + "” (" + NOME[COLS[t.col]] + ") em português é: " + pt + "\n\n" + paraTodas(t.linha, t.col);
     }
-    // online (qualquer texto e idioma)
     if (!alvo) {
-      if (!parecePT(q)) { passo?.("🌍 Traduzindo para português..."); const r = await traduzirNet(q, "en", "pt"); return r ? "🌍 “" + q + "” → português: " + r + "\n\n🌐 Tradução automática (MyMemory)." : null; }
+      if (!parecePT(q)) {
+        const src = adivinharIdioma(q);
+        passo?.("🌍 Traduzindo para português...");
+        const r = await traduzirNet(q, src, "pt");
+        return r ? "🌍 “" + q + "” → português: " + r + "\n\n🌐 Tradução automática (MyMemory)." : null;
+      }
       passo?.("🌍 Traduzindo...");
-      const out = []; for (const l of ["en", "es", "fr"]) { const r = await traduzirNet(q, "pt", l); if (r) out.push((BANDEIRA[l] || "") + " " + cap(NOME[l]) + ": " + r); }
+      const out = [];
+      for (const l of ["en", "es", "fr"]) { const r = await traduzirNet(q, "pt", l); if (r) out.push((BANDEIRA[l] || "") + " " + cap(NOME[l]) + ": " + r); }
       return out.length ? "🌍 “" + q + "” em:\n\n" + out.join("\n") + "\n\n🌐 Tradução automática (MyMemory). Diga “em japonês” etc. para outra língua." : null;
     }
-    const src = alvo === "pt" ? (parecePT(q) ? "en" : "en") : (parecePT(q) || alvo !== "pt" ? "pt" : "en");
+    const src = alvo === "pt" ? (adivinharIdioma(q) === "pt" ? "en" : adivinharIdioma(q)) : adivinharIdioma(q);
     passo?.("🌍 Traduzindo para " + NOME[alvo] + "...");
     const r = await traduzirNet(q, src, alvo);
-    return r ? "🌍 “" + q + "” em " + NOME[alvo] + ": " + r + "\n\n🌐 Tradução automática (MyMemory); em frases longas pode perder nuances." : null;
+    return r ? "🌍 “" + q + "” em " + NOME[alvo] + ": " + r + "\n\n🌐 Tradução automática (MyMemory)." : null;
   }
   return null;
 }
