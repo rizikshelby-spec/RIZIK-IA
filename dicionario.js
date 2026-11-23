@@ -1,4 +1,4 @@
-/* BACH AI - DICIONÁRIO 2.1
+/* BACH AI - DICIONÁRIO 2.2
    Dicionário brasileiro + sinônimos/antônimos + tradução flexível em várias línguas. */
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s'’-]/g, " ").replace(/\s+/g, " ").trim();
@@ -15,7 +15,6 @@ const BANDEIRA = { en: "🇬🇧", es: "🇪🇸", fr: "🇫🇷", it: "🇮🇹
 const lingua = n => { n = norm(n); for (const [c, v] of Object.entries(LINGUAS)) if (v.includes(n)) return c; return null; };
 const LRE = Object.values(LINGUAS).flat().join("|");
 
-/* ---------- português (offline) ---------- */
 const PT = `saudade|substantivo feminino|sentimento de falta e carinho por alguém, algum lugar ou momento que ficou no passado. Palavra típica do português.
 cafuné|substantivo masculino|carinho feito passando os dedos suavemente entre os cabelos de alguém.
 efêmero|adjetivo|que dura pouco; passageiro. Ex.: "A fama é efêmera."
@@ -337,7 +336,6 @@ dentro: fora
 antes: depois
 verdadeiro: falso`.split("\n");
 
-/* ---------- tradução (offline): pt | en | es | fr | it | de ---------- */
 const TRAD = `olá|hello|hola|bonjour|ciao|hallo
 oi|hi|hola|salut|ciao|hallo
 bom dia|good morning|buenos días|bonjour|buongiorno|guten Morgen
@@ -581,7 +579,6 @@ criar|create|crear|créer|creare|erschaffen
 abrir|open|abrir|ouvrir|aprire|öffnen
 fechar|close|cerrar|fermer|chiudere|schließen`.split("\n").map(l => l.split("|"));
 
-/* ---------- utilidades ---------- */
 const PTX = PT.split("\n").map(l => { const [p, c, ...d] = l.split("|"); return { p, n: norm(p), c, d: d.join("|") }; });
 const SINX = SIN.map(l => { const [p, s] = l.split(": "); return { p, n: norm(p), s }; });
 const ANTX = ANT.map(l => { const [p, s] = l.split(": "); return { p, n: norm(p), s }; });
@@ -600,43 +597,35 @@ async function jget(url, ms = 9000) {
 
 function limpaAspas(s) { return String(s || "").replace(/^["'“”‘’:\-\s]+|["'“”‘’\s]+$/g, "").trim(); }
 
-/* Extrai o trecho correspondente do texto original preservando acentos/pontuação */
-function trechoOriginal(raw, idxFimPrefixo) {
-  return limpaAspas(String(raw || "").slice(idxFimPrefixo));
-}
-
-/* ---------- detectar pedido ---------- */
 const PERGUNTAS_NAO = /^(qual|quais|quem|quando|onde|como|por que|porque|quanto|quantos|o que|oque|que|se)\b/;
 function detectar(texto) {
   const raw = String(texto || "").trim();
+  const tail = raw.replace(/\s+/g, " ").trim();
   const s = normCmd(raw).replace(/\bvc\b/g, "voce");
   if (!s || s.length > 600) return null;
   let m;
 
-  // 1) "traduz isso para português: Where is the world..." ou "traduz para inglês bom dia"
   m = s.match(new RegExp("^(?:(?:pode|poderia|consegue)\\s+)?(?:(?:bach|me)\\s+)?(?:traduz|traduza|traduzir|traducao)(?:\\s+(?:isso|isto|esse\\s+texto|essa\\s+frase|esta\\s+frase|ele|ela))?\\s+(?:em|para|pra|no|na|ao|pro)\\s+(?:o\\s+|a\\s+|lingua\\s+)?(" + LRE + ")(?:\\s*[:,-]?\\s+([\\s\\S]+))?$"));
   if (m) {
     const alvo = lingua(m[1]);
-    const resto = m[2] ? limpaAspas(raw.slice(raw.length - m[2].length)) : "__ALVO__";
+    const resto = m[2]
+      ? limpaAspas(tail.length === s.length ? tail.slice(tail.length - m[2].length) : m[2])
+      : "__ALVO__";
     return { tipo: "trad", q: resto || "__ALVO__", alvo };
   }
 
-  // 2) "como se diz X em inglês" / "traduz X para espanhol"
   m = s.match(new RegExp("^(?:(?:pode|poderia|consegue)\\s+)?(?:(?:bach\\s+|me\\s+)?(?:diga\\s+|diz\\s+|fala\\s+)?como\\s+(?:se\\s+)?(?:diz|fala|escreve|dizer|falar|escrevo)|(?:bach\\s+|me\\s+)?(?:traduz|traduza|traduzir|tradu[zc]\\w*)|traducao\\s+d[eoa]s?)\\s+([\\s\\S]+?)\\s+(?:em|para|pra|no|na|ao|pro|do|de|em\\s+lingua)\\s+(?:o\\s+|a\\s+|lingua\\s+)?(" + LRE + ")[?!.\\s]*$"));
   if (m) return { tipo: "trad", q: limpaAspas(m[1]), alvo: lingua(m[2]) };
 
-  // 3) "traduz isso" / "traduz <texto>"
   m = s.match(/^(?:(?:pode|poderia)\s+)?(?:(?:bach\s+|me\s+)?(?:traduz|traduza|traduzir))\s+([\s\S]+)$/);
   if (m) {
-    const q = limpaAspas(raw.slice(raw.length - m[1].length));
+    const q = limpaAspas(tail.length === s.length ? tail.slice(tail.length - m[1].length) : m[1]);
     return { tipo: "trad", q: /^(isso|isto|essa frase|esse texto)$/i.test(q) ? "__ALVO__" : q, alvo: null };
   }
 
-  // 4) "como se diz <palavra>"
   m = s.match(/^(?:como\s+(?:se\s+)?(?:diz|fala|escreve|dizer|falar))\s+(.+)$/);
   if (m && m[1].split(" ").length <= 8 && !/\b(em|no|na)\s+(?:que|qual)/.test(m[1])) return { tipo: "trad", q: limpaAspas(m[1]), alvo: null };
 
-  // 5) definições: "o que significa X"
   const t = norm(texto).replace(/\bvc\b/g, "voce");
   m = t.match(new RegExp("^(?:o que (?:significa|quer dizer|quer dizer a palavra|significa a palavra)|significado d[eoa]s?|qual (?:e )?o significado d[eoa]s?|defin[ae]r?|definicao d[eoa]s?|dicionario(?: de)?|me (?:explica|diz|fala) o que (?:significa|quer dizer)|palavra|giria|qual (?:e )?o sentido d[eoa]s?)\\s+(?:a palavra |o termo |a expressao |a giria |a sigla )?(.+?)(?:\\s+(?:em|no|na|do|de)\\s+(?:o |a |lingua )?(" + LRE + "))?$"));
   if (m) {
@@ -657,7 +646,6 @@ function detectar(texto) {
   return null;
 }
 
-/* ---------- busca offline ---------- */
 function achaTrad(q) {
   const k = norm(q).replace(/[?!.]+$/, "");
   for (let c = 0; c < COLS.length; c++) { const l = TR.find(x => x.nk[c] === k); if (l) return { linha: l.r, col: c }; }
@@ -674,7 +662,6 @@ function achaPT(q) {
 }
 function fmtPT(e) { return "📖 " + e.p + " (" + e.c + ")\n\n" + cap(e.d) + "\n\n📚 Fonte: dicionário da BACH."; }
 
-/* ---------- busca online ---------- */
 async function traduzirNet(q, src, tgt) {
   const j = await jget("https://api.mymemory.translated.net/get?q=" + encodeURIComponent(q) + "&langpair=" + src + "|" + tgt);
   const r = j?.responseData?.translatedText;
@@ -741,7 +728,6 @@ async function defNet(q, lang, passo) {
 
 const AJUDA = "🌍 DICIONÁRIO E TRADUÇÃO\n\n• o que significa saudade\n• sinônimo de feliz / antônimo de rápido\n• como se diz obrigado em japonês\n• traduz para português: Where is the world going?\n• traduz \"good morning\" para português\n\nLínguas: inglês, espanhol, francês, italiano, alemão (também offline) e japonês, chinês, russo, coreano, árabe, latim e outras (com internet).";
 
-/* ---------- principal ---------- */
 async function consultar(d, passo) {
   if (!d) return null;
   if (d.tipo === "ajuda") return AJUDA;
