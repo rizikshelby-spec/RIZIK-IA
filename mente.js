@@ -46,10 +46,11 @@ function tema(t) {
 const has = (p, re) => re.test(p);
 
 const KC = "bach_mente_v1";
-const ctx = { texto: null, nome: "", pasta: null, jogo: null, ultimo: null, assuntos: [], esperando: null, vocab: {}, tema: null, lex: [] };
-try { const o = JSON.parse(localStorage.getItem(KC)); if (o) Object.assign(ctx, { texto: o.texto, nome: o.nome || "", pasta: o.pasta, ultimo: o.ultimo, assuntos: o.assuntos || [], vocab: o.vocab || {}, tema: o.tema || null, lex: o.lex || [] }); } catch {}
-function persist() { try { localStorage.setItem(KC, JSON.stringify({ texto: ctx.texto && ctx.texto.slice(0, 60000), nome: ctx.nome, pasta: ctx.pasta, ultimo: ctx.ultimo, assuntos: ctx.assuntos, vocab: ctx.vocab, tema: ctx.tema, lex: (ctx.lex || []).slice(-300) })); } catch {} }
+const ctx = { texto: null, nome: "", pasta: null, jogo: null, ultimo: null, ultimoMidia: null, assuntos: [], esperando: null, vocab: {}, tema: null, lex: [] };
+try { const o = JSON.parse(localStorage.getItem(KC)); if (o) Object.assign(ctx, { texto: o.texto, nome: o.nome || "", pasta: o.pasta, ultimo: o.ultimo, ultimoMidia: o.ultimoMidia || null, assuntos: o.assuntos || [], vocab: o.vocab || {}, tema: o.tema || null, lex: o.lex || [] }); } catch {}
+function persist() { try { localStorage.setItem(KC, JSON.stringify({ texto: ctx.texto && ctx.texto.slice(0, 60000), nome: ctx.nome, pasta: ctx.pasta, ultimo: ctx.ultimo, ultimoMidia: ctx.ultimoMidia, assuntos: ctx.assuntos, vocab: ctx.vocab, tema: ctx.tema, lex: (ctx.lex || []).slice(-300) })); } catch {} }
 const setTexto = (nome, texto) => { ctx.nome = nome; ctx.texto = texto; ctx.ultimo = { t: "texto" }; persist(); };
+const setMidia = (nome, tipo) => { ctx.ultimoMidia = { nome, tipo }; ctx.ultimo = { t: "midia", tipo }; persist(); };
 const pasta = def => ctx.pasta || def;
 
 /* ---------- pastas ---------- */
@@ -275,6 +276,22 @@ function responder(msg) {
   if (has(p, / (exclu\w*|apag\w*|deleta\w*) /) && has(p, / (isso|esse texto|esse arquivo|ele|este) /)) {
     if (!ctx.nome) return { texto: "Não tenho nenhum arquivo recente guardado pra apagar. Veja os nomes com /arquivos e use /apagar nome.", origem: "📂 arquivos" };
     return { apagar: ctx.nome };
+  }
+  if (has(p, / (manda|mande|envia|reenvia|repete|coloca) /) && has(p, / (codigo|texto|isso|arquivo) /) && has(p, / (de novo|novamente|outra vez|ai|aqui) /)) {
+    if (!ctx.texto) return { texto: "Não tenho nenhum texto ou código guardado agora. Cole ou anexe de novo. 📎", origem: "🧠 contexto" };
+    const lang = Saber.isCode(ctx.texto) ? "js" : "txt";
+    return { texto: "📄 " + ctx.nome + "\n\n```" + lang + "\n" + ctx.texto.slice(0, 3500) + (ctx.texto.length > 3500 ? "\n\n[...]" : "") + "\n```", origem: "📄 reenvio" };
+  }
+  /* "qual o nome desse filme/vídeo" depois de enviar uma foto/vídeo: ela ainda
+     não reconhece o conteúdo de imagens além de texto escrito, nem vídeos.
+     Antes isso virava uma pesquisa aleatória na internet; agora ela avisa. */
+  if (ctx.ultimoMidia && (!ctx.texto) && has(p, / (esse|essa|esses|essas|este|nesse|nessa) /) && has(p, / (filme|video|cena|imagem|foto|pessoa|objeto|lugar) /)) {
+    return {
+      texto: ctx.ultimoMidia.tipo === "video"
+        ? "Eu ainda não reconheço o que acontece dentro de um vídeo (cenas, pessoas, objetos) — só consigo descrever duração, cores e iluminação. 🎬"
+        : "Nessa imagem eu só leio texto escrito, se houver. Ainda não reconheço pessoas, objetos ou do que se trata uma foto. 🖼️",
+      origem: "🧠 contexto"
+    };
   }
   const PEDIDO_TEXTO_BARE = /^ ?(resum\w*|revis\w*|analis\w*|conserta\w*|arruma\w*)(\s+(isso|esse texto|esse codigo|o codigo|o texto))? ?$/;
   if (PEDIDO_TEXTO_BARE.test(p) || (has(p, / (esse|este|isso|texto|codigo|arquivo|ele) /) && has(p, /(o que e|explica|explique|resum|o que faz|pra que serve|erro|problema|entend|leia|le |analis|revis|conserta|arruma)/))) {
