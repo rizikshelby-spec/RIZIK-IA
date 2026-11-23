@@ -1,15 +1,15 @@
-/* BACH AI - MENTE 2.1
-   Entende contexto, texto/código colado (singular e plural), jogos, criação de apps,
-   pastas, vocabulário expandido e perguntas. 100% sua, sem IA externa. */
-import { Saber } from "./saber.js?v=8";
+/* BACH AI - MENTE 2.2
+   Contexto, texto/código colado, jogos, criação de apps, pastas e vocabulário.
+   Sem lookbehind e sem crases literais que quebrem formatação. */
+import { Saber } from "./saber.js?v=9";
 import { KB, ERROS } from "./conhecimento.js?v=1";
 
+const BT = "\x60\x60\x60";
 const KF = "bach_arquivos_v1";
 const lf = () => { try { return JSON.parse(localStorage.getItem(KF)) || []; } catch { return []; } };
-const sf = a => { try { localStorage.setItem(KF, JSON.stringify(a.slice(-300))); } catch (e) { console.warn(e); } };
+const sf = a => { try { localStorage.setItem(KF, JSON.stringify(a.slice(-40))); } catch (e) { console.warn(e); } };
 const pick = a => a[Math.floor(Math.random() * a.length)];
 
-/* Vocabulário: gírias, abreviações, erros comuns e termos multi-idioma -> forma padrão */
 const VOCAB = {
   oque: "o que", oq: "o que", oqe: "o que", q: "que", ke: "que", qe: "que",
   vc: "voce", vce: "voce", vcs: "voces", voces: "voces", nois: "nos", gnt: "gente",
@@ -41,7 +41,6 @@ const VOCAB = {
   hola: "ola", gracias: "obrigado", bonjour: "ola", merci: "obrigado", ciao: "ola", hallo: "ola", danke: "obrigado"
 };
 
-/* Léxico: palavras conhecidas (corrige erros de digitação como "mindo" -> "mundo") */
 const BASE_LEX = (
   "mundo noticia noticias hoje agora ontem amanha semana mes ano seculo tempo clima chuva calor frio sol lua estrela terra planeta universo galaxia " +
   "pais cidade estado capital brasil mundo pessoa gente homem mulher crianca jovem adulto idoso amigo amiga familia pai mae irmao irma filho filha " +
@@ -121,7 +120,7 @@ function lembrarTema(q) {
 const normSimples = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
 const prep = t => " " + normSimples(t)
-  .replace(/(?<=[a-z])-(?=[a-z])/g, " ")
+  .replace(/([a-z])-([a-z])/g, "$1 $2")
   .replace(/[^a-z0-9+\-*/().,\s]/g, " ")
   .replace(/[.,]+(?=\s|$)/g, " ")
   .split(/\s+/).filter(Boolean)
@@ -158,7 +157,7 @@ try {
 function persist() {
   try {
     localStorage.setItem(KC, JSON.stringify({
-      texto: ctx.texto && ctx.texto.slice(0, 60000),
+      texto: ctx.texto && ctx.texto.slice(0, 12000),
       nome: ctx.nome, pasta: ctx.pasta, ultimo: ctx.ultimo, ultimoMidia: ctx.ultimoMidia,
       assuntos: ctx.assuntos, vocab: ctx.vocab, tema: ctx.tema, lex: (ctx.lex || []).slice(-300)
     }));
@@ -168,7 +167,7 @@ function persist() {
 const setTexto = (nome, texto) => {
   ctx.nome = nome;
   ctx.texto = texto;
-  ctx.tema = null; // novo arquivo/código vira o foco principal
+  ctx.tema = null;
   ctx.ultimo = { t: "texto" };
   persist();
 };
@@ -345,17 +344,17 @@ function criar(p) {
   const k = has(p, /velha/) ? "velha" : has(p, /calculadora/) ? "calculadora" : has(p, /tarefa|todo|lista/) ? "tarefas" : has(p, /adivinh|numero/) ? "adivinhacao" : has(p, /site|pagina|tela|landing/) ? "pagina" : null;
   if (!k) return "Sei montar prontos: jogo da velha, calculadora, lista de tarefas, adivinhe o número e uma página/tela. Diga, por exemplo: crie uma calculadora.";
   const [nome, cod] = TEMPLATES[k];
-  return "Aqui está o arquivo " + nome + ". Cole num arquivo com esse nome e abra no navegador (ou suba no GitHub Pages):\n\n```html\n" + cod + "\n```\n\nPara mudar cores e textos, edite o trecho <style> e os textos entre as tags.";
+  return "Aqui está o arquivo " + nome + ". Cole num arquivo com esse nome e abra no navegador (ou suba no GitHub Pages):\n\n" + BT + "html\n" + cod + "\n" + BT + "\n\nPara mudar cores e textos, edite o trecho <style> e os textos entre as tags.";
 }
 
 const PASSOS = [
- ["index.html: a tela do chat (campo, botão e área de mensagens)", "Crie um input, um botão e uma div. Ao clicar, pegue o texto, mostre na div e chame uma função responder(texto).\n\n```html\n<div id=\"chat\"></div>\n<input id=\"i\"><button id=\"b\">Enviar</button>\n<script>\nb.onclick = () => {\n  chat.innerHTML += \"<p>\" + i.value + \"</p>\";\n  i.value = \"\";\n};\n</script>\n```"],
- ["brain.js: o cérebro (regras e intenção)", "Crie normalize(texto) (minúsculas, sem acento), uma lista de regras {padrão, resposta} e think(msg), que devolve a resposta da primeira regra que bater ou null.\n\n```js\nconst regras = [{ p: /oi|ola/, r: \"Olá!\" }];\nexport const think = m => (regras.find(x => x.p.test(m)) || {}).r || null;\n```"],
- ["Memória: guardar o que ela aprende", "Use localStorage.setItem com JSON.stringify e carregue com JSON.parse dentro de try/catch. O comando ensine: pergunta => resposta guarda pares pergunta/resposta."],
- ["saber.js: pesquisar e resumir", "Faça fetch na API da Wikipédia (api.php?action=query&origin=*), pegue o texto e escolha as frases que têm as palavras da pergunta."],
- ["arquivos.js: pastas", "Salve objetos {nome, pasta, texto} numa lista no localStorage. /arquivos lista agrupando por pasta; nomes como Estudos/IA criam pastas dentro de pastas."],
- ["mente.js: contexto", "Guarde o último texto e o último assunto. Assim ela entende “esse texto”, “mais”, “detalhe” e “passo 3”."],
- ["Evoluir", "Adicione TF-IDF (palavras raras valem mais) para achar a resposta mais parecida, mais exemplos ensinados e, no futuro, um modelo pequeno no navegador."]
+  ["index.html: a tela do chat (campo, botão e área de mensagens)", "Crie um input, um botão e uma div. Ao clicar, pegue o texto, mostre na div e chame uma função responder(texto).\n\n" + BT + "html\n<div id=\"chat\"></div>\n<input id=\"i\"><button id=\"b\">Enviar</button>\n<script>\nb.onclick = () => {\n  chat.innerHTML += \"<p>\" + i.value + \"</p>\";\n  i.value = \"\";\n};\n</script>\n" + BT],
+  ["brain.js: o cérebro (regras e intenção)", "Crie normalize(texto) (minúsculas, sem acento), uma lista de regras {padrão, resposta} e think(msg), que devolve a resposta da primeira regra que bater ou null.\n\n" + BT + "js\nconst regras = [{ p: /oi|ola/, r: \"Olá!\" }];\nexport const think = m => (regras.find(x => x.p.test(m)) || {}).r || null;\n" + BT],
+  ["Memória: guardar o que ela aprende", "Use localStorage.setItem com JSON.stringify e carregue com JSON.parse dentro de try/catch. O comando ensine: pergunta => resposta guarda pares pergunta/resposta."],
+  ["saber.js: pesquisar e resumir", "Faça fetch na API da Wikipédia (api.php?action=query&origin=*), pegue o texto e escolha as frases que têm as palavras da pergunta."],
+  ["arquivos.js: pastas", "Salve objetos {nome, pasta, texto} numa lista no localStorage. /arquivos lista agrupando por pasta; nomes como Estudos/IA criam pastas dentro de pastas."],
+  ["mente.js: contexto", "Guarde o último texto e o último assunto. Assim ela entende “esse texto”, “mais”, “detalhe” e “passo 3”."],
+  ["Evoluir", "Adicione TF-IDF (palavras raras valem mais) para achar a resposta mais parecida, mais exemplos ensinados e, no futuro, um modelo pequeno no navegador."]
 ];
 const GUIA = "🤖 Como fazer uma IA do zero (o caminho da BACH):\n\n" + PASSOS.map((x, i) => (i + 1) + ") " + x[0]).join("\n") + "\n\nOrdem: 1 → 2 → 3, teste, e só depois 4 a 7.\nDiga “passo 1” (ou só o número) para ver o que colar.";
 
@@ -384,7 +383,7 @@ function topico(i, p) {
   ctx.assuntos.push(assunto);
   ctx.assuntos = ctx.assuntos.slice(-10);
   persist();
-  return b + "\n\n```" + (i === 17 ? "python" : "js") + "\n" + ex + "\n```" + (fundo ? "\n\n" + av : "\n\nDiga “mais” para o nível avançado ou “outro exemplo”.");
+  return b + "\n\n" + BT + (i === 17 ? "python" : "js") + "\n" + ex + "\n" + BT + (fundo ? "\n\n" + av : "\n\nDiga “mais” para o nível avançado ou “outro exemplo”.");
 }
 function seguimento(p, w) {
   const u = ctx.ultimo; if (!u) return null;
@@ -395,7 +394,7 @@ function seguimento(p, w) {
   }
   if (u.t === "prog" && KB[u.i]) {
     if (has(p, /^ ?(mais|avancado|avancada|aprofunda|aprofundar|detalhe|detalhes|detalhar|explica melhor|continue|continua|e mais|sim|quero) ?$/)) return KB[u.i][3];
-    if (has(p, /^ ?(exemplo|outro exemplo|mostra|mostre|codigo|me mostra) ?$/)) return "```js\n" + KB[u.i][2] + "\n```\nTente mudar os valores e ver o que acontece. 😉";
+    if (has(p, /^ ?(exemplo|outro exemplo|mostra|mostre|codigo|me mostra) ?$/)) return BT + "js\n" + KB[u.i][2] + "\n" + BT + "\nTente mudar os valores e ver o que acontece. 😉";
   }
   return null;
 }
@@ -418,21 +417,10 @@ function responder(msg) {
   if (/^\/palavras$/i.test(raw)) {
     return { texto: "📚 Sei " + (Object.keys(VOCAB).length + Object.keys(ctx.vocab).length) + " gírias/abreviações e " + lexico().size + " palavras no dicionário base.\nEnsine mais: /palavra tbm = também", origem: "📚 vocabulário" };
   }
-  if (raw.length > 160) return null;
+  if (raw.length > 260) return null;
   const p = prep(raw), w = p.trim();
 
   if (ctx.jogo) { const r = jogar(w, raw); if (r) return { texto: r, origem: "🎮 jogo" }; }
-
-  const mat = raw.match(/^(?:quanto (?:e|é)\s+|calcule\s+|calcula\s+)?([\d\s+\-*/x×÷().,]{3,})\??$/i);
-  if (mat && /[+\-*/x×÷]/.test(mat[1].replace(/^\s*-/, "")) && /\d/.test(mat[1])) {
-    const ex = mat[1].replace(/[x×]/gi, "*").replace(/÷/g, "/").replace(/,/g, ".");
-    if (/^[\d+\-*/().\s]+$/.test(ex)) {
-      try {
-        const v = Function("return (" + ex + ")")();
-        if (isFinite(v)) return { texto: "🧮 " + mat[1].trim() + " = " + +v.toFixed(8), origem: "🧮 conta" };
-      } catch {}
-    }
-  }
 
   const sg = seguimento(p, w); if (sg) return { texto: sg, origem: "🧠 lembrei do assunto" };
   const criarV = has(p, / (cria|crie|criar|faz|faca|fazer|monta|monte|gera|gere|programa|programe|constroi) /);
@@ -456,19 +444,18 @@ function responder(msg) {
   if (has(p, / (manda|mande|envia|reenvia|repete|coloca) /) && has(p, / (codigo|codigos|texto|isso|arquivo) /) && has(p, / (de novo|novamente|outra vez|ai|aqui) /)) {
     if (!ctx.texto) return { texto: "Não tenho nenhum texto ou código guardado agora. Cole ou anexe de novo. 📎", origem: "🧠 contexto" };
     const lang = Saber.isCode(ctx.texto) ? "js" : "txt";
-    return { texto: "📄 " + ctx.nome + "\n\n```" + lang + "\n" + ctx.texto.slice(0, 3500) + (ctx.texto.length > 3500 ? "\n\n[...]" : "") + "\n```", origem: "📄 reenvio" };
+    return { texto: "📄 " + ctx.nome + "\n\n" + BT + lang + "\n" + ctx.texto.slice(0, 3500) + (ctx.texto.length > 3500 ? "\n\n[...]" : "") + "\n" + BT, origem: "📄 reenvio" };
   }
 
   if (ctx.ultimoMidia && (!ctx.texto) && has(p, / (esse|essa|esses|essas|este|nesse|nessa) /) && has(p, / (filme|video|cena|imagem|foto|pessoa|objeto|lugar) /)) {
     return {
       texto: ctx.ultimoMidia.tipo === "video"
         ? "Eu ainda não reconheço o que acontece dentro de um vídeo (cenas, pessoas, objetos) — só consigo descrever duração, cores e iluminação. 🎬"
-        : "Nessa imagem eu só leio texto escrito, se houver. Ainda não reconheço pessoas, objetos ou do que se trata uma foto. 🖼️",
+        : "Nessa imagem eu só leio texto escrito, se houver. Ainda não reconheço pessoas, objetos ou do que se trata uma foto sem um motor multimodal conectado (/ia). 🖼️",
       origem: "🧠 contexto"
     };
   }
 
-  /* Pedidos sobre o último texto/código enviado (singular e plural: "esses codigos fazem o que?") */
   const PEDIDO_TEXTO_BARE = /^ ?((me\s+)?explic\w*|resum\w*|revis\w*|analis\w*|conserta\w*|arruma\w*|o que (e|faz|fazem) isso)(\s+(isso|esse texto|esse codigo|esses codigos|o codigo|os codigos|o texto|essa imagem|essa foto))? ?$/;
   const REF_ARQUIVO = / (esse|este|esses|estes|isso|texto|textos|codigo|codigos|arquivo|arquivos|ele|eles|imagem|foto) /;
   const ACAO_ARQUIVO = /(o que e|o que faz|faz o que|fazem o que|o que fazem|para que serve|pra que serve|como funciona|explica|explique|resum|erro|problema|entend|leia|le |analis|revis|conserta|arruma)/;
