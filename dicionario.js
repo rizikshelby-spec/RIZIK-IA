@@ -1,9 +1,8 @@
-/* BACH AI - DICIONÁRIO 2.0
-   Dicionário brasileiro expandido + sinônimos/antônimos + tradução em várias línguas.
-   • Offline: +210 palavras/gírias em português, +90 sinônimos, +50 antônimos e +230 traduções em 6 idiomas.
-   • Online (quando houver internet): Wiktionary (pt e en), dictionaryapi.dev (inglês) e MyMemory (18+ idiomas). */
+/* BACH AI - DICIONÁRIO 2.1
+   Dicionário brasileiro + sinônimos/antônimos + tradução flexível em várias línguas. */
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s'’-]/g, " ").replace(/\s+/g, " ").trim();
+const normCmd = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
 
 export const LINGUAS = {
   en: ["ingles", "english"], es: ["espanhol", "castelhano", "spanish"], fr: ["frances", "french"], it: ["italiano", "italian"],
@@ -577,7 +576,7 @@ ler|read|leer|lire|leggere|lesen
 escrever|write|escribir|écrire|scrivere|schreiben
 aprender|learn|aprender|apprendre|imparare|lernen
 ensinar|teach|enseñar|enseigner|insegnare|lehren
-pensar|think|pensar|penser|pensare|denken
+pensar|think|pensar|penser|penser|denken
 criar|create|crear|créer|creare|erschaffen
 abrir|open|abrir|ouvrir|aprire|öffnen
 fechar|close|cerrar|fermer|chiudere|schließen`.split("\n").map(l => l.split("|"));
@@ -599,19 +598,46 @@ async function jget(url, ms = 9000) {
   catch { return null; } finally { clearTimeout(id); }
 }
 
+function limpaAspas(s) { return String(s || "").replace(/^["'“”‘’:\-\s]+|["'“”‘’\s]+$/g, "").trim(); }
+
+/* Extrai o trecho correspondente do texto original preservando acentos/pontuação */
+function trechoOriginal(raw, idxFimPrefixo) {
+  return limpaAspas(String(raw || "").slice(idxFimPrefixo));
+}
+
 /* ---------- detectar pedido ---------- */
 const PERGUNTAS_NAO = /^(qual|quais|quem|quando|onde|como|por que|porque|quanto|quantos|o que|oque|que|se)\b/;
 function detectar(texto) {
-  let t = norm(texto).replace(/\bvc\b/g, "voce");
-  if (!t || t.length > 140) return null;
+  const raw = String(texto || "").trim();
+  const s = normCmd(raw).replace(/\bvc\b/g, "voce");
+  if (!s || s.length > 600) return null;
   let m;
-  m = t.match(new RegExp("^(?:(?:pode|poderia|consegue)\\s+)?(?:(?:bach |me )?(?:diga |diz |fala )?como (?:se )?(?:diz|fala|escreve|dizer|falar|escrevo)|(?:bach |me )?(?:traduz|traduza|traduzir|tradu[zc]\\w*)|traducao d[eoa]s?)\\s+(.+?)\\s+(?:em|para|pra|no|na|ao|pro|do|de|em lingua)\\s+(?:o |a |lingua )?(" + LRE + ")$"));
-  if (m) return { tipo: "trad", q: limpaAspas(m[1]), alvo: lingua(m[2]) };
-  m = t.match(/^(?:(?:pode|poderia)\s+)?(?:(?:bach |me )?(?:traduz|traduza|traduzir))\s+(.+)$/);
-  if (m && m[1].split(" ").length <= 12) return { tipo: "trad", q: limpaAspas(m[1]), alvo: null };
-  m = t.match(/^(?:como (?:se )?(?:diz|fala|escreve|dizer|falar))\s+(.+)$/);
-  if (m && m[1].split(" ").length <= 6 && !/\b(em|no|na)\s+(?:que|qual)/.test(m[1])) return { tipo: "trad", q: limpaAspas(m[1]), alvo: null };
 
+  // 1) "traduz isso para português: Where is the world..." ou "traduz para inglês bom dia"
+  m = s.match(new RegExp("^(?:(?:pode|poderia|consegue)\\s+)?(?:(?:bach|me)\\s+)?(?:traduz|traduza|traduzir|traducao)(?:\\s+(?:isso|isto|esse\\s+texto|essa\\s+frase|esta\\s+frase|ele|ela))?\\s+(?:em|para|pra|no|na|ao|pro)\\s+(?:o\\s+|a\\s+|lingua\\s+)?(" + LRE + ")(?:\\s*[:,-]?\\s+([\\s\\S]+))?$"));
+  if (m) {
+    const alvo = lingua(m[1]);
+    const resto = m[2] ? limpaAspas(raw.slice(raw.length - m[2].length)) : "__ALVO__";
+    return { tipo: "trad", q: resto || "__ALVO__", alvo };
+  }
+
+  // 2) "como se diz X em inglês" / "traduz X para espanhol"
+  m = s.match(new RegExp("^(?:(?:pode|poderia|consegue)\\s+)?(?:(?:bach\\s+|me\\s+)?(?:diga\\s+|diz\\s+|fala\\s+)?como\\s+(?:se\\s+)?(?:diz|fala|escreve|dizer|falar|escrevo)|(?:bach\\s+|me\\s+)?(?:traduz|traduza|traduzir|tradu[zc]\\w*)|traducao\\s+d[eoa]s?)\\s+([\\s\\S]+?)\\s+(?:em|para|pra|no|na|ao|pro|do|de|em\\s+lingua)\\s+(?:o\\s+|a\\s+|lingua\\s+)?(" + LRE + ")[?!.\\s]*$"));
+  if (m) return { tipo: "trad", q: limpaAspas(m[1]), alvo: lingua(m[2]) };
+
+  // 3) "traduz isso" / "traduz <texto>"
+  m = s.match(/^(?:(?:pode|poderia)\s+)?(?:(?:bach\s+|me\s+)?(?:traduz|traduza|traduzir))\s+([\s\S]+)$/);
+  if (m) {
+    const q = limpaAspas(raw.slice(raw.length - m[1].length));
+    return { tipo: "trad", q: /^(isso|isto|essa frase|esse texto)$/i.test(q) ? "__ALVO__" : q, alvo: null };
+  }
+
+  // 4) "como se diz <palavra>"
+  m = s.match(/^(?:como\s+(?:se\s+)?(?:diz|fala|escreve|dizer|falar))\s+(.+)$/);
+  if (m && m[1].split(" ").length <= 8 && !/\b(em|no|na)\s+(?:que|qual)/.test(m[1])) return { tipo: "trad", q: limpaAspas(m[1]), alvo: null };
+
+  // 5) definições: "o que significa X"
+  const t = norm(texto).replace(/\bvc\b/g, "voce");
   m = t.match(new RegExp("^(?:o que (?:significa|quer dizer|quer dizer a palavra|significa a palavra)|significado d[eoa]s?|qual (?:e )?o significado d[eoa]s?|defin[ae]r?|definicao d[eoa]s?|dicionario(?: de)?|me (?:explica|diz|fala) o que (?:significa|quer dizer)|palavra|giria|qual (?:e )?o sentido d[eoa]s?)\\s+(?:a palavra |o termo |a expressao |a giria |a sigla )?(.+?)(?:\\s+(?:em|no|na|do|de)\\s+(?:o |a |lingua )?(" + LRE + "))?$"));
   if (m) {
     const q = limpaAspas(m[1]);
@@ -624,13 +650,12 @@ function detectar(texto) {
   if (m && m[1].split(" ").length <= 3) return { tipo: "ant", q: limpaAspas(m[1]) };
 
   m = t.match(new RegExp("^(.+?)\\s+em\\s+(?:o |a )?(" + LRE + ")$"));
-  if (m && m[1].split(" ").length <= 4 && !PERGUNTAS_NAO.test(m[1]) && !/\b(escreva|fale|conversa|responda|programa|codigo|site|texto|livro|filme)\b/.test(m[1])) {
+  if (m && m[1].split(" ").length <= 5 && !PERGUNTAS_NAO.test(m[1]) && !/\b(escreva|fale|conversa|responda|programa|codigo|site|texto|livro|filme)\b/.test(m[1])) {
     return { tipo: "trad", q: limpaAspas(m[1]), alvo: lingua(m[2]) };
   }
   if (/^(?:dicionario|\/dicionario|idiomas|linguas|tradutor)$/.test(t)) return { tipo: "ajuda" };
   return null;
 }
-function limpaAspas(s) { return String(s).replace(/^["'“”‘’\s]+|["'“”‘’\s?!.]+$/g, "").trim(); }
 
 /* ---------- busca offline ---------- */
 function achaTrad(q) {
@@ -656,14 +681,15 @@ async function traduzirNet(q, src, tgt) {
   if (!r || /MYMEMORY WARNING|INVALID/i.test(r)) return null;
   return limpa(r);
 }
-const parecePT = q => /[ãõçáàâéêíóú]/i.test(q) || /\b(o|a|os|as|de|que|um|uma|para|com|não|nao|voce|você|eu|meu|minha|esta|isso|casa|bom|dia)\b/i.test(q);
+const parecePT = q => /[ãõçáàâéêíóú]/i.test(q) || /\b(o|a|os|as|de|que|um|uma|para|com|não|nao|voce|você|eu|meu|minha|esta|isso|casa|bom|dia|mundo|onde|com)\b/i.test(q);
 function adivinharIdioma(q) {
   const n = norm(q);
-  if (parecePT(q)) return "pt";
   if (/[ñ¿¡]|\b(hola|gracias|buenos|como estas|donde|quien|por favor|coche|perro|amigo)\b/.test(n)) return "es";
   if (/\b(bonjour|merci|salut|comment|je suis|maison|pourquoi|oui)\b/.test(n)) return "fr";
   if (/\b(ciao|grazie|buongiorno|come stai|perche|amore|casa)\b/.test(n)) return "it";
   if (/\b(hallo|danke|guten|wie geht|ich bin|nicht|ja)\b/.test(n)) return "de";
+  if (/\b(the|is|are|where|what|when|who|how|with|these|those|this|that|world|going|girls|boys|you|and|for|lol)\b/.test(n)) return "en";
+  if (parecePT(q)) return "pt";
   return "en";
 }
 
@@ -713,13 +739,14 @@ async function defNet(q, lang, passo) {
   return null;
 }
 
-const AJUDA = "🌍 DICIONÁRIO E TRADUÇÃO\n\n• o que significa saudade\n• significado de resiliência\n• sinônimo de feliz / antônimo de rápido\n• como se diz obrigado em japonês\n• traduz \"good morning\" para português\n• o que significa \"serendipity\" em inglês\n\nLínguas: inglês, espanhol, francês, italiano, alemão (também offline) e japonês, chinês, russo, coreano, árabe, latim e outras (com internet).";
+const AJUDA = "🌍 DICIONÁRIO E TRADUÇÃO\n\n• o que significa saudade\n• sinônimo de feliz / antônimo de rápido\n• como se diz obrigado em japonês\n• traduz para português: Where is the world going?\n• traduz \"good morning\" para português\n\nLínguas: inglês, espanhol, francês, italiano, alemão (também offline) e japonês, chinês, russo, coreano, árabe, latim e outras (com internet).";
 
 /* ---------- principal ---------- */
 async function consultar(d, passo) {
   if (!d) return null;
   if (d.tipo === "ajuda") return AJUDA;
   const q = d.q;
+  if (!q || q === "__ALVO__") return "Cole ou responda (↩) a frase que você quer que eu traduza! 🌍";
 
   if (d.tipo === "sin") {
     const e = SINX.find(x => x.n === norm(q));
@@ -757,21 +784,22 @@ async function consultar(d, passo) {
       return "🌍 “" + q + "” (" + NOME[COLS[t.col]] + ") em português é: " + pt + "\n\n" + paraTodas(t.linha, t.col);
     }
     if (!alvo) {
-      if (!parecePT(q)) {
-        const src = adivinharIdioma(q);
+      const src = adivinharIdioma(q);
+      if (src !== "pt") {
         passo?.("🌍 Traduzindo para português...");
         const r = await traduzirNet(q, src, "pt");
-        return r ? "🌍 “" + q + "” → português: " + r + "\n\n🌐 Tradução automática (MyMemory)." : null;
+        return r ? "🌍 “" + q + "”\n→ 🇧🇷 Português: " + r + "\n\n🌐 Tradução automática (MyMemory)." : null;
       }
       passo?.("🌍 Traduzindo...");
       const out = [];
       for (const l of ["en", "es", "fr"]) { const r = await traduzirNet(q, "pt", l); if (r) out.push((BANDEIRA[l] || "") + " " + cap(NOME[l]) + ": " + r); }
       return out.length ? "🌍 “" + q + "” em:\n\n" + out.join("\n") + "\n\n🌐 Tradução automática (MyMemory). Diga “em japonês” etc. para outra língua." : null;
     }
-    const src = alvo === "pt" ? (adivinharIdioma(q) === "pt" ? "en" : adivinharIdioma(q)) : adivinharIdioma(q);
+    let src = adivinharIdioma(q);
+    if (alvo === "pt" && src === "pt") src = "en";
     passo?.("🌍 Traduzindo para " + NOME[alvo] + "...");
     const r = await traduzirNet(q, src, alvo);
-    return r ? "🌍 “" + q + "” em " + NOME[alvo] + ": " + r + "\n\n🌐 Tradução automática (MyMemory)." : null;
+    return r ? "🌍 “" + q + "”\n→ " + (BANDEIRA[alvo] || "🌐") + " " + cap(NOME[alvo]) + ": " + r + "\n\n🌐 Tradução automática (MyMemory)." : null;
   }
   return null;
 }
