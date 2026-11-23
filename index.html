@@ -98,9 +98,9 @@ import { RizikBrain } from "./brain.js?v=13";
 import { Saber } from "./saber.js?v=6";
 import { Prog } from "./programacao.js?v=4";
 import { Arquivos } from "./arquivos.js?v=2";
-import { Mente } from "./mente.js?v=8";
-import { Fatos } from "./fatos.js?v=2";
-import { Conversa } from "./conversa.js?v=1";
+import { Mente } from "./mente.js?v=9";
+import { Fatos } from "./fatos.js?v=3";
+import { Conversa } from "./conversa.js?v=2";
 import { Historico } from "./historico.js?v=2";
 import { Base } from "./base.js?v=3";
 import { SkillRouter } from "./registry.js?v=1";
@@ -363,6 +363,8 @@ async function processarArquivo(f) {
       passo("📖 Lendo o conteúdo...");
       resposta = Saber.lerTexto(r.texto); pasta = Mente.pasta(Saber.isCode(r.texto) ? "Códigos" : "Textos"); texto = r.texto; Mente.setTexto(f.name, r.texto);
       ultimoArquivo = { nome: f.name, texto: r.texto };
+    } else {
+      Mente.setMidia(f.name, r.tipo);
     }
     const a = Arquivos.salvar({ nome: f.name, pasta, texto, resumo: resposta.slice(0, 300), tipo: r.tipo });
     falar(resposta + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos" + (texto && localStorage.getItem(KEY_API) ? "\n💡 Pergunte qualquer coisa sobre esse arquivo." : ""));
