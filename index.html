@@ -92,12 +92,13 @@ textarea#entrada{flex:1;min-width:0;padding:11px;border:1px solid #44465d;border
 <div id="hist"></div>
 <input id="seletorBase" type="file" hidden accept=".json,application/json">
 
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <script type="module">
 import { RizikBrain } from "./brain.js?v=13";
-import { Saber } from "./saber.js?v=5";
+import { Saber } from "./saber.js?v=6";
 import { Prog } from "./programacao.js?v=4";
-import { Arquivos } from "./arquivos.js?v=1";
-import { Mente } from "./mente.js?v=7";
+import { Arquivos } from "./arquivos.js?v=2";
+import { Mente } from "./mente.js?v=8";
 import { Fatos } from "./fatos.js?v=2";
 import { Conversa } from "./conversa.js?v=1";
 import { Historico } from "./historico.js?v=2";
@@ -294,6 +295,8 @@ async function pesquisaProfunda(q, fundo = true) {
   } catch (e) {
     console.error(e);
     if (e.message === "irrelevante" && deuFato) return;
+    if (e.message === "sem-dados-futuros") { falar("Isso eu não consigo responder direito: não tenho uma lista atualizada de lançamentos futuros de filmes, séries ou animes. Sites como IMDb, Omelete ou Letterboxd têm isso sempre atualizado. 🎬"); return; }
+    if (e.message === "meta-referencia") { falar("Acho que você quer que eu explique melhor algo que eu mesma disse, não que eu pesquise isso na internet. 🤔 Me diga qual parte não ficou clara, ou copie o trecho que você quer entender melhor."); return; }
     falar(e.message === "irrelevante" ? "Procurei, mas nada estava claramente ligado a “" + q + "”, e prefiro não inventar. Tente outras palavras. 🔍" : "Não consegui pesquisar agora. Tente de novo em instantes.");
   }
 }
@@ -510,6 +513,7 @@ async function rotear(texto) {
   if (mt) {
     if (mt.noticias) return noticias(mt.q);
     if (mt.pesquisa) { if (temIA) return perguntarIA(texto); return pesquisaProfunda(mt.pesquisa, mt.fundo !== false); }
+    if (mt.apagar) { const r = Arquivos.comando("/apagar " + mt.apagar); falar(r || "Não consegui apagar esse arquivo.", "bot", "🗑️ arquivos"); return; }
     falar(mt.texto, "bot", mt.origem || "🧠 minha mente"); return;
   }
 
