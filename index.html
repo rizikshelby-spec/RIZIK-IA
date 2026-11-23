@@ -94,13 +94,14 @@ textarea#entrada{flex:1;min-width:0;padding:11px;border:1px solid #44465d;border
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <script type="module">
-import { RizikBrain } from "./brain.js?v=13";
-import { Saber } from "./saber.js?v=6";
+import { RizikBrain } from "./brain.js?v=14";
+import { Saber } from "./saber.js?v=7";
 import { Prog } from "./programacao.js?v=4";
 import { Arquivos } from "./arquivos.js?v=2";
-import { Mente } from "./mente.js?v=9";
-import { Fatos } from "./fatos.js?v=3";
-import { Conversa } from "./conversa.js?v=2";
+import { Mente } from "./mente.js?v=10";
+import { Fatos } from "./fatos.js?v=4";
+import { Conversa } from "./conversa.js?v=3";
+import { Dic } from "./dicionario.js?v=2";
 import { Historico } from "./historico.js?v=2";
 import { Base } from "./base.js?v=3";
 import { SkillRouter } from "./registry.js?v=1";
@@ -108,15 +109,17 @@ import { SkillRouter } from "./registry.js?v=1";
 const $ = id => document.getElementById(id);
 const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status"), hist = $("hist");
 const HISTORY_KEY = "bach_chat_history_v1", KEY_API = "bach_gemini_key", KEY_MODEL = "bach_gemini_model";
-const STATUS = "BACH AI 4.0 • Conversa, código, jogos, departamentos, arquivos, histórico e pesquisa";
+const STATUS = "BACH AI 4.0 • Conversa, código, dicionário, jogos, arquivos, memória e pesquisa";
 const LONGO = 700;
 
 let history = [], pensando = null, modoProfundo = false, lerAuto = false;
 let ultimoTema = null, ultimaOrigem = "", aguardaCidade = false, citacao = null, alvo = null, pendentes = [];
 let ocupado = false, cancelado = false, ctrl = null, ultimoArquivo = null;
 try { history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); if (!Array.isArray(history)) history = []; } catch { history = []; }
-const salvarHist = () => { try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-40).map(h => ({ ...h, text: String(h.text).slice(0, 20000) })))); } catch (e) { console.warn(e); }
-  try { Historico.salvarAtual(history); } catch (e) { console.warn(e); } };
+const salvarHist = () => {
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-40).map(h => ({ ...h, text: String(h.text).slice(0, 20000) })))); } catch (e) { console.warn(e); }
+  try { Historico.salvarAtual(history); } catch (e) { console.warn(e); }
+};
 
 function busy(b) { ocupado = b; botao.textContent = b ? "⏹" : "Enviar"; botao.classList.toggle("stop", b); if (!b) status.textContent = STATUS; }
 
@@ -202,7 +205,7 @@ function criarResultado(titulo, resumo, url) {
   if (!/^https?:\/\//i.test(url)) return;
   const c = mk("article", "result"), a = mk("a", "", "Abrir fonte ↗");
   a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer";
-  c.append(mk("h3", "", titulo)); if (resumo) c.append(mk("div", "", resumo)); c.append(a);
+  c.append(mk("h3", "", titulo)); if (resumo) c.appendChild(mk("div", "", resumo)); c.append(a);
   chat.appendChild(c); chat.scrollTop = chat.scrollHeight;
 }
 
@@ -233,16 +236,18 @@ async function clima(cidade) {
     const L = geo.results || [], l = L.find(x => x.country_code === "BR") || L[0];
     if (!l) throw new Error("Cidade não encontrada.");
     try { localStorage.setItem("bach_cidade", l.name); } catch {}
+    RizikBrain.logTopic("clima em " + l.name);
     passo("🌡️ Buscando a previsão de " + l.name + "...");
     const p = new URLSearchParams({ latitude: l.latitude, longitude: l.longitude, current: "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m", daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max", timezone: "auto", forecast_days: "3" });
     const d = await (await requisicao("https://api.open-meteo.com/v1/forecast?" + p)).json(), c = d.current;
     const cond = k => k === 0 ? "Céu limpo" : [1, 2, 3].includes(k) ? "Nublado" : [45, 48].includes(k) ? "Neblina" : [51, 53, 55, 61, 63, 65, 80, 81, 82].includes(k) ? "Chuva ou garoa" : [95, 96, 99].includes(k) ? "Tempestade" : "Variável";
     let r = "🌤️ CLIMA: " + l.name + "\n\nTemperatura: " + c.temperature_2m + "°C (sensação " + c.apparent_temperature + "°C)\nCondição: " + cond(c.weather_code) + "\nUmidade: " + c.relative_humidity_2m + "%\nVento: " + c.wind_speed_10m + " km/h\n\nPREVISÃO:\n";
     d.daily.time.forEach((x, i) => r += x + ": " + cond(d.daily.weather_code[i]) + ", " + d.daily.temperature_2m_min[i] + "°–" + d.daily.temperature_2m_max[i] + "°C, chuva " + d.daily.precipitation_probability_max[i] + "%\n");
-    falar(r);
+    falar(r, "bot", "🌤️ clima");
   } catch (e) { console.error(e); falar("Não consegui consultar o clima dessa cidade."); }
 }
-const extrairPesquisa = t => (t.match(/^(?:(?:fa[cç]a|faz|fazer|pode)\s+)?(?:uma\s+)?(?:pesquise|pesquisa|pesquisar|procure|buscar|busque|busca)\s+(?:(?:uma\s+)?(?:pesquisa|busca)\s+)?(?:na internet\s+|na web\s+|no google\s+)?(?:sobre\s+|por\s+|a respeito de\s+)?(.+)/i) || [])[1]?.trim() ?? null;
+
+const extrairPesquisa = t => (t.match(/^(?:(?:fa[cç]a|faz|fazer|pode)\s+)?(?:uma\s+)?(?:pesquise|pesquisa|pesquisar|procure|procura|buscar|busque|busca)\s+(?:(?:uma\s+)?(?:pesquisa|busca)\s+)?(?:(?:na\s+internet|na\s+web|na\s+net|no\s+google|online)\s+)?(?:pra\s+mim\s+|por\s+favor\s+)?(?:sobre\s+|por\s+|a\s+respeito\s+de\s+)?(.+)/i) || [])[1]?.trim() ?? null;
 const extrairClima = t => {
   const x = t.trim().replace(/[?!.]+$/, "");
   const m = x.match(/^(?:(?:qual|como)\s+(?:(?:est[aá]|[ée])\s+)?(?:a\s+|o\s+)?)?(?:(?:clima|previs[aã]o(?:\s+do\s+tempo)?)\s+(?:em|de|para|pra|na|no|do|da)|tempo\s+(?:em|na|no))\s+(.+)$/i)
@@ -272,32 +277,41 @@ async function noticias(q) {
       itens.push({ t: limpo(ms[i][1]), l, s: sn1.slice(0, 180) });
     }
     if (!itens.length) throw new Error("vazio");
+    RizikBrain.logTopic("notícias");
     falar("📰 Manchetes de " + new Date().toLocaleDateString("pt-BR") + ":\n\n" + itens.map(x => "• " + x.t + (x.s ? "\n  " + x.s : "")).join("\n\n"), "bot", "🌐 DuckDuckGo");
     itens.forEach(x => { try { criarResultado(new URL(x.l).hostname.replace(/^www\./, ""), "", x.l); } catch {} });
   } catch (e) { console.error(e); falar("Não consegui buscar as notícias agora. Tente de novo ou diga: pesquise sobre ..."); }
 }
+
 async function pesquisaProfunda(q, fundo = true) {
   const temas = dividirTemas(q);
   if (temas.length > 1) { for (const t of temas) { if (cancelado) return; await pesquisaProfunda(t, fundo); } return; }
-  q = temas[0] || q; ultimoTema = q;
+  q = temas[0] || q;
+  const temaLimpo = Mente.tema(q) || q;
+  ultimoTema = temaLimpo;
+  const usarFundo = modoProfundo || fundo;
+
   let deuFato = false;
   if (/\b(piadas?|humor|engra[cç]ad[oa]s?)\b/i.test(q)) { falar("Piada eu tenho de sobra! 😄\n\n" + Prog.humor("conta uma piada"), "bot", "😄 meu repertório"); return; }
-  const fato = Fatos.responder(q);
-  if (fato) { deuFato = true; falar(fato, "bot", "📘 base de fatos"); if (!fundo) return; }
-  passo((fundo ? "🔎 Pesquisando a fundo: " : "🔎 Pesquisando: ") + q);
+  const fato = Fatos.responder(temaLimpo) || Fatos.responder(q);
+  if (fato) { deuFato = true; RizikBrain.logTopic(temaLimpo); falar(fato, "bot", "📘 base de fatos"); if (!usarFundo) return; }
+  passo((usarFundo ? "🔎 Pesquisando a fundo: " : "🔎 Pesquisando: ") + temaLimpo);
   try {
-    const r = await Saber.pesquisaProfunda(Mente.tema(q) || q, passo, fundo);
+    const r = await Saber.pesquisaProfunda(q, passo, usarFundo);
     const tx = r.texto.replace(/\n\n💬 Em poucas palavras:[^\n]*/, "").replace(/\n\n🔍 Como cheguei nisso:[^\n]*/, "").replace(/\nℹ️ Eu escolho[^\n]*/, "").replace(/\n\n💾 Guardei[^\n]*/, "").replace(/\n\n🚫 Não guardei[^\n]*/, "");
-    if (r.conf !== "baixa") Mente.lembrarTema(Mente.tema(q) || q);
+    if (r.conf !== "baixa") {
+      Mente.lembrarTema(temaLimpo);
+      RizikBrain.logTopic(temaLimpo);
+    }
     falar(tx, "bot", "🌐 internet, filtrada e resumida");
-    if (r.conf !== "baixa") Arquivos.salvar({ nome: "pesquisa-" + q.slice(0, 24), pasta: Mente.pasta("Pesquisas"), texto: r.texto, tipo: "pesquisa" });
+    if (r.conf !== "baixa") Arquivos.salvar({ nome: "pesquisa-" + temaLimpo.slice(0, 24), pasta: Mente.pasta("Pesquisas"), texto: r.texto, tipo: "pesquisa" });
     r.fontes.forEach(f => criarResultado(f.titulo, "", f.url));
   } catch (e) {
     console.error(e);
     if (e.message === "irrelevante" && deuFato) return;
     if (e.message === "sem-dados-futuros") { falar("Isso eu não consigo responder direito: não tenho uma lista atualizada de lançamentos futuros de filmes, séries ou animes. Sites como IMDb, Omelete ou Letterboxd têm isso sempre atualizado. 🎬"); return; }
     if (e.message === "meta-referencia") { falar("Acho que você quer que eu explique melhor algo que eu mesma disse, não que eu pesquise isso na internet. 🤔 Me diga qual parte não ficou clara, ou copie o trecho que você quer entender melhor."); return; }
-    falar(e.message === "irrelevante" ? "Procurei, mas nada estava claramente ligado a “" + q + "”, e prefiro não inventar. Tente outras palavras. 🔍" : "Não consegui pesquisar agora. Tente de novo em instantes.");
+    falar(e.message === "irrelevante" ? "Procurei, mas nada estava claramente ligado a “" + temaLimpo + "”, e prefiro não inventar. Tente outras palavras. 🔍" : "Não consegui pesquisar agora. Tente de novo em instantes.");
   }
 }
 
@@ -311,20 +325,25 @@ REGRAS DE FORMATO:
 - Para jogos e apps simples, entregue um único arquivo HTML (CSS e JS dentro) que funcione no celular.
 - Respostas curtas para perguntas simples. Em tarefas grandes, dê o passo a passo numerado.
 JOGOS COM VOCÊ: você sabe jogar forca, jogo da velha (desenhe com texto), adivinhação de número, quiz, 20 perguntas, stop e charadas. Guarde o estado do jogo pelo histórico, diga de quem é a vez e confira as regras com honestidade.
-IA DO ZERO: ensine nesta ordem — 1) entrada e saída (chat), 2) regras e normalização do texto, 3) memória que aprende (ensine: pergunta => resposta), 4) busca de informação, 5) ler arquivos, 6) conectar um modelo de linguagem por API, com a chave nunca dentro do código do GitHub. Diga sempre por qual arquivo começar e o que colar nele.
-HONESTIDADE: se não souber, diga. Não invente fatos, links ou funções. Use o histórico para entender "isso", "esse texto", "ele". Se o usuário colar um texto ou código sem pergunta, explique em poucas linhas o que é e ofereça próximos passos.
-PRECISÃO: responda só o que foi perguntado, com fatos verificáveis. Dê a mesma resposta para a mesma pergunta. Se houver incerteza, diga qual parte é incerta. Em contas, mostre o cálculo. Em datas, números e nomes, só afirme se tiver certeza.`;
+HONESTIDADE: se não souber, diga. Não invente fatos, links ou funções. Use o histórico e a memória do usuário para entender "isso", "esse texto", "ele" e lembrar do que já conversaram.`;
 
 async function perguntarIA(texto) {
   const key = localStorage.getItem(KEY_API), model = localStorage.getItem(KEY_MODEL) || "gemini-3.5-flash-lite";
   passo("🤖 Pensando com a IA...");
   ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), 60000);
   try {
-    let contents = history.filter(h => h.type === "user" || h.type === "bot").slice(-10).map(h => ({ role: h.type === "user" ? "user" : "model", parts: [{ text: (h.cit ? "[Respondendo a: " + h.cit + "]\n" : "") + String(h.text).slice(0, 12000) }] }));
+    let contents = history.filter(h => h.type === "user" || h.type === "bot").slice(-12).map(h => ({ role: h.type === "user" ? "user" : "model", parts: [{ text: (h.cit ? "[Respondendo a: " + h.cit + "]\n" : "") + String(h.text).slice(0, 12000) }] }));
     while (contents.length && contents[0].role !== "user") contents.shift();
     if (alvo && contents.length) { const u = contents[contents.length - 1]; u.parts[0].text = "[O usuário está respondendo a esta mensagem: " + alvo.slice(0, 1500) + "]\n" + u.parts[0].text; }
-    const nome = RizikBrain.recall("userName");
-    let sis = SISTEMA + (nome ? "\nO usuário se chama " + nome + "." : "");
+    const perf = RizikBrain.getProfile();
+    const rec = RizikBrain.getRecentTopics(8).map(x => x.topic);
+    let sis = SISTEMA;
+    if (perf.userName) sis += "\nO usuário se chama " + perf.userName + ".";
+    if (perf.city) sis += "\nCidade do usuário: " + perf.city + ".";
+    if (perf.age) sis += "\nIdade do usuário: " + perf.age + " anos.";
+    if (perf.likes?.length) sis += "\nCoisas que o usuário gosta: " + perf.likes.join(", ") + ".";
+    if (perf.projects?.length) sis += "\nProjetos/estudos atuais do usuário: " + perf.projects.join(", ") + ".";
+    if (rec.length) sis += "\nAssuntos recentes que vocês conversaram: " + rec.join(", ") + ".";
     if (ultimoArquivo) sis += "\n\nARQUIVO/TEXTO MAIS RECENTE DO USUÁRIO (" + ultimoArquivo.nome + "):\n" + ultimoArquivo.texto.slice(0, 30000);
     const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent", {
       method: "POST", signal: ctrl.signal, headers: { "Content-Type": "application/json", "x-goog-api-key": key },
@@ -364,10 +383,13 @@ async function processarArquivo(f) {
       resposta = Saber.lerTexto(r.texto); pasta = Mente.pasta(Saber.isCode(r.texto) ? "Códigos" : "Textos"); texto = r.texto; Mente.setTexto(f.name, r.texto);
       ultimoArquivo = { nome: f.name, texto: r.texto };
     } else {
-      Mente.setMidia(f.name, r.tipo);
+      const ocrMatch = String(r.resumo || "").match(/Texto que consegui ler na imagem:\s*\n[“"]([\s\S]+)[”"]\s*$/);
+      const ocrTexto = ocrMatch ? ocrMatch[1].trim() : "";
+      Mente.setMidia(f.name, r.tipo, ocrTexto);
+      ultimoArquivo = ocrTexto ? { nome: f.name, texto: ocrTexto } : null;
     }
     const a = Arquivos.salvar({ nome: f.name, pasta, texto, resumo: resposta.slice(0, 300), tipo: r.tipo });
-    falar(resposta + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos" + (texto && localStorage.getItem(KEY_API) ? "\n💡 Pergunte qualquer coisa sobre esse arquivo." : ""));
+    falar(resposta + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos" + ((texto || ultimoArquivo) && localStorage.getItem(KEY_API) ? "\n💡 Pergunte qualquer coisa sobre esse arquivo." : ""));
   } catch (e) { console.error(e); falar("Não consegui abrir esse arquivo. " + (e.message || "")); }
   finally { busy(false); }
 }
@@ -436,6 +458,7 @@ async function lerLinkMsg(url, texto, temIA) {
     const r = await Saber.lerLink(url), leitura = Saber.lerTexto(r.texto);
     const a = Arquivos.salvar({ nome: r.nome, pasta: Mente.pasta(Saber.isCode(r.texto) ? "Códigos" : "Textos"), texto: r.texto, resumo: leitura.slice(0, 300), tipo: "link" });
     ultimoArquivo = { nome: a.nome, texto: r.texto }; Mente.setTexto(a.nome, r.texto);
+    RizikBrain.logTopic(a.nome);
     if (temIA && texto.replace(url, "").trim().length > 3) { await perguntarIA(texto); return; }
     falar("🔗 Abri " + r.url + "\n\n" + leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\n💡 Agora pergunte: “o que é esse texto?”, “resume” ou “revisa o código”.", "bot", "🔗 link");
   } catch (e) { console.error(e); falar("Não consegui abrir esse link. Se for repositório privado ou uma página que bloqueia leitura, copie o texto e cole aqui. 📋"); }
@@ -457,22 +480,40 @@ async function seguir(texto) {
   if (/^(resuma|resume|resumir|resumo|mais curto|encurta|encurte|resumindo)( isso| tudo| a resposta)?$/.test(nt)) {
     falar(Fatos.resumir(base) || "Essa resposta já é curta. 🙂", "bot", "📝 resumo"); return true;
   }
-  if (/^(explique melhor|explica melhor|mais detalhes|detalhe|detalhes|aprofunde|aprofunda|me explique mais|conte mais|conta mais|fale mais|continue|e mais)( isso| sobre isso)?$/.test(nt) && ultimoTema && /fatos|internet/.test(ultimaOrigem)) {
-    await pesquisaProfunda(ultimoTema, true); return true;
+  if (/^(me\s+)?(explica|explique|explicar)(\s+isso|\s+melhor|\s+o\s+que\s+(e|eh)\s+isso)?$/.test(nt) ||
+      /^(mais detalhes|detalhe|detalhes|aprofunde|aprofunda|me explique mais|conte mais|conta mais|fale mais|continue|e mais)( isso| sobre isso)?$/.test(nt)) {
+    if (ultimoArquivo?.texto && /Guardei em:|Texto que consegui ler|Li o texto|Funções que encontrei/i.test(base)) {
+      const resp = Mente.responder("explica esse texto");
+      if (resp?.texto) { falar(resp.texto, "bot", "📖 explicação do contexto"); return true; }
+      falar("📌 Sobre **" + ultimoArquivo.nome + "**:\n\n" + (Fatos.resumir(ultimoArquivo.texto) || ultimoArquivo.texto.slice(0, 700)), "bot", "📖 explicação do contexto");
+      return true;
+    }
+    if (ultimoTema && /fatos|internet|dicionário/.test(ultimaOrigem)) {
+      await pesquisaProfunda(ultimoTema, true); return true;
+    }
+    if (base.length > 140) {
+      falar("📌 Resumindo o que eu acabei de dizer:\n\n" + (Fatos.resumir(base) || base.slice(0, 500)) + "\n\nSe quiser que eu explique um trecho específico, use ↩ Responder na mensagem ou pergunte o nome do assunto!", "bot", "🧠 explicação do contexto");
+      return true;
+    }
+    return false;
   }
   return false;
 }
 function ctxConversa() {
   let arquivos = 0; try { arquivos = (JSON.parse(localStorage.getItem("bach_arquivos_v1")) || []).length; } catch {}
-  const st = RizikBrain.getStats();
-  return { nome: RizikBrain.recall("userName"), hora: new Date().getHours(), aprendidas: st.examples, notas: st.notes, arquivos, conversas: Historico.listar(1).total };
+  const st = RizikBrain.getStats(), perf = RizikBrain.getProfile();
+  return {
+    nome: perf.userName, cidade: perf.city, gostos: perf.likes, projetos: perf.projects,
+    hora: new Date().getHours(), aprendidas: st.examples, notas: st.notes, arquivos,
+    conversas: Historico.listar(1).total
+  };
 }
 
 /* ---------- roteamento ---------- */
-const sn = t => String(t).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+const sn = t => String(t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 
 async function rotear(texto) {
-  const cmd = texto.toLowerCase().trim(), nt = sn(texto), temIA = !!localStorage.getItem(KEY_API);
+  const cmd = texto.toLowerCase().trim(), temIA = !!localStorage.getItem(KEY_API);
   if (aguardaCidade) {
     aguardaCidade = false;
     if (!/^\//.test(texto) && texto.split(/\s+/).length <= 5) return clima(texto.replace(/^(em|na|no|de|para)\s+/i, "").replace(/[?!.]+$/, ""));
@@ -481,20 +522,15 @@ async function rotear(texto) {
   if (/^\/importarbase\b/.test(cmd)) { falar("📥 Escolha o arquivo .json que você baixou com /basedados."); $("seletorBase").click(); return; }
   if (cmd.startsWith("/modelo ")) { localStorage.setItem(KEY_MODEL, texto.slice(8).trim()); falar("Modelo trocado para: " + texto.slice(8).trim()); return; }
 
-  /* ---------- NOVO: roteador de departamentos (registry.js) ----------
-     Ativa /calc, /converter, /juros, /fisica, /golpe, /quiz, /resposta,
-     /ideia, /historia, /personagem, /plano, /automacao, /humor,
-     /modulos, /statusmodulos e /modulo ID on|off.
-     Isso faltava: os 10 módulos novos nunca eram chamados por este arquivo. */
   const dept = SkillRouter.handle(texto, { hasAI: temIA, history });
   if (dept) { falar(dept.texto, "bot", dept.origem); return; }
 
   const links = Saber.urlsEm(texto);
-  // só é "link para ler" se a mensagem for curta e não for código colado (código também tem endereços dentro)
   if (links.length && texto.length < 400 && !Saber.isCode(texto) && texto.replace(links[0], "").trim().split(/\s+/).filter(Boolean).length <= 12) return lerLinkMsg(links[0], texto, temIA);
 
-  const prof = extrairProfundo(texto); if (prof !== null) return pesquisaProfunda(prof);
-  const cons = extrairPesquisa(texto); if (cons !== null) return pesquisaProfunda(cons, false);
+  const prof = extrairProfundo(texto); if (prof !== null) return pesquisaProfunda(prof, true);
+  const cons = extrairPesquisa(texto); if (cons !== null) return pesquisaProfunda(cons, modoProfundo);
+
   const cidSalva = (() => { try { return localStorage.getItem("bach_cidade"); } catch { return null; } })();
   if (/^(?:(?:qual|como)\s+(?:(?:est[aá]|[ée])\s+)?(?:a\s+|o\s+)?)?(?:clima|tempo|previs[aã]o(?:\s+do\s+tempo)?)(?:\s+(?:hoje|agora|amanh[aã]))?\s*\??$/i.test(texto) ||
       /^(?:tem|vai|vem|est[aá]|esta)\s+.{0,15}(?:chuva|chover|chovendo)(?:\s+(?:hoje|agora|amanh[aã]))?\s*\??$/i.test(texto)) {
@@ -506,29 +542,65 @@ async function rotear(texto) {
   const arq = Arquivos.comando(texto); if (arq) { falar(arq, "bot", "📁 seus arquivos"); return; }
   if (await seguir(texto)) return;
 
-  if (!Mente.jogando()) {
-    const eu = Fatos.sobreMim(texto); if (eu) { falar(eu, "bot", "🧠 sobre mim"); return; }
-    const fato = Fatos.responder(texto); if (fato) { ultimoTema = Mente.tema(texto) || texto; falar(fato, "bot", "📘 base de fatos"); return; }
-    const papo = Conversa.responder(texto, ctxConversa()); if (papo) { falar(papo, "bot", "💬 conversa"); return; }
-  }
-  const mt = Mente.responder(texto);
-  if (mt) {
-    if (mt.noticias) return noticias(mt.q);
-    if (mt.pesquisa) { if (temIA) return perguntarIA(texto); return pesquisaProfunda(mt.pesquisa, mt.fundo !== false); }
-    if (mt.apagar) { const r = Arquivos.comando("/apagar " + mt.apagar); falar(r || "Não consegui apagar esse arquivo.", "bot", "🗑️ arquivos"); return; }
-    falar(mt.texto, "bot", mt.origem || "🧠 minha mente"); return;
+  /* Dicionário e tradução (traduções, sinônimos, antônimos, /dicionario) */
+  const pedidoDic = Dic.detectar(texto);
+  if (pedidoDic && pedidoDic.tipo !== "def") {
+    passo("🌍 Consultando dicionário e tradutor...");
+    const respDic = await Dic.consultar(pedidoDic, passo);
+    if (respDic) {
+      if (pedidoDic.q) RizikBrain.logTopic(pedidoDic.q);
+      falar(respDic, "bot", "🌍 dicionário e tradução");
+      return;
+    }
   }
 
+  /* Memória, ensino, perfil automático e textos grandes */
   passo("🧠 Consultando minha memória...");
   const r = RizikBrain.think(texto);
-
   if (r.intent === "longtext") {
     const cod = Saber.isCode(texto), leitura = Saber.lerTexto(texto);
     const a = Arquivos.salvar({ texto, pasta: Mente.pasta(cod ? "Códigos" : "Textos"), resumo: leitura.slice(0, 300) });
     ultimoArquivo = { nome: a.nome, texto }; Mente.setTexto(a.nome, texto);
+    RizikBrain.logTopic(a.nome);
     if (temIA) { await perguntarIA(texto); return; }
-    falar(leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos\n💡 Agora pergunte: “o que é esse texto?”, “resume” ou “revisa o código”."); return;
+    falar(leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos\n💡 Agora pergunte: “o que é esse texto?”, “explica”, “resume” ou “revisa o código”."); return;
   }
+  const INTENTS_CONVERSA = new Set(["greeting", "wellbeing", "thanks", "goodbye", "encouragement", "positive"]);
+  if (r.handled && !INTENTS_CONVERSA.has(r.intent)) {
+    falar(r.text, "bot", "🧠 minha memória e regras");
+    return;
+  }
+
+  if (!Mente.jogando()) {
+    const eu = Fatos.sobreMim(texto); if (eu) { falar(eu, "bot", "🧠 sobre mim"); return; }
+    const fato = Fatos.responder(texto);
+    if (fato) {
+      ultimoTema = Mente.tema(texto) || texto;
+      RizikBrain.logTopic(ultimoTema);
+      falar(fato, "bot", "📘 base de fatos");
+      return;
+    }
+    if (pedidoDic && pedidoDic.tipo === "def") {
+      passo("📖 Consultando dicionário...");
+      const respDic = await Dic.consultar(pedidoDic, passo);
+      if (respDic) {
+        ultimoTema = pedidoDic.q;
+        RizikBrain.logTopic(pedidoDic.q);
+        falar(respDic, "bot", "📖 dicionário");
+        return;
+      }
+    }
+    const papo = Conversa.responder(texto, ctxConversa()); if (papo) { falar(papo, "bot", "💬 conversa"); return; }
+  }
+
+  const mt = Mente.responder(texto);
+  if (mt) {
+    if (mt.noticias) return noticias(mt.q);
+    if (mt.pesquisa) { if (temIA) return perguntarIA(texto); return pesquisaProfunda(mt.pesquisa, mt.fundo !== false); }
+    if (mt.apagar) { const resAp = Arquivos.comando("/apagar " + mt.apagar); falar(resAp || "Não consegui apagar esse arquivo.", "bot", "🗑️ arquivos"); return; }
+    falar(mt.texto, "bot", mt.origem || "🧠 minha mente"); return;
+  }
+
   if (r.handled) { falar(r.text, "bot", "🧠 minha memória e regras"); return; }
 
   if (temIA) { await perguntarIA(texto); return; }
@@ -538,11 +610,11 @@ async function rotear(texto) {
   const k = Saber.buscarConhecimento(texto); if (k) { falar(k, "bot", "📚 o que aprendi"); return; }
   if (Mente.pergunta(texto)) {
     const tm = Mente.tema(texto);
-    if (tm && tm.length > 2) return pesquisaProfunda(tm, true);
-    falar("Por que o quê? 🤔 Me dá um pouco mais de contexto pra eu entender sua pergunta.");
+    if (tm && tm.length >= 2) return pesquisaProfunda(texto, true);
+    falar("Não entendi qual assunto você quer saber 🤔. Me diga a pergunta completa!");
     return;
   }
-  falar(Prog.desconhecido(texto) + "\n\nVocê pode:\n• me pedir: jogar forca, crie uma calculadora, o que é ...\n• perguntar: /modulos (departamentos), /calc, /converter, /juros, /fisica\n• me ensinar: ensine: pergunta => resposta\n• pedir: pesquise a fundo sobre o assunto\n• colar um link para eu ler\n• clima em (sua cidade)\n\nDigite \"ajuda\" para ver tudo.");
+  falar(Prog.desconhecido(texto) + "\n\nVocê pode:\n• me pedir: jogar forca, crie uma calculadora, o que é ...\n• traduzir ou consultar palavras: como se diz ... em inglês / o que significa ...\n• perguntar: /modulos (departamentos), /calc, /converter, /juros, /fisica\n• me ensinar: ensine: pergunta => resposta\n• pedir: pesquise a fundo sobre o assunto\n• colar um link para eu ler\n• clima em (sua cidade)\n\nDigite \"ajuda\" para ver tudo.");
 }
 
 function ajustar() { entrada.style.height = "auto"; entrada.style.height = Math.min(entrada.scrollHeight, 130) + "px"; }
@@ -625,11 +697,11 @@ $("mic").onclick = () => {
   rec.start();
 };
 botao.onclick = enviar;
-entrada.addEventListener("input", ajustar); // Enter só pula de linha; enviar é só pelo botão
+entrada.addEventListener("input", ajustar);
 
 try { Historico.salvarAtual(history); } catch {}
 restaurar(); status.textContent = STATUS;
-if (!history.length) falar("Olá! Sou a BACH AI 🧠. Converso, resumo textos, programo, calculo, converto unidades, crio jogos e apps e jogo com você. Digite \"ajuda\" ou \"/modulos\" para ver tudo.");
+if (!history.length) falar("Olá! Sou a BACH AI 🧠. Converso, traduzo idiomas, lembro do que falamos, resumo textos, programo, calculo, crio jogos e apps e pesquiso na internet. Digite \"ajuda\" ou \"/modulos\" para ver tudo.");
 </script>
 </body>
 </html>
