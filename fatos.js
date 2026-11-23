@@ -1,12 +1,12 @@
 import { MAIS } from "./saberes.js?v=1";
 
-/* BACH AI 2.0
+/* BACH AI 2.1
    Base de fatos verificados + respostas sobre a própria BACH.
    Respostas sempre iguais para a mesma pergunta (nada aleatório).
    Só responde quando a pergunta cobre bem o assunto; senão devolve null
    e o sistema segue para a pesquisa na internet. */
 
-const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 
 const SEM_VALOR = new Set(("qual quais quem quanto quantos quantas como onde quando porque por que para pra o a os as um uma uns umas " +
@@ -21,10 +21,6 @@ const stem = w => {
 };
 const toks = t => norm(t).split(" ").filter(w => w && !SEM_VALOR.has(w)).map(stem);
 
-/* [frases separadas por |, resposta]
-   A pergunta precisa conter TODAS as palavras de uma frase, e essa frase precisa
-   ser pelo menos 75% das palavras úteis da pergunta. Assim "bandeira arco-íris"
-   não cai na resposta das cores do arco-íris. */
 const FATOS = [
 ["arco iris|cores arco iris|quantas cores arco iris|como forma arco iris|formacao arco iris|origem arco iris",
  "🌈 O arco-íris é um fenômeno óptico causado pela refração, reflexão interna e dispersão da luz do Sol em gotas de água. As cores, de fora para dentro, são sete (convenção de Isaac Newton): vermelho, laranja, amarelo, verde, azul, anil e violeta. Na natureza o espectro é contínuo; as sete cores são só uma forma de dividi-lo."],
@@ -255,7 +251,6 @@ function lev(a, b) {
   }
   return p[b.length];
 }
-/* corrige erros de digitação ("iries" -> "iris") só quando há um vizinho único e muito próximo */
 function consertar(lista) {
   return lista.map(w => {
     if (w.length < 4 || VOC.has(w)) return w;
@@ -286,11 +281,6 @@ function responder(texto) {
   let melhor = null, nota = 0;
   for (const e of BASE) {
     for (const f of e.frases) {
-      /* Uma "frase-chave" de uma só palavra e curta (ex.: a sigla "ue" de
-         União Europeia, ou "ia" de Inteligência Artificial) não pode, sozinha,
-         decidir uma resposta: ela colide com palavras e interjeições comuns
-         do dia a dia ("ué", "eu ia..."). Só conta quando vem acompanhada de
-         outras palavras no mesmo alias (ex.: "uniao europeia"). */
       if (f.size === 1 && [...f][0].length < 4) continue;
       let tudo = true;
       for (const w of f) if (!q.has(w)) { tudo = false; break; }
@@ -307,12 +297,12 @@ function responder(texto) {
 /* ---------- Perguntas sobre a própria BACH ---------- */
 const SOBRE = {
   nome: "Meu nome é BACH AI 🧠.",
-  quem: "Sou a BACH AI 🧠, uma assistente que roda inteira no seu navegador, criada por você neste projeto. Converso, guardo o que você me ensina, pesquiso na Wikipédia e na web, leio textos e códigos e ajudo com programação.",
-  servir: "Eu sirvo para:\n• conversar e aprender o que você me ensina (ensine: pergunta => resposta)\n• responder perguntas comuns com minha base de fatos\n• pesquisar na Wikipédia e na web e resumir citando as fontes (pesquise a fundo sobre ...)\n• ler textos, códigos e links que você colar ou anexar\n• explicar programação e montar apps e jogos simples\n• guardar arquivos em pastas e o histórico de conversas\n• contar piadas, curiosidades e charadas, e bater papo\n\nLimite: sem chave de IA externa eu não raciocino como o ChatGPT ou o Claude; eu escolho e organizo trechos. Para esse nível, conecte uma chave do Google AI Studio com /chave.",
-  como: "Funciono por regras e busca, tudo no seu navegador: entendo sua frase, procuro primeiro no que você me ensinou e na minha base de fatos, e só depois pesquiso na internet, comparando fontes. Eu não invento texto: escolho os melhores trechos e mostro a confiança. Se você conectar uma chave Gemini (/chave), passo a responder com uma IA de linguagem de verdade.",
-  ia: "Sou uma IA de regras e busca, não um modelo de linguagem grande como o ChatGPT ou o Claude. Isso me deixa previsível, privada (roda no seu aparelho) e honesta sobre o que não sei, mas menos flexível. Com uma chave Gemini (/chave) eu uso uma IA de linguagem de verdade.",
-  erro: "Você tem razão em cobrar. Sem IA externa eu erro quando a pergunta foge da minha base ou quando a busca traz páginas sem relação. O que mudou: a mesma pergunta agora sempre recebe a mesma resposta, só guardo pesquisas de confiança média ou alta, e quando não tenho certeza eu aviso. Para me corrigir: corrija: pergunta => resposta certa.",
-  limite: "Meus limites: não raciocino em várias etapas como um modelo grande; não executo código; não reconheço o que aparece em vídeos e, em fotos, só leio texto escrito (ainda não reconheço objetos ou pessoas); e posso errar em temas fora da base. Em troca eu aviso quando não sei e cito as fontes. Para mais precisão, conecte uma chave Gemini com /chave.",
+  quem: "Sou a BACH AI 🧠, uma assistente que roda inteira no seu navegador, criada por você neste projeto. Converso, guardo o que você me ensina e o que conversamos, traduzo em vários idiomas, pesquiso na Wikipédia e na web, leio textos e códigos e ajudo com programação.",
+  servir: "Eu sirvo para:\n• conversar, lembrar do que você me conta e aprender respostas novas (ensine: pergunta => resposta)\n• traduzir e explicar palavras em vários idiomas (dicionario.js)\n• responder perguntas comuns com minha base de fatos\n• pesquisar na Wikipédia e na web e resumir citando as fontes (pesquise a fundo sobre ...)\n• ler textos, códigos e links que você colar ou anexar\n• explicar programação e montar apps e jogos simples\n• guardar arquivos em pastas e o histórico de conversas\n• contar piadas, curiosidades e charadas\n\nLimite: sem chave de IA externa eu não raciocino como o ChatGPT ou o Claude; eu sigo regras, memória e busca. Para esse nível, conecte uma chave do Google AI Studio com /chave.",
+  como: "Funciono por regras, memória local e busca, tudo no seu navegador: entendo sua frase, verifico o que lembro de você e o que você me ensinou, consulto minha base de fatos/dicionário e, se precisar, pesquiso na internet comparando fontes. Se você conectar uma chave Gemini (/chave), passo a responder com uma IA de linguagem de verdade.",
+  ia: "Sou uma IA de regras, memória e busca, não um modelo de linguagem grande como o ChatGPT ou o Claude. Isso me deixa previsível, privada (roda no seu aparelho) e honesta sobre o que não sei. Com uma chave Gemini (/chave) eu uso uma IA de linguagem de verdade.",
+  erro: "Você tem razão em cobrar. Sem IA externa eu erro quando a pergunta foge da minha base ou quando a busca traz páginas sem relação. Para me corrigir: corrija: pergunta => resposta certa.",
+  limite: "Meus limites: não raciocino em várias etapas como um modelo grande; não executo código; não reconheço o que aparece em vídeos e, em fotos, só leio texto escrito (ainda não reconheço objetos ou pessoas). Em troca eu aviso quando não sei e cito as fontes. Para mais precisão, conecte uma chave Gemini com /chave.",
   melhor: "Sinceramente: não sou melhor que o ChatGPT ou o Claude em conhecimento e raciocínio, porque eles são modelos enormes. Meu ponto forte é rodar no seu navegador, aprender o que você ensina e mostrar de onde veio cada resposta. Conectando uma chave Gemini (/chave) você ganha o melhor dos dois."
 };
 
@@ -337,12 +327,10 @@ function sobreMim(texto) {
   return null;
 }
 
-/* Pergunta sobre a própria BACH que não deve ir para a internet */
 const semEmoji = s => String(s).replace(/^[^\p{L}\p{N}"“(]+/u, "").trim();
 const maiuscula = s => s.charAt(0).toUpperCase() + s.slice(1);
 const corpo = t => String(t || "").split(/\n\s*(?:Fontes|🔍|ℹ️|💾|🚫)/)[0].trim();
 
-/* "me conte em numeração": transforma a resposta anterior em lista numerada */
 function enumerar(texto) {
   const base = corpo(texto);
   if (!base) return null;
