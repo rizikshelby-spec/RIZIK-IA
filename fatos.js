@@ -1,7 +1,7 @@
 import { MAIS } from "./saberes.js?v=1";
 
-/* BACH AI 2.4
-   Base de fatos verificados + respostas sobre a própria BACH.
+/* BACH AI 2.5
+   Base de fatos verificados + distâncias espaciais/geográficas + respostas sobre a própria BACH.
    Sem lookbehind (compatível com todas as versões de iOS/Android). */
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -10,7 +10,7 @@ const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u030
 const SEM_VALOR = new Set(("qual quais quem quanto quantos quantas como onde quando porque por que para pra o a os as um uma uns umas " +
   "de do da dos das em no na nos nas e eh ao aos me se fale fala falar diga dizer explique explica explicar sobre significa " +
   "significado definicao conceito mesmo voce vc eu sao foi ser ha tem existe existem exatamente basicamente resumo resuma " +
-  "conte conta pode poderia favor pf entao ai tipo seria era passe passa manda mande quero preciso gostaria crie cria faca fazer ajuda ajude algum alguma uns umas pesquise pesquisa busque procure ensina ensine mostra mostre bach").split(" "));
+  "conte conta pode poderia favor pf entao ai tipo seria era passe passa manda mande quero preciso gostaria crie cria faca fazer ajuda ajude algum alguma uns umas pesquise pesquisa busque procure ensina ensine mostra mostre bach ate fica").split(" "));
 
 const stem = w => {
   w = w.replace(/(coes|oes|aes)$/, "ao");
@@ -32,6 +32,18 @@ const FATOS = [
  "🪐 O planeta mais quente é Vênus (cerca de 465 °C na superfície), por causa do efeito estufa intenso da sua atmosfera de CO₂. Mercúrio está mais perto do Sol, mas quase não tem atmosfera para reter calor."],
 ["planeta vermelho",
  "🪐 O planeta vermelho é Marte. A cor vem do óxido de ferro (ferrugem) na superfície."],
+["distancia marte|distancia terra marte|marte distancia|longe marte|marte terra",
+ "🚀 A distância entre a Terra e Marte varia conforme suas órbitas: a média é de ~225 milhões de km. Na máxima aproximação registrada pode chegar a ~54,6 milhões de km, e no ponto mais distante passa de 400 milhões de km. Do Sol, Marte fica a ~228 milhões de km (1,52 UA)."],
+["distancia lua|distancia terra lua|lua distancia|longe lua|terra lua",
+ "🌙 A distância média entre a Terra e a Lua é de cerca de 384.400 km (variando entre ~363 mil km no perigeu e ~405 mil km no apogeu). A luz leva cerca de 1,28 segundo para ir da Terra à Lua."],
+["distancia sol|distancia terra sol|sol distancia|longe sol|unidade astronomica",
+ "☀️ A Terra fica em média a ~149,6 milhões de km do Sol — distância chamada de 1 Unidade Astronômica (UA). A luz solar leva cerca de 8 minutos e 20 segundos para chegar aqui."],
+["distancia mercurio|mercurio distancia|distancia venus|venus distancia|distancia jupiter|jupiter distancia|distancia saturno|saturno distancia|distancia urano|urano distancia|distancia netuno|netuno distancia",
+ "🪐 Distâncias médias dos planetas até o Sol:\n• Mercúrio: ~58 milhões de km (0,39 UA)\n• Vênus: ~108 milhões de km (0,72 UA)\n• Terra: ~150 milhões de km (1 UA)\n• Marte: ~228 milhões de km (1,52 UA)\n• Júpiter: ~778 milhões de km (5,2 UA)\n• Saturno: ~1,43 bilhão de km (9,5 UA)\n• Urano: ~2,87 bilhões de km (19,2 UA)\n• Netuno: ~4,5 bilhões de km (30 UA)"],
+["ano luz|anos luz",
+ "✨ Um ano-luz é a distância que a luz percorre no vácuo em 1 ano: cerca de 9,46 trilhões de km (não é medida de tempo, e sim de distância!)."],
+["andromeda|galaxia mais proxima|distancia andromeda",
+ "🌌 A galáxia espiral grande mais próxima da Via Láctea é Andrômeda (M31), a cerca de 2,5 milhões de anos-luz de distância."],
 ["sol|estrela sol",
  "☀️ O Sol é uma estrela anã amarela (tipo G) no centro do Sistema Solar. Concentra cerca de 99,86% da massa do sistema. Fica a ~149,6 milhões de km da Terra (1 unidade astronômica) e sua luz leva cerca de 8 minutos e 20 segundos para chegar aqui."],
 ["lua|satelite natural terra",
@@ -42,6 +54,8 @@ const FATOS = [
  "🌌 A Via Láctea é a galáxia espiral onde fica o Sistema Solar. Tem algo entre 100 e 400 bilhões de estrelas e cerca de 100 mil anos-luz de diâmetro."],
 ["estacoes ano|estacoes|causa estacoes|por que existem estacoes",
  "🍂 As estações do ano acontecem porque o eixo da Terra é inclinado cerca de 23,5° em relação à órbita. Quando um hemisfério recebe os raios solares mais diretamente, é verão ali; no outro é inverno. Não é a distância até o Sol que causa isso."],
+["rotacao terra|translacao terra|movimentos terra",
+ "🌍 A Terra faz dois movimentos principais: **rotação** (gira em torno do próprio eixo em ~23h 56min, causando os dias e noites) e **translação** (dá a volta ao redor do Sol em ~365 dias e 6 horas, originando os anos)."],
 ["plutao",
  "🪐 Plutão é um planeta anão (desde 2006, decisão da União Astronômica Internacional) no Cinturão de Kuiper. Foi descoberto em 1930 por Clyde Tombaugh."],
 ["idade terra|idade da terra|quantos anos terra",
@@ -66,8 +80,8 @@ const FATOS = [
  "🧊 Os estados físicos da matéria mais comuns são sólido, líquido e gasoso. Há também o plasma (gás ionizado, como no Sol)."],
 ["agua formula|composicao agua|h2o|formula agua|ponto ebulicao agua|agua ferve|agua congela|ponto congelamento agua|temperatura ebulicao agua",
  "💧 A água é H₂O: dois átomos de hidrogênio e um de oxigênio. Ao nível do mar ela congela a 0 °C e ferve a 100 °C (a temperatura de ebulição cai com a altitude)."],
-["som|velocidade som|velocidade do som",
- "🔊 No ar a 20 °C o som viaja a cerca de 343 m/s (≈ 1.235 km/h). Na água é mais rápido (~1.480 m/s)."],
+["som|velocidade som|velocidade do som|barreira som|mach",
+ "🔊 No ar a 20 °C o som viaja a cerca de 343 m/s (≈ 1.235 km/h — velocidade conhecida como Mach 1). Na água é mais rápido (~1.480 m/s)."],
 ["lei ohm|corrente eletrica|ohm",
  "⚡ Lei de Ohm: V = R · I (tensão em volts = resistência em ohms × corrente em ampères). Potência elétrica: P = V · I."],
 ["cores primarias|cor primaria|rgb|cores primarias luz",
@@ -148,6 +162,8 @@ const FATOS = [
  "🌍 A população mundial é de cerca de 8,1 bilhões de pessoas (estimativa da ONU para 2024). O número cresce todo ano."],
 ["maior oceano|oceano maior",
  "🌊 O maior oceano é o Pacífico: cerca de 165 milhões de km², aproximadamente um terço da superfície da Terra."],
+["fossa marianas|ponto mais profundo oceano|lugar mais fundo mar",
+ "🌊 O ponto mais profundo dos oceanos é a Fossa das Marianas (no Oceano Pacífico), com quase 11 km de profundidade (~10.984 m)."],
 ["continentes|quantos continentes",
  "🌍 Depende do modelo: 6 continentes (África, América, Antártida, Ásia, Europa e Oceania) ou 7, quando América do Norte e América do Sul são contadas separadas."],
 ["rio mais longo|maior rio|rio maior|rio mais extenso",
@@ -176,6 +192,14 @@ const FATOS = [
  "🏛️ O Império Romano do Ocidente caiu em 476 d.C., quando Odoacro depôs o imperador Rômulo Augústulo. O do Oriente (Bizantino) durou até 1453."],
 ["piramides gize|piramide queops|piramides egito",
  "🔺 As pirâmides de Gizé (Egito) foram construídas como tumbas de faraós há cerca de 4.500 anos. A Grande Pirâmide é a de Quéops (~2560 a.C.), com ~139 m de altura atual."],
+["quem inventou aviao|irmaos wright|santos dumont",
+ "✈️ Os irmãos Wright realizaram o primeiro voo controlado e motorizado em 1903 (com auxílio de trilho/catapulta), enquanto Alberto Santos Dumont fez em 1906, em Paris, o famoso voo público do 14-Bis decolando por meios próprios."],
+["quem inventou lampada|thomas edison",
+ "💡 Thomas Edison aperfeiçoou e comercializou a lâmpada elétrica incandescente prática em 1879, após vários inventores anteriores (como Humphry Davy e Joseph Swan) desenvolverem protótipos."],
+["quem inventou telefone|graham bell",
+ "📞 Alexander Graham Bell patenteou o telefone em 1876 (Antonio Meucci já havia construído protótipos anos antes)."],
+["quem inventou computador|charles babbage|alan turing",
+ "💻 Charles Babbage projetou a Máquina Analítica no século XIX (com algoritmos de Ada Lovelace), e Alan Turing formalizou a base da computação moderna nos anos 1930-40."],
 ["internet|o que e internet",
  "🌐 Internet é a rede mundial de redes de computadores interligadas, que trocam dados por protocolos como o TCP/IP. A Web (sites, navegadores, HTTP) é só um dos serviços que rodam nela. Sua origem é a ARPANET, nos anos 1960-70."],
 ["inteligencia artificial",
