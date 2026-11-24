@@ -1,5 +1,6 @@
-/* BACH AI - CÉREBRO 0.9.3
-   Conversa, memória automática do usuário e dos assuntos, aprendizado, autocorreção e backup. */
+/* BACH AI - CÉREBRO 1.0
+   Conversa, memória automática do usuário do início ao fim da sessão,
+   perfil adaptativo de humor/tom, aprendizado contínuo com correções e backup. */
 
 const KEY = "rizik_brain_v1";
 const BASE = {
@@ -8,9 +9,18 @@ const BASE = {
   examples: [],
   synonyms: {},
   notes: [],
-  profile: { likes: [], dislikes: [], city: null, age: null, projects: [], favorites: {} },
+  profile: {
+    likes: [],
+    dislikes: [],
+    city: null,
+    age: null,
+    projects: [],
+    favorites: {},
+    humorScore: 0,
+    interactions: 0
+  },
   topics: [],
-  version: 9
+  version: 10
 };
 
 function load() {
@@ -21,7 +31,7 @@ function load() {
         ...BASE,
         ...s,
         name: "BACH AI",
-        version: 9,
+        version: 10,
         facts: s.facts || {},
         examples: Array.isArray(s.examples) ? s.examples : [],
         synonyms: s.synonyms || {},
@@ -32,7 +42,9 @@ function load() {
           likes: Array.isArray(s.profile?.likes) ? s.profile.likes : [],
           dislikes: Array.isArray(s.profile?.dislikes) ? s.profile.dislikes : [],
           projects: Array.isArray(s.profile?.projects) ? s.profile.projects : [],
-          favorites: s.profile?.favorites || {}
+          favorites: s.profile?.favorites || {},
+          humorScore: Number.isFinite(s.profile?.humorScore) ? s.profile.humorScore : 0,
+          interactions: Number.isFinite(s.profile?.interactions) ? s.profile.interactions : 0
         },
         topics: Array.isArray(s.topics) ? s.topics : []
       };
@@ -45,6 +57,7 @@ function load() {
 
 let data = load();
 let pending = null;
+let pendingError = null;
 
 function save() {
   try {
@@ -59,6 +72,12 @@ function normalize(t) {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\bqm\b/g, "quem")
+    .replace(/\bvc\b/g, "voce")
+    .replace(/\b(oq|oqe|oque)\b/g, "o que")
+    .replace(/\bpq\b/g, "porque")
+    .replace(/\b(tb|tbm|tmb)\b/g, "tambem")
+    .replace(/\bcvs\b/g, "conversar")
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -152,6 +171,15 @@ function learn(q, a) {
   return true;
 }
 
+function learnSynonym(from, to) {
+  const a = normalize(from).replace(/\s+/g, "");
+  const b = normalize(to);
+  if (!a || !b || b.includes(" ")) return false;
+  data.synonyms[a] = b;
+  save();
+  return true;
+}
+
 function forget(q) {
   const key = applySyn(q);
   const n = data.examples.length;
@@ -171,10 +199,10 @@ function recall(k) {
 
 function logTopic(topic) {
   const clean = String(topic || "").trim().slice(0, 80);
-  if (!clean || clean.length < 3) return;
+  if (!clean || clean.length < 2) return;
   data.topics = data.topics.filter(x => normalize(x.topic) !== normalize(clean));
   data.topics.push({ topic: clean, at: Date.now() });
-  data.topics = data.topics.slice(-50);
+  data.topics = data.topics.slice(-100);
   save();
 }
 
@@ -194,6 +222,79 @@ function getStats() {
     notes: data.notes.length
   };
 }
+
+/* ---------- Termômetro Adaptativo de Humor e Tom ---------- */
+
+function detectTone(raw) {
+  const s = String(raw || "");
+  const n = normalize(s);
+  const rindo = /😂|🤣|😄|😆|😜|🤪|\b(k{3,}|ha{2,}h?a?|rsrs+|hehe+|hue+)\b/i.test(s);
+  const brincadeira = /\b(piada|charada|brincar|diverte|engracado|zoeira|humor)\b/.test(n);
+  const frustrado = /\b(burro|burra|idiota|inutil|lixo|errou|errado|errada|nada a ver|nada haver|nao entende|nao entendeu|nunca entende|pqp|crlh|merda|porra|chato|chata|ruim|horrivel|droga|para de errar|muitos erros)\b/.test(n);
+  const triste = /\b(triste|mal|ansioso|ansiosa|chorando|deprimido|cansado|cansada|desanimado|morrer|suicid)\b/.test(n);
+  const serio = /\b(codigo|erro|bug|problema|configuracao|trabalho|curriculo|revisar|contrato|golpe|imc|medico|resumo|estudar)\b/.test(n);
+
+  if (frustrado) return "frustrado";
+  if (triste) return "triste";
+  if (rindo || brincadeira) return "descontraido";
+  if (serio || s.length > 180) return "serio";
+  return "neutro";
+}
+
+function updateTone(raw) {
+  const instant = detectTone(raw);
+  let score = Number(data.profile.humorScore || 0);
+
+  if (instant === "frustrado") score = Math.max(-4, score - 2);
+  else if (instant === "triste") score = Math.min(0, score - 1);
+  else if (instant === "serio") score = Math.max(-3, score - 0.5);
+  else if (instant === "descontraido") score = Math.min(4, score + 1.5);
+  else score = score > 0 ? Math.max(0, score - 0.15) : Math.min(0, score + 0.15);
+
+  data.profile.humorScore = Number(score.toFixed(2));
+  data.profile.interactions = (data.profile.interactions || 0) + 1;
+  save();
+
+  const mood =
+    instant === "frustrado" ? "frustrado" :
+    instant === "triste" ? "triste" :
+    instant === "serio" ? "serio" :
+    score >= 1.2 || instant === "descontraido" ? "descontraido" :
+    score <= -1.2 ? "serio" : "neutro";
+
+  return { mood, instant, score: data.profile.humorScore };
+}
+
+function getMood() {
+  const score = Number(data.profile.humorScore || 0);
+  return {
+    score,
+    mood: score >= 1.2 ? "descontraido" : score <= -1.2 ? "serio" : "neutro",
+    humorAllowed: score >= 0.8
+  };
+}
+
+function setPendingError(question, botResponse = "") {
+  if (!question) return;
+  pendingError = {
+    question: String(question).trim(),
+    botResponse: String(botResponse || "").slice(0, 200),
+    at: Date.now()
+  };
+}
+
+function getPendingError() {
+  if (pendingError && (Date.now() - pendingError.at) > 5 * 60 * 1000) {
+    pendingError = null;
+  }
+  return pendingError;
+}
+
+function clearPendingError() {
+  pendingError = null;
+}
+
+/* ---------- Captura contínua de memória ---------- */
 
 function pushUnique(arr, val, max = 30) {
   const v = val.trim().replace(/[.!]+$/, "");
@@ -313,7 +414,7 @@ const HELP =
   "• ensine: pergunta => resposta\n" +
   "• corrija: pergunta => nova resposta\n" +
   "• esqueça: pergunta\n" +
-  "• sinônimo: gíria = palavra (ou sinônimos: top, daora = legal)\n" +
+  "• sinônimo: gíria = palavra\n" +
   "• meu nome é ... / eu gosto de ... / moro em ...\n\n" +
   "🎨 Visual e Modos\n" +
   "• Use o menu ☰ ou peça: “tema vermelho”, “tema azul”, “tema neon”...\n" +
@@ -323,10 +424,7 @@ const HELP =
   "• escreva um e-mail / plano de estudos / diferença entre X e Y\n" +
   "• o que significa ... / como se diz ... em inglês / clima em (sua cidade)\n\n" +
   "🛠️ Ferramentas rápidas\n" +
-  "• /calc • /converter • /juros • /fisica • /golpe • /quiz\n\n" +
-  "📁 Arquivos e Histórico\n" +
-  "• botão + para anexar fotos, vídeos e textos\n" +
-  "• /arquivos, /abrir nome, /buscar palavra, /apagar nome • /historico • /nova • /clear";
+  "• /ajuda • /app pomodoro • /calc • /converter • /juros • /fisica • /golpe • /quiz";
 
 function buildMemorySummary() {
   const nome = recall("userName");
@@ -340,11 +438,13 @@ function buildMemorySummary() {
   if (p.projects.length) parts.push("• Projetos/estudos: " + p.projects.join(", "));
   const favs = Object.entries(p.favorites || {});
   if (favs.length) parts.push("• Favoritos: " + favs.map(([k, v]) => k + " = " + v).join("; "));
-  if (data.topics.length) parts.push("• Últimos assuntos conversados: " + data.topics.slice(-6).map(x => x.topic).join(", "));
+  const estilo = p.humorScore >= 1.2 ? "descontraído / bem-humorado" : p.humorScore <= -1.2 ? "direto / sério" : "equilibrado";
+  parts.push("• Estilo que percebi em você: " + estilo);
+  if (data.topics.length) parts.push("• Assuntos que já conversamos (" + data.topics.length + "): " + data.topics.slice(-10).map(x => x.topic).join(", "));
   if (data.notes.length) parts.push("• Notas salvas: " + data.notes.slice(-5).map(n => n.text).join(" | "));
   return parts.length
     ? "🧠 Isto é o que eu lembro sobre você e nossas conversas:\n\n" + parts.join("\n")
-    : "Ainda sei pouco sobre você! Me conte seu nome, o que você gosta ou o que está fazendo que eu guardo tudo. 😊";
+    : "Ainda sei pouco sobre você! Me conte seu nome, o que você gosta ou o que está fazendo que eu guardo tudo.";
 }
 
 function think(message) {
@@ -367,7 +467,8 @@ function think(message) {
   let m = original.match(/^(?:ensine|corrija|corrigir)\s*:\s*(.+?)\s*=>\s*(.+)$/is);
   if (m) {
     learn(m[1], m[2]);
-    return R("Aprendi! 🧠 Guardei essa resposta na memória.", "learning");
+    clearPendingError();
+    return R("Aprendi! 🧠 Guardei essa resposta na memória e já vou usar daqui pra frente.", "learning");
   }
 
   m = original.match(/^(?:esque[cç]a|apague)\s*:\s*(.+)$/i);
@@ -398,7 +499,7 @@ function think(message) {
     const nome = limpo ? limpo.charAt(0).toUpperCase() + limpo.slice(1) : "";
     if (nome) {
       remember("userName", nome);
-      return R(`Prazer, ${nome}! Vou lembrar do seu nome sempre que você voltar. 😊`, "name-set");
+      return R(`Prazer, ${nome}! Vou lembrar do seu nome sempre que você voltar.`, "name-set");
     }
   }
 
@@ -438,8 +539,9 @@ function think(message) {
 
   if (/^(estatisticas|status|memoria)$/.test(t)) {
     const s = getStats();
+    const mInfo = getMood();
     return R(
-      `🧠 Respostas aprendidas: ${s.examples}\nSinônimos: ${s.synonyms}\nFatos: ${s.facts}\nNotas: ${s.notes}\nAssuntos lembrados: ${data.topics.length}`,
+      `🧠 Respostas aprendidas: ${s.examples}\nSinônimos: ${s.synonyms}\nFatos: ${s.facts}\nNotas: ${s.notes}\nAssuntos lembrados: ${data.topics.length}\nEstilo de tom percebido: ${mInfo.mood} (${mInfo.score})`,
       "stats"
     );
   }
@@ -457,7 +559,7 @@ function think(message) {
   const intent = classify(original);
 
   if (intent === "identity") {
-    return R("Sou a BACH AI! 🧠 Fui criada por Rizik para ajudar todo mundo de graça — com memória, leitura de fotos/vídeos/códigos, temas e pesquisa na internet.", intent);
+    return R("Sou a BACH AI! 🧠 Fui criada por Rizik para ajudar todo mundo de graça — com memória contínua, leitura de fotos/vídeos/códigos, temas e pesquisa na internet.", intent);
   }
 
   const { item, score } = bestExample(original);
@@ -472,38 +574,39 @@ function think(message) {
   }
 
   const nome = recall("userName");
+  const { mood } = getMood();
   switch (intent) {
     case "greeting":
       return R(pick([
-        nome ? `Olá, ${nome}! Sou a BACH AI 🧠. Como você está?` : "Olá! Sou a BACH AI 🧠. Como você está?",
-        "Oi! Que bom te ver por aqui! 😄"
+        nome ? `Olá, ${nome}! Como você está?` : "Olá! Sou a BACH AI 🧠. Como você está?",
+        nome ? `Oi, ${nome}! Em que posso ajudar hoje?` : "Oi! Em que posso ajudar?"
       ]), intent);
     case "encouragement":
-      return R(pick(["Bora! 🚀 Estou pronta! O que vamos fazer?", "Partiu! 💪 Me diga o que precisa."]), intent);
+      return R(mood === "descontraido" ? "Bora! 🚀 O que vamos fazer agora?" : "Certo, pode mandar o que você precisa.", intent);
     case "positive":
-      return R(pick(["Que bom! 😄", "Show! 🙌"]), intent);
+      return R(mood === "descontraido" ? "Show! 🙌" : "Ótimo!", intent);
     case "wellbeing":
-      return R("Estou ótima e pronta para conversar com você! 😄", intent);
+      return R(mood === "descontraido" ? "Estou ótima e pronta pra ajudar! 😄 E você?" : "Estou bem, obrigada. Como posso ajudar?", intent);
     case "thanks":
-      return R(pick(["Por nada! Sempre que precisar, estou aqui. 😊", "Disponha! 💜"]), intent);
+      return R("Por nada! Sempre que precisar, estou aqui.", intent);
     case "goodbye":
-      return R(pick(["Até mais! 👋", "Até logo! Volte sempre! 💜"]), intent);
+      return R("Até logo! Tudo que conversamos continua salvo aqui.", intent);
     case "capabilities":
-      return R("Posso conversar, lembrar de você quando voltar ao site, mudar meu tema visual, traduzir idiomas, ler fotos/vídeos/códigos, recomendar filmes/animes/músicas, escrever textos, calcular, jogar e pesquisar na internet! 🧠", intent);
+      return R("Posso conversar acompanhando seu estilo, lembrar do que falamos do começo ao fim, mudar temas, criar apps (`/app`), traduzir idiomas, ler fotos/vídeos/códigos e pesquisar na internet.", intent);
     case "canread":
-      return R("Sim! Leio textos, códigos, links, fotos (inclusive prints em modo escuro) e vídeos. Resumo, explico funções e reviso códigos.", intent);
+      return R("Sim! Leio textos, códigos, links, fotos (inclusive prints em modo escuro) e vídeos.", intent);
     case "time":
       return R("Agora são " + new Date().toLocaleTimeString("pt-BR") + ".", intent);
     case "date":
       return R("Hoje é " + new Date().toLocaleDateString("pt-BR") + ".", intent);
     case "name":
-      return R(nome ? "Seu nome é **" + nome + "**! 😊" : "Ainda não sei seu nome. Diga: meu nome é ...", intent);
+      return R(nome ? "Seu nome é **" + nome + "**." : "Ainda não sei seu nome. Diga: meu nome é ...", intent);
     case "city":
       return R(data.profile.city ? "Você me disse que é de " + data.profile.city + ". 📍" : "Ainda não sei onde você mora. Pode me contar!", intent);
     case "age":
-      return R(data.profile.age ? "Você me disse que tem " + data.profile.age + " anos. 🎂" : "Ainda não sei sua idade. Se quiser, pode me contar!", intent);
+      return R(data.profile.age ? "Você me disse que tem " + data.profile.age + " anos. 🎂" : "Ainda não sei sua idade.", intent);
     case "likes":
-      return R(data.profile.likes.length ? "Você me contou que gosta de: " + data.profile.likes.join(", ") + ". 💜" : "Ainda não sei do que você gosta. Me conta!", intent);
+      return R(data.profile.likes.length ? "Você me contou que gosta de: " + data.profile.likes.join(", ") + "." : "Ainda não sei do que você gosta. Me conta!", intent);
     case "memorySummary":
       return R(buildMemorySummary(), intent);
     default:
@@ -514,6 +617,7 @@ function think(message) {
 export const RizikBrain = {
   think,
   learn,
+  learnSynonym,
   forget,
   remember,
   recall,
@@ -521,5 +625,11 @@ export const RizikBrain = {
   getRecentTopics,
   getProfile,
   getStats,
-  normalize
+  normalize,
+  updateTone,
+  getMood,
+  detectTone,
+  setPendingError,
+  getPendingError,
+  clearPendingError
 };
