@@ -392,3 +392,31 @@ function ajudaComandos(isAdm) {
     "• `/arquivos` • `/abrir nome` • `/buscar palavra` • `/apagar nome`\n" +
     "• `/pasta Nome` • `/pastas` • `/mover arquivo para Pasta`\n" +
     "• `/palavra giria = significado` • `/palavras` • `/profundo assunto`\n" +
+    "• `/historico` • `/nova` • `/clear` • `/copiar` • `/auditar` • `/exportar`";
+
+  if (isAdm) {
+    out += "\n\n👑 **COMANDOS DE ADMINISTRADOR:**\n" +
+      "• **Menu ☰ → 🚨 Erros do Público** — ver, buscar, selecionar, excluir ou copiar todos os erros\n" +
+      "• `/erroremoto https://ntfy.sh/canal` — receber erros de outros aparelhos em tempo real\n" +
+      "• `/tudotxt` — gera todos os 40 módulos alinhados com final `.txt` para copiar/baixar\n" +
+      "• `/editar` — trocar ou criar módulo/arquivo direto pelo chat\n" +
+      "• `/ghconfig usuario/repo TOKEN` • `/ghsair` — publicação direta no GitHub\n" +
+      "• `/basedados` • `/importarbase` — backup completo do sistema\n" +
+      "• `/diagnostico` • `/rollback` — saúde do sistema e restauração\n" +
+      "• `/modulos` • `/modulo ID on|off` — ligar/desligar departamentos\n" +
+      "• `/ia status` • `/chave ...` • `/modelo ...` — motor externo opcional";
+  }
+
+  return out;
+}
+
+export const EditorADM = {
+  MODULOS_SITE,
+  ativo,
+  resetar,
+  ehPedidoTudoTxt,
+  gerarPacoteTxt,
+  comandoConfig,
+  processar,
+  ajudaComandos
+};
