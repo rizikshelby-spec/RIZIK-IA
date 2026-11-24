@@ -776,7 +776,6 @@ async function rotear(texto) {
   const cmd = texto.toLowerCase().trim(), temIA = LLM.hasModel();
   const tn = sn(texto);
 
-  // 0) Reconhecimento do criador (@rizik2442)
   if (/@rizik2442/i.test(texto)) {
     modoCriador = true;
     try { localStorage.setItem(KEY_CRIADOR, "1"); } catch {}
@@ -800,30 +799,25 @@ async function rotear(texto) {
   if (/^\/importarbase\b/.test(cmd)) { falar("📥 Escolha o arquivo .json que você baixou com /basedados."); $("seletorBase").click(); return; }
   if (/^(sobre|sobre a bach|versao|quem criou|sobre o app)$/i.test(tn)) { abrirSobre(); return; }
 
-  // 1) Jogo ativo
   if (Mente.jogando()) {
     const mtJogo = Mente.responder(texto);
     if (mtJogo) { falar(mtJogo.texto, "bot", mtJogo.origem || "🎮 jogo"); return; }
   }
 
-  // 2) Arquivos e pastas
   const arq = Arquivos.comando(texto); if (arq) { falar(arq, "bot", "📁 seus arquivos"); return; }
   if (/^\/(pastas?|mover|palavras?)\b/i.test(texto)) {
     const mtCmd = Mente.responder(texto);
     if (mtCmd) { falar(mtCmd.texto, "bot", mtCmd.origem); return; }
   }
 
-  // 3) Ferramentas exatas e departamentos
   const dept = SkillRouter.handle(texto, { hasAI: temIA, history, mode: modoAtual });
   if (dept) { falar(dept.texto, "bot", dept.origem); return; }
 
-  // 4) Links colados
   const links = Saber.urlsEm(texto);
   if (links.length && texto.length < 400 && !Saber.isCode(texto) && texto.replace(links[0], "").trim().split(/\s+/).filter(Boolean).length <= 12) {
     return lerLinkMsg(links[0], texto, temIA);
   }
 
-  // 5) Memória, ensino explícito e textos/códigos grandes (ANTES de mídia!)
   passo("🧠 Consultando minha memória...");
   const r = RizikBrain.think(texto);
   if (r.intent === "longtext") {
@@ -846,7 +840,6 @@ async function rotear(texto) {
     return;
   }
 
-  // 6) Pergunta sobre áudio de vídeo ou texto de foto/vídeo recente
   const ehCurtaNaoCodigo = !Saber.isCode(texto) && texto.length <= 160 && tn.split(" ").length <= 18;
   if (ehCurtaNaoCodigo && ultimaMidiaInfo?.tipo === "video" && /\b(audio|som|voz|fala|falou|disse|falei|cantou)\b/.test(tn)) {
     falar("🎬 Eu ainda não transcrevo a fala ou áudio dentro de vídeos — por enquanto analiso duração, resolução, cores predominantes e textos escritos na tela do vídeo.", "bot", "🎬 análise de vídeo");
@@ -868,7 +861,6 @@ async function rotear(texto) {
     if (ultimaMidiaInfo) { falar(ultimaMidiaInfo.resumo, "bot", "👁️ análise de mídia"); return; }
   }
 
-  // 7) Clima
   const cidSalva = (() => { try { return localStorage.getItem("bach_cidade"); } catch { return null; } })();
   if (/^(?:(?:qual|como)\s+(?:(?:est[aá]|[ée])\s+)?(?:a\s+|o\s+)?)?(?:clima|tempo|previs[aã]o(?:\s+do\s+tempo)?)(?:\s+(?:hoje|agora|amanh[aã]))?\s*\??$/i.test(texto) ||
       /^(?:tem|vai|vem|est[aá]|esta)\s+.{0,15}(?:chuva|chover|chovendo)(?:\s+(?:hoje|agora|amanh[aã]))?\s*\??$/i.test(texto)) {
@@ -877,7 +869,6 @@ async function rotear(texto) {
   }
   const cid = extrairClima(texto); if (cid) return clima(cid);
 
-  // 8) Modos específicos da barra
   if (modoAtual === "pesquisa") return pesquisaProfunda(extrairProfundo(texto) || extrairPesquisa(texto) || texto, true);
   if (modoAtual === "visao") {
     if (!ultimaImagem && !ultimaMidiaInfo) { falar("👁️ Modo Imagens ativo: toque no + para enviar uma foto ou vídeo!"); return; }
@@ -891,7 +882,6 @@ async function rotear(texto) {
     falar(mtDoc?.texto || Saber.lerTexto(ultimoArquivo.texto), "bot", "📄 documentos"); return;
   }
 
-  // 9) Jogos e notícias explícitos
   if (/\b(jogar|jogo da velha|jogo da forca|forca|adivinhe o numero)\b/i.test(tn) && !/\b(crie|criar|faca|fazer|programe|explique|o que e)\b/i.test(tn)) {
     const mtJ = Mente.responder(texto);
     if (mtJ?.texto) { falar(mtJ.texto, "bot", mtJ.origem || "🎮 jogos"); return; }
@@ -900,10 +890,8 @@ async function rotear(texto) {
     return noticias(/brasil/i.test(texto) ? "ultimas noticias do brasil hoje" : "ultimas noticias do mundo hoje");
   }
 
-  // 10) Motor opcional
   if (temIA) { await perguntarIA(texto); return; }
 
-  // 11) Cérebro Avançado (temas por voz/texto, criador, NLU, gírias, recomendações, escrita, contexto)
   const av = await CerebroAvancado.responder(texto, { ultimoArquivo, ultimoTema, ultimaMidiaInfo, ultimoBot: ultimoBotTexto(), modoCriador });
   if (av) {
     if (av.tema) {
@@ -920,11 +908,9 @@ async function rotear(texto) {
     if (av.texto) { falar(av.texto, "bot", av.origem || "🧠 BACH AI"); return; }
   }
 
-  // 12) Pesquisa explícita
   const prof = extrairProfundo(texto); if (prof !== null) return pesquisaProfunda(prof, true);
   const cons = extrairPesquisa(texto); if (cons !== null) return pesquisaProfunda(cons, modoProfundo || modoCriador);
 
-  // 13) Cadeia, dicionário, fatos, conversa, mente, programação
   if (await seguir(texto, false)) return;
 
   const pedidoDic = Dic.detectar(texto);
@@ -1089,4 +1075,8 @@ try { Historico.salvarAtual(history); } catch {}
 restaurar(); status.textContent = statusPadrao();
 if (!history.length) {
   const nomeSalvo = RizikBrain.recall("userName");
-  falar((no
+  falar((nomeSalvo ? "Que bom te ver de volta, **" + nomeSalvo + "**! 💜 " : "Olá! ") + "Sou a **BACH AI** 🧠 (v" + APP_VER + "). Converso, lembro de você quando voltar, mudo de tema (peça “tema vermelho”, “azul”, “neon”...), analiso fotos/vídeos/códigos e pesquiso na internet!", "bot", "", true);
+}
+</script>
+</body>
+</html>
