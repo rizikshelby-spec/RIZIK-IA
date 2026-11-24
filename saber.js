@@ -1,6 +1,6 @@
-/* BACH AI - SABER 2.9
-   Leitura de textos, código e links + pesquisa inteligente (Wikipédia, Web, Jikan Animes),
-   bloqueio de previsões futuras impossíveis e de palavras soltas sem sentido. */
+/* BACH AI - SABER 3.0
+   Leitura de textos/código/links, pesquisa inteligente com prioridade para eventos atuais,
+   catálogo Jikan ao vivo para animes, modo sem limites para criador e zero lookbehind. */
 
 const KB_KEY = "bach_conhecimento_v2";
 
@@ -13,8 +13,8 @@ const STOP = new Set((
   "passa passe manda mande uns umas alguem alguma algum quero preciso gostaria fale fala conte diga diz " +
   "pesquisa pesquisar pesquise procure procura buscar busque explica explicar explique resume resumir " +
   "net internet web google online pra pro pros pras ai ta to ne la ca vc pq oq oque aqui escrito escrita " +
-  "nisso nisto disso mes meses ano anos semana semanas dia dias hoje amanha ontem falar perguntei perguntar " +
-  "serve servem servir servisse presta errando errado errada corrigir arrumar falou disse respondeu"
+  "nisso nisto disso mes meses ano anos semana semanas dia dias hoje amanha ontem falar perguntei perguntar pergutar " +
+  "serve servem servir servisse presta errando errado errada corrigir arrumar falou disse respondeu travou rir chutar"
 ).split(" "));
 
 const INTENCAO_STOP = new Set((
@@ -174,10 +174,12 @@ function limparConsulta(q) {
     .replace(/^(?:me\s+)?(?:explica|explique|pesquisa|pesquise|procure|procura|busca|busque)\s+(?:na\s+(?:net|internet|web)|no\s+google)?\s*(?:sobre\s+)?/i, "")
     .trim();
   const termos = kwAssunto(n);
+  const temAno = /\b(19|20)\d{2}\b/.test(n);
   return {
     assunto: termos.length ? termos.join(" ") : kw(n).join(" "),
     ehLancamento: /\b(lancou|lanca|lancar|lancamento|estreia|estreou|saiu|quando sai|mes que vem|proximo mes)\b/.test(n),
     ehOpiniao: /\b(e bom|e boa|vale a pena|presta|critica|nota|legal|legais|recomenda)\b/.test(n),
+    ehAtualidade: !temAno && /\b(eleic|ganhou|venceu|campeao|resultado|placar|atual|atualmente|presidente|governador|prefeito)\b/.test(n),
     permiteAdulto: CONTEUDO_ADULTO.test(n),
     termos: termos.length ? termos : kw(n)
   };
@@ -258,7 +260,7 @@ async function web(q) {
   const txt = await get("https://r.jina.ai/http://html.duckduckgo.com/html/?q=" + encodeURIComponent(q), 12000);
   const ms = [...txt.matchAll(/^## \[(.*?)\]\((https?:\/\/[^)\s]+)\)/gm)];
   const out = [], seen = new Set();
-  for (let i = 0; i < ms.length && out.length < 8; i++) {
+  for (let i = 0; i < ms.length && out.length < 9; i++) {
     let link = ms[i][2];
     try {
       const u = new URL(link);
@@ -277,12 +279,14 @@ async function web(q) {
   return out;
 }
 
-function filtrar(links, qs, permiteAdulto = false) {
+function filtrar(links, qs, permiteAdulto = false, anoAtual = "") {
   return links.filter(l => permiteAdulto || !CONTEUDO_ADULTO.test(l.titulo + " " + l.snippet + " " + l.url)).map(l => {
-    const k = new Set(kr(l.titulo + " " + l.snippet));
+    const texto = l.titulo + " " + l.snippet;
+    const k = new Set(kr(texto));
     const hits = [...qs].filter(w => k.has(w)).length;
-    const bonus = /wikipedia|\.gov|\.edu|mozilla|w3schools|britannica|scielo|bbc\.|nationalgeographic|omelete|adorocinema|ign\.com|tecmundo|canaltech/i.test(l.url) ? 1 : 0;
-    return { ...l, hits, v: hits * 2 + bonus };
+    const bonusFonte = /wikipedia|\.gov|\.edu|mozilla|w3schools|britannica|scielo|bbc\.|g1\.globo|oglobo|cnnbrasil|uol|estadao|folha|tse\.jus/i.test(l.url) ? 1 : 0;
+    const bonusAno = anoAtual && texto.includes(anoAtual) ? 3 : 0;
+    return { ...l, hits, v: hits * 2 + bonusFonte + bonusAno };
   }).filter(l => l.hits > 0 && (qs.size < 3 || l.hits >= 2)).sort((x, y) => y.v - x.v).slice(0, 7);
 }
 
@@ -373,7 +377,7 @@ function jac(a, b) {
   return i / (a.size + b.size - i || 1);
 }
 
-function candidatas(fontes, qs, permiteAdulto = false) {
+function candidatas(fontes, qs, permiteAdulto = false, anoAtual = "") {
   const out = [];
   fontes.forEach((f, fi) => {
     f.frases.forEach((raw, pos) => {
@@ -392,13 +396,14 @@ function candidatas(fontes, qs, permiteAdulto = false) {
         hits = qs.size - nao.length + achou;
         cob = qs.size ? hits / qs.size : 0;
       } else if (!hits && !lead) return;
-      out.push({ s, k, fi, pos, hits, cob, wiki: !!f.wiki, lead, principal: !!f.primario, len: k.size });
+      const temAnoAtual = Boolean(anoAtual && s.includes(anoAtual));
+      out.push({ s, k, fi, pos, hits, cob, wiki: !!f.wiki, lead, principal: !!f.primario, temAnoAtual, len: k.size });
     });
   });
   return out;
 }
 
-function escolher(c, qs, pedeLista, n = 4) {
+function escolher(c, qs, pedeLista, n = 4, ehAtual = false) {
   const temPrincipal = c.some(x => x.principal);
   const N = c.length || 1;
   const df = {};
@@ -413,7 +418,8 @@ function escolher(c, qs, pedeLista, n = 4) {
     for (const w of qs) if (x.k.has(w)) bm += idf(w) * ((k1 + 1) / (1 + k1 * (1 - b + b * x.len / avg)));
     x.apoio = new Set(c.filter(y => y.fi !== x.fi && jac(x.k, y.k) > 0.25).map(y => y.fi)).size;
     const lista = pedeLista && (x.s.match(/,/g) || []).length >= 2 ? 1.5 : 0;
-    x.v = bm + 3 * x.cob + 1.5 * x.apoio + (x.wiki ? 1 : 0) + (x.lead ? 6 : 0) + (x.principal ? 2 : 0) + lista;
+    const bonusAtual = ehAtual ? (x.temAnoAtual ? 5 : (x.wiki ? -3 : 0)) : 0;
+    x.v = bm + 3 * x.cob + 1.5 * x.apoio + (x.wiki ? 1 : 0) + (x.lead ? 5 : 0) + (x.principal ? 2 : 0) + lista + bonusAtual;
     if (x.wiki && !x.principal && temPrincipal) x.v -= 4;
   });
 
@@ -427,15 +433,15 @@ function escolher(c, qs, pedeLista, n = 4) {
   return { sel, total: c.length };
 }
 
-function compor(q, fontes, n = 4, permiteAdulto = false) {
+function compor(q, fontes, n = 4, permiteAdulto = false, ehAtual = false, anoAtual = "") {
   const qk = kwAssunto(q);
   const qs = new Set((qk.length ? qk : kw(q)).map(radical));
   const pedeLista = /^\s*(quais|quantos|quantas|cite|liste|tipos|exemplos)\b|\b(cores|tipos|exemplos|lista)\b/i.test(norm(q));
-  const { sel: escolhidas, total } = escolher(candidatas(fontes, qs, permiteAdulto), qs, pedeLista, n);
+  const { sel: escolhidas, total } = escolher(candidatas(fontes, qs, permiteAdulto, anoAtual), qs, pedeLista, n, ehAtual);
   if (!escolhidas.length) return null;
   if (qs.size >= 2 && !escolhidas.some(x => x.lead || x.cob >= 0.5)) return null;
 
-  const sel = [...escolhidas].sort((a, b) => (b.lead - a.lead) || (a.fi - b.fi) || (a.pos - b.pos));
+  const sel = [...escolhidas].sort((a, b) => (b.temAnoAtual - a.temAnoAtual) || (b.lead - a.lead) || (a.fi - b.fi) || (a.pos - b.pos));
   const usados = [...new Set(sel.map(x => x.fi))].sort((a, b) => a - b);
   const num = fi => usados.indexOf(fi) + 1;
   const [primeira, ...resto] = sel;
@@ -455,13 +461,12 @@ function compor(q, fontes, n = 4, permiteAdulto = false) {
   ], norm(q)) + "\n\n" + (conf === "baixa" ? "⚠️ Não tenho certeza total dessa resposta; confira nas fontes.\n\n" : "") + corpo;
 
   t += "\n\n🔍 Como cheguei nisso: analisei " + fontes.length + " fonte(s), separei " + total +
-    " trecho(s) ligados ao tema e resumi os " + sel.length + " mais confiáveis" +
-    (apoio ? " (confirmados por fontes diferentes)" : principal ? " (artigo principal da Wikipédia)" : "") + ".";
+    " trecho(s) ligados ao tema e resumi os " + sel.length + " mais confiáveis.";
   t += "\n\nFontes:\n" + usados.map((fi, i) => "[" + (i + 1) + "] " + fontes[fi].nome).join("\n");
   return { texto: t, corpo, conf, usados };
 }
 
-async function pesquisaProfunda(q, progresso = () => {}, fundo = true) {
+async function pesquisaProfunda(q, progresso = () => {}, fundo = true, opts = {}) {
   const qn = norm(q);
   if (ehFuturoGenerico(qn)) throw new Error("sem-dados-futuros");
   if (META_REFERENCIA.test(qn)) throw new Error("meta-referencia");
@@ -469,7 +474,7 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true) {
   const info = limparConsulta(q);
   const assunto = info.assunto || q;
   const qk = info.termos;
-  if (!qk.length || (qk.length === 1 && /^(serve|fazer|falar|dizer|ver|ter|ir|vir|dar|saber|poder|querer|achar|ficar)$/.test(qk[0]))) {
+  if (!qk.length || (qk.length === 1 && /^(serve|fazer|falar|dizer|ver|ter|ir|vir|dar|saber|poder|querer|achar|ficar|melhorar|posso|audio|rir|travou|arrumar)$/.test(qk[0]))) {
     throw new Error("irrelevante");
   }
 
@@ -499,27 +504,31 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true) {
     };
   }
 
+  const anoAtual = String(new Date().getFullYear());
   const qs = new Set(qk.map(radical));
   const fontes = [];
 
-  progresso("📚 Consultando a Wikipédia (pt.wikipedia.org)...");
-  try {
-    const pg = await wiki(assunto, qk, info.permiteAdulto);
-    pg.forEach((p, i) => fontes.push({
-      nome: "Wikipédia: " + p.titulo, url: p.url, frases: paragrafos(p.texto).slice(0, 400), wiki: true,
-      primario: i === 0 && p.cob >= 0.45, tituloStems: new Set(kr(p.titulo))
-    }));
-  } catch (e) { console.warn("wiki", e); }
+  if (!info.ehAtualidade) {
+    progresso("📚 Consultando a Wikipédia (pt.wikipedia.org)...");
+    try {
+      const pg = await wiki(assunto, qk, info.permiteAdulto);
+      pg.forEach((p, i) => fontes.push({
+        nome: "Wikipédia: " + p.titulo, url: p.url, frases: paragrafos(p.texto).slice(0, 400), wiki: true,
+        primario: i === 0 && p.cob >= 0.45, tituloStems: new Set(kr(p.titulo))
+      }));
+    } catch (e) { console.warn("wiki", e); }
+  }
 
-  progresso("🌐 Buscando na internet...");
+  progresso("🌐 Buscando na internet" + (info.ehAtualidade ? " (" + anoAtual + ")" : "") + "...");
   let links = [];
-  const consultaWeb = info.ehLancamento ? assunto + " data de lancamento"
+  const consultaWeb = info.ehAtualidade ? assunto + " " + anoAtual
+    : info.ehLancamento ? assunto + " data de lancamento"
     : info.ehOpiniao ? assunto + " recomendacao critica"
     : assunto;
   try { links = await web(consultaWeb); } catch (e) { console.warn("web", e); }
-  if (fundo && links.length < 3) {
+  if ((fundo || opts.semLimite) && links.length < 3) {
     try {
-      const extra = info.ehLancamento ? assunto + " lancou" : assunto + " explicacao resumo";
+      const extra = info.ehAtualidade ? assunto + " resultado " + anoAtual : info.ehLancamento ? assunto + " lancou" : assunto + " explicacao resumo";
       const mais = await web(extra);
       const vistos = new Set(links.map(l => l.url));
       mais.forEach(l => { if (!vistos.has(l.url)) links.push(l); });
@@ -527,26 +536,29 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true) {
   }
 
   progresso("🧹 Filtrando " + links.length + " resultado(s) por relevância...");
-  links = filtrar(links, qs, info.permiteAdulto);
+  links = filtrar(links, qs, info.permiteAdulto, info.ehAtualidade ? anoAtual : "");
   const webFontes = links.map(l => ({ nome: host(l.url) + " — " + l.titulo.slice(0, 60), url: l.url, frases: l.snippet ? [l.snippet] : [] }));
   fontes.push(...webFontes);
 
-  if (fundo && webFontes.length) {
-    progresso("📖 Abrindo as melhores páginas...");
-    await Promise.allSettled(webFontes.slice(0, 4).map(async f => {
+  const maxPaginas = opts.semLimite ? 7 : 4;
+  const maxFrases = opts.semLimite ? 9 : fundo ? 6 : 4;
+
+  if ((fundo || opts.semLimite) && webFontes.length) {
+    progresso("📖 Lendo as melhores páginas...");
+    await Promise.allSettled(webFontes.slice(0, maxPaginas).map(async f => {
       progresso("🌐 Lendo " + host(f.url));
       f.frases.push(...await readPage(f, qs));
     }));
   }
 
   progresso("🧩 Comparando as fontes e montando a resposta...");
-  const r = compor(assunto, fontes, fundo ? 6 : 4, info.permiteAdulto);
+  const r = compor(assunto, fontes, maxFrases, info.permiteAdulto, info.ehAtualidade, anoAtual);
   if (!r) throw new Error("irrelevante");
 
-  const guardou = r.conf !== "baixa";
+  const guardou = r.conf !== "baixa" && !info.ehAtualidade;
   if (guardou) saveKB({ q: assunto, resumo: r.corpo, at: Date.now() });
 
-  const texto = r.texto + (guardou ? "\n\n💾 Guardei esse resumo na memória." : "\n\n🚫 Não guardei na memória por causa da confiança baixa.") +
+  const texto = r.texto + (guardou ? "\n\n💾 Guardei esse resumo na memória." : "") +
     (fundo ? "" : "\nQuer mais detalhes? Peça: pesquise a fundo sobre " + assunto);
   return { texto, conf: r.conf, fontes: r.usados.map(i => ({ titulo: fontes[i].nome, url: fontes[i].url })) };
 }
