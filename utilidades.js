@@ -1,5 +1,5 @@
-/* BACH AI 4.5 — Utilidades práticas locais
-   Gerador de senhas seguras, sorteios, dado, moeda, datas/dias e contador de texto. */
+/* BACH AI 4.6 — Utilidades práticas locais
+   Gerador de senhas seguras, sorteios, dado, moeda, datas/dias, contador de texto e validador/gerador de CPF de teste. */
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "")
@@ -41,6 +41,25 @@ function validarCPF(num) {
   let r2 = (soma * 10) % 11;
   if (r2 === 10) r2 = 0;
   return r2 === Number(d[10]);
+}
+
+function gerarCPFTeste() {
+  const d = Array.from({ length: 9 }, () => aleatorio(10));
+  if (d.every(x => x === d[0])) d[8] = (d[8] + 1) % 10;
+  let s1 = 0;
+  for (let i = 0; i < 9; i++) s1 += d[i] * (10 - i);
+  let d1 = (s1 * 10) % 11;
+  if (d1 === 10) d1 = 0;
+  d.push(d1);
+
+  let s2 = 0;
+  for (let i = 0; i < 10; i++) s2 += d[i] * (11 - i);
+  let d2 = (s2 * 10) % 11;
+  if (d2 === 10) d2 = 0;
+  d.push(d2);
+
+  const fmt = d.slice(0, 3).join("") + "." + d.slice(3, 6).join("") + "." + d.slice(6, 9).join("") + "-" + d.slice(9).join("");
+  return "🧪 **CPF fictício para testes de programação:**\n\n`" + fmt + "`\n\nℹ️ Número aleatório apenas com dígitos matematicamente válidos (não pertence a nenhuma pessoa real). Pode testar com `/cpf " + fmt + "`!";
 }
 
 function parseData(str) {
@@ -129,7 +148,13 @@ function handle(text) {
     return "📅 O dia **" + d.toLocaleDateString("pt-BR") + "** cai em uma **" + DIAS_SEMANA[d.getDay()] + "**.";
   }
 
-  // 6) Validador matemático de CPF
+  // 6) Validador e gerador fictício de CPF de teste
+  if (/^\/?cpf$/i.test(t)) {
+    return "✅ Use `/cpf 000.000.000-00` para validar dígitos matemáticos ou peça **“manda um cpf de teste”** para gerar um fictício de programação.";
+  }
+  if (/^(?:\/cpf\s+teste|(?:manda|mandar|gera|gerar|cria|criar|me da|faz)\s+(?:um\s+)?cpf(?:\s+(?:aleatorio|ficticio|de teste|para teste|ai|pra mim))*)$/.test(t)) {
+    return gerarCPFTeste();
+  }
   m = raw.match(/^\/cpf\s+([0-9.\-]+)$/i);
   if (m) {
     const ok = validarCPF(m[1]);
