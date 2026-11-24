@@ -56,7 +56,7 @@ button.stop{background:#c0392b}
 #mais,#mic{width:42px;height:44px;padding:0;font-size:20px;background:rgba(255,255,255,.1);border:1px solid var(--border);flex:none}
 #enviar{height:44px;flex:none}
 #mic.gravando{background:#c0392b}
-#menu{display:none;position:fixed;left:10px;bottom:calc(64px + env(safe-area-inset-bottom));background:var(--panel);backdrop-filter:blur(14px);border:1px solid var(--border);border-radius:14px;padding:6px;z-index:12;min-width:240px}
+#menu{display:none;position:fixed;left:10px;bottom:calc(64px + env(safe-area-inset-bottom));background:var(--panel);backdrop-filter:blur(14px);border:1px solid var(--border);border-radius:14px;padding:6px;z-index:12;min-width:250px}
 #menu.aberto{display:block}
 #menu button{display:block;width:100%;text-align:left;background:none;padding:11px 12px;font-weight:normal;font-size:15px}
 #drawerBack{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);z-index:20}
@@ -138,6 +138,8 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px
 
 <div id="menu">
   <button data-acao="anexar">📎 Anexar foto, vídeo ou arquivo</button>
+  <button data-acao="copiarChat">📋 Copiar conversa inteira</button>
+  <button data-acao="auditar">🩺 Auditar erros do chat</button>
   <button data-acao="profundo">🧠 Pensar bastante: desligado</button>
   <button data-acao="voz">🔊 Ler respostas sozinha: desligado</button>
   <button data-acao="arquivos">📁 Meus arquivos</button>
@@ -155,6 +157,8 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px
       <button class="dclose" id="fecharDrawer">✕</button>
     </div>
     <button class="dbtn" data-d="nova">➕ Nova conversa</button>
+    <button class="dbtn" data-d="copiarChat">📋 Copiar conversa inteira</button>
+    <button class="dbtn" data-d="auditar">🩺 Auditar erros do chat</button>
     <button class="dbtn" data-d="historico">🕘 Histórico de conversas</button>
     <button class="dbtn" data-d="arquivos">📁 Meus arquivos</button>
     <button class="dbtn" data-d="anexar">📎 Anexar mídia / documento</button>
@@ -176,7 +180,6 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px
 <input id="seletorBase" type="file" hidden accept=".json,application/json">
 
 <script>
-/* Esfera 3D independente para nunca travar mesmo se um módulo estiver em manutenção */
 (function(){
   const c = document.getElementById("orb-bg");
   const ctx = c && c.getContext ? c.getContext("2d") : null;
@@ -284,13 +287,13 @@ async function loadMod(nome, path) {
 
 const [
   mBrain, mSaber, mProg, mArq, mMente, mFatos,
-  mConv, mDic, mHist, mBase, mReg, mLLM, mAv
+  mConv, mDic, mHist, mBase, mReg, mLLM, mAv, mAuto
 ] = await Promise.all([
   loadMod("brain.js", "./brain.js?v=19"),
   loadMod("saber.js", "./saber.js?v=12"),
   loadMod("programacao.js", "./programacao.js?v=5"),
   loadMod("arquivos.js", "./arquivos.js?v=3"),
-  loadMod("mente.js", "./mente.js?v=16"),
+  loadMod("mente.js", "./mente.js?v=17"),
   loadMod("fatos.js", "./fatos.js?v=7"),
   loadMod("conversa.js", "./conversa.js?v=5"),
   loadMod("dicionario.js", "./dicionario.js?v=5"),
@@ -298,7 +301,8 @@ const [
   loadMod("base.js", "./base.js?v=6"),
   loadMod("registry.js", "./registry.js?v=5"),
   loadMod("llm.js", "./llm.js?v=1"),
-  loadMod("cerebro_avancado.js", "./cerebro_avancado.js?v=3")
+  loadMod("cerebro_avancado.js", "./cerebro_avancado.js?v=4"),
+  loadMod("autocorretor.js", "./autocorretor.js?v=1")
 ]);
 
 const RizikBrain = mBrain.RizikBrain || { think: () => ({ handled: false }), learn: () => {}, remember: () => {}, recall: () => null, logTopic: () => {}, getRecentTopics: () => [], getProfile: () => ({}), getStats: () => ({ examples: 0, synonyms: 0, facts: 0, notes: 0 }) };
@@ -314,6 +318,16 @@ const Base = mBase.Base || { montar: async () => { throw new Error("base.js indi
 const SkillRouter = mReg.SkillRouter || { handle: () => null, instructions: () => "", modePrompt: () => "" };
 const LLM = mLLM.LLM || { hasModel: () => false, command: () => null, getConfig: () => ({ model: "offline" }) };
 const CerebroAvancado = mAv.CerebroAvancado || { responder: async () => null };
+const AutoCorretor = mAuto.AutoCorretor || { ehReclamacao: () => false, tratarExclamacao: () => null, analisarEPreparar: () => null, formatarChat: h => JSON.stringify(h), auditarChat: () => "Módulo autocorretor.js não carregado." };
+
+// Limpa sobra antiga de nome salvo (ex.: "rizik sabia" -> "Rizik")
+try {
+  const n0 = RizikBrain.recall("userName");
+  if (n0 && /\s+(?:sabia|viu|ta|tá|ok|hein|po|pô|cara|mano|vei|véi|nmrl)\s*[!.]*$/i.test(n0)) {
+    const nLimpo = n0.replace(/\s+(?:sabia|viu|ta|tá|ok|hein|po|pô|cara|mano|vei|véi|nmrl)\s*[!.]*$/i, "").trim();
+    if (nLimpo) RizikBrain.remember("userName", nLimpo.charAt(0).toUpperCase() + nLimpo.slice(1));
+  }
+} catch {}
 
 const $ = id => document.getElementById(id);
 const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status"), hist = $("hist"), sobreEl = $("sobre");
@@ -499,6 +513,20 @@ function criarResultado(titulo, resumo, url) {
   chat.appendChild(c); chat.scrollTop = chat.scrollHeight;
 }
 
+async function copiarChatInteiro() {
+  const txt = AutoCorretor.formatarChat(history);
+  await copiar(txt);
+  chat.appendChild(cartao("📋 Conversa inteira (" + history.length + " msgs)", txt, "conversa-bach.txt", false, 1600));
+  chat.scrollTop = chat.scrollHeight;
+  status.textContent = "✅ Conversa copiada! Agora é só colar.";
+  setTimeout(() => { if (!ocupado) status.textContent = statusPadrao(); }, 3000);
+}
+
+function rodarAuditoria() {
+  const rel = AutoCorretor.auditarChat(history);
+  falar(rel, "bot", "🩺 auditoria", true);
+}
+
 function abrirSobre() {
   atualizouAgora = false;
   atualizarBadge();
@@ -525,10 +553,9 @@ function abrirSobre() {
   nov.innerHTML =
     "<b>✨ Novidades da v" + APP_VER + ":</b><br>" +
     "• Esfera 3D luminosa de partículas e <b>7 temas</b> com balões transparentes<br>" +
-    "• Novo módulo de <b>Utilidades</b> (senhas, dados, sorteios, datas, contador e CPF)<br>" +
-    "• Pesquisa aprofundada inteligente, notícias em português e gírias brasileiras<br>" +
-    "• Tradução direta de textos e fotos citadas + clima mais inteligente<br>" +
-    "• OCR melhorado para prints escuros e leitura estável de vídeos";
+    "• <b>AutoCorretor</b> que relê o chat quando erra + botão <b>Copiar conversa inteira</b><br>" +
+    "• Módulo de <b>Utilidades</b> (senhas, dados, sorteios, datas, contador e CPF)<br>" +
+    "• Auditoria `/auditar`, tradução de fotos citadas e clima mais inteligente";
 
   const dados = mk("div", "scard");
   dados.innerHTML =
@@ -888,8 +915,8 @@ function ctxConversa() {
   };
 }
 
-function extrairAlvoTraducao() {
-  let fonte = alvo || ultimoArquivo?.texto || ultimoBotTexto() || "";
+function extrairAlvoTraducao(fonteOpcional = "") {
+  let fonte = fonteOpcional || alvo || ultimoArquivo?.texto || ultimoBotTexto() || "";
   const mOcr = fonte.match(/Texto (?:encontrado|que consegui ler|visível)[^:]*:\s*\n*[“"]([\s\S]+?)[”"]\s*$/);
   if (mOcr) fonte = mOcr[1].trim();
   else if (ultimoArquivo?.texto && /Texto (?:encontrado|que consegui ler|visível)/i.test(fonte)) fonte = ultimoArquivo.texto;
@@ -923,6 +950,7 @@ async function rotear(texto) {
 
   if (/^\/(basedados|dadosbach)\b/.test(cmd)) return exportarBase();
   if (/^\/importarbase\b/.test(cmd)) { falar("📥 Escolha o arquivo .json que você baixou com /basedados."); $("seletorBase").click(); return; }
+  if (/^\/(auditar|erros)\b/.test(cmd) || /^(auditar|ver erros|achar erros|encontrar erros)$/i.test(tn)) { rodarAuditoria(); return; }
   if (/^(sobre|sobre a bach|versao|quem criou|sobre o app)$/i.test(tn)) { abrirSobre(); return; }
 
   if (Mente.jogando()) {
@@ -942,6 +970,37 @@ async function rotear(texto) {
   const links = Saber.urlsEm(texto);
   if (links.length && texto.length < 400 && !Saber.isCode(texto) && texto.replace(links[0], "").trim().split(/\s+/).filter(Boolean).length <= 12) {
     return lerLinkMsg(links[0], texto, temIA);
+  }
+
+  // AutoCorretor: exclamações emotivas ("Aaaaah... deusss") ou reclamação de erro ("você errou", "fugiu do assunto")
+  const excl = AutoCorretor.tratarExclamacao(texto);
+  if (excl) { falar(excl, "bot", "💬 conversa"); return; }
+
+  if (!temIA && AutoCorretor.ehReclamacao(texto)) {
+    const acao = AutoCorretor.analisarEPreparar(history.slice(0, -1), { ultimoArquivo, ultimoTema, ultimaMidiaInfo });
+    if (acao) {
+      if (acao.tipo === "clima") {
+        falar(acao.aviso, "bot", "🔄 autocorreção");
+        const cidSalva = (() => { try { return localStorage.getItem("bach_cidade"); } catch { return null; } })();
+        const cidR = extrairClima(acao.pergunta) || cidSalva;
+        if (cidR) return clima(cidR);
+        aguardaCidade = true; falar("De qual cidade? Me diga só o nome (ex.: Londrina) 🌤️"); return;
+      }
+      if (acao.tipo === "traducao") {
+        falar(acao.aviso, "bot", "🔄 autocorreção");
+        const qTr = extrairAlvoTraducao(acao.cit);
+        const rTr = await Dic.consultar({ tipo: "trad", q: qTr, alvo: "pt" }, passo);
+        if (rTr) { falar(rTr, "bot", "🌍 dicionário"); return; }
+      }
+      if (acao.tipo === "pesquisar") {
+        falar(acao.aviso, "bot", "🔄 autocorreção");
+        return pesquisaProfunda(acao.query, true);
+      }
+      if (acao.texto) {
+        falar(acao.texto, "bot", "🔄 autocorreção");
+        return;
+      }
+    }
   }
 
   passo("🧠 Consultando minha memória...");
@@ -1117,6 +1176,7 @@ async function enviar() {
 
   if (!arquivos.length) {
     if (/^(\/clear|\/limpar|\/nova|nova conversa|limpar histórico)$/i.test(texto)) { alvo = null; novaConversa(); return; }
+    if (/^(\/copiar|copiar chat|copiar conversa|copiar tudo)$/i.test(texto)) { alvo = null; copiarChatInteiro(); return; }
     if (/^(\/historico|\/histórico|histórico|historico)(\s+\d+)?$/i.test(texto)) { alvo = null; abrirHistorico(parseInt((texto.match(/\d+/) || [1])[0], 10) || 1); return; }
     if (/^(sobre|sobre a bach|vers[aã]o|quem criou|sobre o app)$/i.test(texto)) { alvo = null; abrirSobre(); return; }
     const cmdLLM = LLM.command(texto);
@@ -1160,6 +1220,8 @@ $("drawer").onclick = e => {
   drawerBack.classList.remove("aberto");
   const d = b.dataset.d;
   if (d === "nova") novaConversa();
+  if (d === "copiarChat") copiarChatInteiro();
+  if (d === "auditar") rodarAuditoria();
   if (d === "historico") abrirHistorico(1);
   if (d === "arquivos") { entrada.value = "/arquivos"; enviar(); }
   if (d === "anexar") seletor.click();
@@ -1172,6 +1234,8 @@ menu.onclick = e => {
   const b = e.target.closest("button[data-acao]"); if (!b) return; menu.classList.remove("aberto");
   const a = b.dataset.acao;
   if (a === "anexar") seletor.click();
+  if (a === "copiarChat") copiarChatInteiro();
+  if (a === "auditar") rodarAuditoria();
   if (a === "profundo") { modoProfundo = !modoProfundo; b.textContent = "🧠 Pensar bastante: " + (modoProfundo ? "ligado" : "desligado"); falar(modoProfundo ? "Modo pensar bastante LIGADO 🧠" : "Modo pensar bastante desligado."); }
   if (a === "voz") { lerAuto = !lerAuto; b.textContent = "🔊 Ler respostas sozinha: " + (lerAuto ? "ligado" : "desligado"); if (!lerAuto) try { speechSynthesis.cancel(); } catch {} }
   if (a === "arquivos") { entrada.value = "/arquivos"; enviar(); }
