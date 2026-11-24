@@ -1,4 +1,4 @@
-/* BACH AI - PROGRAMAÇÃO + HUMOR 1.0 */
+/* BACH AI - PROGRAMAÇÃO + HUMOR 1.1 */
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9+# ]+/g, " ").replace(/\s+/g, " ").trim();
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -21,7 +21,7 @@ const TOPICOS = [
   { k: ["recursao", "recursiva"], t: "🪞 Recursão é uma função que chama a si mesma, com uma condição de parada.\n\nfunction fatorial(n) {\n  if (n <= 1) return 1;\n  return n * fatorial(n - 1);\n}\nfatorial(5); // 120" },
   { k: ["algoritmo", "algoritmos", "logica de programacao"], t: "🧩 Algoritmo é uma receita de passos para resolver um problema. Dica: antes de codar, escreva os passos em português, depois traduza para código." },
   { k: ["bug", "bugs", "erro no codigo", "debug", "depurar", "nao funciona"], t: "🐛 Para caçar bugs:\n1) Leia a mensagem de erro (ela diz a linha).\n2) Use console.log para ver os valores.\n3) Teste uma parte de cada vez.\n4) Copie o erro e pesquise.\n\nCole o código aqui e eu leio as funções dele!" },
-  { k: ["criar uma ia", "criar ia", "fazer uma ia", "construir uma ia", "criar inteligencia artificial", "criar um chatbot", "criar chatbot"], t: "🤖 Você já está fazendo uma — a BACH! Passos:\n1) Entrada e saída (chat).\n2) Cérebro: regras + memória que aprende.\n3) Busca de informação (pesquisa).\n4) Ler arquivos, fotos e vídeos.\n5) Evoluir: TF-IDF (busca por significado), modelos pequenos no navegador (transformers.js) ou conectar uma API.\n\nQual parte quer melhorar agora?" },
+  { k: ["criar uma ia", "criar ia", "fazer uma ia", "construir uma ia", "criar inteligencia artificial", "criar um chatbot", "criar chatbot"], t: "🤖 Você já está fazendo uma — a BACH! Passos:\n1) Entrada e saída (chat).\n2) Cérebro: regras + memória que aprende.\n3) Busca de informação (pesquisa).\n4) Ler arquivos, fotos e vídeos.\n5) Evoluir: busca por contexto e raciocínio próprio.\n\nQual parte quer melhorar agora?" },
   { k: ["aprender a programar", "como programar", "comecar a programar", "aprender programacao", "o que e programacao", "programar"], t: "💻 Programar é dar instruções para o computador.\n\nRoteiro: 1) lógica e variáveis, 2) condições e loops, 3) funções, 4) listas e objetos, 5) um projeto pequeno (como esta IA!).\n\nPergunte: \"o que é função\", \"exemplo de loop\", \"o que é API\"..." }
 ];
 
@@ -87,18 +87,22 @@ function humor(texto) {
     return pick(["Lá vai! 😄", "Prepara que vem aí:", "Essa é boa:", "Ouve essa:"]) + "\n\n" + proximaPiada(cat) + "\n\n(Quer outra? É só dizer “outra”.)";
   }
 
-  if (/^(kkk+|haha+|rs+|rsrs+|hehe+)$/.test(t)) return pick(["😂 Essa foi boa até pra mim!", "Rindo em binário: 01001000 01000001 😄", "Gargalhando por dentro dos meus circuitos! 🤖"]);
-  if (/(voce e engracada|voce e legal|voce e inteligente|gostei de voce)/.test(t)) return pick(["Para, que meu processador esquenta! 🥵💜", "Obrigada! Estou tentando ser a IA mais divertida do navegador. 😄"]);
+  if (/^(k+a+k+a+|k+s+k+s+|s+k+s+k+|j+k+|k{3,}|haha+|rs+|rsrs+|hehe+)$/.test(t.replace(/\s+/g, ""))) {
+    return pick(["😂 Essa foi boa até pra mim!", "Rindo aqui também! 😄", "Kkkkkk 😄 Manda a próxima!"]);
+  }
+  if (/(voce e engracada|voce e legal|voce e inteligente|gostei de voce)/.test(t)) {
+    return pick(["Para, que meu processador esquenta! 🥵💜", "Obrigada! Estou ficando melhor a cada atualização. 😄"]);
+  }
   return null;
 }
 
 function desconhecido(t = "") {
-  let h = 0; for (const c of String(t)) h = (h * 31 + c.charCodeAt(0)) >>> 0; // mesma pergunta, mesma frase
-  const a = ([
-    "Hmm, essa me pegou! 😅 Não tenho nada sobre isso na memória, e prefiro admitir a inventar uma resposta.",
-    "Boa pergunta! Mas eu ainda não aprendi isso, e não quero chutar. 🧠",
-    "Travei aqui, igual código sem ponto e vírgula. 😬 Isso eu ainda não sei, mas dá para resolver:"
-  ]);
+  let h = 0; for (const c of String(t)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const a = [
+    "Não captei bem o que você quis dizer com isso 😅. Pode perguntar de outro jeito ou digitar `ajuda` para ver tudo que eu faço!",
+    "Essa ficou meio vaga pra mim! 🤔 Me diga direto o assunto (ex.: pesquise sobre..., me recomenda..., calcula..., escreve um texto...) ou me ensine com: `ensine: pergunta => resposta`.",
+    "Não entendi direito essa frase 😊. Quer pesquisar algo, trocar de tema (ex.: “tema vermelho”), conversar ou pedir uma recomendação?"
+  ];
   return a[h % a.length];
 }
 
