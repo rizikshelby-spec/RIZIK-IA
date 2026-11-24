@@ -11,6 +11,7 @@ import { Finance } from "./finance.js?v=1";
 import { Science } from "./science.js?v=1";
 import { Education } from "./education.js?v=1";
 import { Automation } from "./automation.js?v=1";
+import { Utilidades } from "./utilidades.js?v=1";
 
 const SETTINGS_KEY = "bach_modules_v1";
 
@@ -38,7 +39,8 @@ const DEPARTMENTS = [
   { id: "documentos", name: "21. Pesquisa documental", status: "ATIVO", control: false, skills: "Leitura, resumo e revisão de textos, arquivos, fotos e vídeos." },
   { id: "jogos-mentais", name: "22. Jogos mentais", status: "ATIVO", control: false, skills: "Charadas, lógica e desafios no chat." },
   { id: "debate", name: "23. Debate", status: "ATIVO", control: false, skills: "Comparações estruturadas e prós e contras." },
-  { id: "automacao", name: "24. Automação", status: "ROTEIRO LOCAL", control: true, skills: "Roteiros seguros e checklists sem executar ações externas sem permissão." }
+  { id: "automacao", name: "24. Automação", status: "ROTEIRO LOCAL", control: true, skills: "Roteiros seguros e checklists sem executar ações externas sem permissão." },
+  { id: "utilidades", name: "25. Utilidades práticas", status: "LOCAL", control: true, skills: "Gerador de senhas, sorteios, dados, cara ou coroa, datas/dias, contador e CPF." }
 ];
 
 const AJUDA_FERRAMENTAS = {
@@ -47,7 +49,12 @@ const AJUDA_FERRAMENTAS = {
   "/converter": "📏 Use `/converter 10 km para m` ou `quanto é 5 quilos em gramas?`",
   "/juros": "💰 Use `/juros simples 1000 2 12` ou `/juros compostos 1000 2 12` (capital, taxa %, períodos)",
   "/fisica": "⚙️ Use:\n• `/fisica velocidade 100 2` (distância e tempo)\n• `/fisica forca 10 2` (massa e aceleração)\n• `/fisica densidade 100 20` (massa e volume)\n• `/fisica energia-cinetica 10 5` (massa e velocidade)",
-  "/golpe": "🔒 Cole a mensagem ou link suspeito depois de `/golpe` para análise."
+  "/golpe": "🔒 Cole a mensagem ou link suspeito depois de `/golpe` para análise.",
+  "/senha": "🔐 Use `/senha 16` ou peça `gera uma senha forte`.",
+  "/dado": "🎲 Use `/dado 20`, `d20` ou `joga um dado`.",
+  "/sortear": "🎯 Use `/sortear pizza, lanche, sushi` ou `sorteia de 1 a 100`.",
+  "/cpf": "✅ Use `/cpf 000.000.000-00` para validar os dígitos matemáticos.",
+  "/contar": "📊 Use `/contar seu texto aqui` para contar palavras, caracteres e tempo de leitura."
 };
 
 function loadSettings() {
@@ -96,6 +103,7 @@ function moduleCommand(text) {
 
 const HANDLERS = [
   ["mundo", Units.handle, "📏 conversão de unidades"],
+  ["utilidades", Utilidades.handle, "🧰 utilidades"],
   ["inteligencia", Intelligence.handle, "🔢 cálculo local"],
   ["financas", Finance.handle, "💰 finanças"],
   ["ciencias", Science.handle, "🔬 fórmulas de física"],
