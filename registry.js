@@ -20,13 +20,15 @@ let devHandle = null;
 let progTermuxHandle = null;
 let saberesProHandle = null;
 
-import("./utilidades.js?v=1").then(m => { if (m?.Utilidades?.handle) utilHandle = m.Utilidades.handle; }).catch(() => {});
-import("./conversor_texto.js?v=1").then(m => { if (m?.ConversorTexto?.handle) convTextoHandle = m.ConversorTexto.handle; }).catch(() => {});
-import("./saude_bemestar.js?v=1").then(m => { if (m?.SaudeBemEstar?.handle) saudeHandle = m.SaudeBemEstar.handle; }).catch(() => {});
-import("./estudos.js?v=1").then(m => { if (m?.Estudos?.handle) estudosHandle = m.Estudos.handle; }).catch(() => {});
-import("./dev_ferramentas.js?v=1").then(m => { if (m?.DevFerramentas?.handle) devHandle = m.DevFerramentas.handle; }).catch(() => {});
-import("./programacao_termux.js?v=1").then(m => { if (m?.ProgramacaoTermux?.handle) progTermuxHandle = m.ProgramacaoTermux.handle; }).catch(() => {});
-import("./saberes_pro.js?v=1").then(m => { if (m?.SaberesPro?.handle) saberesProHandle = m.SaberesPro.handle; }).catch(() => {});
+await Promise.allSettled([
+  import("./utilidades.js?v=1").then(m => { if (m?.Utilidades?.handle) utilHandle = m.Utilidades.handle; }),
+  import("./conversor_texto.js?v=1").then(m => { if (m?.ConversorTexto?.handle) convTextoHandle = m.ConversorTexto.handle; }),
+  import("./saude_bemestar.js?v=1").then(m => { if (m?.SaudeBemEstar?.handle) saudeHandle = m.SaudeBemEstar.handle; }),
+  import("./estudos.js?v=1").then(m => { if (m?.Estudos?.handle) estudosHandle = m.Estudos.handle; }),
+  import("./dev_ferramentas.js?v=1").then(m => { if (m?.DevFerramentas?.handle) devHandle = m.DevFerramentas.handle; }),
+  import("./programacao_termux.js?v=2").then(m => { if (m?.ProgramacaoTermux?.handle) progTermuxHandle = m.ProgramacaoTermux.handle; }),
+  import("./saberes_pro.js?v=1").then(m => { if (m?.SaberesPro?.handle) saberesProHandle = m.SaberesPro.handle; })
+]);
 
 const SETTINGS_KEY = "bach_modules_v1";
 
