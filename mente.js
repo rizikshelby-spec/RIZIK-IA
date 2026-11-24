@@ -1,6 +1,6 @@
-/* BACH AI - MENTE 2.7
-   Contexto, leitura/cadeia de código colado, jogos, criação de apps seguros, pastas e vocabulário.
-   Evita buscas falsas na Wikipédia em falas coloquiais. */
+/* BACH AI - MENTE 2.8
+   Contexto inteligente (não confunde novo assunto com arquivo antigo), troca direta de jogos,
+   criação de apps seguros, pastas e vocabulário. */
 import { Saber } from "./saber.js?v=12";
 import { KB, ERROS } from "./conhecimento.js?v=1";
 
@@ -44,18 +44,18 @@ const VOCAB = {
 };
 
 const BASE_LEX = (
-  "mundo noticia noticias hoje agora ontem amanha semana mes ano seculo tempo clima chuva calor frio sol lua estrela terra planeta universo galaxia " +
+  "mundo noticia noticias hoje agora ontem amanha semana mes ano seculo tempo clima chuva calor frio sol lua estrela terra planeta universo galaxia marte " +
   "pais cidade estado capital brasil mundo pessoa gente homem mulher crianca jovem adulto idoso amigo amiga familia pai mae irmao irma filho filha " +
   "casa apartamento quarto cozinha sala rua bairro escola faculdade universidade trabalho emprego empresa dinheiro banco salario preco compra venda " +
   "comida agua cafe leite pao arroz feijao carne frango peixe fruta banana maca laranja doce bolo pizza lanche suco cerveja vinho " +
-  "animal cachorro gato cavalo passaro peixe pato leao tigre urso lobo macaco cobra tubarao baleia dinossauro inseto planta arvore flor floresta " +
+  "animal cachorro gato cavalo passaro peixe pato leao tigre urso lobo macaco cobra tubarao baleia dinossauro inseto planta arvore flor floresta pinguim galinha " +
   "cores azul verde vermelho amarelo preto branco rosa roxo laranja marrom cinza dourado prateado pintar pintura quadro quadros desenho desenhar " +
   "tema temas esfera bolinha transparente modulo modulos melhorar risos musica cantar dancar instrumento violao guitarra piano bateria banda show album letra " +
   "filme filmes serie series anime animes desenho desenhos livro livros historia conto novela cinema ator atriz diretor lancamento estreia trailer sinopse critica nota " +
   "jogo jogos game games console computador celular internet site pagina rede social aplicativo programa codigo codigos algoritmo dado dados banco servidor nuvem " +
   "erro bug falha problema solucao texto textos resumo explicar explicacao significa significado diferenca exemplo pergunta resposta ajuda ajudar " +
   "aprender ensinar estudar escrever falar ouvir ler ver assistir pensar lembrar esquecer comecar terminar continuar tentar conseguir " +
-  "criar fazer construir montar editar apagar excluir salvar abrir fechar buscar procurar pesquisar encontrar saber entender conhecer " +
+  "criar fazer construir montar editar apagar excluir salvar abrir fechar buscar procurar pesquisar encontrar saber entender conhecer distancia " +
   "esporte futebol basquete volei tenis corrida natacao luta campeonato copa time jogador gol " +
   "carro moto bicicleta aviao onibus trem navio viagem turismo hotel mapa estrada transito " +
   "hospital medico doenca saude remedio vacina corpo cabeca olho boca mao pe coracao cerebro sangue " +
@@ -95,7 +95,7 @@ function lev(a, b) {
 
 function corrigir(w) {
   if (w.length < 5 || /\d/.test(w)) return w;
-  if (/^(passe|passa|passar|passou|arroz|manda|mande|pede|pedir|quero|prece|pesse|lancou|lanca|lancar|estreou|saiu|presta|recomenda|indica|bugado|bugada|fazem|travou|arrumo|consertar|entende|entendeu|mandei|responde|pergunto|consciencia)$/.test(w)) return w;
+  if (/^(passe|passa|passar|passou|arroz|manda|mande|pede|pedir|quero|prece|pesse|lancou|lanca|lancar|estreou|saiu|presta|recomenda|indica|bugado|bugada|fazem|travou|arrumo|consertar|entende|entendeu|mandei|responde|pergunto|consciencia|sobreviver)$/.test(w)) return w;
   const L = lexico();
   if (L.has(w)) return w;
   const max = w.length >= 8 ? 2 : 1;
@@ -112,6 +112,7 @@ function lembrarTema(q) {
   const t = String(q || "").trim();
   if (!t) return;
   ctx.tema = t;
+  ctx.ultimo = { t: "tema" };
   ctx.lex = ctx.lex || [];
   prep(t).split(" ").forEach(w => w.length > 3 && !ctx.lex.includes(w) && ctx.lex.push(w));
   ctx.lex = ctx.lex.slice(-300);
@@ -328,6 +329,9 @@ function jogar(p, raw) {
   const j = ctx.jogo, w = p.trim();
   const rawClean = normSimples(raw).trim();
   if (/^(sair|parar|desistir|chega)$/.test(rawClean) || /^(sair|parar|desistir|chega)$/.test(w)) { ctx.jogo = null; return "Jogo encerrado. Quando quiser, é só dizer: jogar ..."; }
+  if (/^(?:jogar\s+)?(forca|jogo da velha|velha|adivinhe(?:\s+(?:o|um)\s+numero)?|quiz)$/.test(rawClean)) {
+    return iniciar(" " + rawClean + " ");
+  }
   if (rawClean.split(/\s+/).length > 2) return null;
   if (j.t === "forca") {
     const ch = rawClean.length === 1 && /[a-z]/.test(rawClean) ? rawClean : w;
@@ -491,14 +495,27 @@ function responder(msg) {
     };
   }
 
+  // Só lê o arquivo/foto se o usuário citar explicitamente arquivo/foto/código/texto OU se o foco atual ainda for o texto (e não outro assunto como "esse pinguim")
+  const mSubst = p.match(/ (?:esse|este|essa|esta) ([a-z]{3,}) /);
+  const outroAssunto = mSubst && !/^(texto|textos|codigo|codigos|arquivo|arquivos|print|foto|imagem|bloco|trecho|site|app|script)$/.test(mSubst[1]);
+  const pedeExplicitoArq = has(p, / (texto|textos|codigo|codigos|arquivo|arquivos|imagem|foto|print|cadeia) /);
   const PEDIDO_TEXTO_BARE = /^ ?((me\s+)?explic\w*|resum\w*|revis\w*|analis\w*|conserta\w*|arruma\w*|o que (e|faz|fazem|esta escrito) (isso|aqui)|cadeia de codigos?)(\s+(isso|esse texto|esse codigo|esses codigos|o codigo|os codigos|o texto|essa imagem|essa foto))? ?$/;
-  const REF_ARQUIVO = / (esse|este|esses|estes|isso|aqui|texto|textos|codigo|codigos|arquivo|arquivos|ele|eles|imagem|foto|print|cadeia) /;
+  const REF_ARQUIVO = / (esse|este|isso|aqui|texto|textos|codigo|codigos|arquivo|arquivos|imagem|foto|print|cadeia) /;
   const ACAO_ARQUIVO = /(o que e|o que faz|faz o que|fazem o que|o que fazem|para que serve|pra que serve|como funciona|explica|explique|resum|erro|problema|entend|leia|le |analis|revis|conserta|arruma|escrito|diz|cadeia|copiar|usar)/;
-  if (PEDIDO_TEXTO_BARE.test(p) || (has(p, REF_ARQUIVO) && has(p, ACAO_ARQUIVO))) {
+
+  if (!outroAssunto && (PEDIDO_TEXTO_BARE.test(p) || (has(p, REF_ARQUIVO) && has(p, ACAO_ARQUIVO))) && (pedeExplicitoArq || ctx.ultimo?.t === "texto")) {
     if (ctx.texto) return { texto: sobreTexto(p), origem: "📖 leitura do seu arquivo" };
     if (ctx.ultimoMidia) return { texto: "Na última mídia (“" + ctx.ultimoMidia.nome + "”) não encontrei texto legível para explicar. 🖼️", origem: "🧠 contexto" };
     if (ctx.tema) return { pesquisa: ctx.tema, fundo: true };
     return { texto: "O que você quer que eu explique? Cole o texto/código aqui, envie uma foto pelo + ou me diga o assunto. 🤔", origem: "🧠 contexto" };
+  }
+
+  // Se o usuário continuou falando sobre um assunto anterior (ex.: "E esse pinguim faz oq para sobreviver?")
+  if (ctx.tema && (outroAssunto || has(p, / (essa|essas|esse|esses|isso|isto|disso|dele|dela|deles|delas|nisso|aquilo|ele|ela|eles|elas) /)) && (pergunta(raw) || has(p, / (faz|fazem|serve|servem|significa|come|sobrevive|vive|mora) /))) {
+    const PR = new Set("essa essas esse esses isso isto disso dele dela deles delas nisso aquilo ele ela eles elas faz fazem fazer serve servem o que e sao por para qual quais como me explica".split(" "));
+    const seen = new Set(prep(ctx.tema).split(" ")), novo = p.trim().split(" ").filter(x => !PR.has(x) && !seen.has(x) && x.length > 2);
+    if (!novo.length) return { texto: "Estamos falando de “" + ctx.tema + "”. O que você quer saber sobre isso? Por exemplo: significado, origem, como funciona ou para que serve. 🤔", origem: "🧠 lembrei do assunto" };
+    return { pesquisa: ctx.tema + " " + novo.join(" "), fundo: true };
   }
 
   if (has(p, /(o que (a gente |nos |voce )?(falou|falamos|conversou|conversamos|vimos)|voce lembra|lembra do que|do que falamos)/))
@@ -528,13 +545,6 @@ function responder(msg) {
     if (tmCap.length >= 2 && pergunta(raw)) { lembrarTema(tmCap); return { pesquisa: tmCap, fundo: true }; }
   }
 
-  if (ctx.tema && has(p, / (essa|essas|esse|esses|isso|isto|disso|dele|dela|deles|delas|nisso|aquilo|ele|ela|eles|elas) /) && (pergunta(raw) || has(p, / (faz|fazem|serve|servem|significa) /))) {
-    const PR = new Set("essa essas esse esses isso isto disso dele dela deles delas nisso aquilo ele ela eles elas faz fazem fazer serve servem o que e sao por para qual quais como me explica".split(" "));
-    const seen = new Set(prep(ctx.tema).split(" ")), novo = p.trim().split(" ").filter(x => !PR.has(x) && !seen.has(x) && x.length > 2);
-    if (!novo.length) return { texto: "Estamos falando de “" + ctx.tema + "”. O que você quer saber sobre isso? Por exemplo: significado, origem, como funciona ou para que serve. 🤔", origem: "🧠 lembrei do assunto" };
-    return { pesquisa: ctx.tema + " " + novo.join(" "), fundo: true };
-  }
-
   if (pergunta(raw) && !has(p, / (voce|horas|hora|dia|data|bach|meu nome|seu nome|digo|disse|falei|mandei|entende|entendeu|pergunto) /)) {
     const tm = tema(raw);
     if (tm.length >= 2) {
@@ -547,12 +557,13 @@ function responder(msg) {
   return null;
 }
 
-const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo|vamos falar sobre|falar sobre o que|nao foi isso|travou foi|sabe rir|velho do ceu|conversa comigo|opa o que|oxe o que|entende o que|eu falo de|nao mandei|como assim|porque nao|eu que pergunto|consciencia|fazendo pesquisa|nao entendeu|nao entende)/;
+const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo|vamos falar sobre|falar sobre o que|nao foi isso|travou foi|sabe rir|velho do ceu|conversa comigo|opa o que|oxe o que|entende o que|eu falo de|nao mandei|como assim|porque nao|eu que pergunto|consciencia|fazendo pesquisa|nao entendeu|nao entende|acertei)/;
 const pergunta = t => {
   const p = prep(t);
   if (has(p, SMALL)) return false;
   if (has(p, /\b(eu|voce|pergunto|digo|disse|falei|mandei|entende|entendeu|pesquisando|fazendo pesquisa)\b/)) return false;
-  return has(p, /^ ?(o que e|o que sao|o que foi|o que significa|quem e|quem foi|quem sao|quais sao|qual e|qual foi|quantos|quantas|onde fica|onde esta|quando foi|quando aconteceu|como funciona|como fazer|como surgiu|por que|me explica|explique|explica|fale sobre|fala sobre|historia de|historia do|historia da) /);
+  return has(p, /^ ?(o que e|o que sao|o que foi|o que significa|quem e|quem foi|quem sao|quais sao|qual e|qual foi|quantos|quantas|onde fica|onde esta|quando foi|quando aconteceu|como funciona|como fazer|como surgiu|por que|me explica|explique|explica|fale sobre|fala sobre|historia de|historia do|historia da) /) ||
+    (/\?\s*$/.test(String(t)) && has(p, /\b(qual distancia|distancia de|fica onde|quantos km|quantos anos|qual tamanho|qual altura|qual peso|qual idade|qual capital|quem inventou|quando nasceu|o que significa|como funciona)\b/));
 };
 
 const stats = () => ({ girias: Object.keys(VOCAB).length, lexBase: BASE_LEX.length, kbProg: KB.length, erros: ERROS.length, jogos: 4, modelosApps: Object.keys(TEMPLATES).length, pasta: ctx.pasta, tema: ctx.tema });
