@@ -1,6 +1,6 @@
 /* BACH AI 4.8 — Executor Seguro de Scripts & Preview de Apps (Sandbox)
  * Executa código JavaScript em iframe isolado (sandbox="allow-scripts", sem acesso aos dados da BACH)
- * e renderiza aplicativos HTML/CSS/JS ao vivo dentro do chat.
+ * e renderiza aplicativos HTML/CSS/JS ao vivo dentro do chat e em tela cheia isolada.
  */
 
 function extrairCodigoDoTexto(raw) {
@@ -94,6 +94,32 @@ try {
   });
 }
 
+function abrirTelaCheiaSegura(html, titulo) {
+  const back = document.createElement("div");
+  back.style.cssText = "position:fixed;inset:0;z-index:99;background:rgba(8,9,18,.94);display:flex;flex-direction:column;padding:10px;gap:8px";
+
+  const bar = document.createElement("div");
+  bar.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:8px;color:#fff;font-size:14px;font-weight:bold";
+
+  const span = document.createElement("span");
+  span.textContent = titulo;
+
+  const btnFechar = document.createElement("button");
+  btnFechar.textContent = "✕ Fechar";
+  btnFechar.style.cssText = "padding:6px 12px;border-radius:10px;border:0;background:#c0392b;color:#fff;font-weight:bold;cursor:pointer";
+  btnFechar.onclick = () => back.remove();
+
+  bar.append(span, btnFechar);
+
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("sandbox", "allow-scripts allow-forms");
+  iframe.style.cssText = "flex:1;width:100%;border:1px solid rgba(138,118,255,.35);border-radius:12px;background:#0e1020";
+  iframe.srcdoc = html;
+
+  back.append(bar, iframe);
+  document.body.appendChild(back);
+}
+
 function criarCardPreview(html, titulo = "▶️ Preview ao vivo (Sandbox)") {
   const wrap = document.createElement("div");
   wrap.className = "cartao";
@@ -107,7 +133,7 @@ function criarCardPreview(html, titulo = "▶️ Preview ao vivo (Sandbox)") {
   const btnRecarregar = document.createElement("button");
   btnRecarregar.textContent = "🔄 Reiniciar";
   const btnTela = document.createElement("button");
-  btnTela.textContent = "↗ Abrir aba";
+  btnTela.textContent = "⛶ Tela cheia";
 
   top.append(span, btnRecarregar, btnTela);
 
@@ -121,11 +147,7 @@ function criarCardPreview(html, titulo = "▶️ Preview ao vivo (Sandbox)") {
   iframe.srcdoc = html;
 
   btnRecarregar.onclick = () => { iframe.srcdoc = html; };
-  btnTela.onclick = () => {
-    const u = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
-    window.open(u, "_blank", "noopener,noreferrer");
-    setTimeout(() => URL.revokeObjectURL(u), 15000);
-  };
+  btnTela.onclick = () => abrirTelaCheiaSegura(html, titulo);
 
   wrap.append(top, iframe);
   return wrap;
@@ -173,7 +195,7 @@ async function executar(raw, ctx = {}) {
 
   if (ehHTML(codigo)) {
     return {
-      texto: "▶️ **App HTML/CSS/JS iniciado no Preview Isolado!** Teste direto abaixo ou toque em **↗ Abrir aba**.",
+      texto: "▶️ **App HTML/CSS/JS iniciado no Preview Isolado!** Teste direto abaixo ou toque em **⛶ Tela cheia**.",
       previewHtml: codigo,
       previewTitle: "▶️ App em execução (Sandbox)"
     };
