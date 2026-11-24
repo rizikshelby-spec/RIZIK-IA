@@ -1,5 +1,5 @@
-/* BACH AI 4.6 — REVISOR FIEL (Ortografia, Sílabas, Código e Avaliação de Sites)
-   Permite revisar textos, sílabas, códigos e analisar sites direto no chat sem precisar ir ao GitHub. */
+/* BACH AI 4.8 — REVISOR FIEL (Ortografia, Sílabas, Código e Avaliação de Sites)
+   Permite revisar textos, sílabas, códigos e analisar sites direto no chat. */
 
 const VOGAIS = "aáàâãeéêiíoóôõuúüy";
 const V_RE = new RegExp("[" + VOGAIS + "]", "i");
@@ -11,7 +11,6 @@ function separarSilabaPalavra(raw) {
   if (!w) return "";
   if (w.includes("-")) return w.split("-").map(separarSilabaPalavra).join("-");
 
-  // Encontra blocos vocálicos (tratando qu/gu antes de e/i/a/o como parte da consoante)
   const chars = [...w];
   const grupos = [];
   let i = 0;
@@ -28,7 +27,6 @@ function separarSilabaPalavra(raw) {
       while (i + 1 < chars.length && V_RE.test(chars[i + 1])) {
         const prox = chars[i + 1];
         const par = v.slice(-1) + prox;
-        // Separa hiatos claros: vogal acentuada í/ú ou vogais fortes idênticas/abertas (aa, ee, oo, ao, ea, eo, oa, oe)
         const ehHiato = /[íú]/.test(prox) ||
           /^(aa|ee|oo|ao|ea|eo|oa|oe|aá|eé|oó|ía|ío|úa|úo)$/.test(par.normalize("NFC"));
         if (ehHiato) break;
@@ -50,7 +48,6 @@ function separarSilabaPalavra(raw) {
     }
   }
 
-  // Monta sílabas entre os núcleos vocálicos
   const numV = grupos.filter(g => g.tipo === "V").length;
   if (numV <= 1) return w;
 
@@ -61,7 +58,6 @@ function separarSilabaPalavra(raw) {
     const g = grupos[idx];
     if (g.tipo === "V") {
       buf += g.txt;
-      // Se o próximo também for V (hiato), fecha sílaba aqui
       if (grupos[idx + 1]?.tipo === "V") {
         silabas.push(buf);
         buf = "";
@@ -70,9 +66,7 @@ function separarSilabaPalavra(raw) {
       const temVAntes = silabas.length > 0 || V_RE.test(buf);
       const temVDepois = grupos.slice(idx + 1).some(x => x.tipo === "V");
 
-      if (!temVAntes) {
-        buf += g.txt;
-      } else if (!temVDepois) {
+      if (!temVAntes || !temVDepois) {
         buf += g.txt;
       } else {
         const ct = g.txt;
@@ -88,7 +82,6 @@ function separarSilabaPalavra(raw) {
             buf = ct[1];
           }
         } else {
-          // 3 ou mais consoantes: tenta manter as últimas 2 se formarem grupo inseparável
           const ult2 = ct.slice(-2);
           if (INSEPARAVEIS.has(ult2) && !DIG_SEP.has(ult2)) {
             silabas.push(buf + ct.slice(0, -2));
@@ -111,7 +104,7 @@ function classificarSilabas(n) {
 
 function analisarSilabas(frase) {
   const palavras = String(frase || "").trim().split(/\s+/).filter(Boolean).slice(0, 12);
-  if (!palavras.length) return "Envie uma ou mais palavras depois de `/silabas`. Ex.: `/silabas computador programacao`";
+  if (!palavras.length) return "🔤 Envie uma ou mais palavras depois de `/silabas`. Ex.: `/silabas computador programacao`";
   const linhas = palavras.map(p => {
     const sep = separarSilabaPalavra(p);
     const qtd = sep ? sep.split("-").length : 0;
@@ -124,7 +117,6 @@ const REGRAS_PT = [
   [/\bconcerteza\b/gi, "com certeza", "“concerteza” não existe junto; o correto é **com certeza**."],
   [/\bderrepente\b/gi, "de repente", "“derrepente” escreve-se separado: **de repente**."],
   [/\bporisso\b/gi, "por isso", "“porisso” escreve-se separado: **por isso**."],
-  [/\bcomigo mesmo\b/gi, "comigo mesmo", null],
   [/\bmenas\b/gi, "menos", "“menas” não existe; use sempre **menos** (invariável)."],
   [/\bseje\b/gi, "seja", "“seje” está errado; o certo é **seja**."],
   [/\besteje\b/gi, "esteja", "“esteje” está errado; o certo é **esteja**."],
@@ -149,13 +141,12 @@ const REGRAS_PT = [
 
 function revisarPortugues(texto) {
   const orig = String(texto || "").trim();
-  if (!orig) return "Cole o texto depois do comando para eu revisar cada erro!";
+  if (!orig) return "📝 Cole o texto depois de `/revisar` para eu revisar cada erro!";
 
   const erros = [];
   let corrigido = orig;
 
   for (const [re, sub, desc] of REGRAS_PT) {
-    if (!desc) continue;
     if (re.test(corrigido)) {
       erros.push("• " + desc);
       corrigido = corrigido.replace(re, sub);
@@ -163,9 +154,8 @@ function revisarPortugues(texto) {
     re.lastIndex = 0;
   }
 
-  // Pontuação e espaçamento
   if (/\s+[,.;!?]/.test(corrigido)) {
-    erros.push("• Há **espaço antes da pontuação** (ex.: `palavra ,` em vez de `palavra,`).");
+    erros.push("• Há **espaço antes da pontuação**.");
     corrigido = corrigido.replace(/\s+([,.;!?])/g, "$1");
   }
   if (/[,.;!?][A-Za-zÀ-ÿ]/.test(corrigido)) {
@@ -185,7 +175,6 @@ function revisarPortugues(texto) {
     corrigido += ".";
   }
 
-  // Verifica possíveis erros de sílaba/consoante estranha em palavras grandes
   const palavras = orig.split(/\s+/).map(w => w.replace(/[^a-záàâãéêíóôõúüç]/gi, "")).filter(w => w.length >= 4);
   for (const p of palavras) {
     if (/[bcdfghjklmnpqrstvwxz]{4,}/i.test(p)) {
@@ -195,7 +184,7 @@ function revisarPortugues(texto) {
 
   if (!erros.length) {
     return "✅ **Revisão de texto:** não encontrei erros óbvios de ortografia, espaçamento ou pontuação!\n\n" +
-      "Texto analisado:\n“" + orig + "”\n\n💡 Se quiser ver a divisão silábica de palavras difíceis, use `/silabas palavra`.";
+      "Texto analisado:\n“" + orig + "”\n\n💡 Se quiser ver a divisão silábica, use `/silabas palavra`.";
   }
 
   return "📝 **REVISÃO FIEL DO TEXTO (" + erros.length + " ponto(s) encontrado(s)):**\n\n" +
@@ -240,7 +229,7 @@ function revisarCodigoFiel(codigo) {
 
 async function avaliarSite(url) {
   const u = String(url || "").trim();
-  if (!/^https?:\/\//i.test(u)) return "Envie um link completo começando com `http://` ou `https://`.";
+  if (!/^https?:\/\//i.test(u)) return "🌐 Envie um link completo começando com `http://` ou `https://`. Ex.: `/site https://google.com`";
 
   const pontos = [];
   const problemas = [];
@@ -310,11 +299,19 @@ function detectarPedidoDireto(raw) {
   const s = String(raw || "").trim();
   if (!s) return null;
 
-  // /silabas palavra1 palavra2
+  if (/^\/silabas$/i.test(s)) {
+    return { tipo: "sync", texto: "🔤 Envie a palavra depois de `/silabas`. Ex.: `/silabas computador programacao`" };
+  }
+  if (/^\/(revisar|ortografia|corrigirtexto)$/i.test(s)) {
+    return { tipo: "sync", texto: "📝 Cole o texto ou código depois de `/revisar` para eu apontar cada erro!" };
+  }
+  if (/^\/site$/i.test(s)) {
+    return { tipo: "sync", texto: "🌐 Envie o endereço do site depois de `/site`. Ex.: `/site https://google.com`" };
+  }
+
   let m = s.match(/^(?:\/silabas|silabas de|separe? as silabas(?: de)?|divisao silabica(?: de)?)\s+([\s\S]+)$/i);
   if (m) return { tipo: "sync", texto: analisarSilabas(m[1]) };
 
-  // /revisar ou "corrige esse texto: ..."
   m = s.match(/^(?:\/revisar|\/ortografia|\/corrigirtexto|corrija esse texto|corrige esse texto|revise esse texto|revisa esse texto|tem erro nesse texto\??|achar erros nesse texto)\s*:?\s*([\s\S]+)$/i);
   if (m) {
     const corpo = m[1].trim();
@@ -322,7 +319,6 @@ function detectarPedidoDireto(raw) {
     return { tipo: "sync", texto: pareceCod ? revisarCodigoFiel(corpo) : revisarPortugues(corpo) };
   }
 
-  // Avaliação de site ("esse site ta bom? URL", "/site URL", "avalia esse site URL")
   m = s.match(/^(?:\/site|avalia(?:r)? (?:esse|o) site|ve(?:r|ja) se (?:esse|o) site (?:ta|esta) (?:bom|ruim)|(?:esse|o) site (?:ta|esta) (?:bom|ruim))\s*:?\s*(https?:\/\/\S+)/i) ||
       s.match(/(https?:\/\/\S+)\s+(?:ta bom|esta bom|ta ruim|esta ruim|e bom|e ruim|presta|vale a pena)\??$/i);
   if (m) return { tipo: "site", url: m[1].replace(/[.,;!?]+$/, "") };
