@@ -1,7 +1,7 @@
-/* BACH AI - MENTE 2.3
+/* BACH AI - MENTE 2.4
    Contexto, leitura/cadeia de código colado, jogos, criação de apps, pastas e vocabulário.
    Sem lookbehind e sem crases literais que quebrem formatação. */
-import { Saber } from "./saber.js?v=10";
+import { Saber } from "./saber.js?v=12";
 import { KB, ERROS } from "./conhecimento.js?v=1";
 
 const BT = "\x60\x60\x60";
@@ -24,11 +24,12 @@ const VOCAB = {
   ta: "esta", tao: "estao", to: "estou", tava: "estava", tamo: "estamos", vamo: "vamos",
   pra: "para", oara: "para", praa: "para", pro: "para o", pras: "para as", pros: "para os",
   qro: "quero", fzer: "fazer", assitir: "assistir", asist: "assistir", recomnda: "recomenda", recomeda: "recomenda",
+  cmg: "comigo", entt: "entao", msc: "musica", sla: "sei la", rlx: "relaxa", nmrl: "na moral",
   ngm: "ninguem", algm: "alguem", msg: "mensagem",
   pf: "por favor", pfv: "por favor", plis: "por favor", pls: "por favor",
   n: "nao", naum: "nao", nn: "nao", s: "sim", ss: "sim", eh: "e",
   kd: "cade", qnd: "quando", qdo: "quando", qm: "quem", cm: "como", cmo: "como",
-  qto: "quanto", qtos: "quantos", qtas: "quantas", cmg: "comigo", ctg: "contigo",
+  qto: "quanto", qtos: "quantos", qtas: "quantas", ctg: "contigo",
   add: "adicionar", app: "app", apps: "app", cel: "celular", pc: "computador", net: "internet",
   zap: "whatsapp", wpp: "whatsapp", yt: "youtube", insta: "instagram", face: "facebook",
   cod: "codigo", progamacao: "programacao", programaçao: "programacao", codigo: "codigo",
@@ -94,7 +95,7 @@ function lev(a, b) {
 
 function corrigir(w) {
   if (w.length < 5 || /\d/.test(w)) return w;
-  if (/^(passe|passa|passar|passou|arroz|manda|mande|pede|pedir|quero|prece|pesse|lancou|lanca|lancar|estreou|saiu|presta|recomenda|indica|bugado|bugada|fazem)$/.test(w)) return w;
+  if (/^(passe|passa|passar|passou|arroz|manda|mande|pede|pedir|quero|prece|pesse|lancou|lanca|lancar|estreou|saiu|presta|recomenda|indica|bugado|bugada|fazem|travou|arrumo|consertar)$/.test(w)) return w;
   const L = lexico();
   if (L.has(w)) return w;
   const max = w.length >= 8 ? 2 : 1;
@@ -138,7 +139,7 @@ function tema(t) {
   for (let k = 0; k < 4; k++) {
     x = x.replace(CMD, "").replace(PERG, "").replace(ART, "").replace(SUF, "").trim();
   }
-  if (/^(isso|aquilo|ele|ela|eles|elas|esse|essa|este|esta|falar|perguntei|aqui)$/.test(x)) return "";
+  if (/^(isso|aquilo|ele|ela|eles|elas|esse|essa|este|esta|falar|perguntei|aqui|travou|rir|audio)$/.test(x)) return "";
   return x;
 }
 
@@ -219,13 +220,14 @@ function revisar(t) {
   if (/fetch\(/.test(t) && !/catch/.test(t)) p.push("Faz fetch sem tratar erro (catch).");
   if (/\bvar\s/.test(t)) p.push("Usa var; prefira let/const.");
   if (/[^=!]==[^=]/.test(t)) p.push("Usa == ; prefira === para comparar.");
+  if (/\beval\s*\(|new\s+Function\s*\(/.test(t)) p.push("Usa eval/Function dinâmica (risco de segurança).");
   const a = (t.match(/\{/g) || []).length, b = (t.match(/\}/g) || []).length;
   if (a !== b) p.push("Chaves desbalanceadas: " + a + " “{” e " + b + " “}”.");
   const x = (t.match(/\(/g) || []).length, y = (t.match(/\)/g) || []).length;
   if (x !== y) p.push("Parênteses desbalanceados: " + x + " “(” e " + y + " “)”.");
   if (/\bTODO\b|\bFIXME\b/.test(t)) p.push("Tem TODO/FIXME pendentes.");
   return "🔍 Revisão rápida do código (" + t.split("\n").length + " linhas):\n" + (p.length ? p.map(s => "• " + s).join("\n") : "• Não achei problemas óbvios.") +
-    "\n\nObs.: sou uma revisão por regras; não executo o código.";
+    "\n\nObs.: sou uma revisão estática por regras; não executo o código.";
 }
 
 function cadeiaCodigoLocal(t) {
@@ -242,7 +244,7 @@ function cadeiaCodigoLocal(t) {
   const blocoExemplo = "import { " + expNome + " } from \"./" + (arq.endsWith(".js") ? arq : arq + ".js") + "\";\n\n" +
     "// Fluxo encadeado usando o código enviado:\n" +
     "async function executarFluxo(entrada) {\n" +
-    "  // 1) Funções internas detectadas: " + (listaFuncs.join(", ") || "bloco direto") + "\n" +
+    "  // Funções internas detectadas: " + (listaFuncs.join(", ") || "bloco direto") + "\n" +
     "  console.log(\"Módulo carregado:\", " + expNome + ");\n" +
     "  return " + expNome + ";\n" +
     "}";
@@ -278,7 +280,7 @@ function explicarCodigoLocal(t) {
 
 function sobreTexto(p) {
   const t = ctx.texto, cod = Saber.isCode(t);
-  if (has(p, /escrito|diz|lê|leia|aqui|foto|imagem|print/)) {
+  if (has(p, /escrito|diz|leia|aqui|foto|imagem|print/)) {
     return "📝 Texto lido em **" + (ctx.nome || "arquivo recente") + "**:\n\n“" + t.slice(0, 2000) + "”";
   }
   if (cod && has(p, /cadeia|ligar|importar|como usar|copiar|estrutura|fluxo/)) return cadeiaCodigoLocal(t);
@@ -315,10 +317,10 @@ const MENU = "🎮 Escolha um jogo:\n• forca\n• jogo da velha\n• adivinhe 
 const perg = i => (i + 1) + ") " + QUIZ[i][0] + "\n" + QUIZ[i][1].map((o, k) => "abc"[k] + ") " + o).join("\n");
 
 function iniciar(p) {
-  if (has(p, /forca/)) { ctx.jogo = { t: "forca", p: pick(PAL), ok: [], er: [] }; return "🪢 FORCA! Mande uma letra (ou chute a palavra inteira).\n\n" + forca(ctx.jogo); }
-  if (has(p, /velha/)) { ctx.jogo = { t: "velha", b: Array(9).fill("") }; return "⭕❌ JOGO DA VELHA! Você é ❌. Mande o número da casa:\n\n" + tab(ctx.jogo.b); }
-  if (has(p, /adivinh|numero/)) { ctx.jogo = { t: "num", n: 1 + Math.floor(Math.random() * 100), c: 0 }; return "🔢 Pensei num número de 1 a 100. Qual é?"; }
-  if (has(p, /quiz|pergunta/)) { ctx.jogo = { t: "quiz", i: 0, pts: 0 }; return "🧠 QUIZ!\n\n" + perg(0); }
+  if (has(p, /\bforca\b/)) { ctx.jogo = { t: "forca", p: pick(PAL), ok: [], er: [] }; return "🪢 FORCA! Mande uma letra (ou chute a palavra inteira).\n\n" + forca(ctx.jogo); }
+  if (has(p, /\bvelha\b/)) { ctx.jogo = { t: "velha", b: Array(9).fill("") }; return "⭕❌ JOGO DA VELHA! Você é ❌. Mande o número da casa:\n\n" + tab(ctx.jogo.b); }
+  if (has(p, /\badivinh/)) { ctx.jogo = { t: "num", n: 1 + Math.floor(Math.random() * 100), c: 0 }; return "🔢 Pensei num número de 1 a 100. Qual é?"; }
+  if (has(p, /\bquiz\b/)) { ctx.jogo = { t: "quiz", i: 0, pts: 0 }; return "🧠 QUIZ!\n\n" + perg(0); }
   return MENU;
 }
 
@@ -456,8 +458,11 @@ function responder(msg) {
   const sg = seguimento(p, w); if (sg) return { texto: sg, origem: "🧠 lembrei do assunto" };
   const criarV = has(p, / (cria|crie|criar|faz|faca|fazer|monta|monte|gera|gere|programa|programe|constroi) /);
   if (criarV && has(p, / (jogo|jogos|app|aplicativo|tela|site|pagina|calculadora|tarefas|lista de tarefas|landing) /)) return { texto: criar(p), origem: "🛠️ criador de apps" };
-  const nomeJogo = w.split(" ").length <= 5 && has(p, /(forc|velh|adivinh|numero|quiz)/) && !criarV;
+
+  // Só abre jogos se pedir explicitamente o nome completo ou "jogar" (evita "velho" -> "jogo da velha")
+  const nomeJogo = w.split(" ").length <= 5 && has(p, /\b(forca|jogo da velha|velha|adivinhe|quiz)\b/) && !criarV;
   if ((has(p, / (jogar|joguinho|jogo|brincar) /) || nomeJogo) && !criarV) return { texto: iniciar(p), origem: "🎮 jogos" };
+
   if (criarV && has(p, / (ia|inteligencia artificial|chatbot|bot) /)) return { texto: (ctx.ultimo = { t: "guia" }, persist(), GUIA), origem: "🤖 guia" };
   if (has(p, /(como|onde) (comeco|comecar|faco|fazer).*(ia|chatbot)/)) return { texto: (ctx.ultimo = { t: "guia" }, persist(), GUIA), origem: "🤖 guia" };
 
@@ -487,7 +492,6 @@ function responder(msg) {
     };
   }
 
-  // Perguntas sobre o último código/texto/imagem ou pedido de "cadeia de códigos"
   const PEDIDO_TEXTO_BARE = /^ ?((me\s+)?explic\w*|resum\w*|revis\w*|analis\w*|conserta\w*|arruma\w*|o que (e|faz|fazem|esta escrito) (isso|aqui)|cadeia de codigos?)(\s+(isso|esse texto|esse codigo|esses codigos|o codigo|os codigos|o texto|essa imagem|essa foto))? ?$/;
   const REF_ARQUIVO = / (esse|este|esses|estes|isso|aqui|texto|textos|codigo|codigos|arquivo|arquivos|ele|eles|imagem|foto|print|cadeia) /;
   const ACAO_ARQUIVO = /(o que e|o que faz|faz o que|fazem o que|o que fazem|para que serve|pra que serve|como funciona|explica|explique|resum|erro|problema|entend|leia|le |analis|revis|conserta|arruma|escrito|diz|cadeia|copiar|usar)/;
@@ -517,7 +521,10 @@ function responder(msg) {
   const cap = p.match(/^ (?:voce )?(?:sabe|consegue|pode|poderia|sabe me) (.+)/);
   if (cap && !has(p, / (horas|hora) /)) {
     const x = cap[1].trim();
-    if (has(p, / (programar|codigo|codar|jogar|resumir|pesquisar|escrever|criar|calcular|ler|traduzir) /) && !has(p, / (quadro|desenho|musica|carro|cozinhar|dancar|cantar) /)) return { texto: "Sim! 😊 Eu sei: programar (JS, Python, HTML, CSS, SQL), jogar (forca, velha, quiz, adivinhação), resumir e revisar textos, criar apps prontos, pesquisar na internet, traduzir idiomas, ler texto em imagens e guardar arquivos em pastas.", origem: "🧠 minhas habilidades" };
+    if (has(p, / (programar|codigo|codar|jogar|resumir|pesquisar|escrever|criar|calcular|ler|traduzir|rir) /) && !has(p, / (quadro|desenho|musica|carro|cozinhar|dancar|cantar) /)) {
+      if (/\brir\b/.test(x)) return { texto: "Haha claro! 😂😂 Manda uma piada ou pede “conta uma piada”!", origem: "😄 humor" };
+      return { texto: "Sim! 😊 Eu sei: programar, jogar (forca, velha, quiz, adivinhação), resumir e revisar textos, recomendar filmes/animes/músicas, pesquisar na internet, traduzir idiomas e ler fotos/vídeos.", origem: "🧠 minhas habilidades" };
+    }
     const tmCap = tema(x) || x;
     if (tmCap.length >= 2) { lembrarTema(tmCap); return { pesquisa: tmCap, fundo: true }; }
   }
@@ -541,7 +548,7 @@ function responder(msg) {
   return null;
 }
 
-const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo|vamos falar sobre|falar sobre o que|nao foi isso)/;
+const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo|vamos falar sobre|falar sobre o que|nao foi isso|travou foi|sabe rir|velho do ceu|conversa comigo)/;
 const pergunta = t => {
   const p = prep(t);
   if (has(p, SMALL)) return false;
