@@ -1,8 +1,8 @@
-/* BACH AI 4.7 — registro central dos departamentos, Watchdog AutoGuard e roteador de habilidades. */
+/* BACH AI 4.8 — registro central dos departamentos, Watchdog AutoGuard e roteador de habilidades. */
 
 import { AutoGuard } from "./autoguard.js?v=1";
 import { Intelligence } from "./intelligence.js?v=2";
-import { Personality } from "./personality.js?v=1";
+import { Personality } from "./personality.js?v=2";
 import { Creativity } from "./creativity.js?v=1";
 import { Planning } from "./planning.js?v=1";
 import { Security } from "./security.js?v=1";
@@ -17,18 +17,22 @@ let convTextoHandle = null;
 let saudeHandle = null;
 let estudosHandle = null;
 let devHandle = null;
+let progTermuxHandle = null;
+let saberesProHandle = null;
 
 import("./utilidades.js?v=1").then(m => { if (m?.Utilidades?.handle) utilHandle = m.Utilidades.handle; }).catch(() => {});
 import("./conversor_texto.js?v=1").then(m => { if (m?.ConversorTexto?.handle) convTextoHandle = m.ConversorTexto.handle; }).catch(() => {});
 import("./saude_bemestar.js?v=1").then(m => { if (m?.SaudeBemEstar?.handle) saudeHandle = m.SaudeBemEstar.handle; }).catch(() => {});
 import("./estudos.js?v=1").then(m => { if (m?.Estudos?.handle) estudosHandle = m.Estudos.handle; }).catch(() => {});
 import("./dev_ferramentas.js?v=1").then(m => { if (m?.DevFerramentas?.handle) devHandle = m.DevFerramentas.handle; }).catch(() => {});
+import("./programacao_termux.js?v=1").then(m => { if (m?.ProgramacaoTermux?.handle) progTermuxHandle = m.ProgramacaoTermux.handle; }).catch(() => {});
+import("./saberes_pro.js?v=1").then(m => { if (m?.SaberesPro?.handle) saberesProHandle = m.SaberesPro.handle; }).catch(() => {});
 
 const SETTINGS_KEY = "bach_modules_v1";
 
 const DEPARTMENTS = [
   { id: "inteligencia", name: "1. Inteligência e raciocínio", status: "LOCAL + IA", control: true, skills: "Raciocínio lógico, resolução de problemas, cálculo seguro e análise de situações." },
-  { id: "personalidade", name: "2. Personalidade e humor", status: "LOCAL + IA", control: true, skills: "Humor espontâneo, piadas, conversa natural e estilo próprio da BACH." },
+  { id: "personalidade", name: "2. Personalidade e piadas interativas", status: "LOCAL + IA", control: true, skills: "Piadas interativas que esperam sua resposta, humor e estilo próprio da BACH." },
   { id: "memoria", name: "3. Memória e aprendizado", status: "ATIVO", control: false, skills: "Memória de longo prazo, contexto curto, ensinamentos, correções e histórico." },
   { id: "pesquisa", name: "4. Conhecimento e pesquisa", status: "ONLINE", control: false, skills: "Pesquisa na internet, notícias, Wikipédia e comparação de fontes." },
   { id: "ciencias", name: "5. Ciências e matemática", status: "LOCAL + IA", control: true, skills: "Matemática, fórmulas físicas, química, biologia e lógica." },
@@ -45,7 +49,7 @@ const DEPARTMENTS = [
   { id: "redes", name: "16. Redes sociais", status: "ATIVO", control: false, skills: "Boas práticas, legendas, bios e segurança digital." },
   { id: "saude", name: "17. Saúde", status: "EDUCACIONAL", control: false, skills: "Educação em saúde sem substituir diagnóstico profissional." },
   { id: "financas", name: "18. Finanças", status: "LOCAL + IA", control: true, skills: "Juros simples e compostos, método 50-30-20 e noções financeiras." },
-  { id: "direito", name: "19. Direito", status: "LOCAL + PESQUISA", control: false, skills: "Direitos básicos do consumidor e explicações gerais." },
+  { id: "direito", name: "19. Direito", status: "LOCAL + PESQUISA", control: false, skills: "Direitos básicos do consumidor, LGPD e explicações gerais." },
   { id: "educacao", name: "20. Educação", status: "LOCAL + IA", control: true, skills: "Quiz educativo, planos de estudo e redação." },
   { id: "documentos", name: "21. Pesquisa documental", status: "ATIVO", control: false, skills: "Leitura, resumo e revisão de textos, arquivos, fotos e vídeos." },
   { id: "jogos-mentais", name: "22. Jogos mentais", status: "ATIVO", control: false, skills: "Charadas, lógica e desafios no chat." },
@@ -55,7 +59,12 @@ const DEPARTMENTS = [
   { id: "conversor-texto", name: "26. Conversor de texto e links", status: "LOCAL", control: true, skills: "Link WhatsApp, maiúsculo/minúsculo, sem acento, inverter, slug e Base64." },
   { id: "saude-bemestar", name: "27. Saúde e bem-estar", status: "LOCAL", control: true, skills: "Cálculos educativos de IMC, água diária, calorias, respiração 4-7-8 e pausa ativa." },
   { id: "estudos", name: "28. Estudos avançados", status: "LOCAL", control: true, skills: "Flashcards por matéria, simulado com pontuação e técnicas de memorização." },
-  { id: "dev-ferramentas", name: "29. Ferramentas Dev Web", status: "LOCAL", control: true, skills: "Conversor HEX/RGB/HSL, CSS vidro transparente, meta tags SEO e paletas." }
+  { id: "dev-ferramentas", name: "29. Ferramentas Dev Web", status: "LOCAL", control: true, skills: "Conversor HEX/RGB/HSL, CSS vidro transparente, meta tags SEO e paletas." },
+  { id: "programacao-termux", name: "30. Termux, scripts e criador de apps", status: "LOCAL", control: true, skills: "Guias de Termux/Linux/Bash e criador autônomo de apps HTML/CSS/JS completos." },
+  { id: "saberes-pro", name: "31. Sabedoria geral avançada", status: "LOCAL", control: true, skills: "Segurança web, Docker, JWT, RAG, LGPD, economia, astronomia, termodinâmica e filosofia." },
+  { id: "executor-sandbox", name: "32. Executor seguro (Sandbox)", status: "ATIVO", control: false, skills: "Executa scripts JS e abre preview ao vivo de apps HTML/CSS/JS direto no chat." },
+  { id: "voz-tts", name: "33. Voz natural (TTS)", status: "ATIVO", control: false, skills: "Leitura em português dividida em trechos (compatível com iPhone, Android e PC)." },
+  { id: "erros-adm", name: "34. Central de erros ADM", status: "ATIVO", control: false, skills: "Captura automática de falhas do público com busca, seleção, exclusão e cópia no ADM." }
 ];
 
 const AJUDA_FERRAMENTAS = {
@@ -90,7 +99,7 @@ function enabled(id) {
 }
 
 function listModules() {
-  return "🧠 BACH AI 4.7 — DEPARTAMENTOS (" + DEPARTMENTS.length + ")\n\n" +
+  return "🧠 BACH AI 4.8 — DEPARTAMENTOS (" + DEPARTMENTS.length + ")\n\n" +
     DEPARTMENTS.map(d => {
       const flag = d.control ? (enabled(d.id) ? "🟢" : "⚪") : "🔹";
       return flag + " " + d.name + "\n   ID: " + d.id + " • " + d.status + "\n   " + d.skills;
@@ -99,12 +108,17 @@ function listModules() {
 }
 
 function moduleCommand(text) {
-  const m = String(text || "").trim().match(/^\/modulo\s+([a-z0-9-]+)\s+(on|off|ligar|desligar)$/i);
+  const raw = String(text || "").trim();
+  if (/^\/modulo(?:\s+\S+)?$/i.test(raw) && !/^\/modulo\s+[a-z0-9-]+\s+(on|off|ligar|desligar)$/i.test(raw)) {
+    return "⚙️ Use: `/modulo ID on` ou `/modulo ID off` (ex.: `/modulo personalidade off`).\nDigite `/modulos` para ver todos os IDs!";
+  }
+
+  const m = raw.match(/^\/modulo\s+([a-z0-9-]+)\s+(on|off|ligar|desligar)$/i);
   if (!m) return null;
 
   const id = m[1].toLowerCase();
   const department = DEPARTMENTS.find(d => d.id === id);
-  if (!department) return "Não reconheci esse ID. Digite /modulos para ver a lista.";
+  if (!department) return "Não reconheci esse ID (`" + id + "`). Digite `/modulos` para ver a lista.";
   if (!department.control) {
     return "O departamento “" + department.name + "” é estrutural e não pode ser desligado por este comando.";
   }
@@ -117,18 +131,20 @@ function moduleCommand(text) {
 }
 
 const HANDLERS = [
+  ["personalidade", Personality.handle, "😄 piada interativa"],
   ["mundo", Units.handle, "📏 conversão de unidades"],
   ["utilidades", (raw, ctx) => (utilHandle ? utilHandle(raw, ctx) : null), "🧰 utilidades"],
   ["conversor-texto", (raw, ctx) => (convTextoHandle ? convTextoHandle(raw, ctx) : null), "🔤 conversor de texto"],
   ["saude-bemestar", (raw, ctx) => (saudeHandle ? saudeHandle(raw, ctx) : null), "🩺 saúde e bem-estar"],
   ["estudos", (raw, ctx) => (estudosHandle ? estudosHandle(raw, ctx) : null), "🎓 modo estudante"],
   ["dev-ferramentas", (raw, ctx) => (devHandle ? devHandle(raw, ctx) : null), "🛠️ ferramentas dev"],
+  ["programacao-termux", (raw, ctx) => (progTermuxHandle ? progTermuxHandle(raw, ctx) : null), "💻 termux & criador de apps"],
+  ["saberes-pro", (raw, ctx) => (saberesProHandle ? saberesProHandle(raw, ctx) : null), "📚 sabedoria avançada"],
   ["inteligencia", Intelligence.handle, "🔢 cálculo local"],
   ["financas", Finance.handle, "💰 finanças"],
   ["ciencias", Science.handle, "🔬 fórmulas de física"],
   ["seguranca", Security.handle, "🔒 triagem de segurança"],
   ["educacao", Education.handle, "🧑‍🏫 quiz educativo"],
-  ["personalidade", Personality.handle, "😄 personalidade"],
   ["criatividade", Creativity.handle, "🎨 criatividade offline"],
   ["estrategia", Planning.handle, "🗺️ planejamento"],
   ["automacao", Automation.handle, "🤖 planejamento de automação"]
@@ -166,11 +182,17 @@ function handle(text, context = {}) {
   for (const [id, fn, origin] of HANDLERS) {
     if (!enabled(id)) continue;
     if (context.hasAI && !raw.startsWith("/")) {
-      if (id === "personalidade" || id === "criatividade" || id === "estrategia") continue;
+      if (id === "criatividade" || id === "estrategia") continue;
+      if (id === "personalidade" && !Personality.temAtiva?.()) continue;
     }
 
     const answer = AutoGuard.guard(id, () => fn(raw, context));
-    if (answer) return { texto: answer, origem: origin };
+    if (answer) {
+      if (typeof answer === "object" && answer.texto) {
+        return { origem: origin, ...answer };
+      }
+      return { texto: answer, origem: origin };
+    }
   }
 
   return null;
