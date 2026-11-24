@@ -1,4 +1,4 @@
-/* BACH AI 4.9 — Programação Completa, Termux, Bash, Python, Node & Gerador Autônomo de Apps
+/* BACH AI 5.0 — Programação Completa, Termux, Bash, Python, Node & Gerador Autônomo de Apps
  * Cria aplicativos HTML/CSS/JS completos sob demanda, gera scripts .sh prontos e ensina Termux.
  */
 
@@ -18,7 +18,7 @@ const escHtml = s => String(s || "")
   .replace(/'/g, "&#39;");
 
 const GUIAS_TERMUX = [
-  [/\b(comecar|instalar|basico|o que e|comandos|ajuda|tudo)\b.*\btermux\b|\btermux\b.*\b(comecar|basico|comandos|ajuda|tudo)\b|^termux$/,
+  [/\b(comecar|instalar|basico|o que e|comandos|ajuda|tudo)\b.*\btermux\b|\btermux\b.*\b(comecar|basico|comandos|ajuda|tudo)\b|^\/?termux$/,
    "📱 **GUIA COMPLETO DE TERMUX (Android):**\n\n" +
    "**1. Primeira configuração (obrigatória):**\n" +
    BT + "bash\npkg update && pkg upgrade -y\ntermux-setup-storage\n" + BT + "\n\n" +
