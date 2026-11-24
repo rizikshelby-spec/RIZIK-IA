@@ -6,8 +6,16 @@ const BT = String.fromCharCode(96).repeat(3);
 
 const norm = s => String(s || "").toLowerCase().normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "")
+  .replace(/[^a-z0-9\s./-]/g, " ")
   .replace(/\s+/g, " ")
   .trim();
+
+const escHtml = s => String(s || "")
+  .replace(/&/g, "&amp;")
+  .replace(/</g, "&lt;")
+  .replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;")
+  .replace(/'/g, "&#39;");
 
 const GUIAS_TERMUX = [
   [/\b(comecar|instalar|basico|o que e|comandos|ajuda|tudo)\b.*\btermux\b|\btermux\b.*\b(comecar|basico|comandos|ajuda|tudo)\b|^termux$/,
@@ -72,12 +80,13 @@ esac`;
 }
 
 function montarHTML(titulo, css, body, script) {
+  const safeTitulo = escHtml(titulo);
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${titulo}</title>
+<title>${safeTitulo}</title>
 <style>
 *{box-sizing:border-box;font-family:Arial,sans-serif}
 body{margin:0;min-height:100vh;background:#0e1020;color:#f4f5ff;padding:18px;display:flex;flex-direction:column;align-items:center}
@@ -246,15 +255,16 @@ setInterval(() => {
 
 function appGenerico(tema) {
   const titulo = tema.charAt(0).toUpperCase() + tema.slice(1);
+  const safeTitulo = escHtml(titulo);
   const safeKey = "bach_custom_" + norm(tema).replace(/[^a-z0-9]/g, "_").slice(0, 24);
   return montarHTML(
     titulo,
     ".row{display:flex;gap:8px;margin-bottom:10px}.item{display:flex;align-items:center;gap:8px;padding:10px;background:rgba(0,0,0,.28);border-radius:10px;margin-top:8px}.item.ok span{text-decoration:line-through;opacity:.55}.item span{flex:1}.info{font-size:12px;color:#b4b8d8;margin-bottom:10px;text-align:center}",
     `<div class="card">
-      <h1>✨ ${titulo}</h1>
+      <h1>✨ ${safeTitulo}</h1>
       <div class="info">App gerado pela BACH AI • Dados salvos no navegador</div>
       <div class="row">
-        <input id="inp" style="margin:0" placeholder="Adicionar item em ${titulo}...">
+        <input id="inp" style="margin:0" placeholder="Adicionar item em ${safeTitulo}...">
         <button onclick="add()">+</button>
       </div>
       <input id="busca" placeholder="🔎 Filtrar itens..." oninput="render()">
@@ -336,9 +346,10 @@ function handle(text, context = {}) {
     if (re.test(t)) return resp;
   }
 
-  // 2) Seguimento natural ("entendi, cria para mim", "e so criar", "abre ai e cria")
-  if (/\b(cria|crie|criar|faz|faca|fazer|gera|gere)\b/.test(t) && t.split(" ").length <= 7 &&
-      (/\b(para mim|pra mim|e so criar|abre ai|ai)\b/.test(t) || /^(?:entendi+|ok|blz)?\s*(?:cria|faz)\b/.test(t))) {
+  // 2) Seguimento natural ("entendi, cria para mim?", "e so criar", "abre ai e cria")
+  if (/\b(cria|crie|criar|faz|faca|fazer|gera|gere)\b/.test(t) && t.split(" ").length <= 8 &&
+      (/\b(para mim|pra mim|e so criar|e so fazer|abre ai|abre e cria|ai)\b/.test(t) ||
+       /^(?:entendi+|ok|blz|pode|vamos|entao)?\s*(?:cria|crie|criar|faz|faze[r]?)\b/.test(t))) {
     const ant = ultimoBotDoCtx(context);
     if (/termux|bash|chmod|\.sh|script/i.test(ant)) {
       return gerarScriptTermuxPronto();
