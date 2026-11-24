@@ -67,13 +67,14 @@ button.stop{background:#c0392b}
 .dsub{font-size:11px;color:var(--muted);margin-top:2px}
 .dclose{padding:6px 10px;background:rgba(255,255,255,.1);border-radius:9px}
 .dbtn{width:100%;text-align:left;background:rgba(255,255,255,.06);border:1px solid var(--border);padding:10px 12px;font-weight:normal;font-size:14px;border-radius:12px}
+.dbtn.admErr{border-color:#ff4d6d;background:rgba(255,77,109,.15);font-weight:bold}
 .dtemas{display:flex;flex-wrap:wrap;gap:6px;padding:6px 2px}
 .tpill{padding:6px 10px;font-size:12px;border-radius:999px;border:1px solid rgba(255,255,255,.22);font-weight:bold;background:rgba(255,255,255,.08)}
 .tpill.on{box-shadow:0 0 0 2px #fff}
 .dinfo{margin-top:auto;padding-top:10px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);line-height:1.5}
-#hist,#sobre{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:30;align-items:flex-end;justify-content:center}
-#hist.aberto,#sobre.aberto{display:flex}
-.hbox,.sbox{background:var(--panel2);border:1px solid var(--border);border-radius:18px 18px 0 0;width:100%;max-width:640px;max-height:88dvh;display:flex;flex-direction:column;padding:14px;gap:10px;overflow:auto}
+#hist,#sobre,#errosModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:30;align-items:flex-end;justify-content:center}
+#hist.aberto,#sobre.aberto,#errosModal.aberto{display:flex}
+.hbox,.sbox,.ebox{background:var(--panel2);border:1px solid var(--border);border-radius:18px 18px 0 0;width:100%;max-width:640px;max-height:88dvh;display:flex;flex-direction:column;padding:14px;gap:10px;overflow:auto}
 .sbox{border-radius:18px;margin:auto 12px;max-width:520px}
 .htopo{display:flex;gap:8px;align-items:center}.htopo b{color:#fff;white-space:nowrap}
 .htopo input{padding:8px 10px;font-size:14px}.htopo button{padding:8px 12px;background:rgba(255,255,255,.12)}
@@ -85,8 +86,18 @@ button.stop{background:#c0392b}
 .hpag{display:flex;flex-wrap:wrap;gap:4px;justify-content:center}
 .hpag button{min-width:32px;padding:6px 0;font-size:13px;background:rgba(255,255,255,.1)}
 .hpag button.on{background:var(--accent)}.hpag button.vazia{opacity:.35}.hpag button:disabled{opacity:.3}
-.hrod{display:flex;gap:8px;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted)}
+.hrod{display:flex;gap:8px;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);flex-wrap:wrap}
 .hrod button{padding:6px 10px;font-size:12px;background:rgba(255,255,255,.1)}
+.ebar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.ebar button{padding:6px 10px;font-size:12px;background:rgba(255,255,255,.1)}
+.ebar button.danger{background:rgba(231,76,60,.35);border:1px solid rgba(231,76,60,.6)}
+.ebar button.primary{background:linear-gradient(135deg,var(--accent),var(--accent2))}
+.eitem{display:flex;gap:8px;align-items:flex-start;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:12px;padding:9px 10px}
+.eitem input[type=checkbox]{margin-top:4px;width:18px;height:18px;accent-color:var(--accent2);flex:none}
+.einfo{flex:1;min-width:0;font-size:13px;line-height:1.4}
+.etipo{display:inline-block;font-size:10px;font-weight:bold;padding:2px 6px;border-radius:6px;background:rgba(255,77,109,.25);color:#ffb3c1;margin-right:6px}
+.edata{font-size:11px;color:var(--muted)}
+.eitem button{background:rgba(231,76,60,.25);padding:5px 8px;font-size:13px;flex:none}
 .scard{background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.5}
 [hidden]{display:none!important}
 textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.35);color:#fff;font-size:16px;font-family:inherit;line-height:1.35;resize:none;max-height:130px;overflow-y:auto}
@@ -107,7 +118,7 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px
   <div class="htop">
     <button id="btnDrawer" aria-label="Abrir menu">☰</button>
     <div class="hbrand">
-      <div class="htitle"><h2>BACH AI 🧠</h2><span id="verBadge" title="Sobre e novidades">v4.7</span></div>
+      <div class="htitle"><h2>BACH AI 🧠</h2><span id="verBadge" title="Sobre e novidades">v4.8</span></div>
       <div id="status">Carregando...</div>
     </div>
   </div>
@@ -140,6 +151,7 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px
   <button data-acao="anexar">📎 Anexar foto, vídeo ou arquivo</button>
   <button data-acao="copiarChat">📋 Copiar conversa inteira</button>
   <button data-acao="auditar">🩺 Auditar erros do chat</button>
+  <button data-acao="errosAdm" id="menuErrosAdm" hidden>🚨 Erros do Público (0)</button>
   <button data-acao="profundo">🧠 Pensar bastante: desligado</button>
   <button data-acao="voz">🔊 Ler respostas sozinha: desligado</button>
   <button data-acao="arquivos">📁 Meus arquivos</button>
@@ -156,6 +168,7 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px
       </div>
       <button class="dclose" id="fecharDrawer">✕</button>
     </div>
+    <button class="dbtn admErr" data-d="errosAdm" id="drawerErrosAdm" hidden>🚨 Erros do Público (0)</button>
     <button class="dbtn" data-d="nova">➕ Nova conversa</button>
     <button class="dbtn" data-d="copiarChat">📋 Copiar conversa inteira</button>
     <button class="dbtn" data-d="auditar">🩺 Auditar erros do chat</button>
@@ -168,7 +181,7 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px
     <button class="dbtn" data-d="sobre">ℹ️ Sobre o App &amp; Atualizações</button>
     <div class="dinfo">
       <b>Criador:</b> Rizik<br>
-      <b>Versão:</b> 4.7 (2026)<br>
+      <b>Versão:</b> 4.8 (2026)<br>
       Suas conversas e memórias ficam salvas quando você volta ao site.
     </div>
   </aside>
@@ -177,6 +190,7 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px
 <input id="seletor" type="file" hidden multiple accept="image/*,video/*,.txt,.md,.js,.html,.css,.json,.csv,.py,.xml,.log,.ts,.java,.c,.cpp,.sql,.yml,.yaml">
 <div id="hist"></div>
 <div id="sobre"></div>
+<div id="errosModal"></div>
 <input id="seletorBase" type="file" hidden accept=".json,application/json">
 
 <script>
@@ -287,24 +301,28 @@ async function loadMod(nome, path) {
 
 const [
   mBrain, mSaber, mProg, mArq, mMente, mFatos,
-  mConv, mDic, mHist, mBase, mReg, mLLM, mAv, mAuto, mRev, mEd
+  mConv, mDic, mHist, mBase, mReg, mLLM, mAv,
+  mAuto, mRev, mEd, mErros, mVoz, mExec
 ] = await Promise.all([
   loadMod("brain.js", "./brain.js?v=19"),
   loadMod("saber.js", "./saber.js?v=13"),
   loadMod("programacao.js", "./programacao.js?v=5"),
   loadMod("arquivos.js", "./arquivos.js?v=3"),
-  loadMod("mente.js", "./mente.js?v=18"),
+  loadMod("mente.js", "./mente.js?v=19"),
   loadMod("fatos.js", "./fatos.js?v=8"),
-  loadMod("conversa.js", "./conversa.js?v=5"),
+  loadMod("conversa.js", "./conversa.js?v=6"),
   loadMod("dicionario.js", "./dicionario.js?v=5"),
   loadMod("historico.js", "./historico.js?v=3"),
-  loadMod("base.js", "./base.js?v=7"),
-  loadMod("registry.js", "./registry.js?v=6"),
+  loadMod("base.js", "./base.js?v=8"),
+  loadMod("registry.js", "./registry.js?v=7"),
   loadMod("llm.js", "./llm.js?v=1"),
   loadMod("cerebro_avancado.js", "./cerebro_avancado.js?v=4"),
-  loadMod("autocorretor.js", "./autocorretor.js?v=2"),
-  loadMod("revisor.js", "./revisor.js?v=1"),
-  loadMod("editor_adm.js", "./editor_adm.js?v=2")
+  loadMod("autocorretor.js", "./autocorretor.js?v=3"),
+  loadMod("revisor.js", "./revisor.js?v=2"),
+  loadMod("editor_adm.js", "./editor_adm.js?v=4"),
+  loadMod("erros_adm.js", "./erros_adm.js?v=1"),
+  loadMod("voz.js", "./voz.js?v=1"),
+  loadMod("executor_sandbox.js", "./executor_sandbox.js?v=1")
 ]);
 
 const RizikBrain = mBrain.RizikBrain || { think: () => ({ handled: false }), learn: () => {}, remember: () => {}, recall: () => null, logTopic: () => {}, getRecentTopics: () => [], getProfile: () => ({}), getStats: () => ({ examples: 0, synonyms: 0, facts: 0, notes: 0 }) };
@@ -320,9 +338,12 @@ const Base = mBase.Base || { montar: async () => { throw new Error("base.js indi
 const SkillRouter = mReg.SkillRouter || { handle: () => null, instructions: () => "", modePrompt: () => "" };
 const LLM = mLLM.LLM || { hasModel: () => false, command: () => null, getConfig: () => ({ model: "offline" }) };
 const CerebroAvancado = mAv.CerebroAvancado || { responder: async () => null };
-const AutoCorretor = mAuto.AutoCorretor || { ehReclamacao: () => false, tratarExclamacao: () => null, analisarEPreparar: () => null, formatarChat: h => JSON.stringify(h), auditarChat: () => "Módulo autocorretor.js não carregado." };
+const AutoCorretor = mAuto.AutoCorretor || { ehReclamacao: () => false, tratarExclamacao: () => null, registrarFalhaPublica: () => {}, analisarEPreparar: () => null, formatarChat: h => JSON.stringify(h), auditarChat: () => "Módulo autocorretor.js não carregado." };
 const Revisor = mRev.Revisor || { detectarPedidoDireto: () => null, avaliarSite: async () => "revisor.js não carregado.", revisarCodigoFiel: () => null, revisarPortugues: () => null };
 const EditorADM = mEd.EditorADM || { ativo: () => false, ehPedidoTudoTxt: () => false, resetar: () => {}, comandoConfig: () => null, processar: async () => null, ajudaComandos: () => "Use ajuda para ver os comandos." };
+const ErrosADM = mErros.ErrosADM || { registrar: () => {}, listar: () => [], contar: () => 0, excluir: () => 0, excluirVarios: () => 0, limparTudo: () => {}, formatarParaCopiar: () => "", comando: () => null };
+const Voz = mVoz.Voz || { ler: () => false, parar: () => {}, comando: () => null };
+const ExecutorSandbox = mExec.ExecutorSandbox || { detectarPedido: () => false, executar: async () => ({ texto: "executor_sandbox.js não carregado." }), criarCardPreview: () => document.createElement("div") };
 
 try {
   const n0 = RizikBrain.recall("userName");
@@ -333,13 +354,13 @@ try {
 } catch {}
 
 const $ = id => document.getElementById(id);
-const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status"), hist = $("hist"), sobreEl = $("sobre");
+const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status"), hist = $("hist"), sobreEl = $("sobre"), errosModal = $("errosModal");
 const HISTORY_KEY = "bach_chat_history_v1", KEY_TEMA = "bach_theme_v1", KEY_CRIADOR = "bach_creator_v1", KEY_VER = "bach_last_version";
-const APP_VER = "4.7", APP_CRIADA = "2026", APP_ATUALIZADA = "24/11/2026";
+const APP_VER = "4.8", APP_CRIADA = "2026", APP_ATUALIZADA = "24/11/2026";
 const LONGO = 700;
-const BT = "\x60\x60\x60";
-const RE_CERCA_ALL = new RegExp("\\x60\\x60\\x60", "g");
-const RE_CERCA_SPLIT = new RegExp("\\x60\\x60\\x60([\\w+-]*)[ \\t]*\\n?([\\s\\S]*?)\\x60\\x60\\x60", "g");
+const BT = String.fromCharCode(96).repeat(3);
+const RE_CERCA_ALL = new RegExp(BT, "g");
+const RE_CERCA_SPLIT = new RegExp(BT + "([\\w+-]*)[ \\t]*\\n?([\\s\\S]*?)" + BT, "g");
 
 const TEMAS = {
   roxo:     { nome: "💜 Roxo",     bg:"#0d0e1a", panel:"rgba(22,24,42,.84)", panel2:"rgba(16,18,32,.92)", border:"rgba(138,118,255,.32)", accent:"#8266ff", accent2:"#e056fd", bot:"rgba(30,34,60,.16)", user:"rgba(98,66,220,.22)", orb1:"#8c6eff", orb2:"#ff4fd8", glow:"rgba(140,110,255,.65)" },
@@ -409,6 +430,16 @@ function atualizarBadge() {
   b.classList.toggle("nova", atualizouAgora);
   const du = $("drawerUser");
   if (du) du.textContent = modoCriador ? "👑 Criador Rizik conectado" : "Criada por Rizik • Gratuita";
+  const qtdErr = ErrosADM.contar();
+  const btnD = $("drawerErrosAdm");
+  const btnM = $("menuErrosAdm");
+  if (btnD) { btnD.hidden = !modoCriador; btnD.textContent = "🚨 Erros do Público (" + qtdErr + ")"; }
+  if (btnM) { btnM.hidden = !modoCriador; btnM.textContent = "🚨 Erros do Público (" + qtdErr + ")"; }
+}
+
+function registrarErroPublico(tipo, entrada, resposta, motivo) {
+  ErrosADM.registrar({ tipo, entrada, resposta, motivo });
+  atualizarBadge();
 }
 
 const statusPadrao = () => "BACH AI • " + (NOMES_MODOS[modoAtual] || "🤖 Automático") + (modoCriador ? " • 👑 Criador" : "");
@@ -469,20 +500,11 @@ function montar(texto, tipo, cit = "") {
   }
   return w;
 }
-function textoFalavel(t) {
-  return String(t).replace(RE_CERCA_SPLIT, " (código na tela) ").replace(/[*_#`>|]/g, " ").replace(/https?:\/\/\S+/g, " ").replace(/\s+/g, " ").trim();
-}
-function ler(texto, btn) {
-  if (!("speechSynthesis" in window)) return;
-  if (speechSynthesis.speaking) { speechSynthesis.cancel(); if (btn) btn.textContent = "🔊 Ouvir"; return; }
-  const u = new SpeechSynthesisUtterance(textoFalavel(texto).slice(0, 4000)); u.lang = "pt-BR";
-  u.onend = u.onerror = () => { if (btn) btn.textContent = "🔊 Ouvir"; };
-  if (btn) btn.textContent = "⏹ Parar"; speechSynthesis.speak(u);
-}
+
 function acoes(texto, user) {
   const a = mk("div", "acoes" + (user ? " user" : "")), b2 = mk("button", "", "📋 Copiar"), b3 = mk("button", "", "↩ Responder");
   b2.onclick = () => copiar(texto, b2); b3.onclick = () => responderA(texto, user ? "user" : "bot");
-  if (!user) { const b1 = mk("button", "", "🔊 Ouvir"); b1.onclick = () => ler(texto, b1); a.append(b1); }
+  if (!user) { const b1 = mk("button", "", "🔊 Ouvir"); b1.onclick = () => Voz.ler(texto, b1); a.append(b1); }
   a.append(b2, b3); return a;
 }
 
@@ -496,8 +518,9 @@ function falar(texto, tipo = "bot", origem = "", forcar = false, cit = "") {
   chat.scrollTop = chat.scrollHeight;
   history.push({ text: String(texto), type: tipo, ...(cit ? { cit } : {}) }); salvarHist();
   if (tipo === "bot") ultimaOrigem = origem;
-  if (tipo === "bot" && (lerAuto || modoAtual === "voz")) ler(texto);
+  if (tipo === "bot" && (lerAuto || modoAtual === "voz")) Voz.ler(texto);
 }
+
 function restaurar() {
   history = history.slice(-30);
   for (const h of history) {
@@ -530,6 +553,105 @@ function rodarAuditoria() {
   falar(rel, "bot", "🩺 auditoria", true);
 }
 
+const selecionadosErr = new Set();
+
+function abrirErrosADM(filtro = "") {
+  if (!modoCriador) {
+    falar("🔒 A Central de Erros é exclusiva do modo administrador.", "bot", "🔒 adm", true);
+    return;
+  }
+  const lista = ErrosADM.listar(filtro);
+  errosModal.innerHTML = "";
+  errosModal.classList.add("aberto");
+  errosModal.onclick = e => { if (e.target === errosModal) errosModal.classList.remove("aberto"); };
+
+  const box = mk("div", "ebox");
+  const top = mk("div", "htopo");
+  const busca = mk("input");
+  busca.type = "text"; busca.placeholder = "Filtrar erros (palavra, tipo)..."; busca.value = filtro;
+  busca.oninput = () => abrirErrosADM(busca.value);
+  const fechar = mk("button", "", "✕");
+  fechar.onclick = () => errosModal.classList.remove("aberto");
+  top.append(mk("b", "", "🚨 Erros ADM (" + lista.length + ")"), busca, fechar);
+
+  const bar = mk("div", "ebar");
+  const bSelAll = mk("button", "", "☑️ Selecionar todos");
+  const bDelSel = mk("button", "danger", "🗑 Excluir selecionados (" + selecionadosErr.size + ")");
+  const bDelAll = mk("button", "danger", "🗑 Excluir tudo");
+  const bCopiar = mk("button", "primary", "📋 Copiar erros");
+
+  bSelAll.onclick = () => {
+    if (lista.every(x => selecionadosErr.has(x.id))) lista.forEach(x => selecionadosErr.delete(x.id));
+    else lista.forEach(x => selecionadosErr.add(x.id));
+    abrirErrosADM(busca.value);
+  };
+  bDelSel.onclick = () => {
+    if (!selecionadosErr.size) return;
+    if (!confirm("Excluir " + selecionadosErr.size + " erro(s) selecionado(s)?")) return;
+    ErrosADM.excluirVarios([...selecionadosErr]);
+    selecionadosErr.clear();
+    atualizarBadge();
+    abrirErrosADM(busca.value);
+  };
+  bDelAll.onclick = () => {
+    if (!ErrosADM.contar()) return;
+    if (!confirm("Excluir TODOS os erros registrados?")) return;
+    ErrosADM.limparTudo();
+    selecionadosErr.clear();
+    atualizarBadge();
+    abrirErrosADM("");
+  };
+  bCopiar.onclick = () => {
+    const txt = ErrosADM.formatarParaCopiar(lista);
+    copiar(txt, bCopiar);
+  };
+  bar.append(bSelAll, bDelSel, bDelAll, bCopiar);
+
+  const lBox = mk("div", "hlista");
+  if (!lista.length) {
+    lBox.append(mk("div", "hvazio", filtro ? "Nenhum erro encontrado nesse filtro." : "✅ Nenhum erro do público registrado até agora!"));
+  }
+
+  for (const e of lista) {
+    const row = mk("div", "eitem");
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = selecionadosErr.has(e.id);
+    cb.onchange = () => {
+      if (cb.checked) selecionadosErr.add(e.id);
+      else selecionadosErr.delete(e.id);
+      bDelSel.textContent = "🗑 Excluir selecionados (" + selecionadosErr.size + ")";
+    };
+
+    const info = mk("div", "einfo");
+    const cab = mk("div");
+    cab.append(mk("span", "etipo", e.tipo), mk("span", "edata", new Date(e.at).toLocaleString("pt-BR")));
+    const ent = mk("div", "", "👤 " + e.entrada);
+    info.append(cab, ent);
+    if (e.resposta) info.append(mk("div", "edata", "🤖 " + e.resposta));
+    if (e.motivo) info.append(mk("div", "edata", "ℹ️ " + e.motivo));
+
+    const bDel = mk("button", "", "🗑");
+    bDel.title = "Excluir este erro";
+    bDel.onclick = () => {
+      ErrosADM.excluir(e.id);
+      selecionadosErr.delete(e.id);
+      atualizarBadge();
+      abrirErrosADM(busca.value);
+    };
+
+    row.append(cb, info, bDel);
+    lBox.append(row);
+  }
+
+  const rod = mk("div", "hrod");
+  const rem = ErrosADM.getRemote?.() || "";
+  rod.append(mk("span", "", rem ? "📡 Envio remoto ativo: " + rem : "💡 Dica: use /erroremoto URL para receber erros de outros aparelhos."));
+  box.append(top, bar, lBox, rod);
+  errosModal.append(box);
+  if (filtro) busca.focus();
+}
+
 function abrirSobre() {
   atualizouAgora = false;
   atualizarBadge();
@@ -550,15 +672,16 @@ function abrirSobre() {
     "<b>Versão atual:</b> v" + APP_VER + " (atualizada em " + APP_ATUALIZADA + ")<br>" +
     "<b>Ano de criação:</b> " + APP_CRIADA + "<br>" +
     "<b>Criador:</b> Rizik<br>" +
-    "<b>Motivo da criação:</b> Criar uma inteligência artificial própria, gratuita e livre para ajudar todo mundo no dia a dia — com memória persistente, pesquisa, leitura de fotos/vídeos e programação.";
+    "<b>Motivo da criação:</b> Criar uma inteligência artificial própria, gratuita e livre para ajudar todo mundo no dia a dia — com memória persistente, pesquisa, criação de apps, leitura de mídia e programação.";
 
   const nov = mk("div", "scard");
   nov.innerHTML =
     "<b>✨ Novidades da v" + APP_VER + ":</b><br>" +
-    "• <b>4 novos módulos:</b> Conversor de Texto (`/linkzap`, `/slug`, `/base64`), Saúde (`/imc`, `/agua`, `/respiracao`), Estudos (`/flashcard`, `/simulado`) e Dev Web (`/cor`, `/vidro`, `/meta`, `/paleta`)<br>" +
-    "• <b>Exportador `.txt` ADM (`/tudotxt`):</b> junta todos os 35 módulos alinhados com final `.txt` para copiar/baixar de uma vez<br>" +
-    "• <b>Base de Fatos expandida:</b> distâncias espaciais, velocidades e curiosidades diretas<br>" +
-    "• <b>Revisor Fiel</b> (`/revisar`, `/silabas`, `/site`) + <b>AutoCorretor</b> (`/auditar`, `/copiar`)";
+    "• <b>Criador de Apps & Executor Sandbox:</b> `/app pomodoro`, `/executar`, `/preview` e guias completos de **Termux**<br>" +
+    "• <b>Central de Erros ADM:</b> captura automática de falhas com busca, seleção, exclusão 1 por 1 ou total e envio remoto (`/erroremoto`)<br>" +
+    "• <b>Voz Natural Corrigida:</b> leitura em trechos compatível com iPhone, Android e PC (`/voz`)<br>" +
+    "• <b>Piadas Interativas:</b> faz a pergunta e espera você tentar acertar!<br>" +
+    "• <b>40 módulos integrados</b> + exportador ADM `/tudotxt`";
 
   const dados = mk("div", "scard");
   dados.innerHTML =
@@ -583,7 +706,7 @@ function passo(t) { if (pensando) pensando.passo(t); status.textContent = t; }
 function parar() {
   cancelado = true; if (ctrl) ctrl.abort();
   if (pensando) { pensando.fim(); pensando = null; }
-  try { speechSynthesis.cancel(); } catch {}
+  Voz.parar();
   busy(false);
   falar("⏹ Cancelei. Pode mandar outra coisa.", "bot", "", true);
 }
@@ -668,7 +791,11 @@ async function pesquisaProfunda(q, fundo = true) {
   const usarFundo = modoProfundo || modoCriador || modoAtual === "raciocinio" || fundo;
 
   let deuFato = false;
-  if (/\b(piadas?|humor|engra[cç]ad[oa]s?)\b/i.test(q)) { falar("Piada eu tenho de sobra! 😄\n\n" + Prog.humor("conta uma piada"), "bot", "😄 meu repertório"); return; }
+  if (/\b(piadas?|humor|engra[cç]ad[oa]s?)\b/i.test(q)) {
+    const pResp = SkillRouter.handle("piada");
+    falar(pResp?.texto || ("😄 " + Prog.humor("conta uma piada")), "bot", "😄 piada interativa");
+    return;
+  }
   const fato = Fatos.responder(temaLimpo) || Fatos.responder(q);
   if (fato && !usarFundo) { deuFato = true; RizikBrain.logTopic(temaLimpo); falar(fato, "bot", "📘 base de fatos"); return; }
   if (fato) { deuFato = true; RizikBrain.logTopic(temaLimpo); falar(fato, "bot", "📘 base de fatos"); }
@@ -689,14 +816,19 @@ async function pesquisaProfunda(q, fundo = true) {
       return;
     }
     if (e.message === "meta-referencia") {
+      registrarErroPublico("meta-referencia", q, "meta-referencia", "referência à resposta da IA");
       falar("Acho que você está falando sobre algo que eu mesma disse! 🤔 Me diga o assunto com outras palavras ou use ↩ Responder no balão.");
       return;
     }
-    falar(e.message === "irrelevante" ? "Não achei resultados confiáveis para “" + temaLimpo + "”. Tente perguntar com outras palavras! 🔍" : "Não consegui consultar a internet agora. No modo local continuo respondendo normalmente!");
+    const msgErr = e.message === "irrelevante"
+      ? "Não achei resultados confiáveis para “" + temaLimpo + "”. Tente perguntar com outras palavras! 🔍"
+      : "Não consegui consultar a internet agora. No modo local continuo respondendo normalmente!";
+    registrarErroPublico("pesquisa-falhou", q, msgErr, e.message || "erro");
+    falar(msgErr);
   }
 }
 
-const SISTEMA = `Você é a BACH AI, criada por Rizik, assistente inteligente em português do Brasil. Seja simpática, direta e precisa.`;
+const SISTEMA = "Você é a BACH AI, criada por Rizik, assistente inteligente em português do Brasil. Seja simpática, direta e precisa.";
 async function perguntarIA(texto, extraCtx = "") {
   passo("🧠 Raciocinando...");
   ctrl = new AbortController();
@@ -718,7 +850,11 @@ async function perguntarIA(texto, extraCtx = "") {
     const res = await LLM.generate({ system: sis, messages: msgs, image: enviarImg ? ultimaImagem : null, temperature: modoAtual === "criatividade" ? 0.75 : 0.35, signal: ctrl.signal });
     falar(res.text || "Não consegui formular a resposta.", "bot", "🧠 BACH AI");
   } catch (e) {
-    if (e.name !== "AbortError") { console.error(e); falar("Tive um problema na consulta (" + (e.message || "erro de conexão") + ")."); }
+    if (e.name !== "AbortError") {
+      console.error(e);
+      registrarErroPublico("llm-erro", texto, e.message || "erro de conexão", "falha no modelo");
+      falar("Tive um problema na consulta (" + (e.message || "erro de conexão") + ").");
+    }
   } finally { clearTimeout(timer); ctrl = null; }
 }
 
@@ -781,12 +917,15 @@ async function processarArquivo(f, silenciosoSeTexto = false) {
     const a = Arquivos.salvar({ nome: f.name, pasta, texto, resumo: resposta.slice(0, 300), tipo: r.tipo });
     if (!silenciosoSeTexto) falar(resposta + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos");
     else if (pensando) { pensando.fim(); pensando = null; }
-  } catch (e) { console.error(e); falar("Não consegui abrir esse arquivo. " + (e.message || "")); }
-  finally { busy(false); }
+  } catch (e) {
+    console.error(e);
+    registrarErroPublico("arquivo-erro", f.name, e.message || "erro ao abrir", "leitura de mídia");
+    falar("Não consegui abrir esse arquivo. " + (e.message || ""));
+  } finally { busy(false); }
 }
 
 function novaConversa() {
-  try { speechSynthesis.cancel(); } catch {}
+  Voz.parar();
   Historico.nova(); history = []; try { localStorage.removeItem(HISTORY_KEY); } catch {}
   ultimoArquivo = null; ultimaImagem = null; ultimaMidiaInfo = null; ultimoTema = null;
   chat.innerHTML = ""; hist.classList.remove("aberto");
@@ -865,7 +1004,7 @@ async function lerLinkMsg(url, texto, temIA) {
     ultimaImagem = null; ultimaMidiaInfo = null;
     RizikBrain.logTopic(a.nome);
     if (temIA && texto.replace(url, "").trim().length > 3) { await perguntarIA(texto); return; }
-    falar("🔗 Abri " + r.url + "\n\n" + leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\n💡 Pergunte: “explica”, “cadeia de códigos”, “resume” ou “revisa”.", "bot", "🔗 link");
+    falar("🔗 Abri " + r.url + "\n\n" + leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\n💡 Pergunte: “explica”, “quantos módulos tem?”, “cadeia de códigos”, “resume” ou “revisa”.", "bot", "🔗 link");
   } catch (e) { console.error(e); falar("Não consegui abrir esse link. Se for privado, copie o texto e cole aqui. 📋"); }
 }
 
@@ -884,17 +1023,17 @@ async function seguir(texto, temIA) {
     if (temIA) return false;
     falar(Fatos.enumerar(base) || "Não achei uma lista para numerar nessa resposta. 🤔", "bot", "🔢 formatação"); return true;
   }
-  if (/^(resuma|resume|resumir|resumo|mais curto|encurta|encurte|resumindo)( isso| tudo| a resposta)?$/.test(nt)) {
+  if (/^(?:me\s+)?(resuma|resume|resumir|resumo|mais curto|encurta|encurte|resumindo)( isso| tudo| a resposta| esse texto| essa foto| essa imagem)?$/.test(nt)) {
     if (temIA) return false;
-    if (ultimoArquivo?.texto && /Guardei em:|Li o texto|Funções que encontrei/i.test(base)) {
-      const resp = Mente.responder("resuma esse texto");
+    if (ultimoArquivo?.texto && /Guardei em:|Li o texto|Funções que encontrei|Texto que consegui ler|Texto visível/i.test(base)) {
+      const resp = Mente.responder("me resume");
       if (resp?.texto) { falar(resp.texto, "bot", "📝 resumo do arquivo"); return true; }
     }
     falar(Fatos.resumir(base) || "Essa resposta já é curta. 🙂", "bot", "📝 resumo"); return true;
   }
 
   const pedeExplicarArquivo = /Guardei em:|Texto que consegui ler|Texto visível|Li o texto|Funções que encontrei|Parece (HTML|JavaScript|Python|código)/i.test(base) &&
-    (/(esse|este|esses|estes|isso|aqui|codigo|codigos|texto|arquivo|foto|imagem|print|cadeia|ele|ela).*(faz|fazem|serve|servem|explic|funciona|o que e|o que|escrito|diz|copiar)/.test(nt) ||
+    (/(esse|este|esses|estes|isso|aqui|codigo|codigos|texto|arquivo|foto|imagem|print|cadeia|ele|ela|nele|site).*(faz|fazem|serve|servem|explic|funciona|o que e|o que|escrito|diz|copiar|modulos)/.test(nt) ||
      /^(me\s+)?(explica|explique|explicar|o que faz|fazem o que|ele faz|para que serve|o que e isso|o que esta escrito)/.test(nt));
   if (pedeExplicarArquivo && ultimoArquivo?.texto && !temIA) {
     const resp = Mente.responder(texto);
@@ -932,7 +1071,6 @@ async function rotear(texto) {
   const cmd = texto.toLowerCase().trim(), temIA = LLM.hasModel();
   const tn = sn(texto);
 
-  // Entrada e saída secreta de ADM
   if (/@rizik2442/i.test(texto)) {
     modoCriador = true;
     try { localStorage.setItem(KEY_CRIADOR, "1"); } catch {}
@@ -941,7 +1079,7 @@ async function rotear(texto) {
     status.textContent = statusPadrao();
     const semTag = texto.replace(/@rizik2442/gi, "").trim();
     if (!semTag) {
-      falar("👑 Acesso de administrador ativado! Use `/ajuda`, `/editar` ou `/tudotxt` quando quiser. 🚀", "bot", "👑 adm");
+      falar("👑 Acesso de administrador ativado!\n• Abra o menu **☰ → 🚨 Erros do Público** para ver, excluir ou copiar todos os erros!\n• Use `/ajuda`, `/editar` ou `/tudotxt` quando quiser. 🚀", "bot", "👑 adm");
       return;
     }
     texto = semTag;
@@ -961,7 +1099,12 @@ async function rotear(texto) {
     texto = semTag;
   }
 
-  // Editor interativo ADM (/editar) e exportador /tudotxt
+  const cmdVoz = Voz.comando(texto);
+  if (cmdVoz) { falar(cmdVoz, "bot", "🔊 voz"); return; }
+
+  const cmdErrRem = ErrosADM.comando(texto, modoCriador);
+  if (cmdErrRem) { falar(cmdErrRem, "bot", "📡 erros adm", true); return; }
+
   if (/^\/(editar|trocareditor|editarmodulo|tudotxt|pacotetotxt|pacotetxts?|modulos?txt|codigostxt)\b/i.test(texto.trim()) ||
       EditorADM.ehPedidoTudoTxt?.(texto) ||
       EditorADM.ativo(modoCriador)) {
@@ -997,7 +1140,17 @@ async function rotear(texto) {
   if (/^\/(auditar|erros)\b/.test(cmd) || /^(auditar|ver erros|achar erros|encontrar erros)$/i.test(tn)) { rodarAuditoria(); return; }
   if (/^(sobre|sobre a bach|versao|quem criou|sobre o app)$/i.test(tn)) { abrirSobre(); return; }
 
-  // Revisor Fiel: sílabas, ortografia, auditoria de código e avaliação de sites
+  if (ExecutorSandbox.detectarPedido(texto)) {
+    passo("▶️ Executando em sandbox isolado...");
+    const ex = await ExecutorSandbox.executar(texto, { ultimoArquivo });
+    falar(ex.texto, "bot", "▶️ sandbox");
+    if (ex.previewHtml) {
+      chat.appendChild(ExecutorSandbox.criarCardPreview(ex.previewHtml, ex.previewTitle));
+      chat.scrollTop = chat.scrollHeight;
+    }
+    return;
+  }
+
   const rev = Revisor.detectarPedidoDireto(texto);
   if (rev) {
     if (rev.tipo === "site") {
@@ -1011,7 +1164,6 @@ async function rotear(texto) {
     }
   }
 
-  // Tradução rápida ao responder ("Em português", "Para inglês", etc.)
   const mLangOnly = texto.trim().match(/^(?:em|para|pra)\s+(?:o\s+|a\s+)?(portugu[eê]s|ingl[eê]s|espanhol|franc[eê]s|italiano|alem[aã]o|japon[eê]s)\s*[!?.]*$/i);
   if (mLangOnly && (alvo || ultimoArquivo?.texto)) {
     const mapL = { portugues: "pt", ingles: "en", espanhol: "es", frances: "fr", italiano: "it", alemao: "de", japones: "ja" };
@@ -1036,7 +1188,14 @@ async function rotear(texto) {
   }
 
   const dept = SkillRouter.handle(texto, { hasAI: temIA, history, mode: modoAtual });
-  if (dept) { falar(dept.texto, "bot", dept.origem); return; }
+  if (dept) {
+    falar(dept.texto, "bot", dept.origem);
+    if (dept.previewHtml) {
+      chat.appendChild(ExecutorSandbox.criarCardPreview(dept.previewHtml, dept.previewTitle));
+      chat.scrollTop = chat.scrollHeight;
+    }
+    return;
+  }
 
   const links = Saber.urlsEm(texto);
   if (links.length && texto.length < 400 && !Saber.isCode(texto) && texto.replace(links[0], "").trim().split(/\s+/).filter(Boolean).length <= 12) {
@@ -1053,6 +1212,7 @@ async function rotear(texto) {
 
   if (!temIA && AutoCorretor.ehReclamacao(texto)) {
     const acao = AutoCorretor.analisarEPreparar(history.slice(0, -1), { ultimoArquivo, ultimoTema, ultimaMidiaInfo });
+    atualizarBadge();
     if (acao) {
       if (acao.tipo === "clima") {
         falar(acao.aviso, "bot", "🔄 autocorreção");
@@ -1088,7 +1248,7 @@ async function rotear(texto) {
     RizikBrain.logTopic(a.nome);
     if (temIA) { await perguntarIA(texto); return; }
     const revExtra = cod ? "\n\n" + Revisor.revisarCodigoFiel(texto) : "";
-    falar(leitura + revExtra + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos\n💡 Agora pergunte: “explica”, “cadeia de códigos”, “resume” ou “/revisar”.");
+    falar(leitura + revExtra + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos\n💡 Agora pergunte: “explica”, “cadeia de códigos”, “resume”, “/revisar” ou “/executar”.");
     return;
   }
 
@@ -1216,13 +1376,17 @@ async function rotear(texto) {
   const k = Saber.buscarConhecimento(texto); if (k) { falar(k, "bot", "📚 o que aprendi"); return; }
 
   if (Mente.pergunta(texto)) {
-    if (Fatos.sobreVoce(texto)) { falar("Sou a BACH AI 🧠! Pode me perguntar de outro jeito ou digitar “ajuda” para ver tudo que sei fazer.", "bot", "🧠 sobre mim"); return; }
+    if (Fatos.sobreVoce(texto)) { falar("Sou a BACH AI 🧠! Pode me perguntar de outro jeito ou digitar `/ajuda` para ver tudo que sei fazer.", "bot", "🧠 sobre mim"); return; }
     const tm = Mente.tema(texto);
     if (tm && tm.length >= 2) return pesquisaProfunda(texto, true);
-    falar("Pode me explicar um pouquinho melhor o que você quer saber? 🤔"); return;
+    const respVaga = "Pode me explicar um pouquinho melhor o que você quer saber? 🤔";
+    registrarErroPublico("vaga", texto, respVaga, "pergunta sem tema claro");
+    falar(respVaga); return;
   }
 
-  falar(Prog.desconhecido(texto));
+  const desc = Prog.desconhecido(texto);
+  registrarErroPublico("nao-entendeu", texto, desc, "nenhum módulo reconheceu");
+  falar(desc);
 }
 
 function ajustar() { entrada.style.height = "auto"; entrada.style.height = Math.max(44, Math.min(entrada.scrollHeight, 130)) + "px"; }
@@ -1285,7 +1449,11 @@ async function enviar() {
   falar(bolhaUser, "user", "", false, cit);
   pensando = pensar(); passo("👀 Analisando sua mensagem...");
   try { await rotear(texto); }
-  catch (e) { console.error(e); falar("Deu um erro inesperado: " + (e.message || "tente novamente.")); }
+  catch (e) {
+    console.error(e);
+    registrarErroPublico("erro-execucao", texto, e.message || "erro inesperado", "try-catch rotear");
+    falar("Deu um erro inesperado: " + (e.message || "tente novamente."));
+  }
   finally { if (pensando) { pensando.fim(); pensando = null; } alvo = null; busy(false); }
 }
 
@@ -1298,7 +1466,7 @@ $("modos").onclick = e => {
 };
 
 const drawerBack = $("drawerBack"), menu = $("menu"), seletor = $("seletor");
-$("btnDrawer").onclick = () => drawerBack.classList.add("aberto");
+$("btnDrawer").onclick = () => { atualizarBadge(); drawerBack.classList.add("aberto"); };
 $("fecharDrawer").onclick = () => drawerBack.classList.remove("aberto");
 drawerBack.onclick = e => { if (e.target === drawerBack) drawerBack.classList.remove("aberto"); };
 $("verBadge").onclick = abrirSobre;
@@ -1307,6 +1475,7 @@ $("drawer").onclick = e => {
   const b = e.target.closest("button[data-d]"); if (!b) return;
   drawerBack.classList.remove("aberto");
   const d = b.dataset.d;
+  if (d === "errosAdm") abrirErrosADM("");
   if (d === "nova") novaConversa();
   if (d === "copiarChat") copiarChatInteiro();
   if (d === "auditar") rodarAuditoria();
@@ -1317,15 +1486,16 @@ $("drawer").onclick = e => {
   if (d === "sobre") abrirSobre();
 };
 
-$("mais").onclick = () => menu.classList.toggle("aberto");
+$("mais").onclick = () => { atualizarBadge(); menu.classList.toggle("aberto"); };
 menu.onclick = e => {
   const b = e.target.closest("button[data-acao]"); if (!b) return; menu.classList.remove("aberto");
   const a = b.dataset.acao;
   if (a === "anexar") seletor.click();
   if (a === "copiarChat") copiarChatInteiro();
   if (a === "auditar") rodarAuditoria();
+  if (a === "errosAdm") abrirErrosADM("");
   if (a === "profundo") { modoProfundo = !modoProfundo; b.textContent = "🧠 Pensar bastante: " + (modoProfundo ? "ligado" : "desligado"); falar(modoProfundo ? "Modo pensar bastante LIGADO 🧠" : "Modo pensar bastante desligado."); }
-  if (a === "voz") { lerAuto = !lerAuto; b.textContent = "🔊 Ler respostas sozinha: " + (lerAuto ? "ligado" : "desligado"); if (!lerAuto) try { speechSynthesis.cancel(); } catch {} }
+  if (a === "voz") { lerAuto = !lerAuto; b.textContent = "🔊 Ler respostas sozinha: " + (lerAuto ? "ligado" : "desligado"); if (!lerAuto) Voz.parar(); }
   if (a === "arquivos") { entrada.value = "/arquivos"; enviar(); }
   if (a === "jogo") { entrada.value = "vamos jogar"; enviar(); }
   if (a === "sobre") abrirSobre();
@@ -1371,7 +1541,7 @@ if (falhas.length) {
   falar("⚠️ Alguns módulos não carregaram no GitHub: " + falhas.join(", ") + "\nConfira os nomes ou cole esses arquivos inteiros.", "bot", "⚠️ diagnóstico", true);
 } else if (!history.length) {
   const nomeSalvo = RizikBrain.recall("userName");
-  falar((nomeSalvo ? "Que bom te ver de volta, **" + nomeSalvo + "**! 💜 " : "Olá! ") + "Sou a **BACH AI** 🧠 (v" + APP_VER + "). Digite `/ajuda` para ver todos os comandos com `/` — converso, mudo de tema, reviso textos/sílabas/códigos, avalio sites e pesquiso na internet!", "bot", "", true);
+  falar((nomeSalvo ? "Que bom te ver de volta, **" + nomeSalvo + "**! 💜 " : "Olá! ") + "Sou a **BACH AI** 🧠 (v" + APP_VER + "). Digite `/ajuda` para ver todos os comandos com `/` — crio apps (`/app`), rodo scripts (`/executar`), ensino Termux, conto piadas interativas e muito mais!", "bot", "", true);
 }
 </script>
 </body>
