@@ -175,21 +175,145 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px
 <div id="sobre"></div>
 <input id="seletorBase" type="file" hidden accept=".json,application/json">
 
+<script>
+/* Esfera 3D independente para nunca travar mesmo se um módulo estiver em manutenção */
+(function(){
+  const c = document.getElementById("orb-bg");
+  const ctx = c && c.getContext ? c.getContext("2d") : null;
+  if (!ctx) return;
+  let c1 = [140,110,255], c2 = [255,79,216];
+  const hex = s => {
+    const h = String(s || "").replace("#", "");
+    return h.length === 6 ? [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)] : [140,110,255];
+  };
+  window.__setOrbColors = (a, b) => { c1 = hex(a); c2 = hex(b); };
+
+  const PTS = [], N = 140, phi = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < N; i++) {
+    const y = 1 - (i / (N - 1)) * 2, r = Math.sqrt(1 - y * y), th = phi * i;
+    PTS.push({ x: Math.cos(th) * r, y, z: Math.sin(th) * r, s: i % 5 === 0 ? 2.2 : 1.25 });
+  }
+  const RINGS = [{rx:0,ry:0,rz:0},{rx:.55,ry:.4,rz:.2},{rx:-.6,ry:.8,rz:-.3},{rx:1.05,ry:-.35,rz:.6},{rx:1.45,ry:.2,rz:-.7}];
+  let W = 0, H = 0, dpr = 1;
+  const resize = () => {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = c.width = Math.max(1, Math.floor(window.innerWidth * dpr));
+    H = c.height = Math.max(1, Math.floor(window.innerHeight * dpr));
+  };
+  resize(); window.addEventListener("resize", resize);
+  const rot = (p, ax, ay) => {
+    const cy = Math.cos(ay), sy = Math.sin(ay), x1 = p.x * cy - p.z * sy, z1 = p.x * sy + p.z * cy;
+    const cx = Math.cos(ax), sx = Math.sin(ax);
+    return { x: x1, y: p.y * cx - z1 * sx, z: p.y * sx + z1 * cx };
+  };
+  function draw(now) {
+    const t = now * 0.001;
+    ctx.clearRect(0, 0, W, H);
+    const cx = W * 0.5 + Math.sin(t * 0.42) * 34 * dpr;
+    const cy = H * 0.5 + Math.cos(t * 0.34) * 28 * dpr;
+    const R = Math.min(W, H) * 0.24 * (1 + 0.075 * Math.sin(t * 2.1) + 0.03 * Math.cos(t * 4.7));
+    const [r1,g1,b1] = c1, [r2,g2,b2] = c2;
+
+    const aura = ctx.createRadialGradient(cx, cy, R * 0.1, cx, cy, R * 1.45);
+    aura.addColorStop(0, "rgba(255,255,255,.42)");
+    aura.addColorStop(0.28, "rgba(" + r1 + "," + g1 + "," + b1 + ",.28)");
+    aura.addColorStop(0.65, "rgba(" + r2 + "," + g2 + "," + b2 + ",.14)");
+    aura.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = aura; ctx.beginPath(); ctx.arc(cx, cy, R * 1.45, 0, Math.PI * 2); ctx.fill();
+
+    for (let i = 0; i < 12; i++) {
+      const a = t * 0.25 + (i * Math.PI) / 6, len = R * (0.95 + 0.35 * Math.sin(t * 3 + i * 1.7));
+      const g = ctx.createLinearGradient(cx, cy, cx + Math.cos(a) * len, cy + Math.sin(a) * len);
+      g.addColorStop(0, "rgba(255,255,255,.55)");
+      g.addColorStop(0.45, "rgba(" + r1 + "," + g1 + "," + b1 + ",.28)");
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.strokeStyle = g; ctx.lineWidth = (i % 3 === 0 ? 1.8 : 0.9) * dpr;
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * len, cy + Math.sin(a) * len); ctx.stroke();
+    }
+
+    const ax = t * 0.35, ay = t * 0.55;
+    for (let k = 0; k < RINGS.length; k++) {
+      const an = RINGS[k]; ctx.beginPath();
+      for (let s = 0; s <= 56; s++) {
+        const a = (s / 56) * Math.PI * 2;
+        const p = rot({ x: Math.cos(a), y: Math.sin(a) * Math.cos(an.rx), z: Math.sin(a) * Math.sin(an.rx) }, ax + an.ry, ay + an.rz);
+        const f = 2.6 / (2.6 - p.z), px = cx + p.x * R * f, py = cy + p.y * R * f;
+        if (s === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.strokeStyle = k % 2 === 0 ? "rgba(" + r1 + "," + g1 + "," + b1 + ",.36)" : "rgba(" + r2 + "," + g2 + "," + b2 + ",.32)";
+      ctx.lineWidth = 1.1 * dpr; ctx.stroke();
+    }
+
+    const rim = ctx.createRadialGradient(cx, cy, R * 0.82, cx, cy, R * 1.06);
+    rim.addColorStop(0, "rgba(0,0,0,0)");
+    rim.addColorStop(0.75, "rgba(" + r1 + "," + g1 + "," + b1 + ",.28)");
+    rim.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = rim; ctx.beginPath(); ctx.arc(cx, cy, R * 1.06, 0, Math.PI * 2); ctx.fill();
+
+    for (let i = 0; i < N; i++) {
+      const p = rot(PTS[i], ax, ay), f = 2.6 / (2.6 - p.z);
+      const al = Math.max(0.14, Math.min(0.92, (p.z + 1.1) * 0.44));
+      ctx.fillStyle = i % 2 === 0 ? "rgba(" + r1 + "," + g1 + "," + b1 + "," + al + ")" : "rgba(255,255,255," + (al * 0.85) + ")";
+      ctx.beginPath(); ctx.arc(cx + p.x * R * f, cy + p.y * R * f, PTS[i].s * f * 0.85 * dpr, 0, Math.PI * 2); ctx.fill();
+    }
+
+    const fw = R * (1.25 + 0.18 * Math.sin(t * 3.2));
+    const fl = ctx.createLinearGradient(cx - fw, cy, cx + fw, cy);
+    fl.addColorStop(0, "rgba(0,0,0,0)"); fl.addColorStop(0.42, "rgba(" + r1 + "," + g1 + "," + b1 + ",.42)");
+    fl.addColorStop(0.5, "rgba(255,255,255,.85)"); fl.addColorStop(0.58, "rgba(" + r2 + "," + g2 + "," + b2 + ",.42)");
+    fl.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = fl; ctx.fillRect(cx - fw, cy - 2 * dpr, fw * 2, 4 * dpr);
+
+    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.34);
+    core.addColorStop(0, "rgba(255,255,255,.9)");
+    core.addColorStop(0.35, "rgba(" + r1 + "," + g1 + "," + b1 + ",.55)");
+    core.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = core; ctx.beginPath(); ctx.arc(cx, cy, R * 0.34, 0, Math.PI * 2); ctx.fill();
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+</script>
 <script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <script type="module">
-import { RizikBrain } from "./brain.js?v=19";
-import { Saber } from "./saber.js?v=12";
-import { Prog } from "./programacao.js?v=5";
-import { Arquivos } from "./arquivos.js?v=3";
-import { Mente } from "./mente.js?v=16";
-import { Fatos } from "./fatos.js?v=7";
-import { Conversa } from "./conversa.js?v=5";
-import { Dic } from "./dicionario.js?v=5";
-import { Historico } from "./historico.js?v=3";
-import { Base } from "./base.js?v=6";
-import { SkillRouter } from "./registry.js?v=4";
-import { LLM } from "./llm.js?v=1";
-import { CerebroAvancado } from "./cerebro_avancado.js?v=3";
+const falhas = [];
+async function loadMod(nome, path) {
+  try { return await import(path); }
+  catch (e) { console.error("Erro no módulo " + nome, e); falhas.push(nome + " (" + (e.message || "erro") + ")"); return {}; }
+}
+
+const [
+  mBrain, mSaber, mProg, mArq, mMente, mFatos,
+  mConv, mDic, mHist, mBase, mReg, mLLM, mAv
+] = await Promise.all([
+  loadMod("brain.js", "./brain.js?v=19"),
+  loadMod("saber.js", "./saber.js?v=12"),
+  loadMod("programacao.js", "./programacao.js?v=5"),
+  loadMod("arquivos.js", "./arquivos.js?v=3"),
+  loadMod("mente.js", "./mente.js?v=16"),
+  loadMod("fatos.js", "./fatos.js?v=7"),
+  loadMod("conversa.js", "./conversa.js?v=5"),
+  loadMod("dicionario.js", "./dicionario.js?v=5"),
+  loadMod("historico.js", "./historico.js?v=3"),
+  loadMod("base.js", "./base.js?v=6"),
+  loadMod("registry.js", "./registry.js?v=5"),
+  loadMod("llm.js", "./llm.js?v=1"),
+  loadMod("cerebro_avancado.js", "./cerebro_avancado.js?v=3")
+]);
+
+const RizikBrain = mBrain.RizikBrain || { think: () => ({ handled: false }), learn: () => {}, remember: () => {}, recall: () => null, logTopic: () => {}, getRecentTopics: () => [], getProfile: () => ({}), getStats: () => ({ examples: 0, synonyms: 0, facts: 0, notes: 0 }) };
+const Saber = mSaber.Saber || { urlsEm: () => [], isCode: () => false, lerTexto: t => t, buscarConhecimento: () => null, summarize: () => [] };
+const Prog = mProg.Prog || { humor: () => null, responder: () => null, desconhecido: () => "Não entendi isso." };
+const Arquivos = mArq.Arquivos || { comando: () => null, salvar: a => ({ nome: a.nome || "arquivo", pasta: a.pasta || "Textos" }), lerMidia: async () => { throw new Error("arquivos.js indisponível"); } };
+const Mente = mMente.Mente || { jogando: () => false, responder: () => null, setTexto: () => {}, setMidia: () => {}, pasta: p => p, pergunta: () => false, tema: () => "", lembrarTema: () => {}, stats: () => ({}) };
+const Fatos = mFatos.Fatos || { responder: () => null, sobreMim: () => null, sobreVoce: () => false, enumerar: () => null, resumir: () => null, total: 0 };
+const Conversa = mConv.Conversa || { responder: () => null };
+const Dic = mDic.Dic || { detectar: () => null, consultar: async () => null };
+const Historico = mHist.Historico || { salvarAtual: () => {}, listar: () => ({ pagina: 1, paginas: 1, totalPaginas: 1, total: 0, atual: "", itens: [] }), abrir: () => null, nova: () => {}, apagar: () => null, limparTudo: () => {}, idAtual: () => "" };
+const Base = mBase.Base || { montar: async () => { throw new Error("base.js indisponível"); }, importar: () => 0 };
+const SkillRouter = mReg.SkillRouter || { handle: () => null, instructions: () => "", modePrompt: () => "" };
+const LLM = mLLM.LLM || { hasModel: () => false, command: () => null, getConfig: () => ({ model: "offline" }) };
+const CerebroAvancado = mAv.CerebroAvancado || { responder: async () => null };
 
 const $ = id => document.getElementById(id);
 const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status"), hist = $("hist"), sobreEl = $("sobre");
@@ -221,167 +345,6 @@ let ultimoTema = null, ultimaOrigem = "", aguardaCidade = false, citacao = null,
 let ocupado = false, cancelado = false, ctrl = null, ultimoArquivo = null, ultimaImagem = null, ultimaMidiaInfo = null;
 let temaAtual = "roxo", modoCriador = false, atualizouAgora = false;
 
-/* ---------- Esfera 3D de Energia e Partículas (Canvas 60fps) ---------- */
-const orbCanvas = $("orb-bg");
-const orbCtx = orbCanvas ? orbCanvas.getContext("2d") : null;
-let orbRgb1 = [140, 110, 255], orbRgb2 = [255, 79, 216];
-
-function hexRgb(hex) {
-  const h = String(hex || "").replace("#", "");
-  if (h.length !== 6) return [140, 110, 255];
-  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
-}
-
-if (orbCtx) {
-  const PONTOS = [];
-  const N = 140;
-  const phi = Math.PI * (3 - Math.sqrt(5));
-  for (let i = 0; i < N; i++) {
-    const y = 1 - (i / (N - 1)) * 2;
-    const r = Math.sqrt(1 - y * y);
-    const th = phi * i;
-    PONTOS.push({ x: Math.cos(th) * r, y, z: Math.sin(th) * r, s: (i % 5 === 0) ? 2.2 : 1.25 });
-  }
-  const ANEIS = [
-    { rx: 0, ry: 0, rz: 0 },
-    { rx: 0.55, ry: 0.4, rz: 0.2 },
-    { rx: -0.6, ry: 0.8, rz: -0.3 },
-    { rx: 1.05, ry: -0.35, rz: 0.6 },
-    { rx: 1.45, ry: 0.2, rz: -0.7 }
-  ];
-
-  let W = 0, H = 0, dpr = 1;
-  const resizeOrb = () => {
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
-    W = orbCanvas.width = Math.max(1, Math.floor(window.innerWidth * dpr));
-    H = orbCanvas.height = Math.max(1, Math.floor(window.innerHeight * dpr));
-  };
-  resizeOrb();
-  window.addEventListener("resize", resizeOrb);
-
-  function rotPoint(p, ax, ay) {
-    const cy = Math.cos(ay), sy = Math.sin(ay);
-    const x1 = p.x * cy - p.z * sy;
-    const z1 = p.x * sy + p.z * cy;
-    const cx = Math.cos(ax), sx = Math.sin(ax);
-    const y2 = p.y * cx - z1 * sx;
-    const z2 = p.y * sx + z1 * cx;
-    return { x: x1, y: y2, z: z2 };
-  }
-
-  function frameOrb(now) {
-    const t = now * 0.001;
-    orbCtx.clearRect(0, 0, W, H);
-
-    const cx = W * 0.5 + Math.sin(t * 0.42) * 34 * dpr;
-    const cy = H * 0.5 + Math.cos(t * 0.34) * 28 * dpr;
-    const pulse = 1 + 0.075 * Math.sin(t * 2.1) + 0.03 * Math.cos(t * 4.7);
-    const R = Math.min(W, H) * 0.24 * pulse;
-
-    const [r1, g1, b1] = orbRgb1;
-    const [r2, g2, b2] = orbRgb2;
-
-    // Aura externa suave
-    const aura = orbCtx.createRadialGradient(cx, cy, R * 0.1, cx, cy, R * 1.45);
-    aura.addColorStop(0, `rgba(255,255,255,0.42)`);
-    aura.addColorStop(0.28, `rgba(${r1},${g1},${b1},0.28)`);
-    aura.addColorStop(0.65, `rgba(${r2},${g2},${b2},0.14)`);
-    aura.addColorStop(1, "rgba(0,0,0,0)");
-    orbCtx.fillStyle = aura;
-    orbCtx.beginPath();
-    orbCtx.arc(cx, cy, R * 1.45, 0, Math.PI * 2);
-    orbCtx.fill();
-
-    // Raios finos de energia saindo do centro
-    orbCtx.save();
-    for (let i = 0; i < 12; i++) {
-      const ang = t * 0.25 + (i * Math.PI) / 6;
-      const len = R * (0.95 + 0.35 * Math.sin(t * 3 + i * 1.7));
-      const grad = orbCtx.createLinearGradient(cx, cy, cx + Math.cos(ang) * len, cy + Math.sin(ang) * len);
-      grad.addColorStop(0, "rgba(255,255,255,0.55)");
-      grad.addColorStop(0.45, `rgba(${r1},${g1},${b1},0.28)`);
-      grad.addColorStop(1, "rgba(0,0,0,0)");
-      orbCtx.strokeStyle = grad;
-      orbCtx.lineWidth = (i % 3 === 0 ? 1.8 : 0.9) * dpr;
-      orbCtx.beginPath();
-      orbCtx.moveTo(cx, cy);
-      orbCtx.lineTo(cx + Math.cos(ang) * len, cy + Math.sin(ang) * len);
-      orbCtx.stroke();
-    }
-    orbCtx.restore();
-
-    // Anéis 3D de energia (grade esférica)
-    const ax = t * 0.35, ay = t * 0.55;
-    for (let k = 0; k < ANEIS.length; k++) {
-      const an = ANEIS[k];
-      orbCtx.beginPath();
-      const segs = 56;
-      for (let s = 0; s <= segs; s++) {
-        const a = (s / segs) * Math.PI * 2;
-        const p0 = { x: Math.cos(a), y: Math.sin(a) * Math.cos(an.rx), z: Math.sin(a) * Math.sin(an.rx) };
-        const p1 = rotPoint(p0, ax + an.ry, ay + an.rz);
-        const persp = 2.6 / (2.6 - p1.z);
-        const px = cx + p1.x * R * persp;
-        const py = cy + p1.y * R * persp;
-        if (s === 0) orbCtx.moveTo(px, py);
-        else orbCtx.lineTo(px, py);
-      }
-      orbCtx.strokeStyle = k % 2 === 0 ? `rgba(${r1},${g1},${b1},0.36)` : `rgba(${r2},${g2},${b2},0.32)`;
-      orbCtx.lineWidth = 1.1 * dpr;
-      orbCtx.stroke();
-    }
-
-    // Borda esférica externa luminosa
-    const rim = orbCtx.createRadialGradient(cx, cy, R * 0.82, cx, cy, R * 1.06);
-    rim.addColorStop(0, "rgba(0,0,0,0)");
-    rim.addColorStop(0.75, `rgba(${r1},${g1},${b1},0.28)`);
-    rim.addColorStop(1, "rgba(0,0,0,0)");
-    orbCtx.fillStyle = rim;
-    orbCtx.beginPath();
-    orbCtx.arc(cx, cy, R * 1.06, 0, Math.PI * 2);
-    orbCtx.fill();
-
-    // Partículas 3D da malha da esfera
-    for (let i = 0; i < N; i++) {
-      const rp = rotPoint(PONTOS[i], ax, ay);
-      const persp = 2.6 / (2.6 - rp.z);
-      const px = cx + rp.x * R * persp;
-      const py = cy + rp.y * R * persp;
-      const alpha = Math.max(0.14, Math.min(0.92, (rp.z + 1.1) * 0.44));
-      orbCtx.fillStyle = i % 2 === 0
-        ? `rgba(${r1},${g1},${b1},${alpha})`
-        : `rgba(255,255,255,${alpha * 0.85})`;
-      orbCtx.beginPath();
-      orbCtx.arc(px, py, PONTOS[i].s * persp * 0.85 * dpr, 0, Math.PI * 2);
-      orbCtx.fill();
-    }
-
-    // Brilho horizontal tipo lente no centro do núcleo
-    const flareW = R * (1.25 + 0.18 * Math.sin(t * 3.2));
-    const flare = orbCtx.createLinearGradient(cx - flareW, cy, cx + flareW, cy);
-    flare.addColorStop(0, "rgba(0,0,0,0)");
-    flare.addColorStop(0.42, `rgba(${r1},${g1},${b1},0.42)`);
-    flare.addColorStop(0.5, "rgba(255,255,255,0.85)");
-    flare.addColorStop(0.58, `rgba(${r2},${g2},${b2},0.42)`);
-    flare.addColorStop(1, "rgba(0,0,0,0)");
-    orbCtx.fillStyle = flare;
-    orbCtx.fillRect(cx - flareW, cy - 2 * dpr, flareW * 2, 4 * dpr);
-
-    // Núcleo central brilhante pulsante
-    const core = orbCtx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.34);
-    core.addColorStop(0, "rgba(255,255,255,0.9)");
-    core.addColorStop(0.35, `rgba(${r1},${g1},${b1},0.55)`);
-    core.addColorStop(1, "rgba(0,0,0,0)");
-    orbCtx.fillStyle = core;
-    orbCtx.beginPath();
-    orbCtx.arc(cx, cy, R * 0.34, 0, Math.PI * 2);
-    orbCtx.fill();
-
-    requestAnimationFrame(frameOrb);
-  }
-  requestAnimationFrame(frameOrb);
-}
-
 try {
   history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
   if (!Array.isArray(history)) history = [];
@@ -395,8 +358,7 @@ function aplicarTema(nome) {
   const k = TEMAS[nome] ? nome : "roxo";
   const t = TEMAS[k];
   temaAtual = k;
-  orbRgb1 = hexRgb(t.orb1);
-  orbRgb2 = hexRgb(t.orb2);
+  if (window.__setOrbColors) window.__setOrbColors(t.orb1, t.orb2);
   const r = document.documentElement.style;
   r.setProperty("--bg", t.bg); r.setProperty("--panel", t.panel); r.setProperty("--panel2", t.panel2);
   r.setProperty("--border", t.border); r.setProperty("--accent", t.accent); r.setProperty("--accent2", t.accent2);
@@ -448,7 +410,6 @@ function busy(b) {
   if (!b) status.textContent = statusPadrao();
 }
 
-/* ---------- utilitários ---------- */
 async function copiar(t, btn) {
   try { await navigator.clipboard.writeText(t); }
   catch { const a = document.createElement("textarea"); a.value = t; document.body.appendChild(a); a.select(); document.execCommand("copy"); a.remove(); }
@@ -466,11 +427,10 @@ function cartao(titulo, conteudo, arquivo, aberto, previa) {
   b1.onclick = () => copiar(conteudo, b1); b2.onclick = () => baixar(conteudo, arquivo);
   top.append(mk("span", "", titulo), b1, b2);
   const d = mk("details"); if (aberto) d.open = true;
-  d.append(mk("summary", "", "Ver conteúdo"), mk("pre", "", previa && conteudo.length > previa ? conteudo.slice(0, previa) + "\n\n[... prévia: o arquivo completo tem " + conteudo.length + " caracteres; use Copiar ou Baixar]" : conteudo));
+  d.append(mk("summary", "", "Ver conteúdo"), mk("pre", "", previa && conteudo.length > previa ? conteudo.slice(0, previa) + "\n\n[... prévia: use Copiar ou Baixar]" : conteudo));
   c.append(top, d); return c;
 }
 
-/* ---------- bolhas ---------- */
 function montar(texto, tipo, cit = "") {
   const w = mk("div", "msg " + tipo);
   if (cit) w.appendChild(mk("div", "cit", "↩ " + cit));
@@ -539,7 +499,6 @@ function criarResultado(titulo, resumo, url) {
   chat.appendChild(c); chat.scrollTop = chat.scrollHeight;
 }
 
-/* ---------- Sobre a BACH AI ---------- */
 function abrirSobre() {
   atualizouAgora = false;
   atualizarBadge();
@@ -581,7 +540,6 @@ function abrirSobre() {
   sobreEl.append(box);
 }
 
-/* ---------- pensando / cancelar ---------- */
 function pensar() {
   const div = mk("div", "msg bot pensando"), t0 = performance.now(), linhas = [];
   const render = () => { div.textContent = "🤔 Pensando... " + ((performance.now() - t0) / 1000).toFixed(1) + " s\n" + linhas.join("\n") + "\n(toque em ⏹ para cancelar)"; };
@@ -600,7 +558,6 @@ function parar() {
   falar("⏹ Cancelei. Pode mandar outra coisa.", "bot", "", true);
 }
 
-/* ---------- rede / clima / notícias / pesquisa ---------- */
 async function requisicao(url, tempo = 16000) {
   const c = new AbortController(), t = setTimeout(() => c.abort(), tempo);
   try { const r = await fetch(url, { signal: c.signal }); if (!r.ok) throw new Error("HTTP " + r.status); return r; } finally { clearTimeout(t); }
@@ -636,8 +593,7 @@ const extrairClima = t => {
     || x.match(/^(?:est[aá]|ta|t[aá]\s+)?(?:chovendo|fazendo\s+(?:frio|calor))\s+(?:em|na|no)\s+(.+)$/i);
   if (!m) return null;
   const cid = m[1].trim();
-  if (/^(hoje|hj|agora|amanha|amanhã|essa semana|semana)$/i.test(cid)) return null;
-  return cid;
+  return /^(hoje|hj|agora|amanha|amanhã|essa semana|semana)$/i.test(cid) ? null : cid;
 };
 const extrairProfundo = t => (t.match(/^(?:(?:fa[cç]a|faz|pode)\s+)?(?:uma\s+)?(?:(?:pesquise|pesquisa|pesquisar|busque|busca|procure)\s+(?:a\s*fundo|profundamente|em\s+profundidade|bem\s+fundo)|pesquisa profunda|aprofunde|\/profundo)\s*(?:sobre\s+|a respeito de\s+)?(.+)/i) || [])[1]?.trim() ?? null;
 function dividirTemas(q) {
@@ -648,15 +604,10 @@ function dividirTemas(q) {
 
 const lim = x => String(x).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 const limpo = x => lim(
-  String(x)
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/\]\([^)]*\)?/g, " ")
-    .replace(/[\[\]]/g, " ")
-    .replace(/https?:\/\/\S+/g, " ")
+  String(x).replace(/!\[[^\]]*\]\([^)]*\)/g, " ").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/\]\([^)]*\)?/g, " ")
+    .replace(/[\[\]]/g, " ").replace(/https?:\/\/\S+/g, " ")
     .replace(/\b(?:www\.)?[a-z0-9-]+\.(?:com(?:\.br)?|pt|org|net|br|io|gov)(?:\/\S*)?/gi, " ")
-    .replace(/([ÁÉÍÓÚÂÊÔÃÕÇ])\s+(?=[a-zà-ÿ]{2,})/g, "$1")
-    .replace(/[#*_`>|]/g, " ")
+    .replace(/([ÁÉÍÓÚÂÊÔÃÕÇ])\s+(?=[a-zà-ÿ]{2,})/g, "$1").replace(/[#*_`>|]/g, " ")
 );
 
 async function noticias(q) {
@@ -715,7 +666,6 @@ async function pesquisaProfunda(q, fundo = true) {
   }
 }
 
-/* ---------- Motor opcional ---------- */
 const SISTEMA = `Você é a BACH AI, criada por Rizik, assistente inteligente em português do Brasil. Seja simpática, direta e precisa.`;
 async function perguntarIA(texto, extraCtx = "") {
   passo("🧠 Raciocinando...");
@@ -742,7 +692,6 @@ async function perguntarIA(texto, extraCtx = "") {
   } finally { clearTimeout(timer); ctrl = null; }
 }
 
-/* ---------- arquivos e imagem multimodal ---------- */
 function imagemParaBase64(file) {
   return new Promise(resolve => {
     const url = URL.createObjectURL(file), img = new Image();
@@ -806,7 +755,6 @@ async function processarArquivo(f, silenciosoSeTexto = false) {
   finally { busy(false); }
 }
 
-/* ---------- histórico ---------- */
 function novaConversa() {
   try { speechSynthesis.cancel(); } catch {}
   Historico.nova(); history = []; try { localStorage.removeItem(HISTORY_KEY); } catch {}
@@ -865,7 +813,6 @@ function abrirHistorico(pag = 1, termo = "") {
   box.append(top, lista, pg, rod); hist.append(box);
 }
 
-/* ---------- /basedados (ADM) ---------- */
 async function exportarBase() {
   passo("📦 Reunindo memória, conversas, interface e módulos...");
   const cfg = LLM.getConfig();
@@ -945,14 +892,10 @@ function extrairAlvoTraducao() {
   let fonte = alvo || ultimoArquivo?.texto || ultimoBotTexto() || "";
   const mOcr = fonte.match(/Texto (?:encontrado|que consegui ler|visível)[^:]*:\s*\n*[“"]([\s\S]+?)[”"]\s*$/);
   if (mOcr) fonte = mOcr[1].trim();
-  else {
-    const mCerca = fonte.match(/Texto (?:encontrado|que consegui ler|visível)[^:]*:\s*\n*([\s\S]+)/);
-    if (mCerca && ultimoArquivo?.texto) fonte = ultimoArquivo.texto;
-  }
+  else if (ultimoArquivo?.texto && /Texto (?:encontrado|que consegui ler|visível)/i.test(fonte)) fonte = ultimoArquivo.texto;
   return fonte.replace(/^["“]|["”]$/g, "").trim().slice(0, 1400);
 }
 
-/* ---------- roteamento central ---------- */
 const sn = t => String(t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 
 async function rotear(texto) {
@@ -1198,7 +1141,6 @@ async function enviar() {
   finally { if (pensando) { pensando.fim(); pensando = null; } alvo = null; busy(false); }
 }
 
-/* ---------- modos, drawer, menu, voz, eventos ---------- */
 $("modos").onclick = e => {
   const b = e.target.closest("button[data-modo]"); if (!b) return;
   document.querySelectorAll("#modos .modo").forEach(x => x.classList.remove("on"));
@@ -1269,11 +1211,13 @@ entrada.addEventListener("keydown", e => {
 
 aplicarTema(temaAtual);
 atualizarBadge();
-status.textContent = statusPadrao();
+status.textContent = falhas.length ? "⚠️ Erro em: " + falhas[0] : statusPadrao();
 ajustar();
 try { Historico.salvarAtual(history); } catch {}
 try { restaurar(); } catch (e) { console.warn(e); }
-if (!history.length) {
+if (falhas.length) {
+  falar("⚠️ Alguns módulos não carregaram no GitHub: " + falhas.join(", ") + "\nConfira os nomes ou cole esses arquivos inteiros.", "bot", "⚠️ diagnóstico", true);
+} else if (!history.length) {
   const nomeSalvo = RizikBrain.recall("userName");
   falar((nomeSalvo ? "Que bom te ver de volta, **" + nomeSalvo + "**! 💜 " : "Olá! ") + "Sou a **BACH AI** 🧠 (v" + APP_VER + "). Converso, lembro de você quando voltar, mudo de tema (peça “tema vermelho”, “azul”, “neon”...), analiso fotos/vídeos/códigos e pesquiso na internet!", "bot", "", true);
 }
