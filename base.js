@@ -1,10 +1,10 @@
-/* BACH AI 4.2 — base de dados e backup completo.
+/* BACH AI 4.5 — base de dados e backup completo.
  * Exporta memórias, conversas, arquivos e o código de todos os módulos.
  * Chaves secretas nunca são incluídas no backup.
  */
 
 export const ARQUIVOS = [
-  ["index.html", "Interface, 10 modos, roteamento, visão e chat"],
+  ["index.html", "Interface, temas transparentes, esfera animada, 10 modos, roteamento e chat"],
   ["cerebro_avancado.js", "NLU, recomendações por gênero, comparações e escrita estruturada"],
   ["llm.js", "Provedor híbrido opcional (ADM)"],
   ["brain.js", "Cérebro, memória de longo prazo e aprendizado"],
@@ -19,6 +19,7 @@ export const ARQUIVOS = [
   ["programacao.js", "Programação e humor existente"],
   ["historico.js", "Histórico de conversas"],
   ["base.js", "Exportação e importação de backup"],
+  ["autoguard.js", "Monitoramento, Watchdog, Failure Memory, Self-Healing e Rollback"],
   ["registry.js", "Catálogo, instruções de modo e roteador de habilidades"],
   ["intelligence.js", "Cálculo local e raciocínio aritmético"],
   ["personality.js", "Piadas e humor local"],
@@ -41,20 +42,24 @@ export const COMANDOS = [
   "/ideia assunto", "/historia tema",
   "/personagem tema", "/plano objetivo",
   "/automacao tarefa", "/humor",
+  "/diagnostico", "/rollback",
+  "/modulos", "/modulo ID on|off",
+  "/ia status", "/modelo nome",
   "/historico", "/nova", "/arquivos",
   "/abrir nome", "/buscar palavra", "/apagar nome",
   "/pasta Nome/Sub", "/pastas",
   "/mover nome para Pasta",
   "/palavra gíria = significado",
   "/palavras", "/profundo assunto",
-  "/clear", "ensine: pergunta => resposta",
+  "/clear", "sobre",
+  "ensine: pergunta => resposta",
   "corrija: pergunta => nova",
   "esqueça: pergunta", "sinônimo: a = b",
   "lembre: algo", "pesquise sobre ...",
   "pesquise a fundo sobre ...", "clima em (cidade)"
 ];
 
-const CHAVE_SECRETA = "bach_gemini_key";
+const CHAVES_OCULTAS = new Set(["bach_gemini_key", "bach_creator_v1"]);
 
 const CONHECIDAS = {
   rizik_brain_v1: "memoria",
@@ -82,7 +87,7 @@ function lerArmazenamento() {
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (!key || key === CHAVE_SECRETA) continue;
+      if (!key || CHAVES_OCULTAS.has(key)) continue;
 
       const value = analisar(localStorage.getItem(key));
       if (CONHECIDAS[key]) dados[CONHECIDAS[key]] = value;
@@ -174,7 +179,7 @@ async function montar(context = {}) {
 
   const backup = {
     bach: {
-      versao: "4.2",
+      versao: "4.5",
       geradoEm: new Date().toISOString()
     },
     tabelas: {
@@ -255,7 +260,7 @@ function importar(obj) {
   }
 
   for (const [key, value] of Object.entries(obj.outrosDados || {})) {
-    if (/^(bach|rizik)_/i.test(key) && key !== CHAVE_SECRETA) {
+    if (/^(bach|rizik)_/i.test(key) && !CHAVES_OCULTAS.has(key)) {
       localStorage.setItem(key, JSON.stringify(value));
       feitos++;
     }
