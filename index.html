@@ -107,7 +107,7 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px
   <div class="htop">
     <button id="btnDrawer" aria-label="Abrir menu">☰</button>
     <div class="hbrand">
-      <div class="htitle"><h2>BACH AI 🧠</h2><span id="verBadge" title="Sobre e novidades">v4.5</span></div>
+      <div class="htitle"><h2>BACH AI 🧠</h2><span id="verBadge" title="Sobre e novidades">v4.6</span></div>
       <div id="status">Carregando...</div>
     </div>
   </div>
@@ -131,7 +131,7 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px
 
 <footer>
   <button id="mais" aria-label="Mais opções">+</button>
-  <textarea id="entrada" rows="1" enterkeyhint="enter" placeholder="Mensagem ou 'ajuda'..." autocomplete="off"></textarea>
+  <textarea id="entrada" rows="1" enterkeyhint="enter" placeholder="Mensagem ou /ajuda..." autocomplete="off"></textarea>
   <button id="mic" aria-label="Falar">🎤</button>
   <button id="enviar">Enviar</button>
 </footer>
@@ -168,7 +168,7 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px
     <button class="dbtn" data-d="sobre">ℹ️ Sobre o App &amp; Atualizações</button>
     <div class="dinfo">
       <b>Criador:</b> Rizik<br>
-      <b>Versão:</b> 4.5 (2026)<br>
+      <b>Versão:</b> 4.6 (2026)<br>
       Suas conversas e memórias ficam salvas quando você volta ao site.
     </div>
   </aside>
@@ -287,13 +287,13 @@ async function loadMod(nome, path) {
 
 const [
   mBrain, mSaber, mProg, mArq, mMente, mFatos,
-  mConv, mDic, mHist, mBase, mReg, mLLM, mAv, mAuto
+  mConv, mDic, mHist, mBase, mReg, mLLM, mAv, mAuto, mRev, mEd
 ] = await Promise.all([
   loadMod("brain.js", "./brain.js?v=19"),
-  loadMod("saber.js", "./saber.js?v=12"),
+  loadMod("saber.js", "./saber.js?v=13"),
   loadMod("programacao.js", "./programacao.js?v=5"),
   loadMod("arquivos.js", "./arquivos.js?v=3"),
-  loadMod("mente.js", "./mente.js?v=17"),
+  loadMod("mente.js", "./mente.js?v=18"),
   loadMod("fatos.js", "./fatos.js?v=7"),
   loadMod("conversa.js", "./conversa.js?v=5"),
   loadMod("dicionario.js", "./dicionario.js?v=5"),
@@ -302,7 +302,9 @@ const [
   loadMod("registry.js", "./registry.js?v=5"),
   loadMod("llm.js", "./llm.js?v=1"),
   loadMod("cerebro_avancado.js", "./cerebro_avancado.js?v=4"),
-  loadMod("autocorretor.js", "./autocorretor.js?v=1")
+  loadMod("autocorretor.js", "./autocorretor.js?v=2"),
+  loadMod("revisor.js", "./revisor.js?v=1"),
+  loadMod("editor_adm.js", "./editor_adm.js?v=1")
 ]);
 
 const RizikBrain = mBrain.RizikBrain || { think: () => ({ handled: false }), learn: () => {}, remember: () => {}, recall: () => null, logTopic: () => {}, getRecentTopics: () => [], getProfile: () => ({}), getStats: () => ({ examples: 0, synonyms: 0, facts: 0, notes: 0 }) };
@@ -319,8 +321,9 @@ const SkillRouter = mReg.SkillRouter || { handle: () => null, instructions: () =
 const LLM = mLLM.LLM || { hasModel: () => false, command: () => null, getConfig: () => ({ model: "offline" }) };
 const CerebroAvancado = mAv.CerebroAvancado || { responder: async () => null };
 const AutoCorretor = mAuto.AutoCorretor || { ehReclamacao: () => false, tratarExclamacao: () => null, analisarEPreparar: () => null, formatarChat: h => JSON.stringify(h), auditarChat: () => "Módulo autocorretor.js não carregado." };
+const Revisor = mRev.Revisor || { detectarPedidoDireto: () => null, avaliarSite: async () => "revisor.js não carregado.", revisarCodigoFiel: () => null, revisarPortugues: () => null };
+const EditorADM = mEd.EditorADM || { ativo: () => false, resetar: () => {}, comandoConfig: () => null, processar: async () => null, ajudaComandos: () => "Use ajuda para ver os comandos." };
 
-// Limpa sobra antiga de nome salvo (ex.: "rizik sabia" -> "Rizik")
 try {
   const n0 = RizikBrain.recall("userName");
   if (n0 && /\s+(?:sabia|viu|ta|tá|ok|hein|po|pô|cara|mano|vei|véi|nmrl)\s*[!.]*$/i.test(n0)) {
@@ -332,7 +335,7 @@ try {
 const $ = id => document.getElementById(id);
 const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status"), hist = $("hist"), sobreEl = $("sobre");
 const HISTORY_KEY = "bach_chat_history_v1", KEY_TEMA = "bach_theme_v1", KEY_CRIADOR = "bach_creator_v1", KEY_VER = "bach_last_version";
-const APP_VER = "4.5", APP_CRIADA = "2026", APP_ATUALIZADA = "24/11/2026";
+const APP_VER = "4.6", APP_CRIADA = "2026", APP_ATUALIZADA = "24/11/2026";
 const LONGO = 700;
 const BT = "\x60\x60\x60";
 const RE_CERCA_ALL = new RegExp("\\x60\\x60\\x60", "g");
@@ -553,9 +556,9 @@ function abrirSobre() {
   nov.innerHTML =
     "<b>✨ Novidades da v" + APP_VER + ":</b><br>" +
     "• Esfera 3D luminosa de partículas e <b>7 temas</b> com balões transparentes<br>" +
-    "• <b>AutoCorretor</b> que relê o chat quando erra + botão <b>Copiar conversa inteira</b><br>" +
-    "• Módulo de <b>Utilidades</b> (senhas, dados, sorteios, datas, contador e CPF)<br>" +
-    "• Auditoria `/auditar`, tradução de fotos citadas e clima mais inteligente";
+    "• <b>Revisor Fiel</b> de português, sílabas (`/silabas`), códigos e sites (`/site`)<br>" +
+    "• <b>AutoCorretor</b> + auditoria `/auditar` + botão <b>Copiar conversa inteira</b><br>" +
+    "• Central de comandos `/ajuda` e módulo de <b>Utilidades</b>";
 
   const dados = mk("div", "scard");
   dados.innerHTML =
@@ -929,6 +932,7 @@ async function rotear(texto) {
   const cmd = texto.toLowerCase().trim(), temIA = LLM.hasModel();
   const tn = sn(texto);
 
+  // Entrada e saída secreta de ADM
   if (/@rizik2442/i.test(texto)) {
     modoCriador = true;
     try { localStorage.setItem(KEY_CRIADOR, "1"); } catch {}
@@ -937,10 +941,42 @@ async function rotear(texto) {
     status.textContent = statusPadrao();
     const semTag = texto.replace(/@rizik2442/gi, "").trim();
     if (!semTag) {
-      falar("👑 Acesso de administrador ativado! Pesquisa profunda sem limites liberada. O que vamos fazer agora? 🚀", "bot", "👑 adm");
+      falar("👑 Acesso de administrador ativado! Use `/ajuda` ou `/editar` quando quiser. 🚀", "bot", "👑 adm");
       return;
     }
     texto = semTag;
+  }
+
+  if (/\brizik_D7\b/i.test(texto)) {
+    modoCriador = false;
+    try { localStorage.removeItem(KEY_CRIADOR); } catch {}
+    EditorADM.resetar();
+    atualizarBadge();
+    status.textContent = statusPadrao();
+    const semTag = texto.replace(/\brizik_D7\b/gi, "").trim();
+    if (!semTag) {
+      falar("👤 Voltei para o modo usuário comum! Tudo funcionando como para qualquer visitante.", "bot", "👤 usuário");
+      return;
+    }
+    texto = semTag;
+  }
+
+  // Editor interativo ADM (/editar) tem prioridade absoluta para aceitar código grande colado no chat
+  if (/^\/(editar|trocareditor|editarmodulo)\b/i.test(cmd) || EditorADM.ativo(modoCriador)) {
+    const ed = await EditorADM.processar(texto, modoCriador, passo);
+    if (ed) {
+      falar(ed.texto, "bot", "🛠️ editor adm", true);
+      if (ed.arquivo && ed.codigo) {
+        chat.appendChild(cartao("📦 " + ed.arquivo, ed.codigo, ed.arquivo, false, 1600));
+        chat.scrollTop = chat.scrollHeight;
+      }
+      return;
+    }
+  }
+
+  if (/^\/ajuda\b/i.test(cmd)) {
+    falar(EditorADM.ajudaComandos(modoCriador), "bot", "⌨️ comandos");
+    return;
   }
 
   if (aguardaCidade) {
@@ -948,10 +984,43 @@ async function rotear(texto) {
     if (!/^\//.test(texto) && texto.split(/\s+/).length <= 5) return clima(texto.replace(/^(em|na|no|de|para)\s+/i, "").replace(/[?!.]+$/, ""));
   }
 
-  if (/^\/(basedados|dadosbach)\b/.test(cmd)) return exportarBase();
-  if (/^\/importarbase\b/.test(cmd)) { falar("📥 Escolha o arquivo .json que você baixou com /basedados."); $("seletorBase").click(); return; }
+  if (/^\/(basedados|dadosbach)\b/.test(cmd)) {
+    if (!modoCriador) { falar("🔒 O comando `/basedados` é exclusivo de administrador.", "bot", "🔒 adm"); return; }
+    return exportarBase();
+  }
+  if (/^\/importarbase\b/.test(cmd)) {
+    if (!modoCriador) { falar("🔒 O comando `/importarbase` é exclusivo de administrador.", "bot", "🔒 adm"); return; }
+    falar("📥 Escolha o arquivo .json que você baixou com /basedados."); $("seletorBase").click(); return;
+  }
   if (/^\/(auditar|erros)\b/.test(cmd) || /^(auditar|ver erros|achar erros|encontrar erros)$/i.test(tn)) { rodarAuditoria(); return; }
   if (/^(sobre|sobre a bach|versao|quem criou|sobre o app)$/i.test(tn)) { abrirSobre(); return; }
+
+  // Revisor Fiel: sílabas, ortografia, auditoria de código e avaliação de sites
+  const rev = Revisor.detectarPedidoDireto(texto);
+  if (rev) {
+    if (rev.tipo === "site") {
+      passo("🌐 Avaliando o site " + rev.url + "...");
+      falar(await Revisor.avaliarSite(rev.url), "bot", "🌐 avaliador de sites");
+      return;
+    }
+    if (rev.tipo === "sync") {
+      falar(rev.texto, "bot", "📝 revisor fiel");
+      return;
+    }
+  }
+
+  // Tradução rápida ao responder ("Em português", "Para inglês", etc.)
+  const mLangOnly = texto.trim().match(/^(?:em|para|pra)\s+(?:o\s+|a\s+)?(portugu[eê]s|ingl[eê]s|espanhol|franc[eê]s|italiano|alem[aã]o|japon[eê]s)\s*[!?.]*$/i);
+  if (mLangOnly && (alvo || ultimoArquivo?.texto)) {
+    const mapL = { portugues: "pt", ingles: "en", espanhol: "es", frances: "fr", italiano: "it", alemao: "de", japones: "ja" };
+    const codL = mapL[sn(mLangOnly[1])] || "pt";
+    const qTr = extrairAlvoTraducao();
+    if (qTr) {
+      passo("🌍 Traduzindo...");
+      const rTr = await Dic.consultar({ tipo: "trad", q: qTr, alvo: codL }, passo);
+      if (rTr) { falar(rTr, "bot", "🌍 dicionário"); return; }
+    }
+  }
 
   if (Mente.jogando()) {
     const mtJogo = Mente.responder(texto);
@@ -969,10 +1038,14 @@ async function rotear(texto) {
 
   const links = Saber.urlsEm(texto);
   if (links.length && texto.length < 400 && !Saber.isCode(texto) && texto.replace(links[0], "").trim().split(/\s+/).filter(Boolean).length <= 12) {
+    if (/\b(bom|ruim|presta|avalia|analisa|nota|erros?)\b/i.test(tn)) {
+      passo("🌐 Avaliando o site " + links[0] + "...");
+      falar(await Revisor.avaliarSite(links[0]), "bot", "🌐 avaliador de sites");
+      return;
+    }
     return lerLinkMsg(links[0], texto, temIA);
   }
 
-  // AutoCorretor: exclamações emotivas ("Aaaaah... deusss") ou reclamação de erro ("você errou", "fugiu do assunto")
   const excl = AutoCorretor.tratarExclamacao(texto);
   if (excl) { falar(excl, "bot", "💬 conversa"); return; }
 
@@ -1012,7 +1085,8 @@ async function rotear(texto) {
     ultimaImagem = null; ultimaMidiaInfo = null;
     RizikBrain.logTopic(a.nome);
     if (temIA) { await perguntarIA(texto); return; }
-    falar(leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos\n💡 Agora pergunte: “o que é esse texto?”, “explica”, “cadeia de códigos”, “resume” ou “revisa”.");
+    const revExtra = cod ? "\n\n" + Revisor.revisarCodigoFiel(texto) : "";
+    falar(leitura + revExtra + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos\n💡 Agora pergunte: “explica”, “cadeia de códigos”, “resume” ou “/revisar”.");
     return;
   }
 
@@ -1179,6 +1253,15 @@ async function enviar() {
     if (/^(\/copiar|copiar chat|copiar conversa|copiar tudo)$/i.test(texto)) { alvo = null; copiarChatInteiro(); return; }
     if (/^(\/historico|\/histórico|histórico|historico)(\s+\d+)?$/i.test(texto)) { alvo = null; abrirHistorico(parseInt((texto.match(/\d+/) || [1])[0], 10) || 1); return; }
     if (/^(sobre|sobre a bach|vers[aã]o|quem criou|sobre o app)$/i.test(texto)) { alvo = null; abrirSobre(); return; }
+
+    const cmdGH = EditorADM.comandoConfig(texto, modoCriador);
+    if (cmdGH) {
+      alvo = null;
+      falar(cmdGH.secret ? texto.split(/\s+/).slice(0, 2).join(" ") + " ••••••" : texto, "user", "", false, cit);
+      falar(cmdGH.texto, "bot", "⚙️ github adm", true);
+      return;
+    }
+
     const cmdLLM = LLM.command(texto);
     if (cmdLLM) {
       alvo = null;
@@ -1194,7 +1277,10 @@ async function enviar() {
   }
 
   cancelado = false; busy(true);
-  falar(texto, "user", "", false, cit);
+  const bolhaUser = EditorADM.ativo(modoCriador) && texto.length > 200
+    ? "📦 [Código enviado para o módulo no Editor ADM • " + texto.split("\n").length + " linhas]"
+    : texto;
+  falar(bolhaUser, "user", "", false, cit);
   pensando = pensar(); passo("👀 Analisando sua mensagem...");
   try { await rotear(texto); }
   catch (e) { console.error(e); falar("Deu um erro inesperado: " + (e.message || "tente novamente.")); }
@@ -1283,7 +1369,7 @@ if (falhas.length) {
   falar("⚠️ Alguns módulos não carregaram no GitHub: " + falhas.join(", ") + "\nConfira os nomes ou cole esses arquivos inteiros.", "bot", "⚠️ diagnóstico", true);
 } else if (!history.length) {
   const nomeSalvo = RizikBrain.recall("userName");
-  falar((nomeSalvo ? "Que bom te ver de volta, **" + nomeSalvo + "**! 💜 " : "Olá! ") + "Sou a **BACH AI** 🧠 (v" + APP_VER + "). Converso, lembro de você quando voltar, mudo de tema (peça “tema vermelho”, “azul”, “neon”...), analiso fotos/vídeos/códigos e pesquiso na internet!", "bot", "", true);
+  falar((nomeSalvo ? "Que bom te ver de volta, **" + nomeSalvo + "**! 💜 " : "Olá! ") + "Sou a **BACH AI** 🧠 (v" + APP_VER + "). Digite `/ajuda` para ver todos os comandos com `/` — converso, mudo de tema, reviso textos/sílabas/códigos, avalio sites e pesquiso na internet!", "bot", "", true);
 }
 </script>
 </body>
