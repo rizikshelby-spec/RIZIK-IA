@@ -1,6 +1,6 @@
-/* BACH AI - MENTE 2.4
-   Contexto, leitura/cadeia de código colado, jogos, criação de apps, pastas e vocabulário.
-   Sem lookbehind e sem crases literais que quebrem formatação. */
+/* BACH AI - MENTE 2.5
+   Contexto, leitura/cadeia de código colado, jogos, criação de apps seguros, pastas e vocabulário.
+   Sem lookbehind e sem eval/Function. */
 import { Saber } from "./saber.js?v=12";
 import { KB, ERROS } from "./conhecimento.js?v=1";
 
@@ -50,7 +50,7 @@ const BASE_LEX = (
   "comida agua cafe leite pao arroz feijao carne frango peixe fruta banana maca laranja doce bolo pizza lanche suco cerveja vinho " +
   "animal cachorro gato cavalo passaro peixe pato leao tigre urso lobo macaco cobra tubarao baleia dinossauro inseto planta arvore flor floresta " +
   "cores azul verde vermelho amarelo preto branco rosa roxo laranja marrom cinza dourado prateado pintar pintura quadro quadros desenho desenhar " +
-  "musica cantar dancar instrumento violao guitarra piano bateria banda show album letra " +
+  "tema temas esfera bolinha transparente modulo modulos melhorar risos musica cantar dancar instrumento violao guitarra piano bateria banda show album letra " +
   "filme filmes serie series anime animes desenho desenhos livro livros historia conto novela cinema ator atriz diretor lancamento estreia trailer sinopse critica nota " +
   "jogo jogos game games console computador celular internet site pagina rede social aplicativo programa codigo codigos algoritmo dado dados banco servidor nuvem " +
   "erro bug falha problema solucao texto textos resumo explicar explicacao significa significado diferenca exemplo pergunta resposta ajuda ajudar " +
@@ -64,7 +64,7 @@ const BASE_LEX = (
   "sempre nunca depois antes durante porque quando quanto onde quem qual qualquer outro mesmo primeiro ultimo ultimas " +
   "politica economia ciencia tecnologia cultura arte geografia matematica fisica quimica biologia filosofia psicologia direito " +
   "presidente governo eleicao lei guerra paz energia eletricidade bateria motor robo inteligencia artificial " +
-  "imagem video foto audio som voz tela teclado mouse camera microfone arquivo pasta documento " +
+  "imagem video foto audio som voz tela teclado mouse camera microfone arquivo pasta pastas documento " +
   "praia montanha rio mar oceano lago ilha deserto neve vento tempestade raio trovao fogo gelo pedra areia " +
   "javascript python html css sql java php csharp ruby rust go kotlin swift react node linux windows android ios github"
 ).split(" ");
@@ -364,11 +364,11 @@ function jogar(p, raw) {
   return null;
 }
 
-/* ---------- criar apps/jogos/telas ---------- */
+/* ---------- criar apps/jogos/telas (sem eval ou Function) ---------- */
 const H = (titulo, css, corpo) => "<!DOCTYPE html><html lang=\"pt-BR\"><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>" + titulo + "</title><style>body{font-family:Arial;background:#10111a;color:#fff;text-align:center}button{border:0;border-radius:10px;background:#7864ed;color:#fff}" + css + "</style>" + corpo + "</html>";
 const TEMPLATES = {
   velha: ["jogo-da-velha.html", H("Jogo da Velha", "#t{display:grid;grid-template-columns:repeat(3,90px);gap:6px;justify-content:center;margin:20px}#t button{height:90px;font-size:40px}", "<h2>Jogo da Velha</h2><p id=m></p><div id=t></div><button onclick=novo() style=padding:10px>Reiniciar</button><script>let b,fim;const L=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];function v(b){for(const[a,c,d]of L)if(b[a]&&b[a]==b[c]&&b[a]==b[d])return b[a];return b.includes('')?null:'E'}function mm(b,p){const r=v(b);if(r)return{s:r=='O'?1:r=='X'?-1:0};let best=null;for(let i=0;i<9;i++)if(!b[i]){b[i]=p;const s=mm(b,p=='O'?'X':'O').s;b[i]='';if(!best||(p=='O'?s>best.s:s<best.s))best={s,i}}return best}function desenha(){t.innerHTML='';b.forEach((x,i)=>{const e=document.createElement('button');e.textContent=x;e.onclick=()=>jogar(i);t.append(e)})}function jogar(i){if(fim||b[i])return;b[i]='X';let r=v(b);if(!r){b[mm(b,'O').i]='O';r=v(b)}desenha();if(r){fim=1;m.textContent=r=='E'?'Empate!':r=='X'?'Você ganhou!':'Eu ganhei!'}}function novo(){b=Array(9).fill('');fim=0;m.textContent='Sua vez (X)';desenha()}novo()</script>")],
-  calculadora: ["calculadora.html", H("Calculadora", "#c{width:280px;margin:30px auto}#d{width:100%;font-size:28px;text-align:right;padding:12px;box-sizing:border-box;border-radius:10px;border:0}#g{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}#g button{padding:16px;font-size:20px}", "<div id=c><input id=d readonly><div id=g></div></div><script>'789/456*123-0.C+='.split('').forEach(k=>{const b=document.createElement('button');b.textContent=k;b.onclick=()=>{if(k=='C')d.value='';else if(k=='=')try{d.value=Function('return '+d.value)()}catch{d.value='Erro'}else d.value+=k};g.append(b)})</script>")],
+  calculadora: ["calculadora.html", H("Calculadora", "#c{width:280px;margin:30px auto}#d{width:100%;font-size:28px;text-align:right;padding:12px;box-sizing:border-box;border-radius:10px;border:0}#g{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}#g button{padding:16px;font-size:20px}", "<div id=c><input id=d readonly><div id=g></div></div><script>function calc(s){if(!/^[0-9.+\\-*/() ]+$/.test(s))throw 1;let p=0,t=s.match(/\\d+(?:\\.\\d+)?|[()+\\-*/]/g)||[];const pk=()=>t[p],tk=()=>t[p++];function pr(){const x=tk();if(x=='('){const v=ad();if(tk()!=')')throw 1;return v}return Number(x)}function un(){return pk()=='-'?(tk(),-un()):pr()}function ml(){let v=un();while(pk()=='*'||pk()=='/'){const o=tk(),r=un();if(o=='/'&&r==0)throw 1;v=o=='*'?v*r:v/r}return v}function ad(){let v=ml();while(pk()=='+'||pk()=='-'){const o=tk(),r=ml();v=o=='+'?v+r:v-r}return v}const res=ad();if(p!=t.length||!isFinite(res))throw 1;return Number(res.toPrecision(10))}'789/456*123-0.C+='.split('').forEach(k=>{const b=document.createElement('button');b.textContent=k;b.onclick=()=>{if(k=='C')d.value='';else if(k=='=')try{d.value=calc(d.value)}catch{d.value='Erro'}else d.value+=k};g.append(b)})</script>")],
   tarefas: ["tarefas.html", H("Tarefas", "body{max-width:420px;margin:20px auto;text-align:left;padding:0 12px}input{width:65%;padding:10px;border-radius:8px;border:0}button{padding:10px}li{margin:8px 0}.f{text-decoration:line-through;opacity:.5}", "<h2>Minhas tarefas</h2><input id=i placeholder='Nova tarefa'> <button onclick=add()>Adicionar</button><p style=font-size:12px>Toque = feita • Toque duplo = apagar</p><ul id=l></ul><script>let T=[];try{T=JSON.parse(localStorage.getItem('t')||'[]')}catch{}function r(){l.innerHTML='';T.forEach((x,n)=>{const e=document.createElement('li');e.textContent=x.t;if(x.f)e.className='f';e.onclick=()=>{x.f=!x.f;s()};e.ondblclick=()=>{T.splice(n,1);s()};l.append(e)})}function s(){try{localStorage.setItem('t',JSON.stringify(T))}catch{}r()}function add(){if(i.value.trim()){T.push({t:i.value.trim(),f:0});i.value='';s()}}r()</script>")],
   adivinhacao: ["adivinhe-o-numero.html", H("Adivinhe", "body{margin-top:40px}input,button{padding:12px;font-size:18px;border-radius:8px;border:0}", "<h2>Adivinhe o número (1 a 100)</h2><input id=n type=number> <button onclick=t()>Chutar</button><p id=m></p><script>let s=Math.ceil(Math.random()*100),c=0;function t(){const v=+n.value;c++;m.textContent=v==s?'Acertou em '+c+' tentativas! 🎉':v<s?'Maior ⬆️':'Menor ⬇️';if(v==s){s=Math.ceil(Math.random()*100);c=0}}</script>")],
   pagina: ["meu-site.html", H("Meu site", "header{padding:60px 20px;background:linear-gradient(#5141a0,#10111a)}button{padding:14px 22px;font-size:16px}section{padding:24px 20px;max-width:600px;margin:auto}", "<header><h1>Meu site</h1><p>Uma frase que explica o que você faz.</p><button onclick=\"alert('Olá!')\">Começar</button></header><section><h2>Sobre</h2><p>Escreva aqui sobre você ou seu projeto.</p></section>")]
@@ -459,7 +459,6 @@ function responder(msg) {
   const criarV = has(p, / (cria|crie|criar|faz|faca|fazer|monta|monte|gera|gere|programa|programe|constroi) /);
   if (criarV && has(p, / (jogo|jogos|app|aplicativo|tela|site|pagina|calculadora|tarefas|lista de tarefas|landing) /)) return { texto: criar(p), origem: "🛠️ criador de apps" };
 
-  // Só abre jogos se pedir explicitamente o nome completo ou "jogar" (evita "velho" -> "jogo da velha")
   const nomeJogo = w.split(" ").length <= 5 && has(p, /\b(forca|jogo da velha|velha|adivinhe|quiz)\b/) && !criarV;
   if ((has(p, / (jogar|joguinho|jogo|brincar) /) || nomeJogo) && !criarV) return { texto: iniciar(p), origem: "🎮 jogos" };
 
