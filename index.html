@@ -107,7 +107,7 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px
   <div class="htop">
     <button id="btnDrawer" aria-label="Abrir menu">☰</button>
     <div class="hbrand">
-      <div class="htitle"><h2>BACH AI 🧠</h2><span id="verBadge" title="Sobre e novidades">v4.6</span></div>
+      <div class="htitle"><h2>BACH AI 🧠</h2><span id="verBadge" title="Sobre e novidades">v4.7</span></div>
       <div id="status">Carregando...</div>
     </div>
   </div>
@@ -168,7 +168,7 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px
     <button class="dbtn" data-d="sobre">ℹ️ Sobre o App &amp; Atualizações</button>
     <div class="dinfo">
       <b>Criador:</b> Rizik<br>
-      <b>Versão:</b> 4.6 (2026)<br>
+      <b>Versão:</b> 4.7 (2026)<br>
       Suas conversas e memórias ficam salvas quando você volta ao site.
     </div>
   </aside>
@@ -294,17 +294,17 @@ const [
   loadMod("programacao.js", "./programacao.js?v=5"),
   loadMod("arquivos.js", "./arquivos.js?v=3"),
   loadMod("mente.js", "./mente.js?v=18"),
-  loadMod("fatos.js", "./fatos.js?v=7"),
+  loadMod("fatos.js", "./fatos.js?v=8"),
   loadMod("conversa.js", "./conversa.js?v=5"),
   loadMod("dicionario.js", "./dicionario.js?v=5"),
   loadMod("historico.js", "./historico.js?v=3"),
-  loadMod("base.js", "./base.js?v=6"),
-  loadMod("registry.js", "./registry.js?v=5"),
+  loadMod("base.js", "./base.js?v=7"),
+  loadMod("registry.js", "./registry.js?v=6"),
   loadMod("llm.js", "./llm.js?v=1"),
   loadMod("cerebro_avancado.js", "./cerebro_avancado.js?v=4"),
   loadMod("autocorretor.js", "./autocorretor.js?v=2"),
   loadMod("revisor.js", "./revisor.js?v=1"),
-  loadMod("editor_adm.js", "./editor_adm.js?v=1")
+  loadMod("editor_adm.js", "./editor_adm.js?v=2")
 ]);
 
 const RizikBrain = mBrain.RizikBrain || { think: () => ({ handled: false }), learn: () => {}, remember: () => {}, recall: () => null, logTopic: () => {}, getRecentTopics: () => [], getProfile: () => ({}), getStats: () => ({ examples: 0, synonyms: 0, facts: 0, notes: 0 }) };
@@ -322,7 +322,7 @@ const LLM = mLLM.LLM || { hasModel: () => false, command: () => null, getConfig:
 const CerebroAvancado = mAv.CerebroAvancado || { responder: async () => null };
 const AutoCorretor = mAuto.AutoCorretor || { ehReclamacao: () => false, tratarExclamacao: () => null, analisarEPreparar: () => null, formatarChat: h => JSON.stringify(h), auditarChat: () => "Módulo autocorretor.js não carregado." };
 const Revisor = mRev.Revisor || { detectarPedidoDireto: () => null, avaliarSite: async () => "revisor.js não carregado.", revisarCodigoFiel: () => null, revisarPortugues: () => null };
-const EditorADM = mEd.EditorADM || { ativo: () => false, resetar: () => {}, comandoConfig: () => null, processar: async () => null, ajudaComandos: () => "Use ajuda para ver os comandos." };
+const EditorADM = mEd.EditorADM || { ativo: () => false, ehPedidoTudoTxt: () => false, resetar: () => {}, comandoConfig: () => null, processar: async () => null, ajudaComandos: () => "Use ajuda para ver os comandos." };
 
 try {
   const n0 = RizikBrain.recall("userName");
@@ -335,7 +335,7 @@ try {
 const $ = id => document.getElementById(id);
 const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status"), hist = $("hist"), sobreEl = $("sobre");
 const HISTORY_KEY = "bach_chat_history_v1", KEY_TEMA = "bach_theme_v1", KEY_CRIADOR = "bach_creator_v1", KEY_VER = "bach_last_version";
-const APP_VER = "4.6", APP_CRIADA = "2026", APP_ATUALIZADA = "24/11/2026";
+const APP_VER = "4.7", APP_CRIADA = "2026", APP_ATUALIZADA = "24/11/2026";
 const LONGO = 700;
 const BT = "\x60\x60\x60";
 const RE_CERCA_ALL = new RegExp("\\x60\\x60\\x60", "g");
@@ -555,10 +555,10 @@ function abrirSobre() {
   const nov = mk("div", "scard");
   nov.innerHTML =
     "<b>✨ Novidades da v" + APP_VER + ":</b><br>" +
-    "• Esfera 3D luminosa de partículas e <b>7 temas</b> com balões transparentes<br>" +
-    "• <b>Revisor Fiel</b> de português, sílabas (`/silabas`), códigos e sites (`/site`)<br>" +
-    "• <b>AutoCorretor</b> + auditoria `/auditar` + botão <b>Copiar conversa inteira</b><br>" +
-    "• Central de comandos `/ajuda` e módulo de <b>Utilidades</b>";
+    "• <b>4 novos módulos:</b> Conversor de Texto (`/linkzap`, `/slug`, `/base64`), Saúde (`/imc`, `/agua`, `/respiracao`), Estudos (`/flashcard`, `/simulado`) e Dev Web (`/cor`, `/vidro`, `/meta`, `/paleta`)<br>" +
+    "• <b>Exportador `.txt` ADM (`/tudotxt`):</b> junta todos os 35 módulos alinhados com final `.txt` para copiar/baixar de uma vez<br>" +
+    "• <b>Base de Fatos expandida:</b> distâncias espaciais, velocidades e curiosidades diretas<br>" +
+    "• <b>Revisor Fiel</b> (`/revisar`, `/silabas`, `/site`) + <b>AutoCorretor</b> (`/auditar`, `/copiar`)";
 
   const dados = mk("div", "scard");
   dados.innerHTML =
@@ -941,7 +941,7 @@ async function rotear(texto) {
     status.textContent = statusPadrao();
     const semTag = texto.replace(/@rizik2442/gi, "").trim();
     if (!semTag) {
-      falar("👑 Acesso de administrador ativado! Use `/ajuda` ou `/editar` quando quiser. 🚀", "bot", "👑 adm");
+      falar("👑 Acesso de administrador ativado! Use `/ajuda`, `/editar` ou `/tudotxt` quando quiser. 🚀", "bot", "👑 adm");
       return;
     }
     texto = semTag;
@@ -961,8 +961,10 @@ async function rotear(texto) {
     texto = semTag;
   }
 
-  // Editor interativo ADM (/editar) tem prioridade absoluta para aceitar código grande colado no chat
-  if (/^\/(editar|trocareditor|editarmodulo)\b/i.test(cmd) || EditorADM.ativo(modoCriador)) {
+  // Editor interativo ADM (/editar) e exportador /tudotxt
+  if (/^\/(editar|trocareditor|editarmodulo|tudotxt|pacotetotxt|pacotetxts?|modulos?txt|codigostxt)\b/i.test(texto.trim()) ||
+      EditorADM.ehPedidoTudoTxt?.(texto) ||
+      EditorADM.ativo(modoCriador)) {
     const ed = await EditorADM.processar(texto, modoCriador, passo);
     if (ed) {
       falar(ed.texto, "bot", "🛠️ editor adm", true);
