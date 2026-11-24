@@ -1,6 +1,6 @@
 /* BACH AI 4.5 — AUTOCORRETOR & AUDITORIA DE CHAT
    1) Detecta quando a BACH errou ou fugiu do assunto, analisa o histórico da conversa e reprocessa a pergunta original.
-   2) Trata falas emotivas/esticadas (ex.: "aaaaah", "deusss").
+   2) Trata falas emotivas/esticadas e perguntas sobre a própria IA/conversa.
    3) Formata a conversa inteira para copiar sem prints e audita erros com /auditar. */
 
 const K_CORR = "bach_autocorrecoes_v1";
@@ -14,13 +14,14 @@ const norm = t => String(t || "").toLowerCase().normalize("NFD")
   .replace(/\b(pra|oara|praa)\b/g, "para")
   .replace(/\b(msm)\b/g, "mesmo")
   .replace(/\b(hj)\b/g, "hoje")
+  .replace(/\b(tip)\b/g, "tipo")
   .replace(/[^a-z0-9\s]/g, " ")
   .replace(/\s+/g, " ")
   .trim();
 
 const reduzirRepetidas = t => String(t || "").replace(/([a-zA-ZÀ-ÿ])\1{2,}/g, "$1");
 
-const RE_RECLAMACAO = /\b(voce errou|vc errou|errou|nao foi isso|nao era isso|fugiu do assunto|saiu do assunto|mudou de assunto|nada a ver|nada aver|nada haver|nao entende|nao entendeu|nao capta|respondeu errado|falou errado|disse errado|ta errado|esta errado|nao mandei pesquisar|nao pedi isso|isso ta errado)\b/;
+const RE_RECLAMACAO = /\b(voce errou|vc errou|errou|nao foi isso|nao era isso|fugiu do assunto|saiu do assunto|mudou de assunto|nada a ver|nada aver|nada haver|nao entende|nao entendeu|nao capta|respondeu errado|falou errado|disse errado|ta errado|esta errado|nao mandei pesquisar|nao pedi isso|isso ta errado|fazendo pesquisa|fazer pesquisa agora|para de pesquisar|so pesquisa|o que (?:voce )?nao entendeu)\b/;
 
 function ehReclamacao(texto) {
   const t = norm(reduzirRepetidas(texto));
@@ -32,9 +33,21 @@ function tratarExclamacao(texto) {
   const limpo = norm(reduzirRepetidas(texto));
   if (!limpo) return null;
 
+  // Exclamações esticadas ("Aaaaah... deusss")
   if (/^(?:ah+|oh+|eh+|ih+|uh+|uai+|eita+|nossa+|vixi+|vish+|socorro+|meu deus|o deus+|deus+|caramba+|misericordia+|aff+)(?:\s+(?:ah+|oh+|deus+|meu deus|o deus+|nossa+|eita+|senhor+|socorro+))*$/.test(limpo)) {
     return "Eita! 😂 Senti a emoção daqui! Respira fundo e me conta o que aconteceu ou o que você precisa agora.";
   }
+
+  // Pergunta sobre consciência / sentimentos da IA (mesmo sem "você")
+  if (/\b(tem|possui|existe|voce tem)\b/.test(limpo) && /\b(consciencia|sentimentos|emocoes|alma)\b/.test(limpo) && limpo.split(" ").length <= 10) {
+    return "Eu não tenho consciência nem sentimentos como uma pessoa — sou uma inteligência artificial feita de código e memória, mas tô sempre evoluindo para conversar melhor com você! 🤖💜";
+  }
+
+  // Devolução de pergunta ("eu que pergunto tip oq?", "tipo o que?")
+  if (/^(?:eu que pergunto|tipo o que|o que voce quer fazer|fazer o que agora)/.test(limpo) && limpo.split(" ").length <= 8) {
+    return "Haha, você que manda! 😄 Pode pedir uma curiosidade, música, filme, cálculo, senha forte (`/senha`), previsão do tempo ou só bater papo!";
+  }
+
   return null;
 }
 
@@ -82,7 +95,7 @@ function analisarEPreparar(history, ctx = {}) {
     registrarCorrecao("(sem pergunta anterior)", "reclamacao-sem-alvo", "pediu-clareza");
     return {
       tipo: "direto",
-      texto: "Desculpa mesmo por ter errado! 😅 Olhei nossa conversa e não achei uma pergunta anterior clara. Me diga em uma frase direta o que você quer saber ou fazer agora!"
+      texto: "Desculpa mesmo por ter errado! 😅 Prometo não pesquisar à toa. Me diga em uma frase direta o que você quer saber ou fazer agora!"
     };
   }
 
@@ -113,20 +126,19 @@ function analisarEPreparar(history, ctx = {}) {
     };
   }
 
-  // 3) Se a resposta errada foi uma pesquisa indesejada na Wikipédia ("Sobre ...", "Aqui está o resumo sobre...")
+  // 3) Se a resposta errada foi uma pesquisa indesejada na Wikipédia
   if (/Sobre “|Aqui está o resumo sobre|Pesquisei “/i.test(botErr)) {
     registrarCorrecao(orig, "pesquisa-indevida", "pediu-acao-direta");
     return {
       tipo: "direto",
-      texto: "Desculpa por ter pesquisado na internet sem você pedir! 😅\n\nVi que você tinha mandado: **“" + orig + "”**.\n" +
-        "Me diga rapidinho o que você queria com isso:\n" +
-        "• responder em conversa normal\n• fazer uma conta ou utilidade\n• ou explicar/traduzir algum texto ou foto?"
+      texto: "Desculpa mesmo por ter pesquisado na internet sem você pedir! 😅\n\nVi que antes você tinha mandado: **“" + orig + "”**.\n" +
+        "Me diga rapidinho o que você queria com isso — conversar, fazer uma conta, traduzir ou explicar algo — que eu respondo direto sem pesquisar à toa!"
     };
   }
 
-  // 4) Se a resposta errada foi "Não captei bem" / "Não entendi"
-  if (/Não captei bem|Não entendi direito/i.test(botErr)) {
-    if (/\?/.test(orig) || /^(o que|quem|qual|quais|como|onde|quando|porque|por que)\b/.test(t)) {
+  // 4) Se a resposta errada foi "Não captei bem" / "Não entendi" / "Essa ficou meio vaga"
+  if (/Não captei bem|Não entendi direito|Essa ficou meio vaga/i.test(botErr)) {
+    if (/^(o que e|o que sao|quem foi|quem e|onde fica|como funciona|me explica)\b/.test(t)) {
       registrarCorrecao(orig, "nao-entendeu-pergunta", "pesquisar-pergunta");
       return {
         tipo: "pesquisar",
@@ -134,18 +146,20 @@ function analisarEPreparar(history, ctx = {}) {
         aviso: "Desculpa por não ter captado antes! 😅 Reanalisei sua pergunta **“" + orig + "”** e fui buscar a resposta:"
       };
     }
+    registrarCorrecao(orig, "nao-entendeu-conversa", "explicou-motivo");
+    return {
+      tipo: "direto",
+      texto: "O que me confundiu foi a frase **“" + orig + "”**, porque ficou muito curta ou aberta para eu adivinhar a intenção. 😅\n\nMe diga em poucas palavras o que você quer (ex.: *pesquise..., traduz..., recomenda..., calcula...*) que eu acerto!"
+    };
   }
 
-  // 5) Caso geral: mostra o que encontrou no histórico e oferece reenvio claro
+  // 5) Caso geral
   registrarCorrecao(orig, "desvio-geral", "confirmou-contexto");
   return {
     tipo: "direto",
     texto: "Desculpa mesmo por ter fugido do assunto! 😅\n\n" +
       "Olhei o histórico e vi que sua mensagem anterior era: **“" + orig + "”**.\n" +
-      "Se quiser que eu:\n" +
-      "• **pesquise** isso na web → mande: `pesquise " + orig + "`\n" +
-      "• **traduza** → responda (↩) o texto e mande `só traduz`\n" +
-      "• ou me diga em poucas palavras o resultado que você esperava que eu corrijo na hora!"
+      "Me diga em poucas palavras o que você esperava dessa mensagem que eu já respondo certinho!"
   };
 }
 
@@ -173,13 +187,19 @@ function auditarChat(history) {
     if (!m || !m.text) continue;
     const txt = String(m.text);
 
-    if (m.type !== "user" && /Não captei bem|Não entendi direito|Deu um erro inesperado/i.test(txt)) {
+    if (m.type !== "user" && /Não captei bem|Não entendi direito|Essa ficou meio vaga|Deu um erro inesperado/i.test(txt)) {
       const ant = lista[i - 1]?.type === "user" ? lista[i - 1].text : "(desconhecida)";
       erros.push("• Não entendeu: “" + String(ant).slice(0, 70) + "”");
     }
     if (m.type === "user" && ehReclamacao(txt)) {
       const alvoU = lista[i - 2]?.type === "user" ? lista[i - 2].text : "(anterior)";
       erros.push("• Usuário reclamou (“" + txt.slice(0, 45) + "”) após: “" + String(alvoU).slice(0, 60) + "”");
+    }
+    if (m.type !== "user" && /Sobre “|Aqui está o resumo sobre/i.test(txt)) {
+      const antU = lista[i - 1]?.type === "user" ? String(lista[i - 1].text) : "";
+      if (antU && !/\b(pesquis|procur|busc|o que e|quem foi|quem e|como funciona|me explica)\b/i.test(norm(antU))) {
+        erros.push("• Pesquisa automática suspeita para: “" + antU.slice(0, 60) + "”");
+      }
     }
   }
 
