@@ -1,11 +1,12 @@
-/* BACH AI - CÉREBRO AVANÇADO 2.3
-   NLU natural, temas por voz/texto, gerador rápido de senhas, recomendações por gênero,
-   séries ao vivo, escrita estruturada, controle de contexto e integração com AutoGuard. */
+/* BACH AI 5.0 - CÉREBRO AVANÇADO
+   NLU natural, comparação de sites avaliados no histórico, controle contextual de apps criados,
+   tom adaptativo (zero risada fora de hora), temas, senhas, recomendações e escrita. */
 import { AutoGuard } from "./autoguard.js?v=1";
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "")
-  .replace(/\b(vc|vce)\b/g, "voce")
+  .replace(/\bqm\b/g, "quem")
+  .replace(/\b(vc|vce|vv)\b/g, "voce")
   .replace(/\b(oq|oqe|oque)\b/g, "o que")
   .replace(/\b(pq|pk)\b/g, "porque")
   .replace(/\b(oara|pra|praa)\b/g, "para")
@@ -20,6 +21,8 @@ const norm = t => String(t || "").toLowerCase().normalize("NFD")
   .replace(/\b(tlvz)\b/g, "talvez")
   .replace(/\b(tbm|tb|tmb)\b/g, "tambem")
   .replace(/\b(msm)\b/g, "mesmo")
+  .replace(/\b(cvs)\b/g, "conversar")
+  .replace(/\b(dnv)\b/g, "de novo")
   .replace(/[^a-z0-9\s]/g, " ")
   .replace(/\s+/g, " ")
   .trim();
@@ -216,6 +219,56 @@ const CONHECIMENTO_PRATICO = [
    "⚖️ **Direitos básicos (CDC Brasil):**\n• Compras online: **7 dias corridos** para devolução e reembolso total.\n• Defeito: 30 dias (não duráveis) ou 90 dias (duráveis) de garantia legal."]
 ];
 
+function extrairSitesAvaliados(history) {
+  const sites = [];
+  for (const m of (Array.isArray(history) ? history : [])) {
+    if (!m || m.type === "user" || !m.text) continue;
+    const txt = String(m.text);
+    if (!txt.includes("AVALIAÇÃO DO SITE:")) continue;
+    const url = (txt.match(/AVALIAÇÃO DO SITE:\*\*\s*`([^`]+)`/) || [])[1];
+    const nota = Number((txt.match(/\*\*Nota:\*\*\s*([\d.]+)\/10/) || [])[1] || 0);
+    const ms = Number((txt.match(/\((\d+)\s*ms\)/) || [])[1] || 99999);
+    const pal = Number((txt.match(/\((\d+)\s*palavras\)/) || [])[1] || 0);
+    if (url) sites.push({ url, nota, ms, pal });
+  }
+  return sites;
+}
+
+function compararUltimosSites(history) {
+  const sites = extrairSitesAvaliados(history);
+  if (sites.length < 2) return null;
+  const a = sites[sites.length - 2];
+  const b = sites[sites.length - 1];
+  const nome = u => { try { return new URL(u).hostname.replace(/^www\./, "") + new URL(u).pathname.slice(0, 22); } catch { return u.slice(0, 35); } };
+
+  let veredito = "";
+  if (a.nota !== b.nota) {
+    const win = a.nota > b.nota ? a : b;
+    veredito = "🏆 Pela nota técnica, **" + nome(win.url) + "** se saiu melhor (**" + win.nota + "/10**).";
+  } else if (Math.abs(a.ms - b.ms) > 150) {
+    const fast = a.ms < b.ms ? a : b;
+    veredito = "⚖️ As duas tiraram **" + a.nota + "/10** na análise técnica, mas **" + nome(fast.url) + "** carregou mais rápido (**" + fast.ms + " ms** contra **" + Math.max(a.ms, b.ms) + " ms**).";
+  } else {
+    veredito = "⚖️ Empate técnico (**" + a.nota + "/10** nos dois critérios principais)!";
+  }
+
+  return "🔎 **Comparação entre os dois sites que você acabou de avaliar:**\n\n" +
+    "1️⃣ **" + nome(a.url) + "** — Nota " + a.nota + "/10 • " + a.ms + " ms • " + a.pal + " palavras\n" +
+    "2️⃣ **" + nome(b.url) + "** — Nota " + b.nota + "/10 • " + b.ms + " ms • " + b.pal + " palavras\n\n" +
+    veredito + "\n\nℹ️ *Obs.: essa análise mede disponibilidade, HTTPS, velocidade e conteúdo visível da página — para avaliar a qualidade da IA em si, vale testar as respostas de cada uma!*";
+}
+
+function detectarAppRecente(history) {
+  const h = Array.isArray(history) ? history : [];
+  for (let i = h.length - 1; i >= Math.max(0, h.length - 12); i--) {
+    const m = h[i];
+    if (m && m.type !== "user" && m.text && /App criado completo \(`([^`]+)`\)/.test(m.text)) {
+      return (m.text.match(/App criado completo \(`([^`]+)`\)/) || [])[1];
+    }
+  }
+  return null;
+}
+
 async function buscarSeriesTVMaze(termo) {
   const c = new AbortController();
   const id = setTimeout(() => c.abort(), 8000);
@@ -324,6 +377,7 @@ async function responder(raw, ctx = {}) {
   const t = norm(raw);
   if (!t) return null;
   const nomeUser = ctx.nome ? ", " + ctx.nome : "";
+  const serio = ctx.mood === "frustrado" || ctx.mood === "serio" || ctx.mood === "triste" || (ctx.humorScore ?? 0) <= -0.6;
 
   // 0) Diagnóstico e Rollback do AutoGuard
   if (/^\/?(diagnostico|saude|relatorio de erros|autoavaliacao|monitoramento)$/i.test(t)) {
@@ -339,6 +393,27 @@ async function responder(raw, ctx = {}) {
     };
   }
 
+  // 0.2) Comparação contextual entre os 2 últimos sites/links avaliados no histórico
+  if (/\b(entre essas duas|entre esses dois|qual e a melhor|qual e o melhor|qual das duas|qual dos dois|qual dessas|qual desses)\b/.test(t)) {
+    const compSites = compararUltimosSites(ctx.history);
+    if (compSites) return { texto: compSites, origem: "⚖️ comparação de sites" };
+  }
+
+  // 0.3) Controle contextual do último app gerado (ex.: "Pode parar", "Para o time" após /app pomodoro)
+  if (/^(?:pode\s+)?(?:parar|para|pausar|pausa|zerar|resetar)(?:\s+(?:o\s+)?(?:time|timer|tempo|cronometro|app|relogio))?$/.test(t)) {
+    const appRec = detectarAppRecente(ctx.history);
+    if (appRec) {
+      return {
+        texto: "⏱️ O app **`" + appRec + "`** roda dentro de um cartão isolado (Sandbox) por segurança — para parar ou pausar, toque direto no botão **⏸ Pausar** dentro da tela do preview logo acima!",
+        origem: "▶️ controle do preview"
+      };
+    }
+    return {
+      texto: "Parar o quê exatamente? Se quiser cancelar uma resposta em andamento toque em **⏹**, ou se for o timer de algum app que criamos, toque em **⏸ Pausar** dentro do cartão dele!",
+      origem: "🧠 contexto"
+    };
+  }
+
   // 0.5) Pedido rápido de senha ("vamos de senha", "senha", "/senha")
   if (/^(?:vamos\s+(?:de|se)\s+senha|senha|gera\w*\s+senha|manda\s+uma\s+senha|me\s+da\s+uma\s+senha|quero\s+uma\s+senha)$/.test(t) ||
       /^\/senha(?:\s+(\d{1,2}))?$/i.test(raw.trim())) {
@@ -350,7 +425,7 @@ async function responder(raw, ctx = {}) {
   const temaPedido = detectarTemaPedido(t);
   if (temaPedido) {
     if (temaPedido.ignora) {
-      return { texto: "Haha, desculpa! 😅 Não precisa mudar de tema — manda o assunto que você quer falar agora!", origem: "💬 conversa" };
+      return { texto: "Desculpa! Não precisa mudar de tema — manda o assunto que você quer falar agora.", origem: "💬 conversa" };
     }
     if (temaPedido.listar) {
       return {
@@ -364,83 +439,85 @@ async function responder(raw, ctx = {}) {
   // 2) Perguntas sobre a própria BACH / Criador / Autocorreção
   if (/\b(voce|bach)\b/.test(t) && /\b(serve|servir|presta|funciona|utilidade|objetivo|capacidade)\b/.test(t)) {
     return {
-      texto: "Eu sou a **BACH AI** 🧠, criada por Rizik! Sirvo para:\n• Conversar, mudar de tema (vermelho, azul, neon...) e lembrar de você quando voltar.\n• Ler fotos, prints escuros, vídeos e revisar/encadear códigos.\n• Recomendar filmes por gênero, séries, animes e músicas.\n• Pesquisar na internet, traduzir idiomas, calcular, gerar senhas e jogar!",
+      texto: "Eu sou a **BACH AI** 🧠, criada por Rizik! Sirvo para:\n• Conversar acompanhando o seu estilo, mudar de tema e lembrar de você do início ao fim.\n• Ler fotos, prints escuros, vídeos e revisar/encadear códigos.\n• Criar apps (`/app`), rodar scripts (`/executar`) e avaliar sites (`/site`).\n• Recomendar filmes por gênero, séries, animes e músicas.\n• Pesquisar na internet, traduzir idiomas, calcular e gerar senhas.",
       origem: "🧠 sobre a BACH"
     };
   }
   if (/^(eu sou seu dono|sou seu dono|eu te criei|sou seu criador|sou o rizik)$/.test(t)) {
     return {
       texto: ctx.modoCriador
-        ? "👑 Sim, Rizik! Seu modo administrador já está ativo!"
-        : "Fui criada por Rizik! 😊 Se quiser que eu lembre do seu nome nas conversas, diga: **meu nome é ...**",
+        ? "👑 Sim, Rizik! Seu modo administrador já está ativo."
+        : "Fui criada por Rizik! Se quiser que eu lembre do seu nome nas conversas, diga: **meu nome é ...**",
       origem: "🧠 sobre a BACH"
     };
   }
   if (/\b(como posso te melhorar|como te melhorar|o que melhorar em voce|auto se arrumar|se corrigir|consegue se corrigir)\b/.test(t)) {
     return {
-      texto: "🛠️ Eu já tenho **AutoGuard** e **AutoCorretor** rodando em tempo real!\n• Se eu errar, diga **“você errou”** ou **“fugiu do assunto”** que eu releio o chat.\n• Use **`/auditar`** para listar todos os erros da conversa ou **`/copiar`** para copiar tudo!",
+      texto: "🛠️ Eu acompanho as falhas pelo **AutoGuard** e **AutoCorretor** e aprendo respostas novas com `ensine: pergunta => resposta`.\n• Se eu errar na conversa, diga o que você queria que eu foco e memorizo.\n• Para alterar o código-fonte dos módulos, o criador usa `/editar` no modo ADM e `/auditar` para ver todos os registros.",
       origem: "🛡️ evolução"
     };
   }
   if (/^e do o que exatamente voce entende$/.test(t) || /^do que voce entende$/.test(t)) {
     return {
-      texto: "Eu entendo de: **programação** (JS, Python, HTML, CSS, SQL), **matemática e conversões**, **ciência, história e geografia**, **tradução de idiomas**, **recomendações** (filmes, séries, animes, músicas), **escrita de textos/e-mails**, **utilidades** (senhas, dados, datas) e **pesquisa na internet**! Digite `ajuda` para ver exemplos.",
+      texto: "Eu entendo de: **programação e Termux**, **criação de apps** (`/app`), **matemática e conversões**, **ortografia e sílabas** (`/revisar`, `/silabas`), **avaliação de sites** (`/site`), **ciência, história e geografia**, **tradução de idiomas**, **recomendações** (filmes, séries, animes, músicas) e **pesquisa na internet**! Digite `/ajuda` para ver os comandos.",
       origem: "🧠 habilidades"
     };
   }
 
-  // 3) Pedidos de idioma da conversa e falas soltas comuns dos testes
+  // 3) Pedidos de idioma da conversa e falas soltas
   if (/^(?:me\s+)?(?:respond[ae]|fal[ae]|escrev[ae]|convers[ae])\s+(?:so\s+)?em\s+portugues$/.test(t)) {
     return {
-      texto: "Já estou falando em português com você" + nomeUser + "! 😊 Se você quiser traduzir algum texto em inglês que eu enviei (como de uma foto), toque em **↩ Responder** nele e mande **“só traduz”**.",
+      texto: "Já estou falando em português com você" + nomeUser + ". Se você quiser traduzir algum texto em inglês de uma foto ou mensagem, toque em **↩ Responder** nele e mande **“só traduz”**.",
       origem: "💬 conversa"
     };
   }
   if (/^(?:eu\s+)?fal[oa]\s+(?:sobre|de)\s+numer/.test(t)) {
     return {
-      texto: "Se quiser que eu calcule algo, mande a conta direto (ex.: `15 * 8` ou `15% de 200`). Se quiser transformar uma resposta anterior em lista numerada, toque em **↩ Responder** nela e diga **“em lista”**! 🔢",
+      texto: "Se quiser que eu calcule algo, mande a conta direto (ex.: `15 * 8` ou `15% de 200`). Se quiser transformar uma resposta anterior em lista numerada, toque em **↩ Responder** nela e diga **“em lista”**. 🔢",
       origem: "🔢 dica"
     };
   }
   if (/^pesquisa(?:r)?\s+tudo\s+(?:o\s+)?que\s+voce\s+(?:quiser|querer)$/.test(t)) {
     return {
-      texto: "Haha! Prefiro pesquisar o que **você** estiver curioso pra saber! 😄 Manda um tema (ex.: *pesquise sobre buraco negro* ou *curiosidade*).",
+      texto: "Prefiro pesquisar o que **você** estiver curioso para saber! Manda um tema (ex.: *pesquise sobre buraco negro* ou *curiosidade*).",
       origem: "💬 conversa"
     };
   }
   if (/^(?:eu\s+(?:estou|to)\s+aqui\s+testando\s+voce|e\s+eu\s+aqui\s+testando\s+voce|testando\s+voce|to\s+te\s+testando)$/.test(t)) {
     return {
-      texto: "Pode testar à vontade" + nomeUser + "! 😄 Se achar alguma falha, manda **`/auditar`** ou **`/copiar`** que a gente corrige tudo!",
+      texto: "Pode testar à vontade" + nomeUser + "! Se achar alguma falha, manda **`/auditar`** ou **`/copiar`** para revisar tudo.",
       origem: "💬 conversa"
     };
   }
   if (/^(?:ja\s+escrevi|escrevi\s+ja)$/.test(t)) {
     return {
-      texto: "Opa! Se foi uma carinha ou símbolo, eu li como vazio 😅. Manda com palavras o que você quer agora!",
+      texto: "Se foi só símbolo ou emoji, acabou vindo como vazio para mim. Manda com palavras o que você quer agora.",
       origem: "💬 conversa"
     };
   }
   if (/^(?:claro|assim|entendii?|fala mais|uai pesquisa)$/.test(t)) {
-    if (t === "uai pesquisa") return { texto: "Me diga qual assunto você quer que eu pesquise! 🔍 (Ex.: *pesquise sobre Marte*)", origem: "💬 conversa" };
+    if (t === "uai pesquisa") return { texto: "Me diga qual assunto você quer que eu pesquise (ex.: *pesquise sobre Marte*).", origem: "💬 conversa" };
     if (t === "fala mais" && ctx.ultimoTema) return { pesquisarTema: ctx.ultimoTema + " curiosidades detalhes" };
     return {
-      texto: girar("soltas", [
-        "Beleza! 😄 Manda o próximo assunto ou pergunta!",
-        "Tô ouvindo! 👍 Quer pesquisar algo, jogar ou testar outra função?"
-      ]),
+      texto: serio
+        ? "Certo. Pode mandar o próximo assunto ou pergunta."
+        : girar("soltas", [
+            "Beleza! Manda o próximo assunto ou pergunta.",
+            "Estou ouvindo! Quer pesquisar algo, criar um app ou testar outra função?"
+          ]),
       origem: "💬 conversa"
     };
   }
 
-  // 4) Feedback de erro / frustração
-  if (/\b(nao foi|nao era|falou errado|disse errado|respondeu errado|entendeu errado|errando|ta errado|esta errado|vc ainda erra|voce ainda erra|so erra|voce e burro|burra|nada a ver|nada aver|nada haver|erros atrais|erros atras|da erro|dando erro|para de dizer que travou|travou foi|pergutar mais|chutar o que|chutar oq|nao mandei pesquisar|nao pedi pesquisa|nao pedi pra pesquisar|nao era pra pesquisar|para de pesquisar|nao entende|nao entendeu)\b/.test(t) ||
+  // 4) Feedback de erro / frustração (sem risadinhas quando o usuário está sério/bravo!)
+  if (/\b(nao foi|nao era|falou errado|disse errado|respondeu errado|entendeu errado|errando|ta errado|esta errado|vc ainda erra|voce ainda erra|so erra|voce e burro|burro|burra|nada a ver|nada aver|nada haver|erros atrais|erros atras|da erro|dando erro|para de dizer que travou|travou foi|pergutar mais|chutar o que|chutar oq|nao mandei pesquisar|nao pedi pesquisa|nao pedi pra pesquisar|nao era pra pesquisar|para de pesquisar|nao entende|nao entendeu|nunca entende)\b/.test(t) ||
       /^(te |quero |vou |vamos te |irei te )?(corrigir|arrumar|consertar|ensinar)( ta)?$/.test(t) ||
       /\b(arrumo tudo|arrumo voce|irei te consertar|para que fui criala)\b/.test(t)) {
     AutoGuard.recordFailure({ module: "conversa", type: "user-feedback", input: raw, detail: ctx.ultimoBot ? ctx.ultimoBot.slice(0, 100) : "insatisfação" });
     return {
       texto: girar("fb-err", [
-        "Desculpa mesmo por essa" + nomeUser + "! 😅 Não vou pesquisar à toa. Me diga em uma frase simples o que você quer saber ou fazer agora!",
-        "Foi mal" + nomeUser + "! 😕 Anotei essa falha para melhorar. Pode mandar direto o assunto, a conta, ou usar **↩ Responder** na mensagem certa!"
+        "Você tem razão" + nomeUser + " — errei essa resposta. Me diga em uma frase direta o que você quer saber ou fazer agora que eu foco nisso.",
+        "Desculpa por essa falha" + nomeUser + ". Anotei para melhorar; pode mandar direto o assunto ou usar **↩ Responder** na mensagem certa."
       ]),
       origem: "🔄 autocorreção"
     };
@@ -450,27 +527,29 @@ async function responder(raw, ctx = {}) {
   if (/^(porque nao|porque nao pode|como assim|perguntar o que|oque perguntar|ah ta claro)$/.test(t)) {
     if (ctx.ultimoBot && /calendário|lançamentos futuros/i.test(ctx.ultimoBot)) {
       return {
-        texto: "Porque eu não tenho acesso ao calendário oficial atualizado de estreias dos cinemas do mês que vem — e prefiro te avisar do que inventar datas falsas! Mas posso recomendar ótimos filmes por gênero agora se você pedir. 🎬",
+        texto: "Porque não tenho acesso ao calendário oficial atualizado de estreias do mês que vem — e prefiro avisar do que inventar datas falsas. Mas posso recomendar ótimos filmes por gênero agora se quiser.",
         origem: "🧠 contexto"
       };
     }
-    return { texto: "Me diga qual assunto ou dúvida você quer resolver agora! Pode ser código, filme, música, conta, tradução ou qualquer curiosidade. 😊", origem: "💬 conversa" };
+    return { texto: "Me diga qual assunto ou dúvida você quer resolver agora: código, filme, música, conta, tradução ou qualquer curiosidade.", origem: "💬 conversa" };
   }
 
   if (/^(?:aham|ahan|uhum|ok|okay|ta\s*bom|tabom|blz|beleza|ata|entendi|tendi|saquei|fechou|suave|de boa|firmeza|show|top|pode crer)(?:\s+(?:tabom|ta\s*bom|entao|ne|blz|ok|po))*$/.test(t)) {
     return {
-      texto: girar("ok-nat", [
-        "Beleza! 😄 Tô por aqui — quando quiser, manda a próxima.",
-        "Combinado! 👍 Se precisar de pesquisa, tema, senha, cálculo ou traduzir algo, é só falar.",
-        "Fechou! 💜 Qualquer coisa tô pronta aqui."
-      ]),
+      texto: serio
+        ? "Certo. Quando quiser mandar a próxima coisa, estou por aqui."
+        : girar("ok-nat", [
+            "Beleza! Tô por aqui — quando quiser, manda a próxima.",
+            "Combinado! Se precisar de pesquisa, tema, senha, cálculo ou traduzir algo, é só falar.",
+            "Fechou! Qualquer coisa estou pronta aqui."
+          ]),
       origem: "💬 conversa"
     };
   }
 
   if (/\b(ta feio|ta osso|ta dificil|ta complicado|que coisa)\b/.test(t) && t.split(" ").length <= 7) {
     return {
-      texto: "Pois é 😅! Se quiser tentar outra pergunta ou testar uma função nova, tô aqui!",
+      texto: "Entendo. Se quiser tentar outra pergunta ou testar uma função específica, estou aqui.",
       origem: "💬 conversa"
     };
   }
@@ -479,21 +558,26 @@ async function responder(raw, ctx = {}) {
   if (/^(conversa comigo|vamos conversar|bora conversar|fala comigo|fale comigo)$/.test(t)) {
     return {
       texto: girar("conv-solta", [
-        "Bora" + nomeUser + "! 😄 Sobre o que você quer trocar ideia hoje? Filmes, música, programação, curiosidades ou algum projeto seu?",
-        "Tô aqui" + nomeUser + "! 💜 Quer uma curiosidade, uma recomendação de filme/música ou ajuda em alguma coisa?"
+        "Bora" + nomeUser + "! Sobre o que você quer trocar ideia hoje: filmes, música, programação, Termux, curiosidades ou algum projeto seu?",
+        "Estou aqui" + nomeUser + "! Quer uma curiosidade, uma recomendação de filme/música ou ajuda em alguma coisa?"
       ]),
       origem: "💬 conversa"
     };
   }
   if (/^(ae+|uai+|vixi+|vish+|eita+|oxe+|oxente|vey.*|uhum.*|ta mas pera.*|para+|wtf|so voce tem problemas)$/.test(t)) {
-    return { texto: girar("giria-ok", ["Tô por aqui! 😄 Manda o que você precisa agora.", "Opa! 👀 Pode mandar sua pergunta, foto ou assunto."]), origem: "💬 conversa" };
+    return {
+      texto: serio
+        ? "Estou acompanhando. Pode mandar direto o que você precisa agora."
+        : girar("giria-ok", ["Estou por aqui! Manda o que você precisa agora.", "Opa! Pode mandar sua pergunta, foto ou assunto."]),
+      origem: "💬 conversa"
+    };
   }
 
   // 7) Pergunta curta dependente de contexto
   if (/^(para que serve|serve para que|ele faz o que|ela faz o que|isso faz o que|como isso funciona|como funciona|me da um exemplo|da um exemplo)$/.test(t)) {
     if (ctx.ultimoArquivo?.texto) return { usarMenteTexto: true };
     if (ctx.ultimoTema) return { pesquisarTema: ctx.ultimoTema + " para que serve como funciona" };
-    return { texto: "Para que serve o quê exatamente? 😊 Cole um código/texto ou me diga o nome do assunto!", origem: "🧠 contexto" };
+    return { texto: "Para que serve o quê exatamente? Cole um código/texto ou me diga o nome do assunto.", origem: "🧠 contexto" };
   }
 
   // 8) Recomendações inteligentes por gênero
