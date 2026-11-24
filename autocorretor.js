@@ -1,7 +1,10 @@
-/* BACH AI 4.6 — AUTOCORRETOR & AUDITORIA FIEL DO CHAT
+/* BACH AI 4.8 — AUTOCORRETOR & AUDITORIA FIEL + INTEGRAÇÃO CENTRAL DE ERROS ADM
    1) Detecta reclamações, lê o histórico completo e reprocessa a pergunta original.
    2) Trata falas emotivas/esticadas, kaomojis, risadas brasileiras e perguntas sobre a própria IA.
-   3) Auditoria fiel: mostra TODOS os tipos de falhas encontradas com número exato da mensagem (#N). */
+   3) Envia toda resposta inválida, não entendida ou erro do público direto para a Central ADM. */
+
+let errosAdmMod = null;
+import("./erros_adm.js?v=1").then(m => { errosAdmMod = m?.ErrosADM || null; }).catch(() => {});
 
 const K_CORR = "bach_autocorrecoes_v1";
 const K_FAIL = "bach_failures_v1";
@@ -35,6 +38,26 @@ function ehRisada(t) {
   return /(?:[ai]*k{3,}[ais]*|h[aei]+h[aei]+|r+s+r+s+|(?:k+s+){2,}|(?:s+k+){2,}|(?:a+k+){2,}|(?:h+a+){2,})/i.test(s);
 }
 
+function registrarFalhaPublica({ tipo = "nao-entendeu", entrada = "", resposta = "", motivo = "" }) {
+  if (errosAdmMod?.registrar) {
+    errosAdmMod.registrar({ tipo, entrada, resposta, motivo });
+    return;
+  }
+  try {
+    const K = "bach_adm_erros_v1";
+    const arr = JSON.parse(localStorage.getItem(K) || "[]");
+    arr.push({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      at: Date.now(),
+      tipo: String(tipo).slice(0, 40),
+      entrada: String(entrada || "").slice(0, 300),
+      resposta: String(resposta || "").slice(0, 240),
+      motivo: String(motivo || "").slice(0, 140)
+    });
+    localStorage.setItem(K, JSON.stringify(arr.slice(-200)));
+  } catch {}
+}
+
 function tratarExclamacao(texto) {
   const raw = String(texto || "").trim();
   if (!raw) return null;
@@ -65,13 +88,13 @@ function tratarExclamacao(texto) {
   }
 
   if (/^(?:eu que pergunto|tipo o que|o que voce quer fazer|fazer o que agora)/.test(limpo) && limpo.split(" ").length <= 8) {
-    return "Haha, você que manda! 😄 Pode pedir uma curiosidade, música, filme, cálculo, senha forte (`/senha`), revisão de texto ou previsão do tempo!";
+    return "Haha, você que manda! 😄 Pode pedir uma curiosidade, música, filme, um app (`/app`), senha forte (`/senha`), revisão de texto ou previsão do tempo!";
   }
   if (/^(?:desde quando (?:voce )?entende|sabe o que exatamente|nah sabe o que)/.test(limpo)) {
-    return "Estou aprendendo cada vez mais com você! 🧠 Entendo de programação, ortografia/sílabas, avaliação de sites, traduções, clima, curiosidades, filmes/animes/músicas e senhas. Testa aí!";
+    return "Estou aprendendo cada vez mais com você! 🧠 Entendo de programação, Termux, criação de apps (`/app`), ortografia/sílabas, avaliação de sites, traduções, clima, curiosidades e senhas. Testa aí!";
   }
   if (/^(?:acertei mesmo|acertei|ganhei)$/.test(limpo)) {
-    return "Acertou sim! 🎉 Manda outro jogo (`forca`, `quiz`, `velha` ou `adivinhe`) ou pergunta quando quiser!";
+    return "Acertou sim! 🎉 Manda outro jogo (`forca`, `quiz`, `velha`, `adivinhe` ou `piada`) ou pergunta quando quiser!";
   }
 
   return null;
@@ -88,6 +111,11 @@ function registrarCorrecao(pergunta, motivo, acao) {
     });
     localStorage.setItem(K_CORR, JSON.stringify(lista.slice(-30)));
   } catch {}
+  registrarFalhaPublica({
+    tipo: "autocorrecao",
+    entrada: pergunta,
+    motivo: motivo + " → " + acao
+  });
 }
 
 function encontrarPerguntaAnterior(history) {
@@ -248,14 +276,16 @@ function auditarChat(history) {
     }
   }
 
-  let fails = [], corrs = [];
+  let fails = [], corrs = [], admCount = 0;
   try { fails = JSON.parse(localStorage.getItem(K_FAIL) || "[]"); } catch {}
   try { corrs = JSON.parse(localStorage.getItem(K_CORR) || "[]"); } catch {}
+  try { admCount = (JSON.parse(localStorage.getItem("bach_adm_erros_v1") || "[]")).length; } catch {}
 
   const out = [
     "🩺 **AUDITORIA FIEL DE ERROS DA BACH AI**",
     "• Mensagens analisadas nesta conversa: " + lista.length,
     "• Total de erros detectados no chat: " + erros.length,
+    "• Erros salvos na Central ADM: " + admCount,
     "• Auto-correções registradas: " + corrs.length,
     "• Registros técnicos (AutoGuard): " + fails.length,
     ""
@@ -279,7 +309,7 @@ function auditarChat(history) {
   if (!erros.length && !fails.length) {
     out.push("✅ Nenhuma falha detectada nesta conversa!");
   } else {
-    out.push("💡 Toque em **📋 Copiar** abaixo e me mande esse relatório para continuarmos lapidando a IA!");
+    out.push("💡 Toque em **📋 Copiar** abaixo (ou abra **🚨 Erros do Público** no menu ADM) para me mandar esse relatório!");
   }
 
   return out.join("\n");
@@ -288,6 +318,7 @@ function auditarChat(history) {
 export const AutoCorretor = {
   ehReclamacao,
   tratarExclamacao,
+  registrarFalhaPublica,
   analisarEPreparar,
   formatarChat,
   auditarChat
