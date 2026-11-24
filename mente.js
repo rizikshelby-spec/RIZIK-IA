@@ -1,4 +1,4 @@
-/* BACH AI - MENTE 2.6
+/* BACH AI - MENTE 2.7
    Contexto, leitura/cadeia de código colado, jogos, criação de apps seguros, pastas e vocabulário.
    Evita buscas falsas na Wikipédia em falas coloquiais. */
 import { Saber } from "./saber.js?v=12";
@@ -25,7 +25,7 @@ const VOCAB = {
   pra: "para", oara: "para", praa: "para", pro: "para o", pras: "para as", pros: "para os",
   qro: "quero", fzer: "fazer", assitir: "assistir", asist: "assistir", recomnda: "recomenda", recomeda: "recomenda",
   cmg: "comigo", entt: "entao", msc: "musica", sla: "sei la", rlx: "relaxa", nmrl: "na moral",
-  ngm: "ninguem", algm: "alguem", msg: "mensagem",
+  ngm: "ninguem", algm: "alguem", msg: "mensagem", tip: "tipo",
   pf: "por favor", pfv: "por favor", plis: "por favor", pls: "por favor",
   n: "nao", naum: "nao", nn: "nao", s: "sim", ss: "sim", eh: "e",
   kd: "cade", qnd: "quando", qdo: "quando", qm: "quem", cm: "como", cmo: "como",
@@ -95,7 +95,7 @@ function lev(a, b) {
 
 function corrigir(w) {
   if (w.length < 5 || /\d/.test(w)) return w;
-  if (/^(passe|passa|passar|passou|arroz|manda|mande|pede|pedir|quero|prece|pesse|lancou|lanca|lancar|estreou|saiu|presta|recomenda|indica|bugado|bugada|fazem|travou|arrumo|consertar|entende|entendeu|mandei|responde)$/.test(w)) return w;
+  if (/^(passe|passa|passar|passou|arroz|manda|mande|pede|pedir|quero|prece|pesse|lancou|lanca|lancar|estreou|saiu|presta|recomenda|indica|bugado|bugada|fazem|travou|arrumo|consertar|entende|entendeu|mandei|responde|pergunto|consciencia)$/.test(w)) return w;
   const L = lexico();
   if (L.has(w)) return w;
   const max = w.length >= 8 ? 2 : 1;
@@ -139,7 +139,7 @@ function tema(t) {
   for (let k = 0; k < 4; k++) {
     x = x.replace(CMD, "").replace(PERG, "").replace(ART, "").replace(SUF, "").trim();
   }
-  if (/^(isso|aquilo|ele|ela|eles|elas|esse|essa|este|esta|falar|perguntei|aqui|travou|rir|audio|opa|oxe|ue|entende|digo|disse|falo|falei|mandei)$/.test(x)) return "";
+  if (/^(isso|aquilo|ele|ela|eles|elas|esse|essa|este|esta|falar|perguntei|aqui|travou|rir|audio|opa|oxe|ue|entende|digo|disse|falo|falei|mandei|pergunto|tipo)$/.test(x)) return "";
   return x;
 }
 
@@ -525,7 +525,7 @@ function responder(msg) {
       return { texto: "Sim! 😊 Eu sei: programar, jogar (forca, velha, quiz, adivinhação), resumir e revisar textos, recomendar filmes/animes/músicas, pesquisar na internet, traduzir idiomas e ler fotos/vídeos.", origem: "🧠 minhas habilidades" };
     }
     const tmCap = tema(x) || x;
-    if (tmCap.length >= 2) { lembrarTema(tmCap); return { pesquisa: tmCap, fundo: true }; }
+    if (tmCap.length >= 2 && pergunta(raw)) { lembrarTema(tmCap); return { pesquisa: tmCap, fundo: true }; }
   }
 
   if (ctx.tema && has(p, / (essa|essas|esse|esses|isso|isto|disso|dele|dela|deles|delas|nisso|aquilo|ele|ela|eles|elas) /) && (pergunta(raw) || has(p, / (faz|fazem|serve|servem|significa) /))) {
@@ -535,7 +535,7 @@ function responder(msg) {
     return { pesquisa: ctx.tema + " " + novo.join(" "), fundo: true };
   }
 
-  if (pergunta(raw) && !has(p, / (voce|horas|hora|dia|data|bach|meu nome|seu nome|digo|disse|falei|mandei|entende|entendeu) /)) {
+  if (pergunta(raw) && !has(p, / (voce|horas|hora|dia|data|bach|meu nome|seu nome|digo|disse|falei|mandei|entende|entendeu|pergunto) /)) {
     const tm = tema(raw);
     if (tm.length >= 2) {
       lembrarTema(tm);
@@ -547,12 +547,12 @@ function responder(msg) {
   return null;
 }
 
-const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo|vamos falar sobre|falar sobre o que|nao foi isso|travou foi|sabe rir|velho do ceu|conversa comigo|opa o que|oxe o que|entende o que|eu falo de|nao mandei|como assim|porque nao)/;
+const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo|vamos falar sobre|falar sobre o que|nao foi isso|travou foi|sabe rir|velho do ceu|conversa comigo|opa o que|oxe o que|entende o que|eu falo de|nao mandei|como assim|porque nao|eu que pergunto|consciencia|fazendo pesquisa|nao entendeu|nao entende)/;
 const pergunta = t => {
   const p = prep(t);
   if (has(p, SMALL)) return false;
-  return has(p, /^ ?(o que|quem|quais|qual|quantos|quantas|quanto|onde|quando|como|por que|porque|para que|me explica|explique|explica|fale sobre|fala sobre|fala de|me fala|diga)/) ||
-    (/\?\s*$/.test(String(t)) && p.trim().split(" ").length >= 3);
+  if (has(p, /\b(eu|voce|pergunto|digo|disse|falei|mandei|entende|entendeu|pesquisando|fazendo pesquisa)\b/)) return false;
+  return has(p, /^ ?(o que e|o que sao|o que foi|o que significa|quem e|quem foi|quem sao|quais sao|qual e|qual foi|quantos|quantas|onde fica|onde esta|quando foi|quando aconteceu|como funciona|como fazer|como surgiu|por que|me explica|explique|explica|fale sobre|fala sobre|historia de|historia do|historia da) /);
 };
 
 const stats = () => ({ girias: Object.keys(VOCAB).length, lexBase: BASE_LEX.length, kbProg: KB.length, erros: ERROS.length, jogos: 4, modelosApps: Object.keys(TEMPLATES).length, pasta: ctx.pasta, tema: ctx.tema });
