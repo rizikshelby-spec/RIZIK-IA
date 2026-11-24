@@ -1,5 +1,5 @@
-/* BACH AI - DICIONÁRIO 2.2
-   Dicionário brasileiro + sinônimos/antônimos + tradução flexível em várias línguas. */
+/* BACH AI - DICIONÁRIO 2.3
+   Dicionário brasileiro + gírias + sinônimos/antônimos + tradução flexível em blocos longos. */
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s'’-]/g, " ").replace(/\s+/g, " ").trim();
 const normCmd = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
@@ -140,7 +140,28 @@ cache|substantivo masculino|memória rápida que guarda dados usados com frequê
 nuvem|substantivo feminino|nuvem de chuva; em informática, serviços e armazenamento em servidores na internet.
 pixel|substantivo masculino|menor ponto de uma imagem digital.
 firmware|substantivo masculino|programa gravado no hardware que o faz funcionar.
+deploy|substantivo masculino|ato de publicar e colocar um site ou sistema no ar.
+commit|substantivo masculino|registro de uma alteração salva no histórico de um código (Git).
+prompt|substantivo masculino|instrução ou pergunta enviada para uma inteligência artificial.
+lag|substantivo masculino|atraso ou lentidão na resposta de um jogo ou vídeo pela rede.
+ping|substantivo masculino|tempo que um sinal leva para ir até o servidor e voltar.
+nerfar|verbo|gíria de jogos: enfraquecer um personagem, item ou habilidade numa atualização.
+bufar|verbo|soltar ar com raiva; nos jogos ("buffar"), fortalecer um personagem ou item.
+mitar|verbo|gíria: mandar muito bem, fazer uma jogada ou ação genial.
 mano|substantivo masculino|gíria: irmão; amigo, forma de chamar alguém. Muito usada em São Paulo.
+parça|substantivo masculino|gíria: parceiro, amigo próximo.
+paia|adjetivo|gíria: sem graça, ruim, chato, decepcionante.
+zica|substantivo feminino|gíria: azar, problema; ou algo muito bom ("o cara é zica").
+migué|substantivo masculino|gíria: desculpa esfarrapada, enrolação. Ex.: "dar um migué".
+caô|substantivo masculino|gíria carioca: mentira, confusão ou invenção.
+papo reto|expressão|gíria: conversa direta, sincera, sem rodeios.
+bolado|adjetivo|gíria: preocupado, chateado, impressionado ou desconfiado.
+pistola|adjetivo|gíria: muito bravo, irritado ("ficar pistola").
+chavoso|adjetivo|gíria: estiloso, bem-vestido, com atitude.
+arretado|adjetivo|expressão nordestina: muito bom, excelente, corajoso.
+baita|adjetivo|expressão sulista/brasileira: enorme, muito bom ("um baita projeto").
+guri|substantivo masculino|expressão do Sul: menino, garoto.
+piá|substantivo masculino|expressão paranaense/sulista: menino, garoto.
 tipo|expressão|gíria: "tipo assim" = "por exemplo"/"mais ou menos"; também usada como muleta de fala.
 firmeza|expressão|gíria: tudo certo, ok, "de boa".
 daora|adjetivo|gíria paulista: legal, bacana, bom (de "da hora").
@@ -598,6 +619,9 @@ async function jget(url, ms = 9000) {
 function limpaAspas(s) { return String(s || "").replace(/^["'“”‘’:\-\s]+|["'“”‘’\s]+$/g, "").trim(); }
 
 const PERGUNTAS_NAO = /^(qual|quais|quem|quando|onde|como|por que|porque|quanto|quantos|o que|oque|que|se)\b/;
+const COMANDOS_NAO_TRAD = /\b(escrev[ae]|fal[ae]|convers[ae]|respond[ae]|diz|diga|explic[ae]|resum[ae]|mand[ae]|l[eê]|leia|cont[ae]|pesquis[ae]|continu[ae]|pens[ae]|coment[ae]|program[ae]|codigo|site|texto|livro|filme|quero|pode)\b/;
+const REF_ALVO = /^(?:isso|isto|ele|ela|o texto|esse texto|essa frase|esta frase|a foto|essa foto|na foto|da foto|a imagem|essa imagem|na imagem|o print|o que (?:voce|vc) leu.*)$/i;
+
 function detectar(texto) {
   const raw = String(texto || "").trim();
   const tail = raw.replace(/\s+/g, " ").trim();
@@ -605,22 +629,40 @@ function detectar(texto) {
   if (!s || s.length > 600) return null;
   let m;
 
+  // Pedido direto sobre citação ou mídia recente ("só traduz", "traduz", "traduz a foto")
+  m = s.match(/^(?:(?:so|apenas|agora|por favor|pfv|pf)\s+)*(?:traduz|traduza|traduzir)(?:\s+(?:isso|isto|ele|ela|o texto|esse texto|essa frase|esta frase|a foto|essa foto|a imagem|essa imagem|o print))?(?:\s+(?:em|para|pra)\s+(?:o\s+|a\s+)?([a-z]+))?$/);
+  if (m) {
+    const alvo = m[1] ? lingua(m[1]) : null;
+    if (!m[1] || alvo) return { tipo: "trad", q: "__ALVO__", alvo };
+  }
+
+  // Pedido natural: "eu quero que vc traduz em portugues o texto que vc leu na foto"
+  if (/\b(?:traduz|traduza|traduzir)\b/.test(s) && /\b(na foto|da foto|na imagem|da imagem|que (?:voce|vc) leu|esse texto|o texto|essa frase)\b/.test(s)) {
+    const ml = s.match(new RegExp("\\b(?:em|para|pra)\\s+(?:o\\s+|a\\s+)?(" + LRE + ")\\b"));
+    return { tipo: "trad", q: "__ALVO__", alvo: ml ? lingua(ml[1]) : "pt" };
+  }
+
   m = s.match(new RegExp("^(?:(?:pode|poderia|consegue)\\s+)?(?:(?:bach|me)\\s+)?(?:traduz|traduza|traduzir|traducao)(?:\\s+(?:isso|isto|esse\\s+texto|essa\\s+frase|esta\\s+frase|ele|ela))?\\s+(?:em|para|pra|no|na|ao|pro)\\s+(?:o\\s+|a\\s+|lingua\\s+)?(" + LRE + ")(?:\\s*[:,-]?\\s+([\\s\\S]+))?$"));
   if (m) {
     const alvo = lingua(m[1]);
-    const resto = m[2]
+    let resto = m[2]
       ? limpaAspas(tail.length === s.length ? tail.slice(tail.length - m[2].length) : m[2])
       : "__ALVO__";
+    if (/^(?:seu|sua)\s+(?:burr[oa]|idiot[oa]|best[oa]|lesad[oa])$/i.test(resto)) resto = "__ALVO__";
+    if (REF_ALVO.test(norm(resto))) resto = "__ALVO__";
     return { tipo: "trad", q: resto || "__ALVO__", alvo };
   }
 
   m = s.match(new RegExp("^(?:(?:pode|poderia|consegue)\\s+)?(?:(?:bach\\s+|me\\s+)?(?:diga\\s+|diz\\s+|fala\\s+)?como\\s+(?:se\\s+)?(?:diz|fala|escreve|dizer|falar|escrevo)|(?:bach\\s+|me\\s+)?(?:traduz|traduza|traduzir|tradu[zc]\\w*)|traducao\\s+d[eoa]s?)\\s+([\\s\\S]+?)\\s+(?:em|para|pra|no|na|ao|pro|do|de|em\\s+lingua)\\s+(?:o\\s+|a\\s+|lingua\\s+)?(" + LRE + ")[?!.\\s]*$"));
-  if (m) return { tipo: "trad", q: limpaAspas(m[1]), alvo: lingua(m[2]) };
+  if (m) {
+    const q = limpaAspas(m[1]);
+    return { tipo: "trad", q: REF_ALVO.test(norm(q)) ? "__ALVO__" : q, alvo: lingua(m[2]) };
+  }
 
   m = s.match(/^(?:(?:pode|poderia)\s+)?(?:(?:bach\s+|me\s+)?(?:traduz|traduza|traduzir))\s+([\s\S]+)$/);
   if (m) {
     const q = limpaAspas(tail.length === s.length ? tail.slice(tail.length - m[1].length) : m[1]);
-    return { tipo: "trad", q: /^(isso|isto|essa frase|esse texto)$/i.test(q) ? "__ALVO__" : q, alvo: null };
+    return { tipo: "trad", q: REF_ALVO.test(norm(q)) ? "__ALVO__" : q, alvo: null };
   }
 
   m = s.match(/^(?:como\s+(?:se\s+)?(?:diz|fala|escreve|dizer|falar))\s+(.+)$/);
@@ -639,7 +681,7 @@ function detectar(texto) {
   if (m && m[1].split(" ").length <= 3) return { tipo: "ant", q: limpaAspas(m[1]) };
 
   m = t.match(new RegExp("^(.+?)\\s+em\\s+(?:o |a )?(" + LRE + ")$"));
-  if (m && m[1].split(" ").length <= 5 && !PERGUNTAS_NAO.test(m[1]) && !/\b(escreva|fale|conversa|responda|programa|codigo|site|texto|livro|filme)\b/.test(m[1])) {
+  if (m && m[1].split(" ").length <= 5 && !PERGUNTAS_NAO.test(m[1]) && !COMANDOS_NAO_TRAD.test(m[1])) {
     return { tipo: "trad", q: limpaAspas(m[1]), alvo: lingua(m[2]) };
   }
   if (/^(?:dicionario|\/dicionario|idiomas|linguas|tradutor)$/.test(t)) return { tipo: "ajuda" };
@@ -662,12 +704,41 @@ function achaPT(q) {
 }
 function fmtPT(e) { return "📖 " + e.p + " (" + e.c + ")\n\n" + cap(e.d) + "\n\n📚 Fonte: dicionário da BACH."; }
 
-async function traduzirNet(q, src, tgt) {
+async function traduzirBloco(q, src, tgt) {
   const j = await jget("https://api.mymemory.translated.net/get?q=" + encodeURIComponent(q) + "&langpair=" + src + "|" + tgt);
   const r = j?.responseData?.translatedText;
-  if (!r || /MYMEMORY WARNING|INVALID/i.test(r)) return null;
+  if (!r || /MYMEMORY WARNING|INVALID|QUERY LENGTH LIMIT/i.test(r)) return null;
   return limpa(r);
 }
+
+async function traduzirNet(q, src, tgt) {
+  const texto = String(q || "").trim();
+  if (texto.length <= 420) return await traduzirBloco(texto, src, tgt);
+
+  // Divide textos longos (como OCR de foto) em blocos <= 420 caracteres
+  const linhas = texto.split(/\n+/);
+  const blocos = [];
+  let atual = "";
+  for (const l of linhas) {
+    const trecho = l.trim();
+    if (!trecho) continue;
+    if ((atual + "\n" + trecho).length > 420) {
+      if (atual) blocos.push(atual);
+      atual = trecho.slice(0, 420);
+    } else {
+      atual = atual ? atual + "\n" + trecho : trecho;
+    }
+  }
+  if (atual) blocos.push(atual);
+
+  const traduzidos = [];
+  for (const b of blocos.slice(0, 4)) {
+    const r = await traduzirBloco(b, src, tgt);
+    if (r) traduzidos.push(r);
+  }
+  return traduzidos.length ? traduzidos.join("\n") : null;
+}
+
 const parecePT = q => /[ãõçáàâéêíóú]/i.test(q) || /\b(o|a|os|as|de|que|um|uma|para|com|não|nao|voce|você|eu|meu|minha|esta|isso|casa|bom|dia|mundo|onde|com)\b/i.test(q);
 function adivinharIdioma(q) {
   const n = norm(q);
@@ -675,7 +746,7 @@ function adivinharIdioma(q) {
   if (/\b(bonjour|merci|salut|comment|je suis|maison|pourquoi|oui)\b/.test(n)) return "fr";
   if (/\b(ciao|grazie|buongiorno|come stai|perche|amore|casa)\b/.test(n)) return "it";
   if (/\b(hallo|danke|guten|wie geht|ich bin|nicht|ja)\b/.test(n)) return "de";
-  if (/\b(the|is|are|where|what|when|who|how|with|these|those|this|that|world|going|girls|boys|you|and|for|lol)\b/.test(n)) return "en";
+  if (/\b(the|is|are|where|what|when|who|how|with|these|those|this|that|world|going|girls|boys|you|and|for|github|pages|site|branch|deploy|hosted|learn|more|visit)\b/.test(n)) return "en";
   if (parecePT(q)) return "pt";
   return "en";
 }
@@ -726,7 +797,7 @@ async function defNet(q, lang, passo) {
   return null;
 }
 
-const AJUDA = "🌍 DICIONÁRIO E TRADUÇÃO\n\n• o que significa saudade\n• sinônimo de feliz / antônimo de rápido\n• como se diz obrigado em japonês\n• traduz para português: Where is the world going?\n• traduz \"good morning\" para português\n\nLínguas: inglês, espanhol, francês, italiano, alemão (também offline) e japonês, chinês, russo, coreano, árabe, latim e outras (com internet).";
+const AJUDA = "🌍 DICIONÁRIO E TRADUÇÃO\n\n• o que significa saudade\n• sinônimo de feliz / antônimo de rápido\n• como se diz obrigado em japonês\n• traduz para português: Where is the world going?\n• responda (↩) uma foto ou mensagem e diga “só traduz”\n\nLínguas: inglês, espanhol, francês, italiano, alemão (também offline) e japonês, chinês, russo, coreano, árabe, latim e outras (com internet).";
 
 async function consultar(d, passo) {
   if (!d) return null;
@@ -774,7 +845,7 @@ async function consultar(d, passo) {
       if (src !== "pt") {
         passo?.("🌍 Traduzindo para português...");
         const r = await traduzirNet(q, src, "pt");
-        return r ? "🌍 “" + q + "”\n→ 🇧🇷 Português: " + r + "\n\n🌐 Tradução automática (MyMemory)." : null;
+        return r ? "🌍 Tradução para 🇧🇷 Português:\n\n" + r + "\n\n🌐 Tradução automática (MyMemory)." : null;
       }
       passo?.("🌍 Traduzindo...");
       const out = [];
@@ -785,7 +856,7 @@ async function consultar(d, passo) {
     if (alvo === "pt" && src === "pt") src = "en";
     passo?.("🌍 Traduzindo para " + NOME[alvo] + "...");
     const r = await traduzirNet(q, src, alvo);
-    return r ? "🌍 “" + q + "”\n→ " + (BANDEIRA[alvo] || "🌐") + " " + cap(NOME[alvo]) + ": " + r + "\n\n🌐 Tradução automática (MyMemory)." : null;
+    return r ? "🌍 Tradução para " + (BANDEIRA[alvo] || "🌐") + " " + cap(NOME[alvo]) + ":\n\n" + r + "\n\n🌐 Tradução automática (MyMemory)." : null;
   }
   return null;
 }
