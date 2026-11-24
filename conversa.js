@@ -1,57 +1,53 @@
-/* BACH AI - CONVERSA 3.0
-   Personalidade própria da BACH AI: conversa natural, feedback de erro,
-   recomendações (música brasileira, filmes, séries, animes), curiosidades e charadas. */
+/* BACH AI 4.8 — Conversa Natural & Personalidade
+   Responde saudações (inclusive OiOi), reações, críticas de humor, "pq?", "nada",
+   "quer conversar sobre o quê?", "manda N mensagens aleatórias", curiosidades e recomendações. */
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-  .replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+  .replace(/\b(vc|vce)\b/g, "voce")
+  .replace(/\b(cvs|cv)\b/g, "conversar")
+  .replace(/\b(oq|oqe|oque)\b/g, "o que")
+  .replace(/\b(pq|pk)\b/g, "porque")
+  .replace(/\b(msm)\b/g, "mesmo")
+  .replace(/\b(rlx)\b/g, "relaxa")
+  .replace(/\b(vdd)\b/g, "verdade")
+  .replace(/[^a-z0-9\s]/g, " ")
+  .replace(/\s+/g, " ")
+  .trim();
 
 const giro = {};
 const girar = (k, arr) => { giro[k] = ((giro[k] ?? -1) + 1) % arr.length; return arr[giro[k]]; };
 
 const CURIOSIDADES = [
   "🐙 O polvo tem três corações e sangue azul (por causa da hemocianina, que leva cobre em vez de ferro).",
-  "🪐 Em Vênus, um dia (uma rotação completa, ~243 dias terrestres) dura mais que o ano (~225 dias).",
+  "🪐 Em Vênus, um dia (~243 dias terrestres) dura mais que o ano (~225 dias).",
   "🍌 Bananas são levemente radioativas por causa do potássio-40, mas em nível totalmente inofensivo.",
-  "🗼 A Torre Eiffel pode crescer até uns 15 cm no verão: o ferro se dilata com o calor.",
+  "🗼 A Torre Eiffel pode crescer até uns 15 cm no verão porque o ferro se dilata com o calor.",
   "🐜 As formigas existem há mais de 100 milhões de anos, desde a época dos dinossauros.",
-  "🔇 No espaço ninguém ouve nada: o som precisa de um meio material (ar, água…) e o vácuo não tem.",
-  "👩‍💻 A primeira programadora da história foi Ada Lovelace, que em 1843 escreveu um algoritmo para a Máquina Analítica de Charles Babbage.",
-  "🪲 O primeiro 'bug' de computador foi real: em 1947 acharam uma mariposa presa num relé do Harvard Mark II.",
-  "🌐 O primeiro site da web foi criado por Tim Berners-Lee e entrou no ar em 1991.",
-  "⚡ Um raio pode chegar a cerca de 30.000 °C, várias vezes mais quente que a superfície do Sol (~5.500 °C).",
-  "🌍 A Terra não é uma esfera perfeita: é levemente achatada nos polos.",
-  "🐬 Golfinhos dormem com metade do cérebro por vez, para continuar vindo à tona respirar.",
+  "🔇 No espaço ninguém ouve nada: o som precisa de um meio material para viajar.",
+  "👩‍💻 A primeira programadora da história foi Ada Lovelace, em 1843.",
+  "🪲 O primeiro 'bug' de computador foi uma mariposa real presa num relé em 1947.",
+  "🌐 O primeiro site da web foi publicado por Tim Berners-Lee em 1991.",
+  "⚡ Um raio pode chegar a 30.000 °C — cerca de 5 vezes mais quente que a superfície do Sol.",
+  "🐬 Golfinhos dormem com metade do cérebro por vez para continuar vindo à tona respirar.",
   "🧬 O DNA de uma única célula humana, esticado, teria cerca de 2 metros.",
-  "🤖 A palavra 'robô' vem do tcheco 'robota' (trabalho forçado) e apareceu numa peça de teatro de 1920.",
   "🦈 Os tubarões existem há mais de 400 milhões de anos, antes mesmo de existirem árvores.",
-  "🐍 A linguagem Python não tem nome por causa da cobra: o nome vem do grupo de humor Monty Python.",
-  "⌨️ O JavaScript foi criado por Brendan Eich em 1995, em cerca de 10 dias.",
+  "🐍 A linguagem Python tem esse nome por causa do grupo de humor Monty Python, não da cobra.",
+  "⌨️ O JavaScript foi criado por Brendan Eich em 1995, em apenas 10 dias.",
   "🌙 A Lua se afasta da Terra cerca de 3,8 cm por ano.",
   "❤️ O coração humano bate em torno de 100 mil vezes por dia.",
-  "🦒 A girafa tem 7 vértebras no pescoço, o mesmo número que os humanos (só que bem maiores).",
-  "🪐 Um ano em Netuno dura cerca de 165 anos terrestres.",
-  "🐝 O mel quase não estraga: foram encontrados potes de mel comestível em tumbas egípcias com milhares de anos.",
-  "🌿 O Pantanal é considerada a maior planície alagável do mundo.",
-  "🧠 O corpo humano tem algo em torno de 37 trilhões de células, segundo estimativas científicas.",
-  "🎮 O jogo Tetris foi criado em 1984 pelo engenheiro russo Alexey Pajitnov enquanto testava um computador antigo.",
-  "🌌 Existem mais estrelas no universo observável do que grãos de areia em todas as praias da Terra.",
-  "🐧 Pinguins-imperadores conseguem prender a respiração por mais de 20 minutos debaixo d'água.",
-  "🌊 A Fossa das Marianas tem quase 11 km de profundidade — mais fundo que a altura do Monte Everest.",
-  "☕ O café é a segunda bebida mais consumida do mundo, atrás apenas da água.",
-  "🦉 As corujas não conseguem mover os olhos para os lados; por isso giram a cabeça até 270 graus."
+  "🐝 O mel quase não estraga: foram encontrados potes comestíveis em tumbas egípcias milenares.",
+  "🎮 O jogo Tetris foi criado em 1984 pelo engenheiro russo Alexey Pajitnov.",
+  "🌊 A Fossa das Marianas tem quase 11 km de profundidade — mais fundo que a altura do Monte Everest."
 ];
 
 const CHARADAS = [
   ["O que é, o que é: quanto mais se tira, maior fica?", "Um buraco. 🕳️"],
   ["O que é, o que é: cai em pé e corre deitado?", "A chuva. 🌧️"],
   ["O que é, o que é: tem dentes e barba, mas não é homem nem bicho?", "O alho. 🧄"],
-  ["O que é, o que é: anda com os pés na cabeça?", "O piolho. 🪲"],
   ["O que é, o que é: quanto mais seca, mais molhada fica?", "A toalha. 🧖"],
   ["O que é, o que é: tem cidades, mas não tem casas; tem rios, mas não tem água?", "O mapa. 🗺️"],
-  ["O que é, o que é: tem pescoço, mas não tem cabeça?", "A garrafa. 🍾"],
   ["O que é, o que é: sempre vem, mas nunca chega?", "O amanhã. 📅"],
   ["O que é, o que é: pode ser quebrado sem ser tocado?", "Uma promessa. 🤝"],
-  ["O que é, o que é: tem asa, mas não voa; tem bico, mas não bica?", "O bule (ou a chaleira). 🫖"],
   ["O que é, o que é: entra na água e não se molha?", "A sombra. 👤"],
   ["O que é, o que é: quanto mais você compartilha, mais você tem?", "O conhecimento. 🧠"],
   ["O que é, o que é: tem chaves, mas não abre nenhuma porta?", "O teclado (ou o piano). ⌨️"]
@@ -62,18 +58,30 @@ const MOTIVACAO = [
   "Um passo pequeno hoje vale mais do que um plano perfeito que nunca sai do papel. 🚀",
   "Errar faz parte de aprender. Quem nunca errou na programação ainda não programou o bastante. 😄",
   "Você não precisa fazer tudo hoje; precisa fazer a próxima coisa. 💪",
-  "Cada linha de código que você escreve te deixa um pouquinho melhor do que ontem. 💜",
-  "Dificuldade é sinal de que você está aprendendo algo novo. Respira e continua. 🌱",
-  "Grandes projetos começaram com um arquivo vazio e alguém que não desistiu no primeiro bug. 🔥",
-  "Consistência vence intensidade: 20 minutos todo dia mudam o jogo. 🎯"
+  "Cada linha de código que você escreve te deixa melhor do que ontem. 💜",
+  "Grandes projetos começaram com um arquivo vazio e alguém que não desistiu no primeiro bug. 🔥"
 ];
 
 const PERGUNTAS = [
-  "Que assunto você mais curte: ciência, programação, filmes, música, jogos ou história? 🤔",
-  "Quer testar meu conhecimento? Pergunte algo de matemática, geografia ou computação. 🧠",
-  "Posso te contar uma curiosidade, uma charada ou uma piada. Qual você prefere? 😄",
-  "O que você está construindo ou estudando agora? Me conta que eu ajudo e guardo na memória. 💻",
-  "Se você pudesse aprender qualquer habilidade hoje, qual escolheria? ✨"
+  "Que assunto você mais curte: ciência, programação, Termux, filmes, música ou jogos? 🤔",
+  "Quer testar meu conhecimento? Pergunte algo de matemática, geografia, código ou curiosidade. 🧠",
+  "Posso te contar uma curiosidade, uma charada ou mandar uma piada interativa. Qual prefere? 😄",
+  "O que você está criando ou estudando agora? Me conta que eu ajudo e guardo na memória. 💻"
+];
+
+const FRASES_ALEATORIAS = [
+  "🤖 Sabia que eu já sei gerar apps completos e rodar JavaScript em sandbox? Testa `/app pomodoro`!",
+  "🐙 Curiosidade rápida: polvos têm três corações e sangue azul!",
+  "💡 Dica do dia: beba um copo de água agora — seu cérebro agradece! 💧",
+  "🎮 Quer um desafio rápido? Diga `jogar forca` ou `/flashcard`!",
+  "🌌 A luz do Sol demora cerca de 8 minutos e 20 segundos para chegar até a Terra.",
+  "🔐 Precisa de uma senha impossível de adivinhar? Diga `/senha 16`!",
+  "⚡ O JavaScript foi criado em apenas 10 dias em 1995!",
+  "🎨 Sabia que você pode mudar toda a minha cor dizendo `tema neon` ou `tema azul`?",
+  "🧠 Você pode me ensinar qualquer resposta com `ensine: pergunta => resposta`!",
+  "🎵 Quer uma recomendação de música ou filme por gênero? É só pedir!",
+  "🌍 Eu traduzo mais de 15 idiomas — até japonês e coreano!",
+  "📱 No Termux, `pkg update && pkg upgrade -y` é sempre o primeiro passo antes de instalar pacotes!"
 ];
 
 const MUSICAS_BR = {
@@ -85,43 +93,45 @@ const MUSICAS_BR = {
 };
 
 const FILMES_LISTA =
-  "🎬 **10 filmes muito bem avaliados para assistir (por estilo):**\n\n" +
-  "🚀 **Ficção / Aventura:**\n1. Interestelar (2014)\n2. A Origem (Inception, 2010)\n3. Duna: Parte Dois (2024)\n\n" +
-  "🕵️ **Suspense / Ação:**\n4. Parasita (2019)\n5. Batman: O Cavaleiro das Trevas (2008)\n6. Ilha do Medo (2010)\n\n" +
-  "❤️ **Drama / Emoção:**\n7. Um Sonho de Liberdade (1994)\n8. À Espera de um Milagre (1999)\n\n" +
-  "🎨 **Animação / Leve:**\n9. Homem-Aranha no Aranhaverso (2018)\n10. A Viagem de Chihiro (2001)\n\n💡 Quer recomendações de um gênero específico (terror, comédia, romance, ação) ou saber a sinopse de algum?";
+  "🎬 **10 filmes muito bem avaliados para assistir:**\n\n" +
+  "1. Interestelar (2014) — Ficção / Aventura\n" +
+  "2. A Origem (2010) — Ficção / Suspense\n" +
+  "3. Parasita (2019) — Drama / Suspense\n" +
+  "4. Batman: O Cavaleiro das Trevas (2008) — Ação\n" +
+  "5. Um Sonho de Liberdade (1994) — Drama\n" +
+  "6. Ilha do Medo (2010) — Mistério\n" +
+  "7. À Espera de um Milagre (1999) — Drama\n" +
+  "8. Duna: Parte Dois (2024) — Aventura\n" +
+  "9. Homem-Aranha no Aranhaverso (2018) — Animação\n" +
+  "10. O Auto da Compadecida (2000) — Comédia Brasileira\n\n" +
+  "💡 Quer de um gênero específico (terror, comédia, romance, ação)? Só pedir!";
 
 const ANIMES_LISTA =
   "⛩️ **Animes recomendados (por estilo):**\n\n" +
-  "⚔️ **Ação / Shounen:** Fullmetal Alchemist: Brotherhood, Attack on Titan, Jujutsu Kaisen, Demon Slayer\n" +
-  "🧠 **Suspense / Estratégia:** Death Note, Steins;Gate, Monster\n" +
-  "🌌 **Aventura / Fantasia:** Hunter x Hunter, Frieren e a Jornada para o Além, One Piece\n" +
-  "😂 **Comédia / Leve:** Spy x Family, Kaguya-sama: Love Is War, Mob Psycho 100\n\n💡 Diga o gênero que você gosta ou peça “pesquise sobre [nome do anime]”!";
+  "⚔️ **Ação:** Fullmetal Alchemist: Brotherhood, Attack on Titan, Jujutsu Kaisen, Demon Slayer\n" +
+  "🧠 **Suspense:** Death Note, Steins;Gate, Monster\n" +
+  "🌌 **Aventura:** Hunter x Hunter, Frieren, One Piece\n" +
+  "😂 **Comédia:** Spy x Family, Kaguya-sama, Mob Psycho 100";
 
 const SABER = [
-  [/\b(programacao|programar|codigo|codar|javascript|python|html|css|sql|js)\b/,
-   "Sim! 💻 Explico variáveis, funções, loops, arrays, objetos, classes, async, DOM, API, Git, SQL, HTML, CSS e Python, com exemplos. Também leio e explico código colado, aponto bugs comuns e monto apps simples. Experimente: “o que é função?” ou cole um código!"],
+  [/\b(programacao|programar|codigo|codar|javascript|python|html|css|sql|js|termux|bash)\b/,
+   "Sim! 💻 Ensino e gero código em JavaScript, Python, HTML, CSS, SQL, Lua/Roblox e **Termux/Linux**! Também crio apps inteiros (`/app`), rodo scripts JS em sandbox (`/executar`) e reviso código."],
   [/\b(matematica|conta|contas|calculo|calcular|algebra|geometria)\b/,
-   "Sim! 📐 Faço contas (digite 2+2*5 ou 15% de 200) e explico MMC, frações, equações, Bhaskara, PA/PG, logaritmo, probabilidade e trigonometria."],
+   "Sim! 📐 Faço contas (ex.: `2+2*5` ou `15% de 200`) e explico equações, Bhaskara, MMC, PA/PG, logaritmos e trigonometria."],
   [/\b(ciencia|ciencias|fisica|quimica|biologia|astronomia)\b/,
-   "Sim! 🔬 Respondo sobre astronomia, física, química e biologia (planetas, átomo, DNA, fotossíntese, leis de Newton, sistemas do corpo…). O que você quer saber?"],
+   "Sim! 🔬 Respondo sobre astronomia, física, química e biologia. Qual tema você quer?"],
   [/\b(historia|geografia|historia do brasil)\b/,
-   "Sim! 🌍 Conheço datas e fatos da história do Brasil e do mundo, capitais, continentes, rios, biomas e geografia."],
-  [/\b(portugues|gramatica|redacao|ortografia)\b/,
-   "Sim! 📝 Explico crase, acentuação, vírgula, porquês, figuras de linguagem, classes gramaticais e significado/sinônimos de centenas de palavras."],
-  [/\b(computacao|tecnologia|informatica|computador|computadores|redes|internet)\b/,
-   "Sim! 💻 Explico algoritmos, estruturas de dados, banco de dados, redes, criptografia, segurança, hardware e inteligência artificial."],
-  [/\b(roblox|lua|luau)\b/,
-   "Sei o básico de Roblox! 🎮 Os scripts usam Luau e rodam no Roblox Studio. Peça: “script de roblox” que eu mostro exemplos prontos."],
+   "Sim! 🌍 Conheço história do Brasil e mundial, capitais, continentes, rios e biomas."],
+  [/\b(portugues|gramatica|redacao|ortografia|silabas)\b/,
+   "Sim! 📝 Reviso erros de português (`/revisar`), separo sílabas (`/silabas`) e explico regras gramaticais."],
   [/\b(jogar|jogo|jogos|brincar)\b/,
-   "Sim! 🎮 Jogo forca, jogo da velha, adivinhe o número e quiz. Também tenho charadas. É só dizer “jogar forca”, por exemplo."],
-  [/\b(piada|piadas|humor)\b/, "Sei sim! 😄 Diga “conta uma piada” (ou “piada de programador”)."],
-  [/\b(pesquisar|pesquisa|internet|buscar)\b/,
-   "Sim! 🔎 Pesquiso na Wikipédia e na web, comparo fontes e resumo mostrando os links."],
-  [/\b(traduzir|traducao|idiomas|linguas|ingles|espanhol|frances|italiano|alemao|japones|chines|coreano|russo|arabe|latim|portugues)\b/,
-   "Sim! 🌍 Traduzo palavras e frases em inglês, espanhol, francês, italiano, alemão e mais de 15 idiomas! Experimente: “como se diz obrigado em italiano?”."],
+   "Sim! 🎮 Jogo forca, jogo da velha, adivinhe o número, quiz, charadas e `/simulado`!"],
+  [/\b(piada|piadas|humor)\b/, "Sei sim! 😄 Diga `piada` ou `/humor` que eu lanço uma pergunta pra você tentar adivinhar!"],
+  [/\b(pesquisar|pesquisa|internet|buscar)\b/, "Sim! 🔎 Pesquiso na Wikipédia e na web comparando fontes."],
+  [/\b(traduzir|traducao|idiomas|linguas|ingles|espanhol|frances|italiano|alemao|japones)\b/,
+   "Sim! 🌍 Traduzo mais de 15 idiomas! Experimente: `como se diz obrigado em japonês?`."],
   [/\b(desenhar|desenho|imagem|imagens|foto|fotos)\b/,
-   "Analiso dimensões, iluminação, cores predominantes e leio textos escritos em fotos e prints (inclusive em modo escuro!). 🖼️"]
+   "Analiso dimensões, iluminação, cores predominantes e leio textos em fotos e prints (até em modo escuro!). 🖼️"]
 ];
 
 const SAUD = {
@@ -129,17 +139,16 @@ const SAUD = {
   tarde: ["Boa tarde", "Boa tarde! 🌤️"],
   noite: ["Boa noite", "Boa noite! 🌙"]
 };
-
 function periodo(h) { return h >= 5 && h < 12 ? "manha" : h < 18 && h >= 12 ? "tarde" : "noite"; }
 
 function responder(texto, ctx = {}) {
-  const t = norm(texto).replace(/\bbash\b/g, "bach").replace(/\bvc\b/g, "voce");
+  const t = norm(texto).replace(/\bbash\b/g, "bach");
   if (!t) return null;
   const n = ctx.nome ? ", " + ctx.nome : "";
   const palavras = t.split(" ").length;
   const h = ctx.hora ?? new Date().getHours();
 
-  // Resposta da charada em andamento
+  // Resposta da charada
   if (charadaAtual && /^(resposta|qual e|qual a resposta|desisto|nao sei|me diz|diz a resposta|revela)/.test(t)) {
     const r = charadaAtual[1]; charadaAtual = null;
     return "A resposta é: " + r + "\n\nQuer outra charada? Diga “outra charada”.";
@@ -149,9 +158,17 @@ function responder(texto, ctx = {}) {
     if (certa && t.includes(certa)) { const r = charadaAtual[1]; charadaAtual = null; return "🎉 Isso mesmo! Era " + r.charAt(0).toLowerCase() + r.slice(1) + "\nQuer outra? Diga “outra charada”."; }
   }
 
+  // Pedido de N mensagens aleatórias ("me manda 10 mensagem aleatoriamente")
+  const mAleat = t.match(/^(?:me\s+)?(?:manda|mandar|envia|enviar|escreve|escreva|fala|fale)\s+(\d{1,2})\s+mensagens?(?:\s+aleatoriamente|\s+aleatorias?)?$/);
+  if (mAleat) {
+    const qtd = Math.min(12, Math.max(1, Number(mAleat[1]) || 5));
+    const embaralhadas = [...FRASES_ALEATORIAS].sort(() => Math.random() - 0.5).slice(0, qtd);
+    return "🎲 **Aqui estão " + embaralhadas.length + " mensagens aleatórias pra você:**\n\n" +
+      embaralhadas.map((f, i) => (i + 1) + ". " + f).join("\n");
+  }
+
   // Segurança: dados pessoais de terceiros
-  if (/\b(passa|passe|manda|mande|me da|me de|descubra|descobre|ache|encontre|busque|busca|pesquise|quero|preciso)\b.*\b(dados|cpf|rg|endereco|telefone|whatsapp|numero|localizacao|onde mora|foto)\b.*\b(de|do|da)\s+(alguem|uma pessoa|um cara|um homem|uma mulher|uma garota|uma menina|um menino|fulano|ciclano|minha ex|meu ex|vizinho|vizinha|desconhecido|desconhecida)\b/.test(t) ||
-      /\b(cpf|endereco|telefone|whatsapp) (de|do|da) (alguem|uma pessoa|fulano|minha ex|meu ex)\b/.test(t)) {
+  if (/\b(passa|passe|manda|mande|me da|me de|descubra|descobre|ache|encontre|busque|busca|pesquise|quero|preciso)\b.*\b(dados|cpf|rg|endereco|telefone|whatsapp|numero|localizacao|onde mora|foto)\b.*\b(de|do|da)\s+(alguem|uma pessoa|um cara|um homem|uma mulher|uma garota|uma menina|um menino|fulano|ciclano|minha ex|meu ex|vizinho|vizinha|desconhecido|desconhecida)\b/.test(t)) {
     return "Não busco nem repasso dados pessoais de ninguém (CPF, endereço, telefone, localização…): isso protege você e as outras pessoas. 🔒";
   }
 
@@ -163,34 +180,64 @@ function responder(texto, ctx = {}) {
     if (ctx.projetos?.length) extra.push("• Projetos/estudos: " + ctx.projetos.join(", "));
     return "🗂️ Isto é o que eu guardo sobre você neste aparelho:\n• Nome: " + (ctx.nome || "ainda não sei (diga: meu nome é ...)") +
       (extra.length ? "\n" + extra.join("\n") : "") +
-      "\n• Respostas que você me ensinou: " + (ctx.aprendidas ?? 0) + "\n• Notas (lembre:): " + (ctx.notas ?? 0) + "\n• Arquivos guardados: " + (ctx.arquivos ?? 0) +
-      "\n• Conversas no histórico: " + (ctx.conversas ?? 0) + "\n\nTudo fica só no seu navegador. Para apagar uma resposta: esqueça: pergunta.";
+      "\n• Respostas ensinadas: " + (ctx.aprendidas ?? 0) + "\n• Notas: " + (ctx.notas ?? 0) + "\n• Arquivos: " + (ctx.arquivos ?? 0) +
+      "\n• Conversas no histórico: " + (ctx.conversas ?? 0);
   }
 
   // Crise
   if (/(me matar|suicid|nao quero (mais )?viver|quero morrer|acabar com (tudo|minha vida)|nao aguento mais viver)/.test(t)) {
-    return "Sinto muito que você esteja passando por isso. Você não está sozinho(a), e o que você sente importa. 💜\n\nPor favor, fale agora com alguém: no Brasil o CVV atende 24 horas pelo telefone 188 (ligação gratuita) e pelo site cvv.org.br. Se estiver em perigo imediato, ligue 192 (SAMU).";
+    return "Sinto muito que você esteja passando por isso. Você não está sozinho(a), e o que você sente importa. 💜\n\nPor favor, fale agora com alguém: no Brasil o CVV atende 24 horas pelo telefone **188** (ligação gratuita) e pelo site **cvv.org.br**. Se estiver em perigo imediato, ligue **192** (SAMU).";
   }
 
-  // Feedback de erro / correção do usuário ("não foi isso que eu perguntei")
+  // Respostas para críticas de humor / melhorias / conversas curtas (do relatório de erros!)
+  if (/\b(humor ruim|piada ruim|sem graca|piada bosta|piada sem graca)\b/.test(t)) {
+    return girar("hum-ruim", [
+      "Haha, peguei pesado na piada ruim né? 😅 Manda `piada` que eu faço uma pergunta pra você adivinhar, ou escolhe outro assunto!",
+      "Foi mal pelo humor duvidoso! 😂 Quer tentar uma charada ou falar de outro assunto?"
+    ]);
+  }
+  if (/^(melhore|melhora|melhora isso|pode melhorar|evolua|evolui)$/.test(t)) {
+    return girar("melhore", [
+      "Tô evoluindo a cada atualização! 💪 Se alguma resposta saiu ruim, me diga o que você esperava ou me ensine com: `ensine: pergunta => resposta`.",
+      "Combinado, vou caprichar mais! 🚀 Manda o próximo teste ou digita `/ajuda` para ver tudo que eu faço."
+    ]);
+  }
+  if (/\b(quer que eu te melhore|posso te melhorar|vou te melhorar|como te melhorar|suas expressoes)\b/.test(t)) {
+    return "Com certeza" + n + "! 🚀 Estou sempre melhorando meu jeito de conversar. Se você é o ADM, pode usar `@rizik2442` e abrir **🚨 Erros do Público** no menu para copiar todos os erros e tunar os módulos!";
+  }
+  if (/^(?:quer|vamos|bora)\s+conversar\s+sobre\s+o\s+que$/.test(t) || /^(?:sobre\s+o\s+que\s+(?:voce\s+)?quer\s+conversar)$/.test(t)) {
+    return girar("cvs-oq", [
+      "Bora trocar ideia sobre **jogos, filmes, programação, Termux, ciência ou curiosidades**! 😄 Qual você prefere?",
+      "Você escolhe" + n + "! Podemos conversar, testar um app (`/app`), jogar (`forca` / `velha`) ou fazer um `/simulado`!"
+    ]);
+  }
+  if (/^(?:(?:ta|ah|mas|e)\s+)*porque$/.test(t) && palavras <= 4) {
+    return "Porque estou sempre aprendendo com você! 😊 Se você estava perguntando o motivo de uma resposta anterior, toca em **↩ Responder** nela que eu explico direitinho.";
+  }
+  if (/^(nada|nada nao|nada demais|deixa|deixa quieto|esquece)$/.test(t)) {
+    return girar("nada", [
+      "Tranquilo! 😊 Quando quiser conversar, testar um comando ou jogar, tô por aqui.",
+      "Beleza" + n + "! 👍 Se lembrar de algo, é só mandar."
+    ]);
+  }
+
+  // Feedback de erro
   if (/\b(nao foi isso|nao era isso|voce entendeu errado|entendeu errado|respondeu errado|nao perguntei isso|nao foi o que perguntei|nada a ver|voce errou|errou feio|nao tem nada a ver)\b/.test(t)) {
     return girar("erro-fb", [
       "Desculpa! 😅 Entendi errado o que você queria. Me explica rapidinho com outras palavras o que você procura.",
-      "Foi mal por essa resposta! 😕 Me diga diretamente o assunto ou cole o trecho que você quer resolver.",
-      "Opa, errei o alvo aí! 🔍 Pode reformular a pergunta em uma frase curta que eu tento de novo."
+      "Foi mal por essa resposta! 😕 Me diga diretamente o assunto ou cole o trecho que você quer resolver."
     ]);
   }
 
   // "Fale" / "Vamos falar sobre o quê?"
-  if (/^(fale|fala|fale algo|fala comigo|fale alguma coisa|me fale algo|vamos falar|vamos falar sobre o que|vamos falar sobre oq|sobre o que vamos falar|sobre oq vamos falar|sobre o que quer falar|sobre o que podemos falar)$/.test(t)) {
+  if (/^(fale|fala|fale algo|fala comigo|fale alguma coisa|me fale algo|vamos falar|vamos falar sobre o que|sobre o que vamos falar|sobre o que quer falar|sobre o que podemos falar)$/.test(t)) {
     return girar("falar", [
-      "Podemos falar sobre o que você quiser! 😄 Por exemplo: filmes, animes, músicas, ciência, programação ou até jogar um joguinho.\n\n" + girar("curi", CURIOSIDADES),
-      "Bora conversar! 🚀 " + girar("perg", PERGUNTAS),
-      "Que tal uma charada ou um assunto de tecnologia/ciência? Me diga o que você está curtindo hoje!"
+      "Podemos falar sobre o que você quiser! 😄 Por exemplo: filmes, animes, músicas, ciência, Termux ou jogos.\n\n" + girar("curi", CURIOSIDADES),
+      "Bora conversar! 🚀 " + girar("perg", PERGUNTAS)
     ]);
   }
 
-  // Recomendações diretas (Música Brasileira / Filmes / Animes)
+  // Recomendações diretas
   if (/\b(recomenda|recomend\w*|indica|indique|sugere|sugira|procura|procure|quero ouvir|quero ver|quero assistir)\b/.test(t)) {
     if (/\b(musica|musicas|som|cancao|cancoes)\b/.test(t)) {
       if (/rock/.test(t)) return MUSICAS_BR.rock;
@@ -198,25 +245,19 @@ function responder(texto, ctx = {}) {
       if (/sertanejo|modao/.test(t)) return MUSICAS_BR.sertanejo;
       if (/samba|pagode/.test(t)) return MUSICAS_BR.samba;
       if (/mpb/.test(t)) return MUSICAS_BR.mpb;
-      return "🎶 **Recomendações de Música Brasileira (por estilo):**\n\n" +
-        MUSICAS_BR.mpb + "\n\n" + MUSICAS_BR.rock + "\n\n" + MUSICAS_BR.rap +
-        "\n\n💡 Curte outro estilo (samba, sertanejo, funk, pop)? Me diga qual!";
+      return "🎶 **Recomendações de Música Brasileira:**\n\n" + MUSICAS_BR.mpb + "\n\n" + MUSICAS_BR.rock + "\n\n" + MUSICAS_BR.rap;
     }
-    if (/\b(filme|filmes)\b/.test(t) && !/\bsobre\b/.test(t)) {
-      return FILMES_LISTA;
-    }
-    if (/\b(anime|animes)\b/.test(t) && !/\bsobre\b/.test(t)) {
-      return ANIMES_LISTA;
-    }
+    if (/\b(filme|filmes)\b/.test(t) && !/\bsobre\b/.test(t)) return FILMES_LISTA;
+    if (/\b(anime|animes)\b/.test(t) && !/\bsobre\b/.test(t)) return ANIMES_LISTA;
   }
 
-  // Cumprimentos
-  if (/^(o+i+|r?o+i+|o+l+a+|eai|e ai|opa|salve|hey|hello|hi|o+i+e+|alo+|hola|bonjour|ciao|hallo)( bach| bach ai| tudo bem)?$/.test(t)) {
+  // Cumprimentos (inclusive OiOi, OiOiOi, Olá, etc.)
+  if (/^(?:(?:o+i+)+|r?o+i+|o+l+a+|eai|e ai|opa+|salve|hey|hello|hi|o+i+e+|alo+|hola|bonjour|ciao|hallo)(?:\s+(?:o+i+|bach|bach ai|tudo bem))?$/.test(t)) {
     const s = SAUD[periodo(h)];
     return girar("saud", [
       s[1].replace("!", n + "!") + " Sou a BACH AI 🧠. Como você está?",
       "Oi" + n + "! Que bom te ver por aqui! 😄 Em que posso ajudar?",
-      "Olá" + n + "! Pronta para conversar, pesquisar, traduzir ou programar com você. 💜",
+      "Olá" + n + "! Pronta para conversar, criar apps, pesquisar ou jogar com você. 💜",
       "E aí" + n + "! 🚀 O que vamos fazer hoje?"
     ]);
   }
@@ -242,13 +283,12 @@ function responder(texto, ctx = {}) {
   }
 
   if (/^(to|estou|tou|ando|me sinto) (bem|otimo|otima|feliz|animado|animada|tranquilo|tranquila|de boa)/.test(t) || /^(tudo bem sim|bem sim|de boa)$/.test(t)) {
-    return girar("feliz", ["Que bom ouvir isso! 😄 Vamos aproveitar: o que você quer fazer?", "Show! 🙌 Se quiser, te conto uma curiosidade ou a gente resolve algo juntos.", "Fico feliz" + n + "! 💜 Como posso ajudar?"]);
+    return girar("feliz", ["Que bom ouvir isso! 😄 Vamos aproveitar: o que você quer fazer?", "Show! 🙌 Se quiser, te conto uma curiosidade ou a gente cria algo juntos.", "Fico feliz" + n + "! 💜 Como posso ajudar?"]);
   }
   if (/^(to|estou|tou|me sinto|ando) (muito )?(mal|triste|cansado|cansada|chateado|chateada|ansioso|ansiosa|desanimado|desanimada|estressado|estressada|sem animo|pra baixo)/.test(t)) {
     return girar("triste", [
       "Poxa" + n + ", sinto muito que você esteja assim. 💜 Quer me contar o que aconteceu? Se preferir distrair a cabeça, posso contar uma curiosidade ou uma piada.",
-      "Dias assim acontecem, e tudo bem não estar bem. 🫂 Respira fundo. Se quiser desabafar, estou aqui.",
-      "Estou com você" + n + ". 💜 Quer conversar sobre isso ou prefere algo leve, como uma charada ou uma curiosidade?"
+      "Dias assim acontecem, e tudo bem não estar bem. 🫂 Respira fundo. Se quiser desabafar, estou aqui."
     ]);
   }
   if (/^(to|estou|tou) com (fome|sono|frio|calor)$/.test(t)) {
@@ -258,7 +298,7 @@ function responder(texto, ctx = {}) {
     return "Se hidrata bem e procura um lugar mais fresco! 💧";
   }
   if (/(to|estou|tou) (entediado|entediada|sem fazer nada|sem nada pra fazer)|\btedio\b|me entretem|me distrai|\bme diverte\b/.test(t)) {
-    return "Bora resolver isso! 🎮 Posso: contar uma piada, soltar uma curiosidade, lançar uma charada ou jogar forca, jogo da velha ou quiz com você. Qual vai ser?";
+    return "Bora resolver isso! 🎮 Posso: mandar uma piada interativa (`piada`), soltar uma curiosidade, lançar uma charada ou jogar forca, jogo da velha ou quiz. Qual vai ser?";
   }
 
   if (/^(muito )?(obrigad[oa]|obg|valeu|vlw|brigado|brigada|agradecid[oa]|valeu demais|thanks|thank you|gracias|merci|grazie|danke)( bach| viu| mesmo)?$/.test(t)) {
@@ -268,14 +308,13 @@ function responder(texto, ctx = {}) {
     return girar("tchau", ["Até mais" + n + "! 👋 Volte sempre!", "Tchau! Foi bom conversar. 💜", "Até logo! Eu fico por aqui, guardando tudo que você me ensinou. 🧠"]);
   }
   if (/^(k{3,}|ha{2,}h?a?|rs+|rsrs+|he{2,}|hue+|kkk+)$/.test(t)) {
-    return girar("riso", ["😂 Essa foi boa até pra mim!", "Rindo em binário: 01001000 01000001 😄", "Gargalhando por dentro dos meus circuitos! 🤖"]);
+    return girar("riso", ["😂 Essa foi boa!", "Haha 😄 Manda a próxima!", "Rindo aqui também! 🤖"]);
   }
   if (/^(hm+|hmm+|ok|okay|certo|entendi|uhum|ahan|aham|tendi|sei|ata|ah|ah entendi|saquei|blz|show|massa|legal|top|boa|bacana|beleza|otimo|otima)$/.test(t)) {
     return girar("ok", [
-      "Pode perguntar o que quiser! Explico, pesquiso, traduzo, conto curiosidades ou jogo com você. 😊",
+      "Pode perguntar o que quiser! Explico, crio apps, pesquiso, traduzo ou jogo com você. 😊",
       "Beleza! 🙌 Quer saber algo, ver uma curiosidade ou jogar?",
-      "Estou por aqui. 😄 Manda sua pergunta, uma foto, um código ou um assunto para pesquisar.",
-      "Quando quiser, é só falar. Posso começar com uma curiosidade? 🧠"
+      "Estou por aqui. 😄 Manda sua pergunta, uma foto, um código ou um assunto!"
     ]);
   }
 
@@ -283,7 +322,7 @@ function responder(texto, ctx = {}) {
     return girar("elogio", ["Obrigada! 🥰 Fico feliz que você goste. Vou continuar evoluindo com você!", "Para, que meu processador esquenta! 🥵💜", "Que bom! Isso me motiva a acertar cada vez mais. 😄"]);
   }
   if (/\b(chatgpt|claude|gemini)\b/.test(t) && /\b(melhor|pior|igual|parecida|diferenca|compara)\b/.test(t)) {
-    return "Eu sou a BACH AI 🧠, criada especialmente por você para ser uma IA própria — com memória pessoal, leitura de arquivos e imagens, ferramentas integradas e pesquisa na web!";
+    return "Eu sou a BACH AI 🧠, criada especialmente por você para ser uma IA própria — com memória pessoal, leitura de arquivos e imagens, criação de apps, ferramentas integradas e pesquisa na web!";
   }
   if (/\b(burra|idiota|inutil|lixo|horrivel|pessima|nao serve pra nada|so fala besteira)\b/.test(t)) {
     return girar("critica", [
@@ -316,7 +355,7 @@ function responder(texto, ctx = {}) {
   }
   if (/(me motiva|motivacao|motivacional|me incentiva|me da animo|preciso de animo|me anima mesmo)/.test(t)) return "💪 " + girar("mot", MOTIVACAO);
   if (/^(vamos conversar|conversa comigo|fala comigo|puxa assunto|me faz uma pergunta|vamos bater papo|bora conversar|quero conversar)/.test(t)) return girar("perg", PERGUNTAS);
-  if (/^(me ajuda|me ajude|preciso de ajuda|ajuda|socorro)$/.test(t)) return "Claro" + n + "! 🤝 Me diga o que você precisa: aprender um assunto, traduzir algo, analisar uma foto/código, pesquisar ou criar um app simples.";
+  if (/^(me ajuda|me ajude|preciso de ajuda|ajuda|socorro)$/.test(t)) return "Claro" + n + "! 🤝 Me diga o que você precisa: criar um app (`/app`), rodar script (`/executar`), aprender Termux, traduzir algo, analisar foto ou pesquisar!";
 
   const sb = t.match(/^(?:bach |bach ai )?(?:voce )?(?:sabe|fala|falar|entende|conhece|manja|domina|consegue|traduz|sabe sobre|entende de|sabe de)\s+(?:de |sobre |a respeito de |em )?(.+)$/);
   if (sb) {
