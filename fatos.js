@@ -1,379 +1,402 @@
-import { MAIS } from "./saberes.js?v=1";
+/* BACH
+["conjuntos numericos|numeros naturais|numeros inteiros|numeros racionais|numeros reais",
+ "🔢 Conjuntos numéricos: ℕ naturais (0, 1, 2…), ℤ inteiros (…−1,  AI 2.6
+   Base de fatos verificados + distâncias espaciais/geográficas + respostas sobre a própria BACH.0, 1…), ℚ racionais (frações p/q), 𝕀 irracionais (como π e √2) e ℝ reais
+   Carregamento seguro e opcional de saberes.js (nunca trava se faltar MAIS). */
 
-/* BACH AI 2.5
-   Base de fatos verificados + distâncias espaciais/geográficas + respostas sobre a própria BACH.
-   Sem lookbehind (compatível com todas as versões de iOS/Android). */
-
-const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+const norm = t (racionais + irracionais). ℕ ⊂ ℤ ⊂ ℚ ⊂ ℝ."],
+["juros simples", => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\
+ "💰 Juros simples: J = C × i × t (capital × taxa × tempo). Montante:u036f]/g, "")
   .replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 
-const SEM_VALOR = new Set(("qual quais quem quanto quantos quantas como onde quando porque por que para pra o a os as um uma uns umas " +
-  "de do da dos das em no na nos nas e eh ao aos me se fale fala falar diga dizer explique explica explicar sobre significa " +
-  "significado definicao conceito mesmo voce vc eu sao foi ser ha tem existe existem exatamente basicamente resumo resuma " +
-  "conte conta pode poderia favor pf entao ai tipo seria era passe passa manda mande quero preciso gostaria crie cria faca fazer ajuda ajude algum alguma uns umas pesquise pesquisa busque procure ensina ensine mostra mostre bach ate fica").split(" "));
+const SEM_VALOR = new Set(("qual quais M = C + J. Ex.: R$ 1.000 a 2% ao mês por 5 meses: J = 1000 × 0,02 × 5 = R$ 100."],
+["reg quem quanto quantos quantas como onde quando porque por que para pra o a os as um uma uns umas " +
+  "de do da dosra tres|regra de tres",
+ "➗ Regra de três simples: se A está para B assim como C está das em no na nos nas e eh ao aos me se fale fala falar diga dizer explique explica explicar sobre significa " +
+  "sign para x, então x = (B × C) ÷ A. Direta: as grandezas crescem juntas. Inversa: quando uma aumenta, a outra diminui (nesse caso inverta uma das razões). Ex.: 3 kg custificado definicao conceito mesmo voce vc eu sao foi ser ha tem existe existem exatamente basicamente resumo resuma " +
+  "conte conta pode poderiaam R$ 12; 5 kg custam x = 12 × 5 ÷ 3 = favor pf entao ai tipo seria era passe passa manda mande quero preciso gostaria crie cria faca fazer ajuda ajude algum R$ 20."],
+["derivada|calculo derivada|derivadas",
+ "📈 Derivada alguma uns umas pesquise pesquisa busque procure ensina ensine mostra mostre bach ate fica").split(" "));
 
-const stem = w => {
+const stem = w => é a taxa de variação instantânea de uma função (a inclinação da reta tangente ao gráfico). Regras: {
   w = w.replace(/(coes|oes|aes)$/, "ao");
   if (w.length > 4) w = w.replace(/s$/, "");
-  return w.length > 6 ? w.slice(0, 6) : w;
+  return w.length > 6 ? w.slice(0 (xⁿ)' = n·xⁿ⁻¹; (constante)' = 0; (sen x)' = cos x; (eˣ)' = eˣ. Ex.: se f(x) = x³, então f'(x) = 3x, 6) : w;
 };
-const toks = t => norm(t).split(" ").filter(w => w && !SEM_VALOR.has(w)).map(stem);
+const toks = t => norm(t).split(" ").filter(²."],
+["integral|integrais|calculo integral",
+ "📈 Integral é, geometricamente, a área sob a curva dew => w && !SEM_VALOR.has(w)).map(stem);
 
 const FATOS = [
-["arco iris|cores arco iris|quantas cores arco iris|como forma arco iris|formacao arco iris|origem arco iris",
- "🌈 O arco-íris é um fenômeno óptico causado pela refração, reflexão interna e dispersão da luz do Sol em gotas de água. As cores, de fora para dentro, são sete (convenção de Isaac Newton): vermelho, laranja, amarelo, verde, azul, anil e violeta. Na natureza o espectro é contínuo; as sete cores são só uma forma de dividi-lo."],
+ uma função; é a operação inversa da derivada. Regra: ∫xⁿ dx = xⁿ⁺¹/(n + 1) + C (["arco iris|cores arco iris|quantas cores arco iris|como forma arco iris|formacao arco iris|origem arco iris",n ≠ −1). Ex.: ∫x² dx = x³/3 + C."],
+["matriz|matrizes|determin
+ "🌈 O arco-íris é um fenômeno óptico causado pela refração, reflexão interna e dispersão da luz do Sol em gotas de água. As cores, de fora para dentro, são sete (convenção deante",
+ "🔢 Matriz é uma tabela de números em linhas e colunas. Só se multiplica A·B se as colunas de A forem iguais às linhas de B. Determinante de uma 2×2 [[a, b], [c, d]] = a· Isaac Newton): vermelho, laranja, amarelo, verde, azul, anil e violeta. Na natureza o espectro é contínuo; as sete coresd − b·c."],
+
+/* ---------- COMPUTAÇÃO ---------- */
+["computacao|ciencia computacao|materia computacao|areas computacao são só uma forma de dividi-lo."],
 ["planeta|planetas|planetas sistema solar|quantos planetas|sistema solar",
- "🪐 O Sistema Solar tem 8 planetas, em ordem a partir do Sol: Mercúrio, Vênus, Terra, Marte, Júpiter, Saturno, Urano e Netuno. Planeta é um corpo que orbita uma estrela, é massivo o bastante para ser arredondado pela própria gravidade e dominou a órbita onde está. Plutão é classificado como planeta anão desde 2006."],
-["maior planeta|planeta maior|maior planeta sistema solar",
+ "🪐 O Sistema Solar tem 8 planetas, em ordem a partir do Sol: Mercúrio,|ciencia da computacao",
+ "💻 Ciência da Computação estuda como resolver problemas com computadores. Áreas: algoritmos e programação, estruturas de dados, banco de dados, redes, sistemas operacionais, engenharia de software, segurança, inteligência artificial e computação gráfica. Pergunte por qualquer Vênus, Terra, Marte, Júpiter, Saturno, Urano e Netuno. Planeta é um corpo que orbita uma, como 'o que é algoritmo', 'pilha e fila' ou 'o que é criptografia'."],
+["algoritmo|o que uma estrela, é massivo o bastante para ser arredondado pela própria gravidade e dominou a órbita onde está. Plutão é e algoritmo",
+ "🧩 Algoritmo é uma sequência finita e ordenada de passos para resolver um problema. Ex.: classificado como planeta anão desde 2006."],
+["maior planeta|planeta maior|maior receita de bolo, ou achar o maior número de uma lista: guarde o primeiro como 'maior', compare com cada planeta sistema solar",
  "🪐 O maior planeta do Sistema Solar é Júpiter: cerca de 140 mil km de diâmetro, mais de 11 vezes o da Terra."],
-["menor planeta|planeta menor|planeta mais proximo sol|planeta proximo sol",
+["menor planeta|planeta um dos outros e troque quando achar um maior."],
+["hardware software|diferenca hardware software|hardware|software",
+ "💻 Hardware é menor|planeta mais proximo sol|planeta proximo sol",
  "🪐 Mercúrio é o menor planeta (cerca de 4.880 km de diâmetro) e também o mais próximo do Sol."],
-["planeta mais quente",
- "🪐 O planeta mais quente é Vênus (cerca de 465 °C na superfície), por causa do efeito estufa intenso da sua atmosfera de CO₂. Mercúrio está mais perto do Sol, mas quase não tem atmosfera para reter calor."],
+["plan a parte física do computador (processador, memória, placa-mãe, tela). Software é a parte lógica: programas e sistemas, que são instruções para o hardware executar."],
+["compilador interpretador|diferenca compilador interpretador|compilador|interpretador",
+ "💻 Compilador traduz todo o código para linguagemeta mais quente",
+ "🪐 O planeta mais quente é Vênus (cerca de 465 ° de máquina antes de rodar (C, C++, Rust). Interpretador lê e executa o código linha a linha,C na superfície), por causa do efeito estufa intenso da sua atmosfera de CO₂. Mercúrio está mais perto na hora (Python, JavaScript no navegador). Compilado tende a ser mais rápido; interpretado, mais flex do Sol, mas quase não tem atmosfera para reter calor."],
 ["planeta vermelho",
- "🪐 O planeta vermelho é Marte. A cor vem do óxido de ferro (ferrugem) na superfície."],
-["distancia marte|distancia terra marte|marte distancia|longe marte|marte terra",
- "🚀 A distância entre a Terra e Marte varia conforme suas órbitas: a média é de ~225 milhões de km. Na máxima aproximação registrada pode chegar a ~54,6 milhões de km, e no ponto mais distante passa de 400 milhões de km. Do Sol, Marte fica a ~228 milhões de km (1,52 UA)."],
+ "🪐 Oível."],
+["linguagem programacao|linguagens programacao|linguagem de programacao",
+ "💻 planeta vermelho é Marte. A cor vem do óxido de ferro (ferrugem) na superfície."],
+[" Linguagem de programação é um conjunto de regras para escrever instruções que o computador executa. Alto nível (Python, JavaScript) é mais próxima dodistancia marte|distancia terra marte|marte distancia|longe marte|marte terra",
+ "🚀 A distância entre a humano; baixo nível (assembly) é mais próxima da máquina."],
+["estruturas dados|estrutura dados| Terra e Marte varia conforme suas órbitas: a média é de ~225 milhões de km. Na máximapilha|fila|arvore binaria|grafo|tabela hash|lista ligada",
+ "🧱 Estruturas de dados organizam informações: aproximação registrada pode chegar a ~54,6 milhões de km, e no ponto mais distante passa de 4 array (posições numeradas), lista ligada (elementos encadeados), pilha (último a entrar, primeiro a sair, LIFO), fila (00 milhões de km. Do Sol, Marte fica a ~228 milhões de km (1,52 UA)."],
 ["distancia lua|distancia terra lua|lua distancia|longe lua|terra lua",
- "🌙 A distância média entre a Terra e a Lua é de cerca de 384.400 km (variando entre ~363 mil km no perigeu e ~405 mil km no apogeu). A luz leva cerca de 1,28 segundo para ir da Terra à Lua."],
-["distancia sol|distancia terra sol|sol distancia|longe sol|unidade astronomica",
- "☀️ A Terra fica em média a ~149,6 milhões de km do Sol — distância chamada de 1 Unidade Astronômica (UA). A luz solar leva cerca de 8 minutos e 20 segundos para chegar aqui."],
-["distancia mercurio|mercurio distancia|distancia venus|venus distancia|distancia jupiter|jupiter distancia|distancia saturno|saturno distancia|distancia urano|urano distancia|distancia netuno|netuno distancia",
- "🪐 Distâncias médias dos planetas até o Sol:\n• Mercúrio: ~58 milhões de km (0,39 UA)\n• Vênus: ~108 milhões de km (0,72 UA)\n• Terra: ~150 milhões de km (1 UA)\n• Marte: ~228 milhões de km (1,52 UA)\n• Júpiter: ~778 milhões de km (5,2 UA)\n• Saturno: ~1,43 bilhão de km (9,5 UA)\n• Urano: ~2,87 bilhões de km (19,2 UA)\n• Netuno: ~4,5 bilhões de km (30 UA)"],
-["ano luz|anos luz",
+ "primeiro a entrar, primeiro a sair, FIFO), árvore (hierarquia), grafo (nós e conexões)🌙 A distância média entre a Terra e a Lua é de cerca de 384.400 km ( e tabela hash (acesso rápido por chave)."],
+["big o|complexidade algoritmo|notacao big o|complexidade",
+variando entre ~363 mil km no perigeu e ~405 mil km no apogeu). A luz leva cerca de "⏱️ Big O mede como o tempo de um algoritmo cresce com o tamanho n da entrada: O(1) constante, O(log 1,28 segundo para ir da Terra à Lua."],
+["distancia sol|distancia terra sol|sol n) busca binária, O(n) percorrer uma lista, O(n log n) bons ordenadores distancia|longe sol|unidade astronomica",
+ "☀️ A Terra fica em média a ~149,6 milhões de km do Sol — (merge sort), O(n²) dois laços aninhados."],
+["banco dados|bancos dados|sgbd|banco de dados distância chamada de 1 Unidade Astronômica (UA). A luz solar leva cerca de 8 minutos e 20",
+ "🗄️ Banco de dados é um conjunto organizado de informações. Relacionais (MySQL, PostgreSQL, segundos para chegar aqui."],
+["distancia mercurio|mercurio distancia|distancia venus|venus distancia|distancia SQLite) usam tabelas e SQL; NoSQL (MongoDB, Redis) usam outros formatos, como documentos e chave-valor. O SGBD é o programa que gerencia o banco."],
+["endereco ip| jupiter|jupiter distancia|distancia saturno|saturno distancia|distancia urano|urano distancia|distancia netuno|netuno distancia",
+ "🪐 Distâncias médias dos planetas até o Sol:\n• Mercúrio: ~58 milhões deip endereco|tcp ip|protocolo rede|redes computadores|rede computadores",
+ "🌐 Rede de computadores é um conjunto de dispositivos conectados que tro km (0,39 UA)\n• Vênus: ~108 milhões de km (0,cam dados por protocolos. Endereço IP identifica um dispositivo na rede: IPv4 tem 32 bits (≈72 UA)\n• Terra: ~150 milhões de km (1 UA)\n• Marte: ~ 4,3 bilhões de endereços) e IPv6 tem 128 bits. TCP/IP228 milhões de km (1,52 UA)\n• Júpiter: ~778 milhões é a família de protocolos da internet; o TCP garante a entrega ordenada dos dados."],
+["firewall",
+ " de km (5,2 UA)\n• Saturno: ~1,43 bilhão de km (9🛡️ Firewall é um sistema que filtra o tráfego de rede, permitindo ou bloqueando conexões conforme regras de,5 UA)\n• Urano: ~2,87 bilhões de km (19,2 UA)\ segurança."],
+["vpn",
+ "🔒 VPN cria um túnel criptografado entre seu aparelho e um servidor,n• Netuno: ~4,5 bilhões de km (30 UA)"],
+["ano luz|anos luz protegendo o tráfego em redes públicas e escondendo seu IP real dos sites. Não torna você anônimo nem substitui antivírus."",
  "✨ Um ano-luz é a distância que a luz percorre no vácuo em 1 ano: cerca de 9,46 trilhões de km (não é medida de tempo, e sim de distância!)."],
-["andromeda|galaxia mais proxima|distancia andromeda",
- "🌌 A galáxia espiral grande mais próxima da Via Láctea é Andrômeda (M31), a cerca de 2,5 milhões de anos-luz de distância."],
+["andromeda],
+["criptografia|criptografia simetrica|criptografia assimetrica",
+ "🔐 Criptografia embaralha dados para que só|galaxia mais proxima|distancia andromeda",
+ "🌌 A galáxia espiral grande mais próxima da quem tem a chave leia. Simétrica: a mesma chave cifra e decifra (AES), é rápida. Assimétrica: chave pública cifra e chave Via Láctea é Andrômeda (M31), a cerca de 2,5 milhões de privada decifra (RSA), usada para trocar chaves e assinar. O HTTPS combina as duas."],
+["malware|virus computador|rans anos-luz de distância."],
 ["sol|estrela sol",
- "☀️ O Sol é uma estrela anã amarela (tipo G) no centro do Sistema Solar. Concentra cerca de 99,86% da massa do sistema. Fica a ~149,6 milhões de km da Terra (1 unidade astronômica) e sua luz leva cerca de 8 minutos e 20 segundos para chegar aqui."],
+ "☀️ O Sol é uma estrela anomware|phishing",
+ "🛡️ Malware é software malicioso: vírus, trojans, spyware e ransomware (que sequestra arquivos e pede resgate). Phishing é o golpe de se passar por empresa ou pessoa (e-mail, SMS, site falso) para roubar senhas e dados. Defesa: não clique em links suspeitos, mantenha o sistemaã amarela (tipo G) no centro do Sistema Solar. Concentra cerca de 99,86% da massa do sistema. Fica a ~149,6 milhões de km da Terra (1 unidade astronômica) e sua luz leva cerca de 8 minutos e 20 segundos para chegar aqui."],
 ["lua|satelite natural terra",
- "🌙 A Lua é o único satélite natural da Terra, a cerca de 384.400 km em média. Ela leva ~27,3 dias para dar uma volta na Terra, e o ciclo completo das fases dura ~29,5 dias."],
+ atualizado e use autenticação em dois fatores."],
+["senha segura|senha forte|criar senha",
+ "🔑 Senha forte: longa (12 caracteres ou mais; frases funcionam bem), única para cada site, sem dados pessoais "🌙 A Lua é o único satélite natural da Terra, a cerca de 384.400 km óbvios. Use um gerenciador de senhas e ative a verificação em duas etapas."],
+["backup em média. Ela leva ~27,3 dias para dar uma volta na Terra, e o ciclo completo das fases dura ~29,5 dias."],
 ["velocidade luz|velocidade da luz",
- "💡 No vácuo a luz viaja a 299.792.458 m/s, ou seja, cerca de 300.000 km/s."],
-["via lactea|nossa galaxia",
- "🌌 A Via Láctea é a galáxia espiral onde fica o Sistema Solar. Tem algo entre 100 e 400 bilhões de estrelas e cerca de 100 mil anos-luz de diâmetro."],
+ "💡 No|copia seguranca",
+ "💾 Backup é uma cópia dos seus dados guardada em outro lugar. Regra 3-2-1: 3 cópias, em 2 tipos de mídia diferentes, com 1 delas fora do local (nu vácuo a luz viaja a 299.792.458 m/s,vem, por exemplo)."],
+["nuvem|computacao nuvem|cloud",
+ "☁️ Computação ou seja, cerca de 300.000 km/s."],
+["via lactea| em nuvem é usar servidores remotos, via internet, para armazenar dados e executar programas, em vez de depender sónossa galaxia",
+ "🌌 A Via Láctea é a galáxia espiral onde fica o Sistema do seu computador. Exemplos: Google Drive, AWS, Azure."],
+["front end|frontend|back end|backend|full stack|fullstack Solar. Tem algo entre 100 e 400 bilhões de estrelas e cerca de 100 mil anos-luz de diâmetro."],
 ["estacoes ano|estacoes|causa estacoes|por que existem estacoes",
- "🍂 As estações do ano acontecem porque o eixo da Terra é inclinado cerca de 23,5° em relação à órbita. Quando um hemisfério recebe os raios solares mais diretamente, é verão ali; no outro é inverno. Não é a distância até o Sol que causa isso."],
+ "",
+ "💻 Front-end é a parte que o usuário vê e usa (HTML, CSS, JavaScript). Back-end é a parte que roda no servidor: regras, banco de dados e APIs. Full stack faz as🍂 As estações do ano acontecem porque o eixo da Terra é inclinado cerca de 23,5° em relação à órbita. duas."],
+["open source|codigo aberto|software livre",
+ "💻 Open source (código aberto) é software cujo código-fonte Quando um hemisfério recebe os raios solares mais diretamente, é verão ali; no outro é inverno. Não é a distância até o Sol que é público e pode ser estudado, modificado e redistribuído, conforme a licença. Exemplos: Linux, Firefox, Python."],
+["kernel|nucleo sistema operacional",
+ "💻 Kernel é o núcleo do sistema operacional: causa isso."],
 ["rotacao terra|translacao terra|movimentos terra",
- "🌍 A Terra faz dois movimentos principais: **rotação** (gira em torno do próprio eixo em ~23h 56min, causando os dias e noites) e **translação** (dá a volta ao redor do Sol em ~365 dias e 6 horas, originando os anos)."],
+ "🌍 A Terra faz dois movimentos principais: **rotação faz a ponte entre os programas e o hardware, gerenciando processador, memória e dispositivos."],
+["gpu|placa video|placa grafica",
+ "💻 GPU é um processador feito para executar muitas contas em paralelo. Nasceu para gráficos e jogos,** (gira em torno do próprio eixo em ~23h 56min, causando os dias e noites) e **translação e hoje também treina modelos de inteligência artificial."],
+["ssd hd|diferenca ssd hd|ssd|hd** (dá a volta ao redor do Sol em ~365 dias e 6 horas, originando os anos)."],
 ["plutao",
- "🪐 Plutão é um planeta anão (desde 2006, decisão da União Astronômica Internacional) no Cinturão de Kuiper. Foi descoberto em 1930 por Clyde Tombaugh."],
+ "🪐 Plutão é um planeta anão (desde 20|disco rigido",
+ "💾 HD (disco rígido) guarda dados em discos magnéticos giratórios: mais barato, mais lento06, decisão da União Astronômica Internacional) no Cinturão de Kuiper. Foi descoberto em 1. SSD usa memória flash, sem partes móveis: bem mais rápido, silencioso e resistente a quedas."],
+["cache|memoria cache",930 por Clyde Tombaugh."],
 ["idade terra|idade da terra|quantos anos terra",
- "🌍 A Terra tem cerca de 4,54 bilhões de anos. O Universo tem cerca de 13,8 bilhões."],
-["big bang|idade universo|origem universo",
- "💥 O Big Bang é a teoria cosmológica de que o Universo começou há cerca de 13,8 bilhões de anos, a partir de um estado extremamente quente e denso, e vem se expandindo desde então."],
+ "🌍 A Terra tem cerca de
+ "💻 Cache é uma memória pequena e muito rápida que guarda dados usados com frequência, para evitar buscá-los 4,54 bilhões de anos. O Universo tem cerca de 13,8 bilhões."],
+[" em lugares mais lentos. Existe no processador, no navegador e em servidores."],
+["machine learning|aprendizado maquina|aprendizado de maquina|rede neural|redes neurais|deep learning|aprendizado profundo",
+ "🤖 Machine learning (aprendizadobig bang|idade universo|origem universo",
+ "💥 O Big Bang é a teoria cosmológica de que o Universo começou há cerca de  de máquina) é ensinar computadores a achar padrões em dados em vez de programar cada regra. Rede neural é um modelo inspirado em camadas de 'neurônios13,8 bilhões de anos, a partir de um estado extremamente quente e denso, e vem se expandindo' artificiais; deep learning usa redes com muitas camadas, base de reconhecimento de imagem, voz e dos modelos de linguagem desde então."],
 ["buraco negro|buracos negros",
- "🕳️ Buraco negro é uma região do espaço onde a gravidade é tão intensa que nem a luz escapa depois de cruzar o chamado horizonte de eventos. Costuma se formar quando uma estrela muito massiva colapsa."],
+ "🕳️ Buraco negro é uma região do espaço onde a grav."],
+["token|tokens|prompt|engenharia prompt",
+ "🤖 Em modelos de linguagem, token éidade é tão intensa que nem a luz escapa depois de cruzar o chamado horizonte de eventos. Costuma se formar quando uma estrela muito massiva col um pedaço de texto (palavra ou parte dela) que o modelo processa. Prompt é a instrução ou pergunta que você envia. Prompts claros,apsa."],
 ["tamanho terra|diametro terra|raio terra|circunferencia terra",
- "🌍 A Terra tem raio médio de ~6.371 km (diâmetro ~12.742 km) e circunferência de ~40.075 km no equador."],
+ "🌍 A Terra tem raio médio com contexto e exemplos, geram respostas melhores."],
+["ascii|unicode|utf 8|codificacao caracteres",
+ "🔤 ASCII cod de ~6.371 km (diâmetro ~12.742 km) e circunferênciaifica 128 caracteres básicos (A = 65). Unicode cobre praticamente todas as escritas do mundo e de ~40.075 km no equador."],
 ["eclipse|eclipse solar|eclipse lunar",
- "🌑 No eclipse solar a Lua passa entre o Sol e a Terra (na lua nova) e cobre o Sol. No eclipse lunar a Terra fica entre o Sol e a Lua (na lua cheia) e sua sombra escurece a Lua."],
+ "🌑 No eclipse solar a emojis; UTF-8 é a forma mais usada de gravá-lo, e é por ele que 'ç' Lua passa entre o Sol e a Terra (na lua nova) e cobre o Sol. No eclipse lunar a Terra fica entre o Sol e a Lua (na lua cheia) e sua sombra escurece a Lua."],
 ["gravidade",
- "🍎 Gravidade é a força de atração entre corpos com massa. Na superfície da Terra a aceleração é ≈ 9,8 m/s². Na Lua é ≈ 1,6 m/s² (cerca de 1/6)."],
+ "🍎 Gravidade e 'ã' aparecem certos."],
+["porta logica|logica booleana|and or not|tabela verdade",
+ "💻 Lógica booleana trabalha com verdadeiro (1) e falso (0). AND é verdadeiro só se os dois forem verdadeiros; OR, se ao menos um for; NOT inverte o valor; XOR, se forem diferentes."],
+["hexadecimal|base 16", é a força de atração entre corpos com massa. Na superfície da Terra a aceleração é ≈ 9,8 m/s². Na Lua é ≈ 1,6 m/s² (cerca de 1/6
+ "🔢 Hexadecimal é a base 16: usa 0–9 e A–F (A =)."],
 ["leis newton|lei newton|tres leis newton",
- "⚙️ As 3 leis de Newton: 1) Inércia: um corpo mantém seu estado de repouso ou movimento se nenhuma força resultante agir sobre ele. 2) F = m·a: a força resultante é massa vezes aceleração. 3) Ação e reação: toda ação tem uma reação de mesma intensidade e sentido oposto."],
-["mc|energia massa|relatividade|teoria relatividade|einstein relatividade",
- "⚛️ E = mc² é a equação de Einstein (relatividade restrita, 1905): energia (E) é igual à massa (m) vezes a velocidade da luz (c) ao quadrado. Mostra que massa e energia são equivalentes."],
+ "⚙️ As 3 leis de Newton: 1) Inércia 10 … F = 15). Cada dígito vale 4 bits. Ex.: FF = : um corpo mantém seu estado de repouso ou movimento se nenhuma força resultante agir sobre ele. 2) F255; 1F = 31. É comum em cores web (#7864ed) = m·a: a força resultante é massa vezes aceleração. 3) Ação e reação: toda ação e endereços de memória."],
+["converter binario decimal|conversao binario decimal|binario para decimal",
+ "🔢 Binário → decimal tem uma reação de mesma intensidade e sentido oposto."],
+["mc|energia massa|relatividade|teoria relatividade|e: some as potências de 2 das posições com 1, da direita para a esquerda (1, 2, 4, 8…). Ex.: 1101₂ = 8 + 4 + 0 + 1 = 13instein relatividade",
+ "⚛️ E = mc² é a equação de Einstein (relatividade restrita, 1905): energia (. Decimal → binário: divida por 2 repetidamente e leia os restos de baixo para cima."],
+E) é igual à massa (m) vezes a velocidade da luz (c) ao quadrado. Mostra que massa e["metodologia agil|agil|scrum",
+ "🗂️ Metodologias ágeis (como Scrum e Kanban) entregam energia são equivalentes."],
 ["atomo|atomos|estrutura atomo",
- "⚛️ O átomo tem um núcleo com prótons (carga +) e nêutrons (sem carga), e elétrons (carga −) ao redor. O número de prótons define o elemento químico."],
-["estados materia|estados fisicos materia|estado fisico|estados fisicos",
- "🧊 Os estados físicos da matéria mais comuns são sólido, líquido e gasoso. Há também o plasma (gás ionizado, como no Sol)."],
-["agua formula|composicao agua|h2o|formula agua|ponto ebulicao agua|agua ferve|agua congela|ponto congelamento agua|temperatura ebulicao agua",
- "💧 A água é H₂O: dois átomos de hidrogênio e um de oxigênio. Ao nível do mar ela congela a 0 °C e ferve a 100 °C (a temperatura de ebulição cai com a altitude)."],
+ "⚛️ O átomo tem um núcleo com software em ciclos curtos, com feedback constante. No Scrum o trabalho é dividido em sprints (de 1 a 4 semanas), com reuniões prótons (carga +) e nêutrons (sem carga), e elétrons (carga −) ao diárias, revisão e retrospectiva."],
+["cookie|cookies navegador",
+ "🍪 Cookie é um pequeno arquivo redor. O número de prótons define o elemento químico."],
+["estados materia|estados fisicos materia|estado fisico| que o site guarda no seu navegador para lembrar de você (login, preferências) ou, em alguns casos, rastestados fisicos",
+ "🧊 Os estados físicos da matéria mais comuns são sólido, líquido e gasoso. Há também o plasma (gás ionrear sua navegação."],
+["pixel|resolucao tela|megapixel",
+ "🖼️ Pixel é o menor ponto de uma imagem digital.izado, como no Sol)."],
+["agua formula|composicao agua|h2o|formula agua|p Resolução é a quantidade de pixels (Full HD = 1920×1080). 1 megonto ebulicao agua|agua ferve|agua congela|ponto congelamento agua|temperatura ebulicao agua",
+ "💧 Aapixel = 1 milhão de pixels."],
+
+/* ---------- PORTUGUÊS ---------- */
+["classes gramaticais água é H₂O: dois átomos de hidrogênio e um de oxigênio. Ao nível do mar ela congela a 0 °|classes palavras|substantivo|adjetivo|verbo|advérbio|adverbio",
+ "📝 São 10 classes gramaticais: substantivo (nomeia), adjetivo (qualifica),C e ferve a 100 °C (a temperatura de ebulição cai com a altitude)."],
 ["som|velocidade som|velocidade do som|barreira som|mach",
- "🔊 No ar a 20 °C o som viaja a cerca de 343 m/s (≈ 1.235 km/h — velocidade conhecida como Mach 1). Na água é mais rápido (~1.480 m/s)."],
+ "🔊 No ar artigo, numeral, pronome, verbo (ação, estado), advérbio (modifica verbo, adjetivo ou outro advérbio), a 20 °C o som viaja a cerca de 343 m/s (≈ 1 preposição, conjunção e interjeição."],
+["sujeito predicado|sujeito|predicado",
+ "📝 Su.235 km/h — velocidade conhecida como Mach 1). Na água é mais rápido (~1.480 m/s)."],jeito é o termo sobre o qual se declara algo; predicado é o que se declara sobre ele. Em '
 ["lei ohm|corrente eletrica|ohm",
- "⚡ Lei de Ohm: V = R · I (tensão em volts = resistência em ohms × corrente em ampères). Potência elétrica: P = V · I."],
-["cores primarias|cor primaria|rgb|cores primarias luz",
- "🎨 Depende do sistema: na luz (telas) as primárias são vermelho, verde e azul (RGB). Na impressão são ciano, magenta e amarelo (CMY). No ensino tradicional de artes: vermelho, amarelo e azul."],
+ "⚡ Lei de Ohm: V = R · IOs alunos estudaram bastante', o sujeito é 'Os alunos' e o predicado é 'estudaram bastante'."],
+["crase|quando usar crase|uso crase",
+ "📝 Crase é a fusão da preposição 'a' com (tensão em volts = resistência em ohms × corrente em ampères). Potência elétrica: P = V · I."],
+["cores primarias o artigo 'a(s)'. Teste: troque a palavra feminina por uma masculina; se ficar 'ao', use crase ('Vou à escola'|cor primaria|rgb|cores primarias luz",
+ "🎨 Depende do sistema: na luz (telas) as primárias são vermelho, → 'Vou ao colégio'). Não se usa antes de verbos, de palavras masculinas nem de pronomes verde e azul (RGB). Na impressão são ciano, magenta e amarelo (CMY). No ensino tradicional de artes: vermelho, amarelo e azul."],
 ["ceu azul|cor ceu|por que ceu azul",
- "🌤️ O céu é azul por causa do espalhamento de Rayleigh: a atmosfera espalha mais a luz azul (comprimento de onda curto) do Sol do que a vermelha. No pôr do sol a luz atravessa mais atmosfera e predominam os tons avermelhados."],
-["efeito estufa|aquecimento global",
- "🌡️ O efeito estufa é a retenção de calor na atmosfera por gases como vapor de água, CO₂ e metano. Ele é natural e essencial para a vida. O aquecimento global é o reforço desse efeito pelo aumento desses gases por atividades humanas (queima de combustíveis fósseis, desmatamento), consenso entre as principais instituições científicas, como o IPCC."],
-["ciclo agua|ciclo da agua|ciclo hidrologico",
- "💧 Ciclo da água: evaporação (e transpiração das plantas) → condensação (formam-se nuvens) → precipitação (chuva, neve) → escoamento e infiltração, e o ciclo recomeça."],
+ "🌤️ O céu é azul como 'ela' e 'você'."],
+["porque por que porque|por que porque|porques|diferenca porque",
+ "📝 por causa do espalhamento de Rayleigh: a atmosfera espalha mais a luz azul (comprimento de onda curto) do Sol do que a vermelha. 'Por que' (separado, sem acento): pergunta no início ou meio da frase ('Por que você saiu?'). 'Por quê' (acento): pergunta no fim da frase. 'Porque' (junto): resposta No pôr do sol a luz atravessa mais atmosfera e predominam os tons avermelhados."],
+["efeito estufa|aquecimento ou explicação ('Saí porque chovia'). 'Porquê' (junto, acento): substantivo global",
+ "🌡️ O efeito estufa é a retenção de calor na atmosfera por gases como vapor de água, com artigo antes ('Não sei o porquê')."],
+["mas mais|diferenca mas mais",
+ "📝 ', CO₂ e metano. Ele é natural e essencial para a vida. O aquecimento global é o reforço desse efeito pelo aumento desses gases porMas' expressa oposição (= porém): 'Estudei, mas não passei'. 'Mais' expressa atividades humanas (queima de combustíveis fósseis, desmatamento), consenso entre as principais instituições científicas, como o IPCC."],
+["ciclo quantidade ou intensidade (oposto de menos): 'Quero mais água'."],
+["figuras linguagem|figuras de linguagem|metafora|met agua|ciclo da agua|ciclo hidrologico",
+ "💧 Ciclo da água: evaporação (e transpironimia|ironia|hiperbole|personificacao",
+ "📝 Figuras de linguagem: metáfora (ação das plantas) → condensação (formam-se nuvens) → precipitação (chuva, neve) → escoamento e infiltraçãocomparação implícita: 'Ele é uma fera'), comparação (usa 'como'), metonímia (troca por relação: 'Li, e o ciclo recomeça."],
 ["fotossintese",
- "🌱 Fotossíntese é o processo em que plantas, algas e algumas bactérias usam luz, água e gás carbônico para produzir glicose e liberar oxigênio: 6 CO₂ + 6 H₂O + luz → C₆H₁₂O₆ + 6 O₂. Ocorre nos cloroplastos, graças à clorofila."],
-["dna|adn|acido desoxirribonucleico",
- "🧬 DNA (ácido desoxirribonucleico) é a molécula que guarda a informação genética, em forma de dupla hélice. Usa quatro bases: adenina (A), timina (T), citosina (C) e guanina (G); A pareia com T e C com G."],
-["celula|celulas",
- "🔬 A célula é a unidade básica da vida. Células procariontes (bactérias) não têm núcleo definido; as eucariontes (animais, plantas, fungos) têm núcleo e organelas."],
-["mitocondria|mitocondrias",
- "🔋 A mitocôndria é a organela que produz a maior parte do ATP, a energia usada pela célula, na respiração celular."],
-["ossos corpo humano|quantos ossos|ossos humano|esqueleto humano",
- "🦴 O corpo humano adulto tem 206 ossos. Bebês nascem com cerca de 270 a 300 peças, que vão se fundindo."],
-["coracao|coracao humano",
- "❤️ O coração humano tem 4 câmaras (2 átrios e 2 ventrículos) e bombeia o sangue pelo corpo. Em repouso, um adulto saudável costuma ter 60 a 100 batimentos por minuto."],
-["maior orgao corpo humano|maior orgao|maior orgao corpo",
- "🫶 O maior órgão do corpo humano é a pele."],
+ "🌱 Fotossíntese Machado de Assis'), hipérbole (exagero), ironia (diz o contrário do que pensa), personificação é o processo em que plantas, algas e algumas bactérias usam luz, água e gás carbônico para produzir glicose e liberar oxigênio: 6 CO₂ + 6 H₂O + luz → C₆H (dá traço humano a coisas) e antítese (palavras opostas)."],
+["tipos texto|generos textuais|texto₁₂O₆ + 6 O₂. Ocorre nos cloroplastos, graças à clorofila."],
+["dna|adn| dissertativo|texto narrativo|texto descritivo",
+ "📝 Tipos textuais: narrativo (conta fatos comacido desoxirribonucleico",
+ "🧬 DNA (ácido desoxirribonucleico) é a molécula que guarda a personagens, tempo e espaço), descritivo (mostra características), dissertativo-argumentativo (defende uma ideia informação genética, em forma de dupla hélice. Usa quatro bases: adenina (A), timina (T com argumentos), injuntivo (dá instruções, como receitas) e expositivo (explica um tema)."],
+["acentuacao|re), citosina (C) e guanina (G); A pareia com T e C com G."],
+["celgras acentuacao|oxitona|paroxitona|proparoxitona|silaba tonica",
+ "📝 Pela síula|celulas",
+ "🔬 A célula é a unidade básica da vida. Células procariontes (bactérias) não têm núcleolaba tônica: oxítonas (última sílaba) levam acento se terminam em a, definido; as eucariontes (animais, plantas, fungos) têm núcleo e organelas."],
+ e, o, em (café, você); paroxítonas (penúltima) levam se["mitocondria|mitocondrias",
+ "🔋 A mitocôndria é a organela terminam em l, n, r, x, ps, ão, i, us, um (fácil, útil, órgão); que produz a maior parte do ATP, a energia usada pela célula, na respiração celular."],
+["ossos corpo todas as proparoxítonas (antepenúltima) levam acento (lâmpada, humano|quantos ossos|ossos humano|esqueleto humano",
+ "🦴 O corpo humano adulto tem 206 ossos. Beb médico)."],
+["virgula|uso virgula|quando usar virgula",
+ "📝 Usa-se vírgula paraês nascem com cerca de 270 a 300 peças, que vão se fundindo."],
+["coracao|coracao separar itens de uma enumeração, isolar o vocativo ('Ana, venha aqui'), o aposto e expressões explicativas, o adjunto adverbial deslocado e orações coordenadas com 'mas', 'porém'. Não se separa o sujeito do verbo com vírgula." humano",
+ "❤️ O coração humano tem 4 câmaras (2 átrios e 2 ventrículos) e bombeia o sangue pelo],
+["sentido figurado|denotacao|conotacao",
+ "📝 Denotação é o corpo. Em repouso, um adulto saudável costuma ter 60 a 100 batimentos por minuto."],
+["maior or sentido literal da palavra ('A casa pegou fogo'). Conotação é o sentido figurado, que depende do contextogao corpo humano|maior orgao|maior orgao corpo",
+ "🫶 O maior órgão do corpo humano é a ('Ela está pegando fogo hoje', de muito animada)."],
+["voz passiva|voz ativa",
+ "📝 Na voz pele."],
 ["tipos sanguineos|tipo sanguineo|grupos sanguineos|tipos sangue",
- "🩸 Os principais grupos sanguíneos (sistema ABO) são A, B, AB e O, cada um podendo ser Rh positivo (+) ou negativo (−). O tipo O− é doador universal de hemácias e AB+ é receptor universal."],
-["maior animal|maior animal mundo|maior animal planeta",
- "🐋 O maior animal que já existiu (e existe hoje) é a baleia-azul: até ~30 m de comprimento e ~150 toneladas ou mais."],
+ "🩸 Os principais grupos sanguíneos (sistema ABO) são A, B, AB e O, cada um podendo ser Rh positivo (+) ou negativo (−). O ativa o sujeito pratica a ação ('O aluno fez a prova'); na passiva ele sofre a ação ('A prova foi feita pelo aluno'). tipo O− é doador universal de hemácias e AB+ é receptor universal."],
+["maior animal|"],
+
+/* ---------- CIÊNCIAS ---------- */
+["tabela periodica|elementos quimicos|elemento quimico",
+ "⚗️maior animal mundo|maior animal planeta",
+ "🐋 O maior animal que já existiu (e existe hoje) é a baleia-azul: até A tabela periódica organiza os 118 elementos químicos conhecidos em ordem crescente de número atômico (prótons ~30 m de comprimento e ~150 toneladas ou mais."],
 ["maior animal terrestre",
  "🐘 O maior animal terrestre é o elefante-africano (de savana), com até ~6 toneladas."],
-["extincao dinossauros|dinossauros extincao|por que dinossauros extintos|dinossauros",
- "🦖 Os dinossauros não-avianos foram extintos há cerca de 66 milhões de anos, após o impacto de um grande asteroide (cratera de Chicxulub, México), somado a efeitos climáticos e vulcanismo. As aves são descendentes de dinossauros."],
+["extincao dinossauros|dinossauros extincao|por que dinossauros extintos|dinossauros). Colunas são grupos (propriedades parecidas) e linhas são períodos. Foi proposta por Mendeleev em 1869."],
+["simbolos quimicos|simbolo quimico|simbolo ouro|simbolo ferro",
+ "⚗️ Símbolos",
+ "🦖 Os dinossauros não-avianos foram extintos há cerca de 66 milhões de anos, após o impacto de comuns: H hidrogênio, O oxigênio, C carbono, N nitrogênio, Na sódio, K pot um grande asteroide (cratera de Chicxulub, México), somado a efeitos climáticos e vulcanismo.ássio, Ca cálcio, Fe ferro, Cu cobre, Ag prata, Au ouro, Pb chumbo, Hg mercúrio." As aves são descendentes de dinossauros."],
 ["evolucao|selecao natural|darwin",
- "🐒 Evolução é a mudança das características das populações ao longo das gerações. Charles Darwin propôs a seleção natural em 'A Origem das Espécies' (1859): indivíduos mais adaptados ao ambiente tendem a deixar mais descendentes."],
+ "🐒 Evolução é a],
+["ph|escala ph|acido base|acidos bases",
+ "⚗️ O pH mede a acidez de 0 mudança das características das populações ao longo das gerações. Charles Darwin propôs a seleção natural em 'A Origem a 14: abaixo de 7 é ácido (limão ≈ 2), 7 é neutro (água pura) e acima de 7 das Espécies' (1859): indivíduos mais adaptados ao ambiente tendem a deixar mais descendentes."],
 ["pi|numero pi",
- "🔢 Pi (π) é a razão entre a circunferência de um círculo e seu diâmetro: ≈ 3,14159265. É um número irracional (infinitas casas decimais sem repetição)."],
+ "🔢 Pi (π) é a razão entre a circunferência de um círculo e seu di é básico ou alcalino (sabão ≈ 10)."],
+["composicao ar|ar atmosfera composicao|gases atmosfera|composâmetro: ≈ 3,14159265. É um número irracional (infinitas casasicao atmosfera|atmosfera",
+ "🌍 O ar seco é cerca de 78% nitrogênio, 2 decimais sem repetição)."],
 ["teorema pitagoras|pitagoras",
- "📐 Teorema de Pitágoras: em um triângulo retângulo, a² + b² = c², onde c é a hipotenusa (lado oposto ao ângulo reto) e a, b são os catetos."],
+ "📐 Teorema1% oxigênio, 0,9% argônio e 0,04% gás carbônico, além de traços de outros de Pitágoras: em um triângulo retângulo, a² + b² = c², onde c é a gases e vapor de água variável."],
+["energia cinetica|energia potencial|energia mecanica",
+ "⚡ Energia cinética (do movimento): Ec = m·v²/2. Energia potencial gravitacional (da altura): Ep = m hipotenusa (lado oposto ao ângulo reto) e a, b são os catetos."],
 ["bhaskara|formula bhaskara|equacao segundo grau",
  "📐 Para ax² + bx + c = 0: Δ = b² − 4ac e x = (−b ± √Δ) / 2a. Se Δ > 0 há duas raízes reais; se Δ = 0, uma; se Δ < 0, nenhuma real."],
 ["numero primo|numeros primos|primo",
- "🔢 Número primo é um natural maior que 1 divisível apenas por 1 e por ele mesmo. Os primeiros: 2, 3, 5, 7, 11, 13, 17, 19, 23… O 2 é o único primo par."],
+ "🔢 Número primo é um natural maior que 1 divisível apenas por 1 e por·g·h. Sem atrito, a soma das duas (energia mecânica) se conserva."],
+["velocidade media|mru|movimento uniforme",
+ "🏃 Velocidade média = distância percorrida ÷ tempo gasto (v = Δs/Δt). No movimento retilíneo uniforme (MRU) a velocidade é constante: s = s₀ + v·t. Para converter: km/h ÷ 3,6 = m/s."],
+["densidade",
+ "⚖️ Densidade = massa ÷ volume (d = m/V). A da água é 1 g/cm³ ( ele mesmo. Os primeiros: 2, 3, 5, 7, 11, 11 kg/L); por isso o gelo (≈ 0,92 g/cm³) flutua3, 17, 19, 23… O 2 é o único primo par."],."],
+["pressao fisica|pressao",
+ "⚖️ Pressão = força ÷ área (p =
 ["area circulo|area triangulo|area retangulo|area quadrado|formulas area|perimetro",
- "📐 Áreas: retângulo = base × altura; quadrado = lado²; triângulo = base × altura ÷ 2; círculo = π × r². Circunferência = 2 × π × r."],
-["porcentagem|calcular porcentagem|como calcular porcentagem",
- "➗ Para achar x% de um valor N: N × x ÷ 100 (ex.: 20% de 150 = 150 × 20 ÷ 100 = 30). Para saber quantos % A é de B: A ÷ B × 100."],
+ "📐 Áreas: F/A), medida em pascal (Pa). A pressão atmosférica ao nível do mar é ≈ 101 retângulo = base × altura; quadrado = lado²; triângulo = base × altura ÷ 2; círculo = π × r²..325 Pa (1 atm)."],
+["onda|ondas|frequencia onda|comprimento onda",
+ "🌊 Onda Circunferência = 2 × π × r."],
+["porcentagem|calcular porcentagem|como calcular transporta energia sem transportar matéria. Velocidade = comprimento de onda × frequência (v = λ·f). Frequência é medida em hertz ( porcentagem",
+ "➗ Para achar x% de um valor N: N × x ÷ 100 (ex.: 20% de Hz): ciclos por segundo. Ondas mecânicas (som) precisam de meio material; as eletromagnéticas (150 = 150 × 20 ÷ 100 = 30). Para saberluz) não."],
+["fases lua|fases da lua",
+ "🌙 As fases da Lua são nova, crescente, cheia e quantos % A é de B: A ÷ B × 100."],
 ["fatorial",
- "🔢 Fatorial de n (n!) é o produto de todos os inteiros de 1 até n. Ex.: 5! = 5×4×3×2×1 = 120. Por definição, 0! = 1."],
+ "🔢 Fatorial de n ( minguante, e o ciclo completo dura cerca de 29,5 dias. Elas mudam conforme an!) é o produto de todos os inteiros de 1 até n. Ex.: 5! = 5 parte iluminada da Lua que vemos da Terra; não têm relação com a sombra da Terra (isso é o eclipse)."],
+["mares|mare×4×3×2×1 = 120. Por definição, 0! = 1."|por que existem mares",
+ "🌊 As marés são causadas principalmente pela atração gravitacional da Lua (e, em menor grau,],
 ["juros compostos|juros composto",
- "💰 Juros compostos incidem sobre o capital e também sobre os juros já acumulados: M = C × (1 + i)^t, onde C é o capital, i a taxa por período e t o número de períodos."],
+ "💰 Juros compostos incidem sobre o capital e também do Sol) sobre os oceanos. Há duas marés altas e duas baixas por dia, em média."],
+["diferenca clima tempo| sobre os juros já acumulados: M = C × (1 + i)^t, onde C é o capital, i a taxa por período eclima tempo diferenca|clima",
+ "🌦️ Tempo é a condição da atmosfera em um momento e lugar (hoje está chovendo). t o número de períodos."],
 ["inflacao",
- "📈 Inflação é o aumento generalizado e contínuo dos preços, que reduz o poder de compra da moeda. No Brasil é medida principalmente pelo IPCA (IBGE)."],
+ "📈 Inflação é o aumento generalizado e contínu Clima é o padrão médio do tempo ao longo de muitos anos, geralmente 30 (a região é de climao dos preços, que reduz o poder de compra da moeda. No Brasil é medida principalmente pelo IPCA (IBGE tropical)."],
+["camada ozonio|ozonio",
+ "🌍 A camada de ozônio fica na estratosfera e)."],
 ["pib|produto interno bruto",
  "📊 PIB (Produto Interno Bruto) é a soma de todos os bens e serviços finais produzidos em um país em um período. É o principal indicador do tamanho da economia."],
-["selic|taxa selic",
- "🏦 A Selic é a taxa básica de juros da economia brasileira, definida pelo Copom do Banco Central. Serve de referência para os demais juros. (O valor muda a cada reunião: consulte o site do Banco Central para o número atual.)"],
+["selic|taxa absorve grande parte da radiação ultravioleta do Sol. Os gases CFC a estavam destruindo; o Protocolo de selic",
+ "🏦 A Selic é a taxa básica de juros da economia brasileira, definida pelo Copom do Montreal (1987) os baniu, e a camada está se recuperando."],
+["coleta seletiva|reciclagem| Banco Central. Serve de referência para os demais juros."],
 ["estados brasil|quantos estados brasil|estados brasileiros",
- "🇧🇷 O Brasil tem 26 estados e 1 Distrito Federal (Brasília), somando 27 unidades federativas."],
+ "cores lixeiras|cores reciclagem|coleta seletiva cores|cores coleta seletiva",
+ "♻️ Cores da coleta seletiva (Con🇧🇷 O Brasil tem 26 estados e 1 Distrito Federal (Brasília), somando 27 unidadesama 275): azul = papel; vermelho = plástico; verde = vidro; amarelo = metal; preto = madeira; mar federativas."],
 ["regioes brasil|regioes brasileiras|quantas regioes brasil",
- "🇧🇷 O Brasil tem 5 regiões: Norte, Nordeste, Centro-Oeste, Sudeste e Sul."],
-["populacao brasil|habitantes brasil|quantos habitantes brasil",
- "🇧🇷 Segundo o Censo 2022 do IBGE, o Brasil tinha cerca de 203 milhões de habitantes."],
-["independencia brasil|7 setembro|sete setembro",
- "🇧🇷 A Independência do Brasil foi proclamada por Dom Pedro I em 7 de setembro de 1822, às margens do riacho do Ipiranga (São Paulo)."],
+ "🇧🇷 O Brasil tem rom = orgânico; cinza = não reciclável ou misturado; laranja = resíduos perigosos."],
+["energia renovavel|energ5 regiões: Norte, Nordeste, Centro-Oeste, Sudeste e Sul."],
+["populacao brasil|ias renovaveis|fontes energia renovavel",
+ "⚡ Energias renováveis vêm de fontes que se regeneram: solar, ehabitantes brasil|quantos habitantes brasil",
+ "🇧🇷 Segundo o Censo 2022 do IBólica (vento), hidrelétrica, biomassa, geotérmica e das marés. As não renováveisGE, o Brasil tinha cerca de 203 milhões de habitantes."],
+["independencia brasil|7 setembro são petróleo, carvão e gás natural (e urânio, nuclear)."],
+["cadeia alimentar|cadeia trofica",|sete setembro",
+ "🇧🇷 A Independência do Brasil foi proclamada por Dom Pedro I em 7 de
+ "🌿 Cadeia alimentar mostra quem come quem: produtores (plantas, fazem fotossíntese) → consumidores primários (herbívor setembro de 1822, às margens do riacho do Ipiranga (São Paulo)."],
 ["proclamacao republica|republica brasil|15 novembro",
- "🇧🇷 A República foi proclamada em 15 de novembro de 1889, liderada pelo marechal Deodoro da Fonseca, que se tornou o primeiro presidente."],
-["descobrimento brasil|descobriu brasil|chegada portugueses brasil|pedro alvares cabral",
- "🇧🇷 A esquadra de Pedro Álvares Cabral chegou ao território hoje brasileiro em 22 de abril de 1500 (Porto Seguro, Bahia)."],
-["lei aurea|abolicao escravidao brasil|abolicao",
- "🇧🇷 A Lei Áurea, assinada pela princesa Isabel em 13 de maio de 1888, aboliu a escravidão no Brasil."],
-["maior pais|maior pais mundo",
+ "🇧🇷 A República foi proclamada em 15 de novembro deos) → secundários e terciários (carnívoros), com decompositores (fungos, bactérias) reciclando a matéria 1889, liderada pelo marechal Deodoro da Fonseca, que se tornou o primeiro presidente."], no final."],
+["biomas brasileiros|biomas brasil|biomas do brasil|bioma",
+ "🌳
+["descobrimento brasil|descobriu brasil|chegada portugueses brasil|pedro alvares cab O Brasil tem 6 biomas: Amazônia, Cerrado, Mata Atlântica, Caatinga, Pampa e Pantanal."],
+["ral",
+ "🇧🇷 A esquadra de Pedro Álvares Cabral chegou ao território hoje brasileiro em 22 de abril de 1sistema digestorio|digestao|sistema digestivo",
+ "🫃 Digestão: boca (mastigação e saliva) → esô500 (Porto Seguro, Bahia)."],
+["lei aurea|abolicao escravidao brasil|fago → estômago (suco gástrico) → intestino delgado (principal absorção dos nutrientes) → intestino grosso (absorabolicao",
+ "🇧🇷 A Lei Áurea, assinada pela princesa Isabel em 13 de maio deve água) → eliminação. Fígado, vesícula e pâncreas ajudam com bile e enzimas 1888, aboliu a escravidão no Brasil."],
+["maior pais|maior pais mundo."],
+["sistema respiratorio|respiracao pulmoes|sistema respiratório",
+ "🫁 O ar",
  "🌍 O maior país do mundo em área é a Rússia (~17,1 milhões de km²). O Brasil é o 5º maior."],
 ["menor pais|menor pais mundo",
- "🌍 O menor país do mundo é o Vaticano (~0,44 km²)."],
-["pais mais populoso|mais populoso pais|pais maior populacao",
- "🌍 A Índia é o país mais populoso (superou a China em 2023), com cerca de 1,4 bilhão de habitantes."],
-["populacao mundial|habitantes mundo|populacao mundo|quantas pessoas mundo",
- "🌍 A população mundial é de cerca de 8,1 bilhões de pessoas (estimativa da ONU para 2024). O número cresce todo ano."],
-["maior oceano|oceano maior",
- "🌊 O maior oceano é o Pacífico: cerca de 165 milhões de km², aproximadamente um terço da superfície da Terra."],
+ "🌍 O entra pelo nariz ou boca, passa pela faringe, laringe, traqueia e brônquios até os alvéolos nos menor país do mundo é o Vaticano (~0,44 km²)."],
+["pais mais populoso|mais populoso pais|pais maior populacao pulmões, onde o oxigênio passa para o sangue e o gás carbônico sai. O diafragma é",
+ "🌍 A Índia é o país mais populoso (superou a China em 2023 o principal músculo da respiração."],
+["sistema circulatorio|circulacao sangue|circulacao sanguinea",), com cerca de 1,4 bilhão de habitantes."],
+["populacao mundial|habitantes mundo|
+ "❤️ O sistema circulatório leva sangue pelo corpo: coração (bomba), artérias (saem do coraçãopopulacao mundo|quantas pessoas mundo",
+ "🌍 A população mundial é de cerca de 8,1 bilhões), veias (voltam) e capilares (trocas com os tecidos). A pequena circulação vai do coração aos pulmões e de pessoas (estimativa da ONU para 2024). O número cresce todo ano."],
+["maior volta; a grande circulação vai ao resto do corpo."],
+["vacina|vacinas|como funciona vacina", oceano|oceano maior",
+ "🌊 O maior oceano é o Pacífico: cerca de 165 milhões de km², aproximadamente um ter
+ "💉 A vacina apresenta ao sistema imunológico uma versão inofensiva ou um pedaço do agente causador (antígeno). Oço da superfície da Terra."],
 ["fossa marianas|ponto mais profundo oceano|lugar mais fundo mar",
- "🌊 O ponto mais profundo dos oceanos é a Fossa das Marianas (no Oceano Pacífico), com quase 11 km de profundidade (~10.984 m)."],
+ "🌊 O corpo cria anticorpos e células de memória e, se encontrar o agente de verdade, responde mais rápido e com mais força."],
+["difer ponto mais profundo dos oceanos é a Fossa das Marianas (no Oceano Pacífico), com quase 11enca virus bacteria|virus bacteria|bacteria virus",
+ "🦠 Bactéria é uma célula viva, que vive e se reproduz so km de profundidade (~10.984 m)."],
 ["continentes|quantos continentes",
- "🌍 Depende do modelo: 6 continentes (África, América, Antártida, Ásia, Europa e Oceania) ou 7, quando América do Norte e América do Sul são contadas separadas."],
+ "🌍 Depende do modelo:zinha; muitas são úteis, e as infecções bacterianas são tratadas com antibióticos. Vírus não é célula, precisa invadir uma célula hospedeira para se multiplicar; antibióticos não funcionam contra vírus."],
+
+/* ---------- HISTÓRIA E GE 6 continentes (África, América, Antártida, Ásia, Europa e Oceania) ou 7, quando América do Norte e América do Sul são contadas separadas."],
 ["rio mais longo|maior rio|rio maior|rio mais extenso",
- "🌊 O Nilo (~6.650 km) e o Amazonas (~6.400 km) disputam o título de rio mais longo, dependendo de como se mede a nascente. O Amazonas é o maior em volume de água e o maior da Terra nesse critério."],
-["maior montanha|montanha mais alta|monte everest|everest",
+OGRAFIA ---------- */
+["ditadura militar brasil|golpe 1964|ditadura militar",
+ "🌊 O Nilo (~6.650 km) e o Amazonas (~6.400 km) "📜 A ditadura militar brasileira durou de 1964 (golpe de 31 de março disputam o título de rio mais longo, dependendo de como se mede a nascente. O Amazonas é o maior em/1º de abril) a 1985, quando José Sarney assumiu após a eleição indireta de Tancredo Neves volume de água e o maior da Terra nesse critério."],
+["maior montanha|montanha mais alta|monte everest|ever. Foi marcada por censura, perseguição política e atos institucionais, como o AI-5 (1968).est",
  "🏔️ O Monte Everest (Himalaia, entre Nepal e Tibete) é a montanha mais alta acima do nível do mar: 8.849 m."],
-["maior deserto|deserto maior",
- "🏜️ O maior deserto do mundo é a Antártida (~14 milhões de km², deserto polar). O maior deserto quente é o Saara (~9 milhões de km²)."],
-["amazonia|floresta amazonica|floresta amazonia",
- "🌳 A Amazônia é a maior floresta tropical do mundo, com cerca de 5,5 milhões de km² de floresta (a bacia tem ~6,9 milhões). Aproximadamente 60% fica no Brasil."],
+["maior deserto|deserto maior","],
+["era vargas|getulio vargas",
+ "📜 Getúlio Vargas governou o Brasil de
+ "🏜️ O maior deserto do mundo é a Antártida (~14 milhões de km², deserto 1930 a 1945 (Governo Provisório, Estado Novo a partir de polar). O maior deserto quente é o Saara (~9 milhões de km²)."],
+["amazonia| 1937) e voltou eleito pelo voto de 1951 a 1954floresta amazonica|floresta amazonia",
+ "🌳 A Amazônia é a maior floresta tropical do mundo, com, quando morreu. Criou a CLT (1943) e a Petrobras (1953)."],
+["inconfidencia cerca de 5,5 milhões de km² de floresta (a bacia tem ~6,9 milhões). Aproximadamente 60 mineira|tiradentes",
+ "📜 A Inconfidência Mineira (1789) foi uma conspiração em Minas Gerais contra% fica no Brasil."],
 ["segunda guerra mundial|segunda guerra|ii guerra mundial",
- "📜 A Segunda Guerra Mundial durou de 1939 (invasão da Polônia pela Alemanha, 1º de setembro) a 1945 (rendição alemã em maio e japonesa em 2 de setembro). Opôs os Aliados ao Eixo (Alemanha, Itália e Japão)."],
+ "📜 a cobrança de impostos pela Coroa portuguesa. Tiradentes (Joaquim José da Silva Xavier) foi o A Segunda Guerra Mundial durou de 1939 (invasão da Polônia pela Alemanha, 1º único condenado à forca, em 21 de abril de 1792."],
+["constituicao 1988| de setembro) a 1945 (rendição alemã em maio e japonesa em 2 de setembro). Opôs os Aliados aoconstituicao federal|constituicao cidada",
+ "📜 A Constituição Federal vigente no Brasil foi promulgada em 5 de outubro de 198 Eixo (Alemanha, Itália e Japão)."],
 ["primeira guerra mundial|primeira guerra|i guerra mundial",
- "📜 A Primeira Guerra Mundial ocorreu de 1914 a 1918. O estopim foi o assassinato do arquiduque Francisco Ferdinando, em Sarajevo."],
+ "📜 A8, após a ditadura. É chamada de 'Constituição Cidadã' por ampliar direitos e garantias." Primeira Guerra Mundial ocorreu de 1914 a 1918. O estopim foi o assassinato do arquiduque Francisco Ferdinando, em Sarajevo."],
 ["revolucao francesa",
- "📜 A Revolução Francesa começou em 1789 (com a Queda da Bastilha, 14 de julho) e derrubou a monarquia absolutista, trazendo o lema 'Liberdade, Igualdade e Fraternidade'."],
-["muro berlim|queda muro berlim",
- "📜 O Muro de Berlim foi construído em 1961 e caiu em 9 de novembro de 1989. A Alemanha foi reunificada em 3 de outubro de 1990."],
-["homem lua|chegada lua|apollo 11|primeiro homem lua",
- "🚀 Em 20 de julho de 1969 a missão Apollo 11 (NASA) pousou na Lua. Neil Armstrong foi o primeiro a pisar nela, seguido por Buzz Aldrin."],
+ "📜 A Revol],
+["guerra fria",
+ "📜 A Guerra Fria (cerca de 1947ução Francesa começou em 1789 (com a Queda da Bastilha, 14 de julho) e derrubou a monarquia absolutista, trazendo o lema 'Liberdade, Igualdade e Fraternidade'."],
+["m–1991) foi a disputa política, econômica e militar entre Estados Unidos (capitalismo) e União Soviética (socialismo), sem confronto direto entre os dois. Terminou com o fim da URSS em 19uro berlim|queda muro berlim",
+ "📜 O Muro de Berlim foi construído em 1961 e caiu em 9 de novembro de 1989. A Alemanha foi reunificada em 391."],
+["revolucao russa",
+ "📜 A Revolução Russa de 191 de outubro de 1990."],
+["homem lua|chegada lua|apollo 117 teve duas fases: em fevereiro derrubou o czar Nicolau II e em outubro os bolcheviques, liderados por Lên|primeiro homem lua",
+ "🚀 Em 20 de julho de 1969 a missão Apollo 11 (NASA) pousou na Lua. Neil Armstrong foi o primeiro a pisar nela, seguido por Buzzin, tomaram o poder, dando origem à União Soviética (1922)."],
+["onu| Aldrin."],
 ["descoberta america|colombo|cristovao colombo",
- "⛵ Cristóvão Colombo chegou à América em 12 de outubro de 1492, numa expedição financiada pela Espanha, achando que estava chegando às Índias."],
+ "⛵ Cristóvão Colombo chegou à América em 12 de outubro de 1492, numa expedição financiada pela Espanha, achando que estava chegando àsorganizacao nacoes unidas|nacoes unidas",
+ "🌍 A ONU (Organização das Nações Unidas Índias."],
 ["revolucao industrial",
- "🏭 A Revolução Industrial começou na Inglaterra na segunda metade do século XVIII (~1760), com a mecanização da produção têxtil e o uso da máquina a vapor."],
+ "🏭 A Revolução Industrial começou na Inglaterra na segunda metade do) foi fundada em 1945, após a Segunda Guerra, para promover a paz, a cooperação e século XVIII (~1760), com a mecanização da produção têxtil e o uso da máquina a vapor os direitos humanos. Tem sede em Nova York e 193 países-membros."],
+["uniao."],
 ["queda imperio romano|queda roma|fim imperio romano",
- "🏛️ O Império Romano do Ocidente caiu em 476 d.C., quando Odoacro depôs o imperador Rômulo Augústulo. O do Oriente (Bizantino) durou até 1453."],
-["piramides gize|piramide queops|piramides egito",
- "🔺 As pirâmides de Gizé (Egito) foram construídas como tumbas de faraós há cerca de 4.500 anos. A Grande Pirâmide é a de Quéops (~2560 a.C.), com ~139 m de altura atual."],
-["quem inventou aviao|irmaos wright|santos dumont",
- "✈️ Os irmãos Wright realizaram o primeiro voo controlado e motorizado em 1903 (com auxílio de trilho/catapulta), enquanto Alberto Santos Dumont fez em 1906, em Paris, o famoso voo público do 14-Bis decolando por meios próprios."],
+ "🏛️ O Império Romano do Ocidente caiu em europeia|ue",
+ "🌍 A União Europeia é um bloco político e econômico de 27 países ( 476 d.C., quando Odoacro depôs o imperador Rômulo Augústulo.o Reino Unido saiu em 2020, o Brexit). Vários membros usam o euro, e há O do Oriente (Bizantino) durou até 1453."],
+["piramides gize|piramide queops|piramides livre circulação de pessoas e mercadorias."],
+["equador linha|linha equador|linha do equador",
+ "🌍 A linha egito",
+ "🔺 As pirâmides de Gizé (Egito) foram construídas como tumbas de do Equador é o paralelo de latitude 0°, que divide a Terra nos hemisférios Norte e Sul. No Brasil passa por faraós há cerca de 4.500 anos. A Grande Pirâmide é a de Quéops (~25 Amapá, Pará e Amazonas (e Roraima, em um pequeno trecho)."],
+["fusos horarios brasil60 a.C.), com ~139 m de altura atual."],
+["quem inventou aviao|irmaos wright|fuso horario brasil|fusos brasil|fuso horario",
+ "🕐 O Brasil tem 4 fusos horários: UTC−2 (ilhas oceânicas, como Fernando de Noronha), UTC−3 (horário de Brasília), UTC−4 (por exemplo AM, MT|santos dumont",
+ "✈️ Os irmãos Wright realizaram o primeiro voo controlado e motorizado em 1903, enquanto Alberto Santos Dumont fez em 1906, em Paris, o famoso voo público do 14-Bis de, MS, RO, RR) e UTC−5 (Acre e extremo sudoeste do Amazonas)."],
+["maior estado brasil|maior estado|estado maior",
+ "🇧🇷 O maior estado do Brasil em área é o Amazonas (~1,56 milhão decolando por meios próprios."],
 ["quem inventou lampada|thomas edison",
- "💡 Thomas Edison aperfeiçoou e comercializou a lâmpada elétrica incandescente prática em 1879, após vários inventores anteriores (como Humphry Davy e Joseph Swan) desenvolverem protótipos."],
-["quem inventou telefone|graham bell",
- "📞 Alexander Graham Bell patenteou o telefone em 1876 (Antonio Meucci já havia construído protótipos anos antes)."],
-["quem inventou computador|charles babbage|alan turing",
- "💻 Charles Babbage projetou a Máquina Analítica no século XIX (com algoritmos de Ada Lovelace), e Alan Turing formalizou a base da computação moderna nos anos 1930-40."],
-["internet|o que e internet",
- "🌐 Internet é a rede mundial de redes de computadores interligadas, que trocam dados por protocolos como o TCP/IP. A Web (sites, navegadores, HTTP) é só um dos serviços que rodam nela. Sua origem é a ARPANET, nos anos 1960-70."],
-["inteligencia artificial",
- "🤖 Inteligência artificial é a área da computação que cria sistemas capazes de executar tarefas que normalmente exigem inteligência humana, como entender linguagem, reconhecer imagens ou tomar decisões. Hoje a maior parte vem de aprendizado de máquina, em que o sistema aprende padrões a partir de dados."],
+ "💡 Thomas Edison km²). O menor é Sergipe. O mais populoso é São Paulo."],
+["cidade mais populosa brasil|maior cidade brasil|maior aperfeiçoou e comercializou a lâmpada elétrica incandescente prática em 1879."],
+["quem inventou telefone| cidade",
+ "🇧🇷 A cidade mais populosa do Brasil é São Paulo (cerca de 11,4 milhões de habitantes no Censograham bell",
+ "📞 Alexander Graham Bell patenteou o telefone em 1876."],
+["quem inventou computador| 2022)."],
+["ponto mais alto brasil|pico neblina|montanha mais alta brasil",
+ "🇧charles babbage|alan turing",
+ "💻 Charles Babbage projetou a Máquina Analítica no século XIX (🇷 O ponto mais alto do Brasil é o Pico da Neblina (Amazonas), com cerca de 2.995 m."],
+com algoritmos de Ada Lovelace), e Alan Turing formalizou a base da computação moderna nos anos 1930-40."],
+["moeda brasil|real moeda|plano real",
+ "🇧🇷 A moeda do Brasil é o real (R$), em vigor["internet|o que e internet",
+ "🌐 Internet é a rede mundial de redes de computadores interligadas, que trocam dados por protocolos desde julho de 1994 com o Plano Real, que ajudou a controlar a hiperinflação."], como o TCP/IP. A Web (sites, navegadores, HTTP) é só um dos serviços que rodam nela."],
+["
+["lingua mais falada|idioma mais falado|idiomas mais falados",
+ "🗣️ Em número total de falantes,inteligencia artificial",
+ "🤖 Inteligência artificial é a área da computação que cria sistemas capazes de executar tarefas que normalmente exigem inteligência humana, o inglês é o mais falado do mundo; em falantes nativos, o mandarim lidera. O português é como entender linguagem, reconhecer imagens ou tomar decisões."],
 ["chatgpt|chat gpt",
- "🤖 ChatGPT é um assistente conversacional de IA da OpenAI, baseado em grandes modelos de linguagem (família GPT), lançado em novembro de 2022."],
-["claude",
- "🤖 Claude é uma família de assistentes de IA desenvolvida pela Anthropic, baseada em grandes modelos de linguagem."],
+ "🤖 ChatGPT é um assist falado por cerca de 260 milhões de pessoas."],
+
+["roblox|script roblox|scripts roblox|script de roblox|luaente conversacional de IA da OpenAI, baseado em grandes modelos de linguagem (família GPT)."],
+["claude roblox|luau|lua|programar roblox|criar jogo roblox|script roblox ios|roblox ios|script roblox android|script roblox celular",
+ "🤖 Claude é uma família de assistentes de IA desenvolvida pela Anthropic, baseada em grandes modelos de linguagem."],|script roblox pc",
+ "🎮 Os scripts do Roblox usam a linguagem Luau (parente do Lua)
 ["gemini|gemini google",
  "🤖 Gemini é a família de modelos de IA desenvolvida pelo Google."],
-["llm|modelo linguagem|grande modelo linguagem|modelos linguagem",
- "🤖 LLM (grande modelo de linguagem) é uma rede neural treinada com enormes quantidades de texto para prever a próxima palavra. Dessa tarefa simples surge a capacidade de conversar, resumir, traduzir e programar."],
+ e são criados no Roblox Studio, que roda em PC ou Mac. No iPhone/iOS você joga e["llm|modelo linguagem|grande modelo linguagem|modelos linguagem",
+ "🤖 LLM (grande modelo de linguagem) é uma rede neural treinada com testa, mas não cria. Aqui vão 3 exemplos prontos:\n\n1) Peça que derruba o jogador ao encostar (Script dentro da Part):\n\nlocal parte = script.Parent\nparte.Touched:Connect(function(toque)\ enormes quantidades de texto para prever a próxima palavra e conversar, resumir, traduzir e programar."],
 ["bit|byte|quantos bits byte",
- "💾 Bit é a menor unidade de informação (0 ou 1). 1 byte = 8 bits. 1 KB = 1.000 bytes (ou 1.024 no uso binário, KiB), 1 MB = 1.000 KB, 1 GB = 1.000 MB."],
+ "💾 Bit é a menor unidade de informação (0 ou 1). 1 byten\tlocal humanoide = toque.Parent:FindFirstChild(\"Humanoid\")\n\tif humanoide then\n\t\th = 8 bits. 1 KB = 1.000 bytes (ou 1.024umanoide.Health = 0\n\tend\nend)\n\n2) Placar de moedas no uso binário, KiB), 1 MB = 1.000 KB, 1 GB = (Script em ServerScriptService):\n\ngame.Players.PlayerAdded:Connect(function(jogador)\n\tlocal pasta = Instance. 1.000 MB."],
 ["sistema binario|binario|numero binario",
- "💻 O sistema binário usa só 0 e 1 (base 2). Cada posição vale uma potência de 2: 101₂ = 1×4 + 0×2 + 1×1 = 5. Computadores usam binário porque circuitos têm dois estados (ligado/desligado)."],
-["cpu|processador",
- "💻 CPU (processador) é o 'cérebro' do computador: executa as instruções dos programas, fazendo cálculos e controlando as outras partes."],
+ "💻 O sistema binário usa só 0new(\"Folder\")\n\tpasta.Name = \"leaderstats\"\n\tpasta.Parent = jogador e 1 (base 2). Cada posição vale uma potência de 2: 101₂ = \n\tlocal moedas = Instance.new(\"IntValue\")\n\tmoedas.Name = \"1×4 + 0×2 + 1×1 = 5."],
+["cpu|processador",Moedas\"\n\tmoedas.Value = 0\n\tmoedas.Parent = pasta\
+ "💻 CPU (processador) é o 'cérebro' do computador: executa as instruções dos programas,nend)\n\n3) Botão de tela (LocalScript dentro de um TextButton):\n\n fazendo cálculos e controlando as outras partes."],
 ["ram|memoria ram",
- "💻 RAM é a memória de trabalho do computador: rápida e temporária (apaga ao desligar), guarda o que está em uso agora. O armazenamento (SSD/HD) guarda os arquivos de forma permanente."],
-["sistema operacional",
- "💻 Sistema operacional é o programa que gerencia o hardware e permite rodar os outros programas. Exemplos: Windows, macOS, Linux, Android e iOS."],
-["http|https",
- "🔒 HTTP é o protocolo usado pelos navegadores para pedir e receber páginas. HTTPS é o mesmo protocolo com criptografia (TLS), que protege os dados no caminho."],
-["dns|dominio",
- "🌐 DNS é o sistema que traduz nomes (como exemplo.com) em endereços IP numéricos, a 'lista telefônica' da internet. Domínio é o nome registrado de um site."],
-["alfabeto portugues|quantas letras alfabeto|letras alfabeto",
- "🔤 O alfabeto da língua portuguesa tem 26 letras (K, W e Y foram oficializadas pelo Acordo Ortográfico, em vigor no Brasil desde 2009)."],
-["notas musicais|notas musica",
- "🎵 As sete notas musicais são: dó, ré, mi, fá, sol, lá, si."],
-["ano bissexto|anos bissextos|quantos dias ano",
- "📅 Um ano comum tem 365 dias e o bissexto tem 366 (fevereiro ganha o dia 29). São bissextos os anos divisíveis por 4, exceto os divisíveis por 100 que não sejam também por 400 (2000 foi bissexto; 1900 não)."],
-["milha km|quantos km milha|1 milha|milha em km",
- "📏 1 milha ≈ 1,609 km. Para converter km em milhas, divida por 1,609."],
-["celsius fahrenheit|converter celsius fahrenheit|fahrenheit celsius",
- "🌡️ °F = °C × 9/5 + 32. E °C = (°F − 32) × 5/9. Exemplo: 25 °C = 77 °F."]
+ "💻 RAM é a memórialocal botao = script.Parent\nbotao.MouseButton1Click:Connect(function()\n\tbotao de trabalho do computador: rápida e temporária (apaga ao desligar), guarda o que está em uso agora.".Text = \"Clicou!\"\nend)\n\nObs.: eu só ajudo com scripts para criar jogos no Roblox Studio. Scripts de trapaça (executores) violam as regras do Roblox e podem banir sua conta."]
 ];
-
-FATOS.push(...MAIS);
-
-const BASE = FATOS.map(([k, r]) => ({
-  frases: k.split("|").map(f => new Set(toks(f))).filter(s => s.size),
-  r
-}));
-
-const CAPITAIS = {
-  "brasil": ["Brasil", "Brasília"], "franca": ["França", "Paris"], "alemanha": ["Alemanha", "Berlim"],
-  "italia": ["Itália", "Roma"], "espanha": ["Espanha", "Madri"], "portugal": ["Portugal", "Lisboa"],
-  "argentina": ["Argentina", "Buenos Aires"], "chile": ["Chile", "Santiago"], "uruguai": ["Uruguai", "Montevidéu"],
-  "paraguai": ["Paraguai", "Assunção"], "peru": ["Peru", "Lima"], "colombia": ["Colômbia", "Bogotá"],
-  "venezuela": ["Venezuela", "Caracas"], "equador": ["Equador", "Quito"], "mexico": ["México", "Cidade do México"],
-  "estados unidos": ["Estados Unidos", "Washington, D.C."], "eua": ["Estados Unidos", "Washington, D.C."],
-  "canada": ["Canadá", "Ottawa"], "japao": ["Japão", "Tóquio"], "china": ["China", "Pequim"],
-  "india": ["Índia", "Nova Délhi"], "russia": ["Rússia", "Moscou"], "reino unido": ["Reino Unido", "Londres"],
-  "inglaterra": ["Inglaterra", "Londres"], "australia": ["Austrália", "Camberra"], "egito": ["Egito", "Cairo"],
-  "turquia": ["Turquia", "Ancara"], "coreia do sul": ["Coreia do Sul", "Seul"], "suica": ["Suíça", "Berna"],
-  "belgica": ["Bélgica", "Bruxelas"], "grecia": ["Grécia", "Atenas"], "suecia": ["Suécia", "Estocolmo"],
-  "noruega": ["Noruega", "Oslo"], "angola": ["Angola", "Luanda"], "mocambique": ["Moçambique", "Maputo"],
-  "nigeria": ["Nigéria", "Abuja"], "arabia saudita": ["Arábia Saudita", "Riade"], "ira": ["Irã", "Teerã"],
-  "cuba": ["Cuba", "Havana"], "polonia": ["Polônia", "Varsóvia"], "austria": ["Áustria", "Viena"],
-  "irlanda": ["Irlanda", "Dublin"], "ucrania": ["Ucrânia", "Kiev"], "nova zelandia": ["Nova Zelândia", "Wellington"]
-};
-
-const VOC = new Set(); BASE.forEach(e => e.frases.forEach(f => f.forEach(w => VOC.add(w))));
-function lev(a, b) {
-  let p = Array.from({ length: b.length + 1 }, (_, j) => j);
-  for (let i = 1; i <= a.length; i++) {
-    const c = [i];
-    for (let j = 1; j <= b.length; j++) c[j] = Math.min(p[j] + 1, c[j - 1] + 1, p[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
-    p = c;
-  }
-  return p[b.length];
-}
-function consertar(lista) {
-  return lista.map(w => {
-    if (w.length < 4 || VOC.has(w)) return w;
-    let melhor = null, n = 0;
-    for (const v of VOC) {
-      if (Math.abs(v.length - w.length) > 1 || v.length < 4) continue;
-      if (lev(w, v) <= 1) { melhor = v; n++; }
-    }
-    return n === 1 ? melhor : w;
-  });
-}
-
-function capital(t) {
-  const m = t.match(/^(?:(?:qual|me diga|diga) (?:e )?)?(?:a )?capital (?:d[aeo]s? )?(.+)$/);
-  if (!m) return null;
-  const nome = m[1].replace(/\b(mesmo|mesma|hoje|atual)\b/g, "").trim();
-  const c = CAPITAIS[nome];
-  return c ? "🏙️ Capital — " + c[0] + ": " + c[1].replace(/\.$/, "") + "." : null;
-}
-
-function responder(texto) {
-  const t = norm(texto).replace(/\bbash\b/g, "bach");
-  if (!t) return null;
-  const cap = capital(t);
-  if (cap) return cap;
-  const q = new Set(consertar(toks(texto)));
-  if (!q.size) return null;
-  let melhor = null, nota = 0;
-  for (const e of BASE) {
-    for (const f of e.frases) {
-      if (f.size === 1 && [...f][0].length < 4) continue;
-      let tudo = true;
-      for (const w of f) if (!q.has(w)) { tudo = false; break; }
-      if (!tudo) continue;
-      const cob = f.size / q.size;
-      if (cob < 0.75) continue;
-      const n = cob + f.size * 0.01;
-      if (n > nota) { nota = n; melhor = e; }
-    }
-  }
-  return melhor ? melhor.r : null;
-}
-
-const SOBRE = {
-  nome: "Meu nome é BACH AI 🧠.",
-  quem: "Sou a BACH AI 🧠, sua assistente inteligente própria! Converso, guardo memórias, traduzo idiomas, pesquiso na web, analiso textos, códigos, fotos e vídeos, escrevo rascunhos, calculo e jogo com você.",
-  servir: "Eu sirvo para:\n• conversar, lembrar do que você me conta e aprender respostas novas (ensine: pergunta => resposta)\n• atuar em 10 modos (Automático, Raciocínio, Pesquisa, Aprendizado, Programação, Matemática, Imagens, Voz, Criatividade, Documentos)\n• recomendar filmes por gênero, séries, animes e músicas\n• escrever textos, e-mails, planos de estudo e comparações\n• traduzir palavras e pesquisar na internet citando as fontes\n• ler textos, códigos, links, fotos e vídeos.",
-  como: "Funciono de forma integrada, juntando memória local, compreensão natural, ferramentas próprias (cálculo, código, dicionário, OCR de imagens) e pesquisa online automática quando preciso de informação atual.",
-  ia: "Sou a BACH AI — uma inteligência própria desenvolvida especialmente no seu projeto, privada, rápida e que aprende com o que você ensina.",
-  erro: "Você tem razão em cobrar. Quando alguma resposta sair fora do alvo, você pode reformular com mais contexto ou me ensinar a resposta certa com: corrija: pergunta => resposta certa.",
-  limite: "Ainda estou evoluindo: em vídeos e fotos sem texto escrito eu descrevo cores, dimensões e iluminação (e leio textos escritos em prints!), mas não identifico rostos nem executo código diretamente.",
-  melhor: "Meu diferencial é ser 100% sua, rodar leve direto no seu aparelho, guardar suas preferências e combinar ferramentas práticas com pesquisa na internet na hora."
-};
-
-function sobreMim(texto) {
-  const t = norm(texto).replace(/\bbash\b/g, "bach").replace(/\b(oq|oqe|oque)\b/g, "o que").replace(/\bvc\b/g, "voce").replace(/\bpra\b/g, "para");
-  const eu = "(?:voce|a bach|bach|a bach ai|bach ai)";
-  if (/\b(qual|como) (e )?(o )?(seu nome|voce se chama)\b/.test(t) || /^como voce se chama$/.test(t)) return SOBRE.nome;
-  if (new RegExp("\\b(quem|o que) (e|eh) " + eu + "\\b").test(t) || /^quem e voce/.test(t)) return SOBRE.quem;
-  if ((/\b(voce|bach)\b/.test(t) && /\b(serve|servir|presta|funciona|utilidade)\b/.test(t)) ||
-      /\b(qual|quais) (e )?(a |as )?(sua|suas) (funcao|funcoes|utilidade|objetivo|proposito|capacidades)\b/.test(t) ||
-      /\bpara que voce foi (criada|feita|criado|feito)\b/.test(t)) return SOBRE.servir;
-  if (new RegExp("\\bcomo " + eu + " (funciona|pensa|aprende|responde|e feita)\\b").test(t) ||
-      /\bvoce (usa|roda|funciona com|e feita com) (ia|inteligencia artificial|internet|api)\b/.test(t)) return SOBRE.como;
-  if (/\bvoce e (uma |um )?(ia|inteligencia artificial|robo|chatgpt|humana|gente|pessoa|real)\b/.test(t)) return SOBRE.ia;
-  if (/\bvoce (esta|ta|anda|so|vive|sempre|muito|ainda) (errando|errada|falhando|dando errado|entendendo)\b/.test(t) ||
-      /\b(errando voce|falou errado|voce errou|voce esta errando|ta errando)\b/.test(t) ||
-      /\b(respostas?) (erradas?|diferentes|trocadas)\b/.test(t) ||
-      /\bpor que voce nao entende\b/.test(t) || /\bvoce nao (entende|entendeu)\b/.test(t)) return SOBRE.erro;
-  if (/\b(suas|quais (sao )?(as )?(suas )?) ?(limitacoes|limites)\b/.test(t) || /\bvoce nao (consegue|sabe) tudo\b/.test(t)) return SOBRE.limite;
-  if (/\bvoce e (melhor|igual|parecida?) (que|do|de|ao|com) (o )?(chatgpt|claude|gemini)\b/.test(t) ||
-      /\b(melhor|igual) (que|do|de|ao) (o )?(chatgpt|claude|gemini)\b.*\bvoce\b/.test(t)) return SOBRE.melhor;
-  return null;
-}
-
-const semEmoji = s => String(s).replace(/^[^\p{L}\p{N}"“(]+/u, "").trim();
-const maiuscula = s => s.charAt(0).toUpperCase() + s.slice(1);
-const corpo = t => String(t || "").split(/\n\s*(?:Fontes|🔍|ℹ️|💾|🚫)/)[0].trim();
-const dividirFrases = str => String(str || "").replace(/([.!?])\s+/g, "$1\n").split("\n").map(x => x.trim()).filter(Boolean);
-
-function enumerar(texto) {
-  const base = corpo(texto);
-  if (!base) return null;
-  const plano = base.replace(/\s+/g, " ");
-  const m = plano.match(/([^.:!?]{0,200}):\s*([^.!?]+?)[.!?](?:\s|$)/);
-  if (m) {
-    const itens = m[2].split(/\s*,\s*|\s+e\s+/).map(x => x.trim()).filter(x => x && x.length < 60);
-    if (itens.length >= 3) return "🔢 " + semEmoji(m[1]) + ":\n" + itens.map((x, i) => (i + 1) + ". " + maiuscula(x)).join("\n");
-  }
-  const linhas = base.split("\n").map(l => l.replace(/^[•\-*]\s*|^\d+[.)]\s*/, "").replace(/\s*\[\d+\]/g, "").trim())
-    .filter(l => l.length > 25 && !/^(Além disso|Fontes|Sobre|Pesquisei|Aqui está)/.test(l));
-  const fr = (linhas.length >= 2 ? linhas : dividirFrases(plano).map(semEmoji).filter(l => l.length > 25)).slice(0, 12);
-  return fr.length >= 2 ? "🔢 Em numeração:\n" + fr.map((x, i) => (i + 1) + ". " + x).join("\n") : null;
-}
-
-function resumir(texto) {
-  const base = corpo(texto).replace(/\s*\[\d+\]/g, "").replace(/\s+/g, " ");
-  const fr = dividirFrases(base).map(semEmoji).filter(s => s.length > 25);
-  return fr.length ? "📝 Resumindo: " + fr.slice(0, 2).join(" ") : null;
-}
-
-const sobreVoce = texto => /\b(voce|vc|bach|bash)\b/.test(norm(texto));
-
-export const Fatos = { responder, sobreMim, sobreVoce, enumerar, resumir, total: FATOS.length };
