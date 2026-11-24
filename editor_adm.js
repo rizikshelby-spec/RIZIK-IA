@@ -1,6 +1,6 @@
-/* BACH AI 4.6 — EDITOR ADM & CENTRAL /ajuda
-   Permite trocar ou criar módulos direto pelo chat no modo ADM (via GitHub API opcional)
-   e lista todos os comandos com / em /ajuda. */
+/* BACH AI 4.7 — EDITOR ADM, PACOTE .TXT (/tudotxt) & CENTRAL /ajuda
+   Permite trocar/criar módulos direto pelo chat, exportar todos os 35 módulos
+   alinhados com extensão .txt no final (/tudotxt) e listar todos os comandos (/ajuda). */
 
 const K_GH = "gh_adm_token_v1";
 
@@ -25,6 +25,10 @@ export const MODULOS_SITE = [
   "autoguard.js",
   "registry.js",
   "utilidades.js",
+  "conversor_texto.js",
+  "saude_bemestar.js",
+  "estudos.js",
+  "dev_ferramentas.js",
   "intelligence.js",
   "personality.js",
   "creativity.js",
@@ -38,7 +42,7 @@ export const MODULOS_SITE = [
   "llm.js"
 ];
 
-let sessao = null; // { passo: "escolher"|"nome_modulo"|"nome_arquivo"|"codigo", modulo: "", arquivo: "" }
+let sessao = null;
 
 function getGH() {
   try {
@@ -62,6 +66,81 @@ function resetar() {
 }
 
 const ativo = isAdm => Boolean(isAdm && sessao);
+const paraTxt = nome => String(nome || "").replace(/\.(js|html)$/i, "") + ".txt";
+const pad = (v, n) => String(v).padEnd(n);
+
+async function gerarPacoteTxt(passo = () => {}) {
+  const indice = [];
+  const blocos = [];
+  let lidos = 0;
+
+  for (let i = 0; i < MODULOS_SITE.length; i++) {
+    const arq = MODULOS_SITE[i];
+    const arqTxt = paraTxt(arq);
+    passo("📦 Lendo (" + (i + 1) + "/" + MODULOS_SITE.length + "): " + arq + " → " + arqTxt);
+
+    let codigo = null;
+    try {
+      const r = await fetch("./" + arq + "?v=" + Date.now());
+      if (r.ok) codigo = await r.text();
+    } catch {}
+
+    if (codigo === null && arq === "index.html") {
+      codigo = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+    }
+
+    const ok = codigo !== null;
+    if (ok) lidos++;
+    const linhas = ok ? codigo.split("\n").length : 0;
+    const kb = ok ? +(new Blob([codigo]).size / 1024).toFixed(1) + " KB" : "FALHOU";
+
+    indice.push(
+      pad((i + 1) + ".", 4) +
+      pad(arq, 24) + " -> " +
+      pad(arqTxt, 24) +
+      pad(ok ? linhas + " linhas" : "NÃO LIDO", 14) +
+      kb
+    );
+
+    if (ok) {
+      blocos.push(
+        "--- START OF FILE " + arqTxt + " ---\n\n" +
+        codigo.trimEnd() + "\n\n" +
+        "--- END OF FILE " + arqTxt + " ---"
+      );
+    } else {
+      blocos.push(
+        "--- START OF FILE " + arqTxt + " ---\n" +
+        "[AVISO: " + arq + " não encontrado neste endereço]\n" +
+        "--- END OF FILE " + arqTxt + " ---"
+      );
+    }
+  }
+
+  const header =
+    "====================================================================================\n" +
+    "BACH AI 4.7 — TODOS OS MÓDULOS E CÓDIGOS ALINHADOS EM .TXT (MODO ADM)\n" +
+    "Gerado em: " + new Date().toLocaleString("pt-BR") + "\n" +
+    "Módulos lidos: " + lidos + " de " + MODULOS_SITE.length + "\n" +
+    "====================================================================================\n\n" +
+    pad("N°", 4) + pad("MÓDULO ORIGINAL", 24) + "    " + pad("ARQUIVO FINAL .TXT", 24) + pad("LINHAS", 14) + "KB\n" +
+    "-".repeat(86) + "\n" +
+    indice.join("\n") + "\n" +
+    "-".repeat(86) + "\n\n";
+
+  const conteudo = header + blocos.join("\n\n");
+  const kbTotal = +(new Blob([conteudo]).size / 1024).toFixed(1);
+  const dataStr = new Date().toISOString().slice(0, 10);
+
+  return {
+    nome: "bach-todos-modulos-" + dataStr + ".txt",
+    conteudo,
+    indice: indice.join("\n"),
+    lidos,
+    total: MODULOS_SITE.length,
+    kb: kbTotal
+  };
+}
 
 function menuLista() {
   const gh = getGH();
@@ -156,8 +235,27 @@ function comandoConfig(raw, isAdm) {
   return null;
 }
 
+function ehPedidoTudoTxt(raw) {
+  const t = String(raw || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return /^\/(tudotxt|pacotetotxt|pacotetxts?|modulos?txt|codigostxt)\b/.test(t) ||
+    (/\b(todos|tudo)\b/.test(t) && /\b(modulos?|codigos?|arquivos?)\b/.test(t) && /\btxt\b/.test(t));
+}
+
 async function processar(raw, isAdm, passo = () => {}) {
   const t = String(raw || "").trim();
+
+  if (ehPedidoTudoTxt(t)) {
+    if (!isAdm) return { texto: "🔒 O comando `/tudotxt` é exclusivo do modo administrador." };
+    const pac = await gerarPacoteTxt(passo);
+    return {
+      texto: "📦 **PACOTE COMPLETO EM `.TXT` PRONTO (" + pac.lidos + "/" + pac.total + " módulos • " + pac.kb + " KB)!**\n\n" +
+        "Todos os nomes terminam em **`.txt`** e estão alinhados com `--- START OF FILE nome.txt ---`.\n\n" +
+        "```txt\n" + pac.indice + "\n```\n\n" +
+        "👇 Toque em **📋 Copiar** ou **⬇️ Baixar** no cartão abaixo para pegar tudo de uma vez!",
+      arquivo: pac.nome,
+      codigo: pac.conteudo
+    };
+  }
 
   if (/^\/(editar|trocareditor|editarmodulo)\b/i.test(t)) {
     if (!isAdm) return { texto: "🔒 O comando `/editar` é exclusivo do modo administrador." };
@@ -175,7 +273,7 @@ async function processar(raw, isAdm, passo = () => {}) {
   if (sessao.passo === "escolher") {
     if (t === "0") {
       sessao.passo = "nome_modulo";
-      return { texto: "🆕 **Criar novo módulo:**\nQual será o **nome do módulo**? (Ex.: `Clima Pro` ou `Utilidades Extras`)" };
+      return { texto: "🆕 **Criar novo módulo:**\nQual será o **nome do módulo**? (Ex.: `Agenda`)" };
     }
     const num = parseInt(t, 10);
     let arq = (!isNaN(num) && num >= 1 && num <= MODULOS_SITE.length) ? MODULOS_SITE[num - 1] : null;
@@ -268,25 +366,38 @@ function ajudaComandos(isAdm) {
     "• `/cpf 000.000.000-00` — valida dígitos matemáticos\n" +
     "• `/contar texto` — conta palavras, letras e tempo de leitura\n" +
     "• `/golpe mensagem` — analisa sinais de golpe/link suspeito\n\n" +
+    "🔤 **Conversor de Texto & Links:**\n" +
+    "• `/linkzap 11999999999 oi` — cria link direto do WhatsApp\n" +
+    "• `/maiusculo texto` • `/minusculo texto` • `/semacento texto` • `/inverter texto`\n" +
+    "• `/slug titulo` • `/base64 texto` • `/debase64 codigo`\n\n" +
+    "🩺 **Saúde & Bem-Estar (Educacional):**\n" +
+    "• `/imc 70 1.75` • `/agua 70` • `/calorias 70 1.75 25 m leve`\n" +
+    "• `/respiracao` (guia 4-7-8) • `/pausa` (alongamento rápido)\n\n" +
+    "🎓 **Estudos Avançados & Quiz:**\n" +
+    "• `/flashcard [materia]` • `/virar` — cartões de memorização\n" +
+    "• `/simulado [materia]` • `/alt A` — simulado com nota\n" +
+    "• `/tecnica` — métodos de memorização\n" +
+    "• `/quiz` • `/resposta A` — quiz rápido\n\n" +
+    "🛠️ **Ferramentas Dev Web:**\n" +
+    "• `/cor #8266ff` — converte HEX ↔ RGB ↔ HSL\n" +
+    "• `/vidro` — gera CSS de vidro transparente\n" +
+    "• `/meta Titulo | Descricao` — gera tags HTML SEO\n" +
+    "• `/paleta oceano` — paletas prontas de cores\n\n" +
     "📝 **Revisão Fiel, Sílabas & Sites:**\n" +
-    "• `/revisar texto` — aponta cada erro de ortografia/pontuação ou código\n" +
+    "• `/revisar texto` — aponta erros de ortografia/pontuação ou código\n" +
     "• `/silabas palavra` — separa sílabas e classifica\n" +
     "• `/site https://...` — avalia se um site está bom ou ruim\n\n" +
-    "🎮 **Jogos & Criatividade:**\n" +
-    "• `/quiz` • `/resposta A` — quiz educativo\n" +
-    "• `/humor` — piada rápida\n" +
-    "• `/ideia tema` • `/historia tema` • `/personagem tema`\n" +
-    "• `/plano objetivo` • `/automacao tarefa`\n\n" +
-    "📁 **Arquivos, Pastas, Vocabulário & Chat:**\n" +
+    "🎨 **Criatividade, Arquivos & Chat:**\n" +
+    "• `/humor` • `/ideia tema` • `/historia tema` • `/personagem tema`\n" +
+    "• `/plano objetivo` • `/automacao tarefa`\n" +
     "• `/arquivos` • `/abrir nome` • `/buscar palavra` • `/apagar nome`\n" +
     "• `/pasta Nome` • `/pastas` • `/mover arquivo para Pasta`\n" +
-    "• `/palavra giria = significado` • `/palavras`\n" +
-    "• `/profundo assunto` — pesquisa profunda na web\n" +
-    "• `/historico` • `/nova` • `/clear` • `/copiar` • `/auditar`\n" +
-    "• `/exportar` — backup da memória local";
+    "• `/palavra giria = significado` • `/palavras` • `/profundo assunto`\n" +
+    "• `/historico` • `/nova` • `/clear` • `/copiar` • `/auditar` • `/exportar`";
 
   if (isAdm) {
     out += "\n\n👑 **COMANDOS DE ADMINISTRADOR:**\n" +
+      "• `/tudotxt` — gera todos os 35 módulos alinhados com final `.txt` para copiar/baixar\n" +
       "• `/editar` — trocar ou criar módulo/arquivo direto pelo chat\n" +
       "• `/ghconfig usuario/repo TOKEN` • `/ghsair` — publicação direta no GitHub\n" +
       "• `/basedados` • `/importarbase` — backup completo do sistema\n" +
@@ -302,6 +413,8 @@ export const EditorADM = {
   MODULOS_SITE,
   ativo,
   resetar,
+  ehPedidoTudoTxt,
+  gerarPacoteTxt,
   comandoConfig,
   processar,
   ajudaComandos
