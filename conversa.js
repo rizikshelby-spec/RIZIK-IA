@@ -1,6 +1,6 @@
 /* BACH AI 4.9 — Conversa Natural & Personalidade
    Responde saudações (inclusive OiOi), reações, críticas, "apagar", "sumir", "sao erros do oq?",
-   "quer conversar sobre o quê?", "manda N mensagens aleatórias", curiosidades e recomendações. */
+   "quer conversar sobre o quê?", dúvidas de suporte/problema, "manda N mensagens aleatórias", curiosidades e recomendações. */
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .replace(/\b(vc|vce)\b/g, "voce")
@@ -189,24 +189,32 @@ function responder(texto, ctx = {}) {
     return "Sinto muito que você esteja passando por isso. Você não está sozinho(a), e o que você sente importa. 💜\n\nPor favor, fale agora com alguém: no Brasil o CVV atende 24 horas pelo telefone **188** (ligação gratuita) e pelo site **cvv.org.br**. Se estiver em perigo imediato, ligue **192** (SAMU).";
   }
 
-  // Falas do relatório recente: apagar, sumir, erros do quê?, muitos erros
-  if (/^(apagar|apaga|deletar|deleta|excluir|exclui)$/.test(t)) {
-    return "Quer limpar o chat (`/clear`), começar uma conversa nova (`/nova`) ou apagar um arquivo salvo (`/apagar nome`)? 😊";
+  // Dúvidas gerais de suporte / problema / configuração do aplicativo
+  if (/\b(como (?:eu )?(?:resolvo|resolver|arrumo|arrumar|conserto|consertar|corrijo|corrigir) (?:esse|este|o|um) (?:problema|erro|bug|defeito)|entro na configuracao|configuracoes? do (?:aplicativo|app|celular|sistema))\b/.test(t)) {
+    return "🛠️ Para eu te ajudar a resolver certinho, me conta **qual erro aparece** ou **de qual aplicativo/código** você está falando!\n\n" +
+      "• Se for erro de **código** ou site: cole o trecho ou a mensagem de erro aqui (ou use `/revisar`).\n" +
+      "• Se for algum **bug aqui na BACH**: digite `/auditar` para ver os registros ou `/nova` para recomeçar limpo.\n" +
+      "• Se for **configuração de app no celular**: me diga o nome do aplicativo e o que está acontecendo!";
   }
-  if (/^(?:vamos\s+)?sumir$/.test(t)) {
+
+  // Falas curtas: apagar, sumir, erros do quê?, muitos erros
+  if (/^(apagar|apaga|deletar|deleta|excluir|exclui)$/.test(t)) {
+    return "Quer limpar o chat (`clear` ou `/clear`), começar uma conversa nova (`/nova`) ou apagar um arquivo salvo (`/apagar nome`)? 😊";
+  }
+  if (/^(?:vamos|quero|pode\s+)?sumir(?:\s+daqui)?$/.test(t)) {
     return girar("sumir", [
       "Sumir pra onde? 😂 Tô sempre por aqui quando você abrir a tela!",
       "Haha, eu fico guardadinha aqui no seu navegador esperando a próxima conversa! 💜"
     ]);
   }
-  if (/\b(sao erros do o que|que erros sao esses|erros do o que|porque tantos erros)\b/.test(t)) {
+  if (/\b(sao erros do o que|que erros sao esses|erros do o que|erros de que|porque tantos erros)\b/.test(t)) {
     return "🩺 Esses avisos do `/auditar` listam mensagens em que eu não entendi a frase, repeti uma resposta igual ou houve reclamação na conversa — serve para identificar o que ainda dá pra melhorar!";
   }
-  if (/\b(muitos erros|cheio de erro|so tem erro|misericordia)\b/.test(t) && palavras <= 6) {
-    return "Eita 😅! Se algo falhou agora, me diga diretamente o que você queria fazer (ex.: `/ajuda` para ver os comandos, `/app` para criar um app ou `/nova` para começar uma conversa limpa)!";
+  if (/\b(muitos erros|cheio de erros?|so tem erro|misericordia)\b/.test(t) && palavras <= 7) {
+    return "Eita 😅! Se algo falhou agora, me diga diretamente o que você queria fazer (ex.: `/ajuda` para ver os comandos, `/app` para criar um app ou `clear` para começar uma conversa limpa)!";
   }
 
-  // Críticas de humor / melhorias / conversas curtas (SEM vazar nada de ADM para usuários!)
+  // Críticas de humor / melhorias / conversas curtas
   if (/\b(humor ruim|piada ruim|sem graca|piada bosta|piada sem graca)\b/.test(t)) {
     return girar("hum-ruim", [
       "Haha, peguei pesado na piada ruim né? 😅 Manda `piada` que eu faço uma pergunta pra você adivinhar, ou escolhe outro assunto!",
