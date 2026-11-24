@@ -1,6 +1,8 @@
-/* BACH AI 4.8 — Programação Completa, Termux, Bash, Python, Node & Gerador Autônomo de Apps
- * Cria aplicativos HTML/CSS/JS completos e funcionais sob demanda e ensina/gera scripts Termux.
+/* BACH AI 4.9 — Programação Completa, Termux, Bash, Python, Node & Gerador Autônomo de Apps
+ * Cria aplicativos HTML/CSS/JS completos sob demanda, gera scripts .sh prontos e ensina Termux.
  */
+
+const BT = String.fromCharCode(96).repeat(3);
 
 const norm = s => String(s || "").toLowerCase().normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "")
@@ -11,9 +13,9 @@ const GUIAS_TERMUX = [
   [/\b(comecar|instalar|basico|o que e|comandos|ajuda|tudo)\b.*\btermux\b|\btermux\b.*\b(comecar|basico|comandos|ajuda|tudo)\b|^termux$/,
    "📱 **GUIA COMPLETO DE TERMUX (Android):**\n\n" +
    "**1. Primeira configuração (obrigatória):**\n" +
-   "```bash\npkg update && pkg upgrade -y\ntermux-setup-storage\n```\n" +
+   BT + "bash\npkg update && pkg upgrade -y\ntermux-setup-storage\n" + BT + "\n\n" +
    "**2. Instalar ferramentas principais:**\n" +
-   "```bash\npkg install git python nodejs nano curl wget openssh -y\n```\n" +
+   BT + "bash\npkg install git python nodejs nano curl wget openssh -y\n" + BT + "\n\n" +
    "**3. Comandos essenciais de pasta/arquivo:**\n" +
    "• `pwd` (onde estou) • `ls -la` (listar tudo)\n" +
    "• `cd pasta` (entrar) • `cd ..` (voltar) • `cd ~` (início)\n" +
@@ -21,25 +23,53 @@ const GUIAS_TERMUX = [
    "• `nano app.py` (editar: Ctrl+O salva, Ctrl+X sai)\n" +
    "• `rm -rf pasta` (apagar pasta — cuidado!)\n\n" +
    "**4. Rodar um servidor web no celular:**\n" +
-   "```bash\npython -m http.server 8080\n```\n" +
+   BT + "bash\npython -m http.server 8080\n" + BT + "\n" +
    "Depois abra `http://localhost:8080` no navegador!\n\n" +
-   "💡 Peça coisas específicas como: `termux python`, `termux node`, `termux git`, `script termux backup` ou `criar script sh`."],
+   "💡 Peça: `termux python`, `termux node`, `termux git`, `criar script sh` ou diga `cria para mim`!"],
 
   [/\btermux\b.*\b(python|pip|flask|bot)\b|\bpython\b.*\btermux\b/,
-   "🐍 **Python no Termux:**\n```bash\npkg install python -y\npython --version\npip install --upgrade pip\n```\nPara criar um ambiente virtual e rodar scripts:\n```bash\npython -m venv venv\nsource venv/bin/activate\npip install requests flask\npython meu_script.py\n```"],
+   "🐍 **Python no Termux:**\n" + BT + "bash\npkg install python -y\npython --version\npip install --upgrade pip\n" + BT + "\nPara criar um ambiente virtual e rodar scripts:\n" + BT + "bash\npython -m venv venv\nsource venv/bin/activate\npip install requests flask\npython meu_script.py\n" + BT],
 
   [/\btermux\b.*\b(node|nodejs|npm|javascript|js|express)\b|\b(node|nodejs)\b.*\btermux\b/,
-   "🟢 **Node.js no Termux:**\n```bash\npkg install nodejs-lts -y\nnode -v && npm -v\nmkdir meu-app && cd meu-app\nnpm init -y\n```\nPara rodar um servidor Express ou script:\n```bash\nnode index.js\n```"],
+   "🟢 **Node.js no Termux:**\n" + BT + "bash\npkg install nodejs-lts -y\nnode -v && npm -v\nmkdir meu-app && cd meu-app\nnpm init -y\n" + BT + "\nPara rodar um servidor ou script:\n" + BT + "bash\nnode index.js\n" + BT],
 
   [/\btermux\b.*\b(git|github|clonar|clone|push)\b/,
-   "🌿 **Git e GitHub no Termux:**\n```bash\npkg install git -y\ngit config --global user.name \"Seu Nome\"\ngit config --global user.email \"seu@email.com\"\ngit clone https://github.com/usuario/repositorio.git\n```\nPara enviar alterações:\n```bash\ngit add .\ngit commit -m \"atualizacao\"\ngit push\n```"],
+   "🌿 **Git e GitHub no Termux:**\n" + BT + "bash\npkg install git -y\ngit config --global user.name \"Seu Nome\"\ngit config --global user.email \"seu@email.com\"\ngit clone https://github.com/usuario/repositorio.git\n" + BT + "\nPara enviar alterações:\n" + BT + "bash\ngit add .\ngit commit -m \"atualizacao\"\ngit push\n" + BT],
 
   [/\btermux\b.*\b(ssh|servidor|acesso remoto|tmux)\b/,
-   "🔐 **SSH & Sessões em 2º Plano (`tmux`) no Termux:**\n```bash\npkg install openssh tmux -y\npasswd          # define sua senha\nsshd            # inicia servidor SSH na porta 8022\nwhoami          # descobre seu usuário (ex: u0_a123)\n```\nNo PC, conecte com: `ssh -p 8022 USUARIO@IP_DO_CELULAR`\nPara deixar rodando em segundo plano: `tmux new -s robo` (Ctrl+B depois D minimiza; `tmux attach -t robo` volta)."],
+   "🔐 **SSH & Sessões em 2º Plano (`tmux`) no Termux:**\n" + BT + "bash\npkg install openssh tmux -y\npasswd\nsshd\nwhoami\n" + BT + "\nNo PC, conecte com: `ssh -p 8022 USUARIO@IP_DO_CELULAR`\nPara deixar rodando em segundo plano: `tmux new -s robo` (Ctrl+B depois D minimiza; `tmux attach -t robo` volta)."],
 
   [/\b(script|criar script|fazer script)\b.*\b(sh|bash|linux|termux|automacao)\b|\b(chmod|shebang|bash)\b/,
-   "📜 **Como criar e executar um Script `.sh` no Termux/Linux:**\n\n1. Crie o arquivo `nano rodar.sh`:\n```bash\n#!/data/data/com.termux/files/usr/bin/bash\necho \"🚀 Iniciando tarefa...\"\ndate\npkg list-installed | head -n 10\n```\n2. Dê permissão de execução e rode:\n```bash\nchmod +x rodar.sh\n./rodar.sh\n```\n*(No Linux padrão, a 1ª linha é `#!/usr/bin/env bash`.)*"]
+   "📜 **Como criar e executar um Script `.sh` no Termux/Linux:**\n\n1. Crie o arquivo `nano rodar.sh`:\n" + BT + "bash\n#!/data/data/com.termux/files/usr/bin/bash\necho \"🚀 Iniciando tarefa...\"\ndate\npkg list-installed | head -n 10\n" + BT + "\n2. Dê permissão de execução e rode:\n" + BT + "bash\nchmod +x rodar.sh\n./rodar.sh\n" + BT + "\n*(Diga **“cria para mim”** que eu gero um script painel completo pronto para você!)*"]
 ];
+
+function gerarScriptTermuxPronto() {
+  const sh = `#!/data/data/com.termux/files/usr/bin/bash
+# Painel Rápido Termux — criado pela BACH AI
+clear
+echo "====================================="
+echo "  🤖 PAINEL TERMUX - BACH AI"
+echo "====================================="
+echo "1) Atualizar pacotes (pkg update)"
+echo "2) Ver espaço livre e sistema"
+echo "3) Iniciar servidor web na porta 8080"
+echo "4) Ver meu IP local"
+echo "0) Sair"
+read -p "Escolha uma opção: " op
+
+case $op in
+  1) pkg update && pkg upgrade -y ;;
+  2) df -h && uname -a ;;
+  3) echo "Abra http://localhost:8080 no navegador" && python -m http.server 8080 ;;
+  4) ifconfig 2>/dev/null || ip a ;;
+  *) echo "Até mais!" ;;
+esac`;
+
+  return "📜 **Aqui está um Script `.sh` completo e pronto para usar no Termux (`painel.sh`):**\n\n" +
+    BT + "bash\n" + sh + "\n" + BT + "\n\n" +
+    "**Para rodar no Termux:**\n" +
+    BT + "bash\nnano painel.sh\n# cole o código, salve com Ctrl+O, Enter, Ctrl+X\nchmod +x painel.sh\n./painel.sh\n" + BT;
+}
 
 function montarHTML(titulo, css, body, script) {
   return `<!DOCTYPE html>
@@ -280,14 +310,23 @@ function criarAppSobMedida(pedido) {
 
   return {
     texto: "🛠️ **App criado completo (`" + nome + "`):**\n\n" +
-      "```html\n" + html + "\n```\n\n" +
+      BT + "html\n" + html + "\n" + BT + "\n\n" +
       "▶️ Você já pode testar este app funcionando **aqui no chat** logo abaixo ou baixar/copiar o código!",
     previewHtml: html,
     previewTitle: "▶️ Preview ao vivo: " + nome
   };
 }
 
-function handle(text) {
+function ultimoBotDoCtx(ctx) {
+  const h = ctx?.history;
+  if (!Array.isArray(h)) return "";
+  for (let i = h.length - 1; i >= 0; i--) {
+    if (h[i] && h[i].type !== "user" && h[i].text) return String(h[i].text);
+  }
+  return "";
+}
+
+function handle(text, context = {}) {
   const raw = String(text || "").trim();
   const t = norm(raw);
   if (!t) return null;
@@ -297,8 +336,18 @@ function handle(text) {
     if (re.test(t)) return resp;
   }
 
-  // 2) Pedido explícito de criar app (/app ... ou frase natural)
-  let m = raw.match(/^\/app(?:\s+([\s\S]+))?$/i);
+  // 2) Seguimento natural ("entendi, cria para mim", "e so criar", "abre ai e cria")
+  if (/\b(cria|crie|criar|faz|faca|fazer|gera|gere)\b/.test(t) && t.split(" ").length <= 7 &&
+      (/\b(para mim|pra mim|e so criar|abre ai|ai)\b/.test(t) || /^(?:entendi+|ok|blz)?\s*(?:cria|faz)\b/.test(t))) {
+    const ant = ultimoBotDoCtx(context);
+    if (/termux|bash|chmod|\.sh|script/i.test(ant)) {
+      return gerarScriptTermuxPronto();
+    }
+    return criarAppSobMedida("Meu Painel");
+  }
+
+  // 3) Pedido explícito de criar app (/app ... ou frase natural)
+  const m = raw.match(/^\/app(?:\s+([\s\S]+))?$/i);
   if (m) {
     if (!m[1]) {
       return "🛠️ **Criador de Apps da BACH AI:**\n" +
