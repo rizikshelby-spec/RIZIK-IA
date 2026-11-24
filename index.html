@@ -7,23 +7,62 @@
 <title>BACH AI</title>
 <style>
 :root{
-  --bg:#0d0e1a;--panel:rgba(22,24,42,.88);--panel2:rgba(16,18,32,.92);
-  --border:rgba(138,118,255,.28);--accent:#8266ff;--accent2:#e056fd;
-  --text:#f5f6ff;--muted:#a4a8c8;--bot:rgba(30,34,60,.74);--user:rgba(98,66,220,.72);
-  --orb1:#8c6eff;--orb2:#ff4fd8;--orbGlow:rgba(140,110,255,.55);
+  --bg:#0d0e1a;--panel:rgba(22,24,42,.84);--panel2:rgba(16,18,32,.92);
+  --border:rgba(138,118,255,.3);--accent:#8266ff;--accent2:#e056fd;
+  --text:#f5f6ff;--muted:#b4b8d8;--bot:rgba(30,34,60,.18);--user:rgba(98,66,220,.24);
+  --orb1:#8c6eff;--orb2:#ff4fd8;--orbGlow:rgba(140,110,255,.65);
 }
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;background:radial-gradient(circle at top,rgba(255,255,255,.04),transparent 55%),var(--bg);color:var(--text);font-family:Arial,sans-serif;display:flex;flex-direction:column;height:100dvh;overflow:hidden;transition:background .4s ease}
-#orb-bg{position:fixed;left:50%;top:50%;width:clamp(180px,42vw,260px);height:clamp(180px,42vw,260px);border-radius:50%;background:radial-gradient(circle at 32% 30%,rgba(255,255,255,.45),var(--orb1) 36%,var(--orb2) 78%,transparent 100%);box-shadow:0 0 65px var(--orbGlow),inset 0 0 30px rgba(255,255,255,.25);opacity:.38;pointer-events:none;z-index:0;animation:orbMove 14s ease-in-out infinite;transition:background .5s ease,box-shadow .5s ease}
+#orb-bg{
+  position:fixed;left:50%;top:50%;
+  width:clamp(210px,52vw,290px);height:clamp(210px,52vw,290px);
+  border-radius:46% 54% 58% 42% / 52% 42% 58% 48%;
+  background:radial-gradient(circle at 35% 32%,rgba(255,255,255,.42),var(--orb1) 38%,var(--orb2) 76%,transparent 100%);
+  box-shadow:0 0 70px var(--orbGlow),inset 0 0 32px rgba(255,255,255,.25);
+  opacity:.52;pointer-events:none;z-index:0;
+  animation:orbMove 16s ease-in-out infinite,orbMorph 5s ease-in-out infinite;
+  transition:background .5s ease,box-shadow .5s ease;
+}
+#orb-bg::before,#orb-bg::after{
+  content:"";position:absolute;border-radius:50%;pointer-events:none;
+}
+#orb-bg::before{
+  inset:-18%;
+  background:repeating-conic-gradient(from 0deg,var(--orb1) 0deg 6deg,transparent 9deg 24deg,var(--orb2) 26deg 32deg,transparent 35deg 50deg);
+  -webkit-mask-image:radial-gradient(circle,rgba(0,0,0,.95) 20%,rgba(0,0,0,.7) 46%,transparent 72%);
+  mask-image:radial-gradient(circle,rgba(0,0,0,.95) 20%,rgba(0,0,0,.7) 46%,transparent 72%);
+  filter:blur(3px);opacity:.9;
+  animation:orbSpinA 8s linear infinite,orbSpikeA 2.4s ease-in-out infinite;
+}
+#orb-bg::after{
+  inset:-24%;
+  background:repeating-conic-gradient(from 14deg,rgba(255,255,255,.72) 0deg 4deg,transparent 7deg 28deg,var(--orb2) 30deg 35deg,transparent 38deg 58deg);
+  -webkit-mask-image:radial-gradient(circle,transparent 16%,rgba(0,0,0,.85) 42%,transparent 70%);
+  mask-image:radial-gradient(circle,transparent 16%,rgba(0,0,0,.85) 42%,transparent 70%);
+  filter:blur(2.5px);opacity:.78;
+  animation:orbSpinB 11s linear infinite reverse,orbSpikeB 3s ease-in-out infinite;
+}
 @keyframes orbMove{
   0%{transform:translate(-50%,-50%) translate(0px,0px) scale(1)}
-  20%{transform:translate(-50%,-50%) translate(44px,-36px) scale(1.08)}
-  40%{transform:translate(-50%,-50%) translate(-46px,-28px) scale(.94)}
-  60%{transform:translate(-50%,-50%) translate(40px,38px) scale(1.06)}
+  20%{transform:translate(-50%,-50%) translate(44px,-36px) scale(1.06)}
+  40%{transform:translate(-50%,-50%) translate(-46px,-28px) scale(.95)}
+  60%{transform:translate(-50%,-50%) translate(40px,38px) scale(1.05)}
   80%{transform:translate(-50%,-50%) translate(-38px,34px) scale(.97)}
   100%{transform:translate(-50%,-50%) translate(0px,0px) scale(1)}
 }
+@keyframes orbMorph{
+  0%{border-radius:46% 54% 58% 42% / 52% 42% 58% 48%}
+  25%{border-radius:62% 38% 44% 56% / 38% 60% 40% 62%}
+  50%{border-radius:38% 62% 56% 44% / 58% 36% 64% 42%}
+  75%{border-radius:56% 44% 36% 64% / 44% 58% 42% 56%}
+  100%{border-radius:46% 54% 58% 42% / 52% 42% 58% 48%}
+}
+@keyframes orbSpinA{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes orbSpinB{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes orbSpikeA{0%,100%{scale:.88}50%{scale:1.18}}
+@keyframes orbSpikeB{0%,100%{scale:1.14}50%{scale:.86}}
 header,#modos,#chat,#barras,footer{position:relative;z-index:1}
 header{padding:10px 14px;background:var(--panel);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);flex:none}
 .htop{display:flex;align-items:center;gap:10px}
@@ -39,22 +78,22 @@ h2{margin:0;background:linear-gradient(90deg,#fff,var(--accent),var(--accent2));
 .modo{flex:none;padding:5px 11px;font-size:12px;font-weight:normal;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:999px;color:var(--text);cursor:pointer;transition:.2s}
 .modo.on{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent;color:#fff;font-weight:bold;box-shadow:0 2px 12px var(--orbGlow)}
 #chat{flex:1;overflow:auto;padding:12px 10px 16px;width:100%;max-width:850px;margin:0 auto}
-.msg{padding:9px 12px;margin:6px 0;border-radius:15px;max-width:85%;width:fit-content;line-height:1.48;overflow-wrap:anywhere;font-size:14px;backdrop-filter:blur(12px)}
+.msg{padding:9px 12px;margin:6px 0;border-radius:15px;max-width:85%;width:fit-content;line-height:1.48;overflow-wrap:anywhere;font-size:14px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);text-shadow:0 1px 2px rgba(0,0,0,.65)}
 .msg .t{white-space:pre-wrap}
 .bot{background:var(--bot);border:1px solid var(--border);margin-right:auto}
-.user{background:var(--user);border:1px solid rgba(255,255,255,.2);margin-left:auto;box-shadow:0 3px 14px rgba(0,0,0,.22)}
+.user{background:var(--user);border:1px solid rgba(255,255,255,.22);margin-left:auto;box-shadow:0 3px 14px rgba(0,0,0,.15)}
 .pensando{opacity:.88;border-style:dashed;white-space:pre-line}
 .acoes{display:flex;gap:6px;margin:-2px 0 6px}
-.acoes button{padding:3px 9px;font-size:12px;font-weight:normal;background:rgba(255,255,255,.09);border-radius:10px;color:var(--text)}
+.acoes button{padding:3px 9px;font-size:12px;font-weight:normal;background:rgba(255,255,255,.08);backdrop-filter:blur(6px);border-radius:10px;color:var(--text)}
 .meta{color:var(--muted);font-size:11px;margin:2px 4px 4px;white-space:pre-line}
-.cartao{border:1px solid var(--border);border-radius:10px;margin:6px 0;background:rgba(0,0,0,.35);overflow:hidden;min-width:230px}
+.cartao{border:1px solid var(--border);border-radius:10px;margin:6px 0;background:rgba(0,0,0,.25);overflow:hidden;min-width:230px}
 .topo{display:flex;align-items:center;gap:6px;padding:6px 8px;font-size:12px;color:#e4ddff}
 .topo span{flex:1}
 .topo button{padding:4px 9px;font-size:12px;font-weight:normal;background:rgba(255,255,255,.12);border-radius:8px}
 .cartao details{border-top:1px solid rgba(255,255,255,.1)}
 .cartao summary{padding:5px 8px;font-size:12px;color:var(--muted);cursor:pointer}
 .cartao pre{margin:0;padding:8px;max-height:320px;overflow:auto;font-size:12px;line-height:1.4;white-space:pre-wrap;color:#eef0ff}
-.result{background:var(--bot);border:1px solid var(--border);border-radius:12px;padding:10px;margin:6px 0;max-width:88%;font-size:13px;backdrop-filter:blur(10px)}
+.result{background:var(--bot);border:1px solid var(--border);border-radius:12px;padding:10px;margin:6px 0;max-width:88%;font-size:13px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);text-shadow:0 1px 2px rgba(0,0,0,.65)}
 .result h3{margin:0 0 6px;color:#fff;font-size:14px}.result a{color:var(--accent2);overflow-wrap:anywhere;font-weight:bold}
 .msg img,.msg video{max-width:100%;border-radius:10px;display:block}
 footer{flex:none;display:flex;align-items:flex-end;gap:6px;padding:8px 10px;background:var(--panel);backdrop-filter:blur(12px);padding-bottom:max(8px,env(safe-area-inset-bottom));border-top:1px solid var(--border)}
@@ -104,7 +143,7 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px
 #citbar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #citbar button,#anexos button{padding:2px 8px;font-size:12px;background:rgba(255,255,255,.12)}
 .chip{display:flex;gap:6px;align-items:center;background:rgba(255,255,255,.1);border-radius:10px;padding:3px 4px 3px 9px;max-width:100%;overflow-wrap:anywhere}
-.cit{border-left:3px solid var(--accent2);background:rgba(0,0,0,.28);border-radius:6px;padding:4px 8px;margin-bottom:6px;font-size:12px;color:#e9dfff;white-space:pre-wrap;overflow-wrap:anywhere}
+.cit{border-left:3px solid var(--accent2);background:rgba(0,0,0,.25);border-radius:6px;padding:4px 8px;margin-bottom:6px;font-size:12px;color:#e9dfff;white-space:pre-wrap;overflow-wrap:anywhere}
 .acoes.user{justify-content:flex-end}
 </style>
 </head>
@@ -197,7 +236,7 @@ import { Historico } from "./historico.js?v=3";
 import { Base } from "./base.js?v=5";
 import { SkillRouter } from "./registry.js?v=3";
 import { LLM } from "./llm.js?v=1";
-import { CerebroAvancado } from "./cerebro_avancado.js?v=2";
+import { CerebroAvancado } from "./cerebro_avancado.js?v=3";
 
 const $ = id => document.getElementById(id);
 const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status"), hist = $("hist"), sobreEl = $("sobre");
@@ -209,13 +248,13 @@ const RE_CERCA_ALL = new RegExp("\\x60\\x60\\x60", "g");
 const RE_CERCA_SPLIT = new RegExp("\\x60\\x60\\x60([\\w+-]*)[ \\t]*\\n?([\\s\\S]*?)\\x60\\x60\\x60", "g");
 
 const TEMAS = {
-  roxo:     { nome: "💜 Roxo",     bg:"#0d0e1a", panel:"rgba(22,24,42,.88)", panel2:"rgba(16,18,32,.94)", border:"rgba(138,118,255,.3)",  accent:"#8266ff", accent2:"#e056fd", bot:"rgba(30,34,60,.74)", user:"rgba(98,66,220,.72)", orb1:"#8c6eff", orb2:"#ff4fd8", glow:"rgba(140,110,255,.55)" },
-  vermelho: { nome: "❤️ Vermelho", bg:"#16070b", panel:"rgba(36,14,20,.88)", panel2:"rgba(26,10,14,.94)", border:"rgba(255,70,95,.32)",   accent:"#ff3555", accent2:"#ff7c43", bot:"rgba(44,18,26,.76)", user:"rgba(195,28,55,.74)", orb1:"#ff2a4b", orb2:"#ff8533", glow:"rgba(255,50,80,.55)" },
-  azul:     { nome: "💙 Azul",     bg:"#07101f", panel:"rgba(14,24,44,.88)", panel2:"rgba(10,18,34,.94)", border:"rgba(55,165,255,.3)",   accent:"#2997ff", accent2:"#00e5ff", bot:"rgba(18,34,60,.76)", user:"rgba(24,108,210,.74)", orb1:"#2997ff", orb2:"#00f2fe", glow:"rgba(40,160,255,.55)" },
-  verde:    { nome: "💚 Verde",    bg:"#06150f", panel:"rgba(12,32,24,.88)", panel2:"rgba(8,24,18,.94)",  border:"rgba(25,215,140,.3)",   accent:"#10d48e", accent2:"#7dff7a", bot:"rgba(16,44,34,.76)", user:"rgba(14,142,96,.72)",  orb1:"#0fd68c", orb2:"#4dff88", glow:"rgba(20,215,140,.5)" },
-  rosa:     { nome: "🩷 Rosa",     bg:"#170713", panel:"rgba(36,14,32,.88)", panel2:"rgba(26,10,24,.94)", border:"rgba(255,85,185,.32)",  accent:"#ff4db8", accent2:"#a66bff", bot:"rgba(46,20,42,.76)", user:"rgba(196,40,136,.72)", orb1:"#ff3ea5", orb2:"#a66bff", glow:"rgba(255,65,175,.55)" },
-  dourado:  { nome: "💛 Dourado",  bg:"#150f05", panel:"rgba(34,25,12,.88)", panel2:"rgba(24,18,8,.94)",  border:"rgba(255,180,45,.32)",  accent:"#ffb020", accent2:"#ff662b", bot:"rgba(44,34,16,.76)", user:"rgba(186,115,15,.74)", orb1:"#ffb020", orb2:"#ff5e36", glow:"rgba(255,175,35,.52)" },
-  neon:     { nome: "⚡ Neon",     bg:"#090716", panel:"rgba(18,16,38,.9)",  panel2:"rgba(12,11,28,.95)", border:"rgba(0,245,212,.32)",   accent:"#00e5c8", accent2:"#f15bb5", bot:"rgba(22,26,56,.76)", user:"rgba(126,38,215,.72)", orb1:"#00f5d4", orb2:"#f15bb5", glow:"rgba(0,240,210,.52)" }
+  roxo:     { nome: "💜 Roxo",     bg:"#0d0e1a", panel:"rgba(22,24,42,.84)", panel2:"rgba(16,18,32,.92)", border:"rgba(138,118,255,.32)", accent:"#8266ff", accent2:"#e056fd", bot:"rgba(30,34,60,.18)", user:"rgba(98,66,220,.24)", orb1:"#8c6eff", orb2:"#ff4fd8", glow:"rgba(140,110,255,.65)" },
+  vermelho: { nome: "❤️ Vermelho", bg:"#16070b", panel:"rgba(36,14,20,.84)", panel2:"rgba(26,10,14,.92)", border:"rgba(255,70,95,.34)",   accent:"#ff3555", accent2:"#ff7c43", bot:"rgba(44,18,26,.18)", user:"rgba(195,28,55,.24)", orb1:"#ff2a4b", orb2:"#ff8533", glow:"rgba(255,50,80,.65)" },
+  azul:     { nome: "💙 Azul",     bg:"#07101f", panel:"rgba(14,24,44,.84)", panel2:"rgba(10,18,34,.92)", border:"rgba(55,165,255,.32)",  accent:"#2997ff", accent2:"#00e5ff", bot:"rgba(18,34,60,.18)", user:"rgba(24,108,210,.24)", orb1:"#2997ff", orb2:"#00f2fe", glow:"rgba(40,160,255,.65)" },
+  verde:    { nome: "💚 Verde",    bg:"#06150f", panel:"rgba(12,32,24,.84)", panel2:"rgba(8,24,18,.92)",  border:"rgba(25,215,140,.32)",  accent:"#10d48e", accent2:"#7dff7a", bot:"rgba(16,44,34,.18)", user:"rgba(14,142,96,.24)",  orb1:"#0fd68c", orb2:"#4dff88", glow:"rgba(20,215,140,.6)" },
+  rosa:     { nome: "🩷 Rosa",     bg:"#170713", panel:"rgba(36,14,32,.84)", panel2:"rgba(26,10,24,.92)", border:"rgba(255,85,185,.34)",  accent:"#ff4db8", accent2:"#a66bff", bot:"rgba(46,20,42,.18)", user:"rgba(196,40,136,.24)", orb1:"#ff3ea5", orb2:"#a66bff", glow:"rgba(255,65,175,.65)" },
+  dourado:  { nome: "💛 Dourado",  bg:"#150f05", panel:"rgba(34,25,12,.84)", panel2:"rgba(24,18,8,.92)",  border:"rgba(255,180,45,.34)",  accent:"#ffb020", accent2:"#ff662b", bot:"rgba(44,34,16,.18)", user:"rgba(186,115,15,.24)", orb1:"#ffb020", orb2:"#ff5e36", glow:"rgba(255,175,35,.62)" },
+  neon:     { nome: "⚡ Neon",     bg:"#090716", panel:"rgba(18,16,38,.86)", panel2:"rgba(12,11,28,.94)", border:"rgba(0,245,212,.34)",   accent:"#00e5c8", accent2:"#f15bb5", bot:"rgba(22,26,56,.18)", user:"rgba(126,38,215,.24)", orb1:"#00f5d4", orb2:"#f15bb5", glow:"rgba(0,240,210,.62)" }
 };
 
 const NOMES_MODOS = {
@@ -410,9 +449,9 @@ function abrirSobre() {
   const nov = mk("div", "scard");
   nov.innerHTML =
     "<b>✨ Novidades da v" + APP_VER + ":</b><br>" +
-    "• Fundo vivo com esfera animada e <b>7 temas</b> (peça “tema vermelho”, “tema azul”, etc.)<br>" +
+    "• Fundo vivo com esfera pulsante e <b>7 temas</b> com mensagens transparentes<br>" +
     "• Menu lateral de aplicativo e tela Sobre<br>" +
-    "• Reconhecimento do criador (<b>@rizik2442</b>) com pesquisa sem limites<br>" +
+    "• Pesquisa aprofundada inteligente, eleições/notícias atuais e gírias brasileiras<br>" +
     "• Correção do cérebro local, caixa de texto responsiva e leitura de imagens<br>" +
     "• OCR melhorado para prints escuros e leitura estável de vídeos";
 
@@ -787,7 +826,7 @@ async function rotear(texto) {
     status.textContent = statusPadrao();
     const semTag = texto.replace(/@rizik2442/gi, "").trim();
     if (!semTag) {
-      falar("👑 E aí, **Rizik**! Reconheci você, meu criador!\n\nAtivei seu acesso de criador permanente (lembro de você mesmo se sair e voltar ao site) e liberei pesquisa profunda sem limites. O que vamos fazer ou melhorar agora? 🚀", "bot", "👑 criador");
+      falar("👑 Acesso de administrador ativado! Pesquisa profunda sem limites liberada. O que vamos fazer agora? 🚀", "bot", "👑 adm");
       return;
     }
     texto = semTag;
@@ -896,7 +935,10 @@ async function rotear(texto) {
 
   if (temIA) { await perguntarIA(texto); return; }
 
-  const av = await CerebroAvancado.responder(texto, { ultimoArquivo, ultimoTema, ultimaMidiaInfo, ultimoBot: ultimoBotTexto(), modoCriador });
+  const av = await CerebroAvancado.responder(texto, {
+    ultimoArquivo, ultimoTema, ultimaMidiaInfo, ultimoBot: ultimoBotTexto(),
+    modoCriador, nome: RizikBrain.recall("userName")
+  });
   if (av) {
     if (av.tema) {
       const nomeT = aplicarTema(av.tema);
