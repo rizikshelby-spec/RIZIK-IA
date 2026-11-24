@@ -1,4 +1,4 @@
-/* BACH AI 4.5 — registro central dos departamentos, Watchdog AutoGuard e roteador de habilidades. */
+/* BACH AI 4.7 — registro central dos departamentos, Watchdog AutoGuard e roteador de habilidades. */
 
 import { AutoGuard } from "./autoguard.js?v=1";
 import { Intelligence } from "./intelligence.js?v=2";
@@ -13,9 +13,16 @@ import { Education } from "./education.js?v=1";
 import { Automation } from "./automation.js?v=1";
 
 let utilHandle = null;
-import("./utilidades.js?v=1")
-  .then(m => { if (m?.Utilidades?.handle) utilHandle = m.Utilidades.handle; })
-  .catch(() => {});
+let convTextoHandle = null;
+let saudeHandle = null;
+let estudosHandle = null;
+let devHandle = null;
+
+import("./utilidades.js?v=1").then(m => { if (m?.Utilidades?.handle) utilHandle = m.Utilidades.handle; }).catch(() => {});
+import("./conversor_texto.js?v=1").then(m => { if (m?.ConversorTexto?.handle) convTextoHandle = m.ConversorTexto.handle; }).catch(() => {});
+import("./saude_bemestar.js?v=1").then(m => { if (m?.SaudeBemEstar?.handle) saudeHandle = m.SaudeBemEstar.handle; }).catch(() => {});
+import("./estudos.js?v=1").then(m => { if (m?.Estudos?.handle) estudosHandle = m.Estudos.handle; }).catch(() => {});
+import("./dev_ferramentas.js?v=1").then(m => { if (m?.DevFerramentas?.handle) devHandle = m.DevFerramentas.handle; }).catch(() => {});
 
 const SETTINGS_KEY = "bach_modules_v1";
 
@@ -44,7 +51,11 @@ const DEPARTMENTS = [
   { id: "jogos-mentais", name: "22. Jogos mentais", status: "ATIVO", control: false, skills: "Charadas, lógica e desafios no chat." },
   { id: "debate", name: "23. Debate", status: "ATIVO", control: false, skills: "Comparações estruturadas e prós e contras." },
   { id: "automacao", name: "24. Automação", status: "ROTEIRO LOCAL", control: true, skills: "Roteiros seguros e checklists sem executar ações externas sem permissão." },
-  { id: "utilidades", name: "25. Utilidades práticas", status: "LOCAL", control: true, skills: "Gerador de senhas, sorteios, dados, cara ou coroa, datas/dias, contador e CPF." }
+  { id: "utilidades", name: "25. Utilidades práticas", status: "LOCAL", control: true, skills: "Gerador de senhas, sorteios, dados, cara ou coroa, datas/dias, contador e CPF." },
+  { id: "conversor-texto", name: "26. Conversor de texto e links", status: "LOCAL", control: true, skills: "Link WhatsApp, maiúsculo/minúsculo, sem acento, inverter, slug e Base64." },
+  { id: "saude-bemestar", name: "27. Saúde e bem-estar", status: "LOCAL", control: true, skills: "Cálculos educativos de IMC, água diária, calorias, respiração 4-7-8 e pausa ativa." },
+  { id: "estudos", name: "28. Estudos avançados", status: "LOCAL", control: true, skills: "Flashcards por matéria, simulado com pontuação e técnicas de memorização." },
+  { id: "dev-ferramentas", name: "29. Ferramentas Dev Web", status: "LOCAL", control: true, skills: "Conversor HEX/RGB/HSL, CSS vidro transparente, meta tags SEO e paletas." }
 ];
 
 const AJUDA_FERRAMENTAS = {
@@ -79,12 +90,12 @@ function enabled(id) {
 }
 
 function listModules() {
-  return "🧠 BACH AI 4.5 — DEPARTAMENTOS\n\n" +
+  return "🧠 BACH AI 4.7 — DEPARTAMENTOS (" + DEPARTMENTS.length + ")\n\n" +
     DEPARTMENTS.map(d => {
       const flag = d.control ? (enabled(d.id) ? "🟢" : "⚪") : "🔹";
       return flag + " " + d.name + "\n   ID: " + d.id + " • " + d.status + "\n   " + d.skills;
     }).join("\n\n") +
-    "\n\nComandos ADM: /statusmodulos • /modulo ID on • /modulo ID off • /diagnostico • /rollback";
+    "\n\nComandos ADM: /statusmodulos • /modulo ID on • /modulo ID off • /diagnostico • /rollback • /tudotxt";
 }
 
 function moduleCommand(text) {
@@ -108,6 +119,10 @@ function moduleCommand(text) {
 const HANDLERS = [
   ["mundo", Units.handle, "📏 conversão de unidades"],
   ["utilidades", (raw, ctx) => (utilHandle ? utilHandle(raw, ctx) : null), "🧰 utilidades"],
+  ["conversor-texto", (raw, ctx) => (convTextoHandle ? convTextoHandle(raw, ctx) : null), "🔤 conversor de texto"],
+  ["saude-bemestar", (raw, ctx) => (saudeHandle ? saudeHandle(raw, ctx) : null), "🩺 saúde e bem-estar"],
+  ["estudos", (raw, ctx) => (estudosHandle ? estudosHandle(raw, ctx) : null), "🎓 modo estudante"],
+  ["dev-ferramentas", (raw, ctx) => (devHandle ? devHandle(raw, ctx) : null), "🛠️ ferramentas dev"],
   ["inteligencia", Intelligence.handle, "🔢 cálculo local"],
   ["financas", Finance.handle, "💰 finanças"],
   ["ciencias", Science.handle, "🔬 fórmulas de física"],
