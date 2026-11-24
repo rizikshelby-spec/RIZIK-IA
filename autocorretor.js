@@ -4,7 +4,7 @@
    3) Envia toda resposta inválida, não entendida ou erro do público direto para a Central ADM. */
 
 let errosAdmMod = null;
-import("./erros_adm.js?v=2").then(m => { errosAdmMod = m?.ErrosADM || null; }).catch(() => {});
+import("./erros_adm.js?v=1").then(m => { errosAdmMod = m?.ErrosADM || null; }).catch(() => {});
 
 const K_CORR = "bach_autocorrecoes_v1";
 const K_FAIL = "bach_failures_v1";
