@@ -1,5 +1,5 @@
-/* BACH AI 4.8 — Conversa Natural & Personalidade
-   Responde saudações (inclusive OiOi), reações, críticas de humor, "pq?", "nada",
+/* BACH AI 4.9 — Conversa Natural & Personalidade
+   Responde saudações (inclusive OiOi), reações, críticas, "apagar", "sumir", "sao erros do oq?",
    "quer conversar sobre o quê?", "manda N mensagens aleatórias", curiosidades e recomendações. */
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -158,7 +158,7 @@ function responder(texto, ctx = {}) {
     if (certa && t.includes(certa)) { const r = charadaAtual[1]; charadaAtual = null; return "🎉 Isso mesmo! Era " + r.charAt(0).toLowerCase() + r.slice(1) + "\nQuer outra? Diga “outra charada”."; }
   }
 
-  // Pedido de N mensagens aleatórias ("me manda 10 mensagem aleatoriamente")
+  // Pedido de N mensagens aleatórias
   const mAleat = t.match(/^(?:me\s+)?(?:manda|mandar|envia|enviar|escreve|escreva|fala|fale)\s+(\d{1,2})\s+mensagens?(?:\s+aleatoriamente|\s+aleatorias?)?$/);
   if (mAleat) {
     const qtd = Math.min(12, Math.max(1, Number(mAleat[1]) || 5));
@@ -189,7 +189,24 @@ function responder(texto, ctx = {}) {
     return "Sinto muito que você esteja passando por isso. Você não está sozinho(a), e o que você sente importa. 💜\n\nPor favor, fale agora com alguém: no Brasil o CVV atende 24 horas pelo telefone **188** (ligação gratuita) e pelo site **cvv.org.br**. Se estiver em perigo imediato, ligue **192** (SAMU).";
   }
 
-  // Respostas para críticas de humor / melhorias / conversas curtas (do relatório de erros!)
+  // Falas do relatório recente: apagar, sumir, erros do quê?, muitos erros
+  if (/^(apagar|apaga|deletar|deleta|excluir|exclui)$/.test(t)) {
+    return "Quer limpar o chat (`/clear`), começar uma conversa nova (`/nova`) ou apagar um arquivo salvo (`/apagar nome`)? 😊";
+  }
+  if (/^(?:vamos\s+)?sumir$/.test(t)) {
+    return girar("sumir", [
+      "Sumir pra onde? 😂 Tô sempre por aqui quando você abrir a tela!",
+      "Haha, eu fico guardadinha aqui no seu navegador esperando a próxima conversa! 💜"
+    ]);
+  }
+  if (/\b(sao erros do o que|que erros sao esses|erros do o que|porque tantos erros)\b/.test(t)) {
+    return "🩺 Esses avisos do `/auditar` listam mensagens em que eu não entendi a frase, repeti uma resposta igual ou houve reclamação na conversa — serve para identificar o que ainda dá pra melhorar!";
+  }
+  if (/\b(muitos erros|cheio de erro|so tem erro|misericordia)\b/.test(t) && palavras <= 6) {
+    return "Eita 😅! Se algo falhou agora, me diga diretamente o que você queria fazer (ex.: `/ajuda` para ver os comandos, `/app` para criar um app ou `/nova` para começar uma conversa limpa)!";
+  }
+
+  // Críticas de humor / melhorias / conversas curtas (SEM vazar nada de ADM para usuários!)
   if (/\b(humor ruim|piada ruim|sem graca|piada bosta|piada sem graca)\b/.test(t)) {
     return girar("hum-ruim", [
       "Haha, peguei pesado na piada ruim né? 😅 Manda `piada` que eu faço uma pergunta pra você adivinhar, ou escolhe outro assunto!",
@@ -203,7 +220,7 @@ function responder(texto, ctx = {}) {
     ]);
   }
   if (/\b(quer que eu te melhore|posso te melhorar|vou te melhorar|como te melhorar|suas expressoes)\b/.test(t)) {
-    return "Com certeza" + n + "! 🚀 Estou sempre melhorando meu jeito de conversar. Se você é o ADM, pode usar `@rizik2442` e abrir **🚨 Erros do Público** no menu para copiar todos os erros e tunar os módulos!";
+    return "Com certeza" + n + "! 🚀 Você pode me ensinar respostas novas com `ensine: pergunta => resposta` ou mandar sugestões e relatórios usando `/auditar`!";
   }
   if (/^(?:quer|vamos|bora)\s+conversar\s+sobre\s+o\s+que$/.test(t) || /^(?:sobre\s+o\s+que\s+(?:voce\s+)?quer\s+conversar)$/.test(t)) {
     return girar("cvs-oq", [
@@ -251,7 +268,7 @@ function responder(texto, ctx = {}) {
     if (/\b(anime|animes)\b/.test(t) && !/\bsobre\b/.test(t)) return ANIMES_LISTA;
   }
 
-  // Cumprimentos (inclusive OiOi, OiOiOi, Olá, etc.)
+  // Cumprimentos (inclusive OiOi)
   if (/^(?:(?:o+i+)+|r?o+i+|o+l+a+|eai|e ai|opa+|salve|hey|hello|hi|o+i+e+|alo+|hola|bonjour|ciao|hallo)(?:\s+(?:o+i+|bach|bach ai|tudo bem))?$/.test(t)) {
     const s = SAUD[periodo(h)];
     return girar("saud", [
