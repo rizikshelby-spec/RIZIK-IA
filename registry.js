@@ -11,7 +11,11 @@ import { Finance } from "./finance.js?v=1";
 import { Science } from "./science.js?v=1";
 import { Education } from "./education.js?v=1";
 import { Automation } from "./automation.js?v=1";
-import { Utilidades } from "./utilidades.js?v=1";
+
+let utilHandle = null;
+import("./utilidades.js?v=1")
+  .then(m => { if (m?.Utilidades?.handle) utilHandle = m.Utilidades.handle; })
+  .catch(() => {});
 
 const SETTINGS_KEY = "bach_modules_v1";
 
@@ -103,7 +107,7 @@ function moduleCommand(text) {
 
 const HANDLERS = [
   ["mundo", Units.handle, "📏 conversão de unidades"],
-  ["utilidades", Utilidades.handle, "🧰 utilidades"],
+  ["utilidades", (raw, ctx) => (utilHandle ? utilHandle(raw, ctx) : null), "🧰 utilidades"],
   ["inteligencia", Intelligence.handle, "🔢 cálculo local"],
   ["financas", Finance.handle, "💰 finanças"],
   ["ciencias", Science.handle, "🔬 fórmulas de física"],
