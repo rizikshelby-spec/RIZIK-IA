@@ -1,12 +1,17 @@
-/* BACH AI 4.8 — Central de Erros ADM
- * Captura automaticamente toda resposta inválida, não entendida ou reclamação.
+/* BACH AI 4.9 — Central de Erros ADM
+ * Captura automaticamente toda resposta inválida, não entendida, comando errado ou reclamação.
  * No modo ADM, exibe tudo no menu com busca, seleção múltipla, exclusão individual/total,
- * cópia pronta e envio remoto opcional (ex.: ntfy.sh) para receber erros de outros aparelhos.
+ * cópia pronta e envio remoto opcional (para receber erros de outros aparelhos).
  */
 
 const K_ERROS = "bach_adm_erros_v1";
 const K_REMOTE = "bach_adm_erro_remote_v1";
-const MAX_ERROS = 200;
+const MAX_ERROS = 250;
+const BT = String.fromCharCode(96).repeat(3);
+
+// Se quiser receber erros de OUTROS celulares no seu canal sem precisar configurar em cada aparelho,
+// coloque sua URL entre as aspas abaixo (ex.: "https://ntfy.sh/bach-erros-rizik"):
+const DEFAULT_REMOTE = "";
 
 function ler() {
   try {
@@ -24,7 +29,11 @@ function gravar(lista) {
 }
 
 function getRemote() {
-  try { return localStorage.getItem(K_REMOTE) || ""; } catch { return ""; }
+  try {
+    return localStorage.getItem(K_REMOTE) || DEFAULT_REMOTE;
+  } catch {
+    return DEFAULT_REMOTE;
+  }
 }
 
 function setRemote(url) {
@@ -47,7 +56,7 @@ function enviarRemoto(item) {
       fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: "🚨 **Erro BACH AI**\n```txt\n" + corpo.slice(0, 1800) + "\n```" })
+        body: JSON.stringify({ content: "🚨 **Erro BACH AI**\n" + BT + "txt\n" + corpo.slice(0, 1800) + "\n" + BT })
       }).catch(() => {});
     } else {
       fetch(url, {
@@ -65,7 +74,7 @@ function registrar({ tipo = "nao-entendeu", entrada = "", resposta = "", motivo 
 
   const lista = ler();
   const ultimo = lista[lista.length - 1];
-  if (ultimo && ultimo.entrada === ent && (Date.now() - ultimo.at) < 12000) {
+  if (ultimo && ultimo.entrada === ent && ultimo.tipo === tipo && (Date.now() - ultimo.at) < 12000) {
     return ultimo;
   }
 
@@ -141,7 +150,7 @@ function comando(raw, isAdm) {
   const t = String(raw || "").trim();
   const m = t.match(/^\/erroremoto(?:\s+([\s\S]+))?$/i);
   if (!m) return null;
-  if (!isAdm) return "🔒 Comando exclusivo do modo administrador.";
+  if (!isAdm) return null;
 
   const arg = (m[1] || "").trim();
   if (!arg) {
@@ -149,7 +158,7 @@ function comando(raw, isAdm) {
     return "📡 **Envio Remoto de Erros do Público (ADM):**\n" +
       (atual ? "• Destino atual: `" + atual + "`\n" : "• Ainda não configurado (os erros ficam salvos localmente).\n") +
       "\nPara receber erros de **outros celulares** direto no seu canal gratuito:\n" +
-      "1. Instale ou abra `https://ntfy.sh/seu-canal-secreto` (ou use um Webhook do Discord).\n" +
+      "1. Abra `https://ntfy.sh/seu-canal-secreto` no app ntfy (ou use Webhook do Discord).\n" +
       "2. Configure aqui com: `/erroremoto https://ntfy.sh/seu-canal-secreto`\n" +
       "3. Para desligar: `/erroremoto off`";
   }
@@ -164,7 +173,7 @@ function comando(raw, isAdm) {
   }
 
   setRemote(arg);
-  return "✅ Envio remoto ativado para: `" + arg + "`\nToda resposta inválida ou erro do público também será enviado para esse endereço!";
+  return "✅ Envio remoto ativado neste aparelho para: `" + arg + "`\n💡 Para funcionar também no celular de **outras pessoas**, cole essa URL no `DEFAULT_REMOTE` dentro de `erros_adm.js`!";
 }
 
 export const ErrosADM = {
