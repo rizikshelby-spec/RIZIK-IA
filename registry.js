@@ -1,5 +1,6 @@
-/* BACH AI 4.1 — registro central dos departamentos, roteador de habilidades e instruções de modo. */
+/* BACH AI 4.5 — registro central dos departamentos, Watchdog AutoGuard e roteador de habilidades. */
 
+import { AutoGuard } from "./autoguard.js?v=1";
 import { Intelligence } from "./intelligence.js?v=2";
 import { Personality } from "./personality.js?v=1";
 import { Creativity } from "./creativity.js?v=1";
@@ -24,21 +25,30 @@ const DEPARTMENTS = [
   { id: "mundo", name: "8. Mundo e cotidiano", status: "ATIVO", control: true, skills: "Clima online, geografia, história, tradução e conversão de unidades." },
   { id: "comunicacao", name: "9. Comunicação", status: "ATIVO + IA", control: false, skills: "Interpretação de intenções, explicações claras e adaptação ao usuário." },
   { id: "estrategia", name: "10. Estratégia e planejamento", status: "LOCAL + IA", control: true, skills: "Organização de tarefas, planejamento por etapas e comparação de alternativas." },
-  { id: "seguranca", name: "11. Segurança e confiabilidade", status: "HEURÍSTICO", control: true, skills: "Triagem de sinais de golpes, proteção de dados pessoais e verificação de fontes." },
-  { id: "evolucao", name: "12. Evolução da BACH", status: "CATÁLOGO", control: false, skills: "Diagnóstico de módulos, backup /basedados e controle de habilidades." },
+  { id: "seguranca", name: "11. Segurança e confiabilidade", status: "AUTOGUARD", control: true, skills: "Triagem de golpes, Watchdog, Failure Memory, Rollback e proteção de dados." },
+  { id: "evolucao", name: "12. Evolução da BACH", status: "CATÁLOGO", control: false, skills: "Diagnóstico, monitoramento de desempenho, backup /basedados e controle de módulos." },
   { id: "games", name: "13. Games", status: "ATIVO", control: false, skills: "Jogos no chat (forca, velha, quiz, adivinhação) e scripts de criação." },
-  { id: "entretenimento", name: "14. Entretenimento", status: "IA / PESQUISA", control: false, skills: "Filmes, séries, animes e recomendações." },
-  { id: "musica", name: "15. Música", status: "IA / CONHECIMENTO", control: false, skills: "Gêneros, teoria musical e letras originais." },
-  { id: "redes", name: "16. Redes sociais", status: "IA / PESQUISA", control: false, skills: "Boas práticas, tendências e segurança digital." },
-  { id: "saude", name: "17. Saúde", status: "EDUCACIONAL + IA", control: false, skills: "Educação em saúde sem substituir diagnóstico profissional." },
-  { id: "financas", name: "18. Finanças", status: "LOCAL + IA", control: true, skills: "Juros simples e compostos, orçamento e noções financeiras." },
-  { id: "direito", name: "19. Direito", status: "PESQUISA + IA", control: false, skills: "Explicações gerais de leis com aviso de fonte e data." },
-  { id: "educacao", name: "20. Educação", status: "LOCAL + IA", control: true, skills: "Quiz educativo, explicações didáticas e exercícios." },
-  { id: "documentos", name: "21. Pesquisa documental", status: "ATIVO + IA", control: false, skills: "Leitura, resumo e revisão de textos, arquivos e links." },
+  { id: "entretenimento", name: "14. Entretenimento", status: "ATIVO + ONLINE", control: false, skills: "Filmes por gênero, séries ao vivo (TVmaze) e animes (Jikan)." },
+  { id: "musica", name: "15. Música", status: "ATIVO", control: false, skills: "Recomendações por gênero brasileiro e internacional." },
+  { id: "redes", name: "16. Redes sociais", status: "ATIVO", control: false, skills: "Boas práticas, legendas, bios e segurança digital." },
+  { id: "saude", name: "17. Saúde", status: "EDUCACIONAL", control: false, skills: "Educação em saúde sem substituir diagnóstico profissional." },
+  { id: "financas", name: "18. Finanças", status: "LOCAL + IA", control: true, skills: "Juros simples e compostos, método 50-30-20 e noções financeiras." },
+  { id: "direito", name: "19. Direito", status: "LOCAL + PESQUISA", control: false, skills: "Direitos básicos do consumidor e explicações gerais." },
+  { id: "educacao", name: "20. Educação", status: "LOCAL + IA", control: true, skills: "Quiz educativo, planos de estudo e redação." },
+  { id: "documentos", name: "21. Pesquisa documental", status: "ATIVO", control: false, skills: "Leitura, resumo e revisão de textos, arquivos, fotos e vídeos." },
   { id: "jogos-mentais", name: "22. Jogos mentais", status: "ATIVO", control: false, skills: "Charadas, lógica e desafios no chat." },
-  { id: "debate", name: "23. Debate", status: "IA", control: false, skills: "Argumentação equilibrada e comparação de pontos de vista." },
+  { id: "debate", name: "23. Debate", status: "ATIVO", control: false, skills: "Comparações estruturadas e prós e contras." },
   { id: "automacao", name: "24. Automação", status: "ROTEIRO LOCAL", control: true, skills: "Roteiros seguros e checklists sem executar ações externas sem permissão." }
 ];
+
+const AJUDA_FERRAMENTAS = {
+  "/calc": "🔢 Use `/calc (2+3)*4` ou pergunte direto: `quanto é 15% de 200?`",
+  "/calcular": "🔢 Use `/calcular 25 * 4 + 10`",
+  "/converter": "📏 Use `/converter 10 km para m` ou `quanto é 5 quilos em gramas?`",
+  "/juros": "💰 Use `/juros simples 1000 2 12` ou `/juros compostos 1000 2 12` (capital, taxa %, períodos)",
+  "/fisica": "⚙️ Use:\n• `/fisica velocidade 100 2` (distância e tempo)\n• `/fisica forca 10 2` (massa e aceleração)\n• `/fisica densidade 100 20` (massa e volume)\n• `/fisica energia-cinetica 10 5` (massa e velocidade)",
+  "/golpe": "🔒 Cole a mensagem ou link suspeito depois de `/golpe` para análise."
+};
 
 function loadSettings() {
   try {
@@ -58,13 +68,12 @@ function enabled(id) {
 }
 
 function listModules() {
-  return "🧠 BACH AI 4.1 — DEPARTAMENTOS\n\n" +
+  return "🧠 BACH AI 4.5 — DEPARTAMENTOS\n\n" +
     DEPARTMENTS.map(d => {
       const flag = d.control ? (enabled(d.id) ? "🟢" : "⚪") : "🔹";
       return flag + " " + d.name + "\n   ID: " + d.id + " • " + d.status + "\n   " + d.skills;
     }).join("\n\n") +
-    "\n\nComandos: /statusmodulos • /modulo ID on • /modulo ID off" +
-    "\nFerramentas rápidas: /calc (2+3)*4 • /converter 10 km para m • /juros compostos 1000 2 12 • /fisica velocidade 100 2 • /quiz";
+    "\n\nComandos ADM: /statusmodulos • /modulo ID on • /modulo ID off • /diagnostico • /rollback";
 }
 
 function moduleCommand(text) {
@@ -82,10 +91,9 @@ function moduleCommand(text) {
   settings[id] = /^(on|ligar)$/i.test(m[2]);
   saveSettings(settings);
 
-  return (settings[id] ? "🟢 Ativei o complemento local de " : "⚪ Desativei o complemento local de ") + department.name + ".";
+  return (settings[id] ? "🟢 Ativei " : "⚪ Desativei ") + department.name + ".";
 }
 
-/* Ordem corrigida: Units antes de Intelligence! */
 const HANDLERS = [
   ["mundo", Units.handle, "📏 conversão de unidades"],
   ["inteligencia", Intelligence.handle, "🔢 cálculo local"],
@@ -101,9 +109,28 @@ const HANDLERS = [
 
 function handle(text, context = {}) {
   const raw = String(text || "").trim();
+  const low = raw.toLowerCase();
+
+  if (AJUDA_FERRAMENTAS[low]) {
+    return { texto: AJUDA_FERRAMENTAS[low], origem: "🛠️ ajuda da ferramenta" };
+  }
 
   if (/^\/(modulos|statusmodulos)$/i.test(raw)) {
     return { texto: listModules(), origem: "🧠 catálogo de módulos" };
+  }
+
+  if (/^\/(diagnostico|saude)$/i.test(raw)) {
+    return { texto: AutoGuard.diagnose(), origem: "🛡️ autoguard" };
+  }
+
+  if (/^\/rollback$/i.test(raw)) {
+    const rb = AutoGuard.rollback();
+    return {
+      texto: rb.ok
+        ? "♻️ Rollback concluído! Restaurei a memória limpa de " + new Date(rb.at).toLocaleString("pt-BR") + "."
+        : "Não foi possível fazer rollback: " + rb.msg,
+      origem: "🛡️ rollback"
+    };
   }
 
   const setting = moduleCommand(raw);
@@ -111,20 +138,12 @@ function handle(text, context = {}) {
 
   for (const [id, fn, origin] of HANDLERS) {
     if (!enabled(id)) continue;
-
-    // Quando há um modelo de IA conectado e o comando não começa com "/",
-    // deixa pedidos naturais de humor, criatividade ou planejamento fluírem para o cérebro.
     if (context.hasAI && !raw.startsWith("/")) {
       if (id === "personalidade" || id === "criatividade" || id === "estrategia") continue;
     }
 
-    try {
-      const answer = fn(raw, context);
-      if (answer) return { texto: answer, origem: origin };
-    } catch (error) {
-      console.error("BACH module error:", id, error);
-      return { texto: "O módulo " + id + " encontrou um erro ao processar essa solicitação.", origem: "⚠️ diagnóstico" };
-    }
+    const answer = AutoGuard.guard(id, () => fn(raw, context));
+    if (answer) return { texto: answer, origem: origin };
   }
 
   return null;
@@ -133,30 +152,25 @@ function handle(text, context = {}) {
 function modePrompt(mode = "auto") {
   const map = {
     auto: "MODO AUTOMÁTICO: entenda a intenção real do usuário e responda da forma mais útil, clara e natural possível.",
-    raciocinio: "MODO RACIOCÍNIO PROFUNDO: analise o problema por partes, verifique contradições, revise sua própria lógica antes de concluir e explique como chegou à resposta.",
-    pesquisa: "MODO PESQUISA: priorize precisão factual, compare informações, aponte limites quando não houver dados recentes confirmados e organize por tópicos.",
-    aprendizado: "MODO APRENDIZADO: atue como professor paciente, explique com exemplos práticos do simples ao avançado e proponha um exercício curto ao final.",
-    programacao: "MODO PROGRAMAÇÃO: entregue código completo e limpo em blocos com ```linguagem, aponte possíveis bugs e explique como o usuário pode testar.",
+    raciocinio: "MODO RACIOCÍNIO PROFUNDO: analise o problema por partes, revise sua lógica antes de concluir e explique como chegou à resposta.",
+    pesquisa: "MODO PESQUISA: priorize precisão factual, compare informações e aponte limites quando não houver dados recentes confirmados.",
+    aprendizado: "MODO APRENDIZADO: atue como professor paciente, dê exemplos práticos e proponha um exercício curto ao final.",
+    programacao: "MODO PROGRAMAÇÃO: entregue código completo e limpo em blocos com crases e linguagem, aponte bugs e explique como testar.",
     matematica: "MODO MATEMÁTICA: mostre as etapas do cálculo, confira unidades e verifique a conta final antes de responder.",
-    visao: "MODO VISÃO: descreva e analise a imagem enviada com atenção a textos, objetos, cores e detalhes, sem inventar o que não está visível.",
-    voz: "MODO VOZ: responda de forma direta, natural e agradável para leitura em voz alta (frases curtas e sem blocos enormes sem necessidade).",
-    criatividade: "MODO CRIATIVIDADE: explore ideias originais, narrativas envolventes, personagens e soluções fora do comum.",
-    documentos: "MODO DOCUMENTOS: resuma, estruture em pontos-chave, extraia dados importantes e revise o conteúdo do arquivo/texto enviado."
+    visao: "MODO VISÃO: descreva e analise a imagem enviada com atenção a textos, objetos, cores e detalhes.",
+    voz: "MODO VOZ: responda de forma direta, natural e agradável para leitura em voz alta.",
+    criatividade: "MODO CRIATIVIDADE: explore ideias originais, narrativas envolventes e soluções fora do comum.",
+    documentos: "MODO DOCUMENTOS: resuma, estruture em pontos-chave e revise o conteúdo do arquivo/texto enviado."
   };
   return map[mode] || map.auto;
 }
 
 function instructions() {
   return `REGRAS E LIMITES DA BACH AI:
-- Identidade: você é a BACH AI, uma assistente própria do usuário (nunca se apresente como Gemini, ChatGPT ou outro serviço).
+- Identidade: você é a BACH AI, criada por Rizik (nunca se apresente como outro serviço).
 - Use o histórico e as memórias existentes para manter o contexto, mas não invente lembranças.
 - Separe fatos confirmados, inferências e opiniões.
-- Em matemática e ciências, confira operações, unidades e hipóteses.
-- Em saúde, dê informação educativa e oriente atendimento urgente em emergências; não diagnostique.
-- Em direito e finanças, explique conceitos gerais sem prometer resultados.
-- Em segurança digital, trate sinais de golpe como indícios, nunca prova automática.
-- Em programação, não diga que executou código se só analisou estaticamente; explique como testar.
-- Em automação, não afirme ter feito ações externas sem autorização e execução real.`;
+- Em matemática e ciências, confira operações, unidades e hipóteses.`;
 }
 
 export const SkillRouter = {
