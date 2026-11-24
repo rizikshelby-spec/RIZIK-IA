@@ -1,6 +1,6 @@
-/* BACH AI - CÉREBRO AVANÇADO 2.2
-   NLU natural, temas por voz/texto, recomendações por gênero, séries ao vivo,
-   escrita estruturada, controle de contexto e integração com AutoGuard. */
+/* BACH AI - CÉREBRO AVANÇADO 2.3
+   NLU natural, temas por voz/texto, gerador rápido de senhas, recomendações por gênero,
+   séries ao vivo, escrita estruturada, controle de contexto e integração com AutoGuard. */
 import { AutoGuard } from "./autoguard.js?v=1";
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD")
@@ -20,13 +20,28 @@ const norm = t => String(t || "").toLowerCase().normalize("NFD")
   .replace(/\b(tlvz)\b/g, "talvez")
   .replace(/\b(tbm|tb|tmb)\b/g, "tambem")
   .replace(/\b(msm)\b/g, "mesmo")
-  .replace(/\b(hj)\b/g, "hoje")
   .replace(/[^a-z0-9\s]/g, " ")
   .replace(/\s+/g, " ")
   .trim();
 
 const giro = {};
 const girar = (k, arr) => { giro[k] = ((giro[k] ?? -1) + 1) % arr.length; return arr[giro[k]]; };
+
+function senhaRapida(n = 14) {
+  const tam = Math.min(64, Math.max(8, Number(n) || 14));
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*_-+=";
+  let out = "";
+  for (let i = 0; i < tam; i++) {
+    let idx = Math.floor(Math.random() * chars.length);
+    if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+      const a = new Uint32Array(1);
+      crypto.getRandomValues(a);
+      idx = a[0] % chars.length;
+    }
+    out += chars[idx];
+  }
+  return "🔐 **Senha forte gerada (" + tam + " caracteres):**\n\n`" + out + "`\n\nℹ️ Gerada localmente no seu aparelho (não salvo senhas).";
+}
 
 const FILMES_GENERO = {
   drama: [
@@ -224,9 +239,15 @@ async function buscarSeriesTVMaze(termo) {
   finally { clearTimeout(id); }
 }
 
+const TODOS_TEMAS = ["roxo", "vermelho", "azul", "verde", "rosa", "dourado", "neon"];
+
 function detectarTemaPedido(t) {
+  if (/^que tema o que$/.test(t)) return { ignora: true };
   if (/^(quais temas|temas|quais cores|mudar cor|trocar cor|mudar tema|trocar tema)$/.test(t)) {
     return { listar: true };
+  }
+  if (/^(?:muda|mudar|troca|trocar|escolhe|escolher)(?:\s+de)?\s+tema(?:\s+se\s+(?:voce\s+)?quiser|\s+aleatorio)?$/.test(t)) {
+    return girar("auto-tema", TODOS_TEMAS);
   }
   if (/\b(significa|significado|por que|porque|qual e a cor|qual a cor|bandeira|arco iris|ceu|mar|sol|sangue|planta)\b/.test(t) &&
       !/\b(tema|aparencia|visual|interface)\b/.test(t)) {
@@ -318,9 +339,19 @@ async function responder(raw, ctx = {}) {
     };
   }
 
+  // 0.5) Pedido rápido de senha ("vamos de senha", "senha", "/senha")
+  if (/^(?:vamos\s+(?:de|se)\s+senha|senha|gera\w*\s+senha|manda\s+uma\s+senha|me\s+da\s+uma\s+senha|quero\s+uma\s+senha)$/.test(t) ||
+      /^\/senha(?:\s+(\d{1,2}))?$/i.test(raw.trim())) {
+    const tam = (raw.match(/\d{1,2}/) || [])[0] || 14;
+    return { texto: senhaRapida(tam), origem: "🔐 utilidades" };
+  }
+
   // 1) Troca de temas visuais pelo chat
   const temaPedido = detectarTemaPedido(t);
   if (temaPedido) {
+    if (temaPedido.ignora) {
+      return { texto: "Haha, desculpa! 😅 Não precisa mudar de tema — manda o assunto que você quer falar agora!", origem: "💬 conversa" };
+    }
     if (temaPedido.listar) {
       return {
         texto: "🎨 **Temas disponíveis na BACH AI:**\n• 💜 Roxo • ❤️ Vermelho • 💙 Azul • 💚 Verde • 🩷 Rosa • 💛 Dourado • ⚡ Neon\n\nÉ só pedir, por exemplo: **“muda o tema para vermelho”** (ou escolher no menu ☰)!",
@@ -347,7 +378,7 @@ async function responder(raw, ctx = {}) {
   }
   if (/\b(como posso te melhorar|como te melhorar|o que melhorar em voce|auto se arrumar|se corrigir|consegue se corrigir)\b/.test(t)) {
     return {
-      texto: "🛠️ Eu já tenho **AutoGuard** rodando em tempo real (monitora erros, limpa cache antes de travar e salva *snapshots* para `/rollback`), mas em arquivos estáticos no GitHub eu não edito meus próprios `.js` sozinha.\n\nPara me ensinar ou corrigir respostas na hora, use:\n• **corrija: pergunta => resposta certa**\n• **`/diagnostico`** para ver os erros registrados!",
+      texto: "🛠️ Eu já tenho **AutoGuard** e **AutoCorretor** rodando em tempo real!\n• Se eu errar, diga **“você errou”** ou **“fugiu do assunto”** que eu releio o chat.\n• Use **`/auditar`** para listar todos os erros da conversa ou **`/copiar`** para copiar tudo!",
       origem: "🛡️ evolução"
     };
   }
@@ -358,7 +389,7 @@ async function responder(raw, ctx = {}) {
     };
   }
 
-  // 3) Pedidos de idioma da conversa ("Responde em português") e esclarecimento sobre números
+  // 3) Pedidos de idioma da conversa e falas soltas comuns dos testes
   if (/^(?:me\s+)?(?:respond[ae]|fal[ae]|escrev[ae]|convers[ae])\s+(?:so\s+)?em\s+portugues$/.test(t)) {
     return {
       texto: "Já estou falando em português com você" + nomeUser + "! 😊 Se você quiser traduzir algum texto em inglês que eu enviei (como de uma foto), toque em **↩ Responder** nele e mande **“só traduz”**.",
@@ -371,8 +402,37 @@ async function responder(raw, ctx = {}) {
       origem: "🔢 dica"
     };
   }
+  if (/^pesquisa(?:r)?\s+tudo\s+(?:o\s+)?que\s+voce\s+(?:quiser|querer)$/.test(t)) {
+    return {
+      texto: "Haha! Prefiro pesquisar o que **você** estiver curioso pra saber! 😄 Manda um tema (ex.: *pesquise sobre buraco negro* ou *curiosidade*).",
+      origem: "💬 conversa"
+    };
+  }
+  if (/^(?:eu\s+(?:estou|to)\s+aqui\s+testando\s+voce|e\s+eu\s+aqui\s+testando\s+voce|testando\s+voce|to\s+te\s+testando)$/.test(t)) {
+    return {
+      texto: "Pode testar à vontade" + nomeUser + "! 😄 Se achar alguma falha, manda **`/auditar`** ou **`/copiar`** que a gente corrige tudo!",
+      origem: "💬 conversa"
+    };
+  }
+  if (/^(?:ja\s+escrevi|escrevi\s+ja)$/.test(t)) {
+    return {
+      texto: "Opa! Se foi uma carinha ou símbolo, eu li como vazio 😅. Manda com palavras o que você quer agora!",
+      origem: "💬 conversa"
+    };
+  }
+  if (/^(?:claro|assim|entendii?|fala mais|uai pesquisa)$/.test(t)) {
+    if (t === "uai pesquisa") return { texto: "Me diga qual assunto você quer que eu pesquise! 🔍 (Ex.: *pesquise sobre Marte*)", origem: "💬 conversa" };
+    if (t === "fala mais" && ctx.ultimoTema) return { pesquisarTema: ctx.ultimoTema + " curiosidades detalhes" };
+    return {
+      texto: girar("soltas", [
+        "Beleza! 😄 Manda o próximo assunto ou pergunta!",
+        "Tô ouvindo! 👍 Quer pesquisar algo, jogar ou testar outra função?"
+      ]),
+      origem: "💬 conversa"
+    };
+  }
 
-  // 4) Feedback de erro / frustração / "não mandei pesquisar" / "não entende o que eu digo?"
+  // 4) Feedback de erro / frustração
   if (/\b(nao foi|nao era|falou errado|disse errado|respondeu errado|entendeu errado|errando|ta errado|esta errado|vc ainda erra|voce ainda erra|so erra|voce e burro|burra|nada a ver|nada aver|nada haver|erros atrais|erros atras|da erro|dando erro|para de dizer que travou|travou foi|pergutar mais|chutar o que|chutar oq|nao mandei pesquisar|nao pedi pesquisa|nao pedi pra pesquisar|nao era pra pesquisar|para de pesquisar|nao entende|nao entendeu)\b/.test(t) ||
       /^(te |quero |vou |vamos te |irei te )?(corrigir|arrumar|consertar|ensinar)( ta)?$/.test(t) ||
       /\b(arrumo tudo|arrumo voce|irei te consertar|para que fui criala)\b/.test(t)) {
@@ -386,21 +446,15 @@ async function responder(raw, ctx = {}) {
     };
   }
 
-  // 5) Respostas curtas de acompanhamento ("opa oq?", "aham tabom", "é ta feio msm hein")
-  if (/^(?:opa|oxe|ue|como assim|que|o que)\s*(?:o que)?$/.test(t) || /^(?:porque nao|porque nao pode|perguntar o que|oque perguntar|ah ta claro)$/.test(t)) {
+  // 5) Respostas curtas de acompanhamento
+  if (/^(porque nao|porque nao pode|como assim|perguntar o que|oque perguntar|ah ta claro)$/.test(t)) {
     if (ctx.ultimoBot && /calendário|lançamentos futuros/i.test(ctx.ultimoBot)) {
       return {
         texto: "Porque eu não tenho acesso ao calendário oficial atualizado de estreias dos cinemas do mês que vem — e prefiro te avisar do que inventar datas falsas! Mas posso recomendar ótimos filmes por gênero agora se você pedir. 🎬",
         origem: "🧠 contexto"
       };
     }
-    return {
-      texto: girar("acomp", [
-        "Foi só um jeito de dizer que estou ouvindo! 😄 Manda sua pergunta, foto, código ou pedido.",
-        "Me diga qual assunto ou dúvida você quer resolver agora! Pode ser código, filme, música, conta, tradução ou clima. 😊"
-      ]),
-      origem: "💬 conversa"
-    };
+    return { texto: "Me diga qual assunto ou dúvida você quer resolver agora! Pode ser código, filme, música, conta, tradução ou qualquer curiosidade. 😊", origem: "💬 conversa" };
   }
 
   if (/^(?:aham|ahan|uhum|ok|okay|ta\s*bom|tabom|blz|beleza|ata|entendi|tendi|saquei|fechou|suave|de boa|firmeza|show|top|pode crer)(?:\s+(?:tabom|ta\s*bom|entao|ne|blz|ok|po))*$/.test(t)) {
@@ -416,12 +470,12 @@ async function responder(raw, ctx = {}) {
 
   if (/\b(ta feio|ta osso|ta dificil|ta complicado|que coisa)\b/.test(t) && t.split(" ").length <= 7) {
     return {
-      texto: "Pois é 😅! Mas se quiser ajustar algum visual (peça “tema azul”, “neon”...) ou tentar outra pergunta, tô aqui!",
+      texto: "Pois é 😅! Se quiser tentar outra pergunta ou testar uma função nova, tô aqui!",
       origem: "💬 conversa"
     };
   }
 
-  // 6) Conversa solta, gírias brasileiras e risadas
+  // 6) Conversa solta e gírias
   if (/^(conversa comigo|vamos conversar|bora conversar|fala comigo|fale comigo)$/.test(t)) {
     return {
       texto: girar("conv-solta", [
@@ -431,11 +485,7 @@ async function responder(raw, ctx = {}) {
       origem: "💬 conversa"
     };
   }
-  if (/^(ae+|uai+|vixi+|vish+|eita+|oxe+|oxente|vey.*|uhum.*|ta mas pera.*|para+|wtf|so voce tem problemas)$/.test(t) ||
-      /^(k+a+|k+s+|s+k+|j+k+|h+a+|r+s+)/i.test(t.replace(/\s+/g, ""))) {
-    if (/^(k+a+|k+s+|s+k+|j+k+|h+a+|r+s+)/i.test(t.replace(/\s+/g, "")) || /^sabe rir$/.test(t)) {
-      return { texto: girar("risos", ["Hahaha 😂😂! Tô rindo junto!", "Kkkkkk 😄 Boa!", "Ksksksks 😂 Manda a próxima!"]), origem: "😄 humor" };
-    }
+  if (/^(ae+|uai+|vixi+|vish+|eita+|oxe+|oxente|vey.*|uhum.*|ta mas pera.*|para+|wtf|so voce tem problemas)$/.test(t)) {
     return { texto: girar("giria-ok", ["Tô por aqui! 😄 Manda o que você precisa agora.", "Opa! 👀 Pode mandar sua pergunta, foto ou assunto."]), origem: "💬 conversa" };
   }
 
