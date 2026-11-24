@@ -1,230 +1,120 @@
-/* BACH AI - SABERES 1.0
-   Mais conhecimento verificado para o fatos.js: matemática, computação,
-   português, ciências, história e geografia.
-   Formato: [frases separadas por |, resposta]. A pergunta precisa conter todas as
-   palavras de uma das frases. */
+/* BACH AI 4.8 — Sabedoria Geral Turbinada
+ * Conhecimento estruturado imediato em tecnologia avançada, segurança digital, direito,
+ * economia, ciências, filosofia e produtividade (zero conflito com conversa normal).
+ */
 
-export const MAIS = [
-/* ---------- MATEMÁTICA ---------- */
-["matematica|materia matematica|ramos matematica|areas matematica|o que estuda matematica|estudar matematica",
- "📐 Matemática é a ciência que estuda quantidades, formas, estruturas e padrões. Principais áreas na escola: aritmética (números e operações), álgebra (equações e funções), geometria (formas, áreas e volumes), trigonometria (ângulos e triângulos), estatística e probabilidade (dados e chances) e, na faculdade, cálculo (derivadas e integrais). Pergunte por qualquer uma, como 'o que é MMC', 'fórmula de Bhaskara' ou 'o que é derivada'."],
-["ordem operacoes|ordem das operacoes|expressao numerica|precedencia operacoes",
- "➗ Ordem das operações: 1º parênteses (depois colchetes e chaves), 2º potências e raízes, 3º multiplicação e divisão (da esquerda para a direita), 4º soma e subtração. Ex.: 2 + 3 × 4 = 2 + 12 = 14."],
-["fracao|fracoes|operacoes fracoes|somar fracoes",
- "➗ Fração = numerador ÷ denominador. Soma/subtração: com denominadores iguais, opera os numeradores (1/5 + 2/5 = 3/5); com denominadores diferentes, ache o MMC e converta. Multiplicação: numerador × numerador e denominador × denominador. Divisão: multiplique pelo inverso da segunda (1/2 ÷ 3/4 = 1/2 × 4/3 = 2/3)."],
-["mmc|minimo multiplo comum",
- "🔢 MMC é o menor múltiplo positivo comum a dois ou mais números. Ex.: MMC(4, 6) = 12. Pelo método da fatoração: tire os fatores primos de cada número e multiplique os de maior expoente."],
-["mdc|maximo divisor comum",
- "🔢 MDC é o maior número que divide dois ou mais números ao mesmo tempo. Ex.: MDC(12, 18) = 6. Relação útil: MMC(a, b) × MDC(a, b) = a × b."],
-["criterios divisibilidade|divisibilidade|divisivel",
- "🔢 Critérios de divisibilidade: por 2, termina em número par; por 3, a soma dos algarismos é múltipla de 3; por 4, os dois últimos algarismos formam múltiplo de 4; por 5, termina em 0 ou 5; por 9, a soma dos algarismos é múltipla de 9; por 10, termina em 0."],
-["potencia|potenciacao|potencias|propriedades potencias",
- "🔢 Potência aⁿ é a multiplicação de a por ele mesmo n vezes. Propriedades: aᵐ·aⁿ = aᵐ⁺ⁿ; aᵐ÷aⁿ = aᵐ⁻ⁿ; (aᵐ)ⁿ = aᵐⁿ; a⁰ = 1 (a ≠ 0); a⁻ⁿ = 1/aⁿ."],
-["raiz quadrada|radiciacao|raiz",
- "🔢 A raiz quadrada de x é o número que multiplicado por ele mesmo dá x: √9 = 3, √144 = 12. Propriedade: √(a·b) = √a · √b. Não existe raiz quadrada real de número negativo."],
-["equacao primeiro grau|equacao 1 grau|equacao do primeiro grau|resolver equacao",
- "📐 Equação do 1º grau: ax + b = 0 → x = −b/a. Passos: isole o x passando termos para o outro lado trocando o sinal. Ex.: 2x + 6 = 14 → 2x = 8 → x = 4."],
-["funcao afim|funcao primeiro grau|funcao 1 grau",
- "📈 Função afim: f(x) = ax + b. O gráfico é uma reta; 'a' é o coeficiente angular (inclinação) e 'b' é onde a reta corta o eixo y. A raiz é x = −b/a. Se a > 0 a função cresce; se a < 0 decresce."],
-["funcao quadratica|funcao segundo grau|funcao 2 grau|parabola",
- "📈 Função quadrática: f(x) = ax² + bx + c, cujo gráfico é uma parábola. Se a > 0 a concavidade é para cima; se a < 0, para baixo. Vértice: xv = −b/2a e yv = −Δ/4a, com Δ = b² − 4ac."],
-["pa|progressao aritmetica",
- "🔢 Progressão aritmética (PA): cada termo é o anterior somado a uma razão r constante. Termo geral: aₙ = a₁ + (n − 1)·r. Soma dos n primeiros: Sₙ = (a₁ + aₙ)·n / 2. Ex.: 2, 5, 8, 11… (r = 3)."],
-["pg|progressao geometrica",
- "🔢 Progressão geométrica (PG): cada termo é o anterior multiplicado por uma razão q constante. Termo geral: aₙ = a₁·qⁿ⁻¹. Soma dos n primeiros (q ≠ 1): Sₙ = a₁·(qⁿ − 1)/(q − 1). Ex.: 3, 6, 12, 24… (q = 2)."],
-["logaritmo|logaritmos|log",
- "🔢 Logaritmo responde 'a que potência elevo a base para chegar a este número?': log_b(x) = y significa bʸ = x. Ex.: log₁₀(1000) = 3, log₂(8) = 3. Propriedades: log(a·b) = log a + log b; log(a/b) = log a − log b; log(aⁿ) = n·log a."],
-["media aritmetica|mediana|moda estatistica|estatistica basica|media mediana moda|media moda mediana",
- "📊 Média = soma dos valores ÷ quantidade deles. Mediana = valor central dos dados em ordem (se forem pares, a média dos dois do meio). Moda = valor que mais se repete. Ex.: 2, 3, 3, 7, 10 → média 5, mediana 3, moda 3."],
-["probabilidade|calcular probabilidade",
- "🎲 Probabilidade = casos favoráveis ÷ casos possíveis, sempre entre 0 (impossível) e 1 (certo). Ex.: tirar 6 em um dado = 1/6 ≈ 16,7%. Eventos independentes: P(A e B) = P(A) × P(B)."],
-["analise combinatoria|permutacao|combinacao|arranjo|combinatoria",
- "🎲 Análise combinatória: permutação de n elementos = n!; arranjo (a ordem importa) A(n,p) = n!/(n − p)!; combinação (a ordem não importa) C(n,p) = n!/[p!·(n − p)!]. Ex.: C(5,2) = 10."],
-["trigonometria|seno cosseno tangente|seno|cosseno|tangente",
- "📐 No triângulo retângulo: seno = cateto oposto ÷ hipotenusa; cosseno = cateto adjacente ÷ hipotenusa; tangente = oposto ÷ adjacente. Relação fundamental: sen²θ + cos²θ = 1. Notáveis: sen 30° = 1/2; sen 45° = √2/2; sen 60° = √3/2."],
-["volume cubo|volume cilindro|volume esfera|volume formulas|formulas volume|volume",
- "📦 Volumes: cubo = a³; paralelepípedo = comprimento × largura × altura; cilindro = π·r²·h; cone = (1/3)·π·r²·h; esfera = (4/3)·π·r³."],
-["soma angulos|soma angulos triangulo|soma angulos internos|angulos internos",
- "📐 A soma dos ângulos internos de um triângulo é 180°; de um quadrilátero, 360°. Para qualquer polígono de n lados: (n − 2) × 180°."],
-["conjuntos numericos|numeros naturais|numeros inteiros|numeros racionais|numeros reais",
- "🔢 Conjuntos numéricos: ℕ naturais (0, 1, 2…), ℤ inteiros (…−1, 0, 1…), ℚ racionais (frações p/q), 𝕀 irracionais (como π e √2) e ℝ reais (racionais + irracionais). ℕ ⊂ ℤ ⊂ ℚ ⊂ ℝ."],
-["juros simples",
- "💰 Juros simples: J = C × i × t (capital × taxa × tempo). Montante: M = C + J. Ex.: R$ 1.000 a 2% ao mês por 5 meses: J = 1000 × 0,02 × 5 = R$ 100."],
-["regra tres|regra de tres",
- "➗ Regra de três simples: se A está para B assim como C está para x, então x = (B × C) ÷ A. Direta: as grandezas crescem juntas. Inversa: quando uma aumenta, a outra diminui (nesse caso inverta uma das razões). Ex.: 3 kg custam R$ 12; 5 kg custam x = 12 × 5 ÷ 3 = R$ 20."],
-["derivada|calculo derivada|derivadas",
- "📈 Derivada é a taxa de variação instantânea de uma função (a inclinação da reta tangente ao gráfico). Regras: (xⁿ)' = n·xⁿ⁻¹; (constante)' = 0; (sen x)' = cos x; (eˣ)' = eˣ. Ex.: se f(x) = x³, então f'(x) = 3x²."],
-["integral|integrais|calculo integral",
- "📈 Integral é, geometricamente, a área sob a curva de uma função; é a operação inversa da derivada. Regra: ∫xⁿ dx = xⁿ⁺¹/(n + 1) + C (n ≠ −1). Ex.: ∫x² dx = x³/3 + C."],
-["matriz|matrizes|determinante",
- "🔢 Matriz é uma tabela de números em linhas e colunas. Só se multiplica A·B se as colunas de A forem iguais às linhas de B. Determinante de uma 2×2 [[a, b], [c, d]] = a·d − b·c."],
+const norm = s => String(s || "").toLowerCase().normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .replace(/[^a-z0-9\s]/g, " ")
+  .replace(/\s+/g, " ")
+  .trim();
 
-/* ---------- COMPUTAÇÃO ---------- */
-["computacao|ciencia computacao|materia computacao|areas computacao|ciencia da computacao",
- "💻 Ciência da Computação estuda como resolver problemas com computadores. Áreas: algoritmos e programação, estruturas de dados, banco de dados, redes, sistemas operacionais, engenharia de software, segurança, inteligência artificial e computação gráfica. Pergunte por qualquer uma, como 'o que é algoritmo', 'pilha e fila' ou 'o que é criptografia'."],
-["algoritmo|o que e algoritmo",
- "🧩 Algoritmo é uma sequência finita e ordenada de passos para resolver um problema. Ex.: receita de bolo, ou achar o maior número de uma lista: guarde o primeiro como 'maior', compare com cada um dos outros e troque quando achar um maior."],
-["hardware software|diferenca hardware software|hardware|software",
- "💻 Hardware é a parte física do computador (processador, memória, placa-mãe, tela). Software é a parte lógica: programas e sistemas, que são instruções para o hardware executar."],
-["compilador interpretador|diferenca compilador interpretador|compilador|interpretador",
- "💻 Compilador traduz todo o código para linguagem de máquina antes de rodar (C, C++, Rust). Interpretador lê e executa o código linha a linha, na hora (Python, JavaScript no navegador). Compilado tende a ser mais rápido; interpretado, mais flexível."],
-["linguagem programacao|linguagens programacao|linguagem de programacao",
- "💻 Linguagem de programação é um conjunto de regras para escrever instruções que o computador executa. Alto nível (Python, JavaScript) é mais próxima do humano; baixo nível (assembly) é mais próxima da máquina."],
-["estruturas dados|estrutura dados|pilha|fila|arvore binaria|grafo|tabela hash|lista ligada",
- "🧱 Estruturas de dados organizam informações: array (posições numeradas), lista ligada (elementos encadeados), pilha (último a entrar, primeiro a sair, LIFO), fila (primeiro a entrar, primeiro a sair, FIFO), árvore (hierarquia), grafo (nós e conexões) e tabela hash (acesso rápido por chave)."],
-["big o|complexidade algoritmo|notacao big o|complexidade",
- "⏱️ Big O mede como o tempo de um algoritmo cresce com o tamanho n da entrada: O(1) constante, O(log n) busca binária, O(n) percorrer uma lista, O(n log n) bons ordenadores (merge sort), O(n²) dois laços aninhados."],
-["banco dados|bancos dados|sgbd|banco de dados",
- "🗄️ Banco de dados é um conjunto organizado de informações. Relacionais (MySQL, PostgreSQL, SQLite) usam tabelas e SQL; NoSQL (MongoDB, Redis) usam outros formatos, como documentos e chave-valor. O SGBD é o programa que gerencia o banco."],
-["endereco ip|ip endereco|tcp ip|protocolo rede|redes computadores|rede computadores",
- "🌐 Rede de computadores é um conjunto de dispositivos conectados que trocam dados por protocolos. Endereço IP identifica um dispositivo na rede: IPv4 tem 32 bits (≈ 4,3 bilhões de endereços) e IPv6 tem 128 bits. TCP/IP é a família de protocolos da internet; o TCP garante a entrega ordenada dos dados."],
-["firewall",
- "🛡️ Firewall é um sistema que filtra o tráfego de rede, permitindo ou bloqueando conexões conforme regras de segurança."],
-["vpn",
- "🔒 VPN cria um túnel criptografado entre seu aparelho e um servidor, protegendo o tráfego em redes públicas e escondendo seu IP real dos sites. Não torna você anônimo nem substitui antivírus."],
-["criptografia|criptografia simetrica|criptografia assimetrica",
- "🔐 Criptografia embaralha dados para que só quem tem a chave leia. Simétrica: a mesma chave cifra e decifra (AES), é rápida. Assimétrica: chave pública cifra e chave privada decifra (RSA), usada para trocar chaves e assinar. O HTTPS combina as duas."],
-["malware|virus computador|ransomware|phishing",
- "🛡️ Malware é software malicioso: vírus, trojans, spyware e ransomware (que sequestra arquivos e pede resgate). Phishing é o golpe de se passar por empresa ou pessoa (e-mail, SMS, site falso) para roubar senhas e dados. Defesa: não clique em links suspeitos, mantenha o sistema atualizado e use autenticação em dois fatores."],
-["senha segura|senha forte|criar senha",
- "🔑 Senha forte: longa (12 caracteres ou mais; frases funcionam bem), única para cada site, sem dados pessoais óbvios. Use um gerenciador de senhas e ative a verificação em duas etapas."],
-["backup|copia seguranca",
- "💾 Backup é uma cópia dos seus dados guardada em outro lugar. Regra 3-2-1: 3 cópias, em 2 tipos de mídia diferentes, com 1 delas fora do local (nuvem, por exemplo)."],
-["nuvem|computacao nuvem|cloud",
- "☁️ Computação em nuvem é usar servidores remotos, via internet, para armazenar dados e executar programas, em vez de depender só do seu computador. Exemplos: Google Drive, AWS, Azure."],
-["front end|frontend|back end|backend|full stack|fullstack",
- "💻 Front-end é a parte que o usuário vê e usa (HTML, CSS, JavaScript). Back-end é a parte que roda no servidor: regras, banco de dados e APIs. Full stack faz as duas."],
-["open source|codigo aberto|software livre",
- "💻 Open source (código aberto) é software cujo código-fonte é público e pode ser estudado, modificado e redistribuído, conforme a licença. Exemplos: Linux, Firefox, Python."],
-["kernel|nucleo sistema operacional",
- "💻 Kernel é o núcleo do sistema operacional: faz a ponte entre os programas e o hardware, gerenciando processador, memória e dispositivos."],
-["gpu|placa video|placa grafica",
- "💻 GPU é um processador feito para executar muitas contas em paralelo. Nasceu para gráficos e jogos, e hoje também treina modelos de inteligência artificial."],
-["ssd hd|diferenca ssd hd|ssd|hd|disco rigido",
- "💾 HD (disco rígido) guarda dados em discos magnéticos giratórios: mais barato, mais lento. SSD usa memória flash, sem partes móveis: bem mais rápido, silencioso e resistente a quedas."],
-["cache|memoria cache",
- "💻 Cache é uma memória pequena e muito rápida que guarda dados usados com frequência, para evitar buscá-los em lugares mais lentos. Existe no processador, no navegador e em servidores."],
-["machine learning|aprendizado maquina|aprendizado de maquina|rede neural|redes neurais|deep learning|aprendizado profundo",
- "🤖 Machine learning (aprendizado de máquina) é ensinar computadores a achar padrões em dados em vez de programar cada regra. Rede neural é um modelo inspirado em camadas de 'neurônios' artificiais; deep learning usa redes com muitas camadas, base de reconhecimento de imagem, voz e dos modelos de linguagem."],
-["token|tokens|prompt|engenharia prompt",
- "🤖 Em modelos de linguagem, token é um pedaço de texto (palavra ou parte dela) que o modelo processa. Prompt é a instrução ou pergunta que você envia. Prompts claros, com contexto e exemplos, geram respostas melhores."],
-["ascii|unicode|utf 8|codificacao caracteres",
- "🔤 ASCII codifica 128 caracteres básicos (A = 65). Unicode cobre praticamente todas as escritas do mundo e emojis; UTF-8 é a forma mais usada de gravá-lo, e é por ele que 'ç' e 'ã' aparecem certos."],
-["porta logica|logica booleana|and or not|tabela verdade",
- "💻 Lógica booleana trabalha com verdadeiro (1) e falso (0). AND é verdadeiro só se os dois forem verdadeiros; OR, se ao menos um for; NOT inverte o valor; XOR, se forem diferentes."],
-["hexadecimal|base 16",
- "🔢 Hexadecimal é a base 16: usa 0–9 e A–F (A = 10 … F = 15). Cada dígito vale 4 bits. Ex.: FF = 255; 1F = 31. É comum em cores web (#7864ed) e endereços de memória."],
-["converter binario decimal|conversao binario decimal|binario para decimal",
- "🔢 Binário → decimal: some as potências de 2 das posições com 1, da direita para a esquerda (1, 2, 4, 8…). Ex.: 1101₂ = 8 + 4 + 0 + 1 = 13. Decimal → binário: divida por 2 repetidamente e leia os restos de baixo para cima."],
-["metodologia agil|agil|scrum",
- "🗂️ Metodologias ágeis (como Scrum e Kanban) entregam software em ciclos curtos, com feedback constante. No Scrum o trabalho é dividido em sprints (de 1 a 4 semanas), com reuniões diárias, revisão e retrospectiva."],
-["cookie|cookies navegador",
- "🍪 Cookie é um pequeno arquivo que o site guarda no seu navegador para lembrar de você (login, preferências) ou, em alguns casos, rastrear sua navegação."],
-["pixel|resolucao tela|megapixel",
- "🖼️ Pixel é o menor ponto de uma imagem digital. Resolução é a quantidade de pixels (Full HD = 1920×1080). 1 megapixel = 1 milhão de pixels."],
-
-/* ---------- PORTUGUÊS ---------- */
-["classes gramaticais|classes palavras|substantivo|adjetivo|verbo|advérbio|adverbio",
- "📝 São 10 classes gramaticais: substantivo (nomeia), adjetivo (qualifica), artigo, numeral, pronome, verbo (ação, estado), advérbio (modifica verbo, adjetivo ou outro advérbio), preposição, conjunção e interjeição."],
-["sujeito predicado|sujeito|predicado",
- "📝 Sujeito é o termo sobre o qual se declara algo; predicado é o que se declara sobre ele. Em 'Os alunos estudaram bastante', o sujeito é 'Os alunos' e o predicado é 'estudaram bastante'."],
-["crase|quando usar crase|uso crase",
- "📝 Crase é a fusão da preposição 'a' com o artigo 'a(s)'. Teste: troque a palavra feminina por uma masculina; se ficar 'ao', use crase ('Vou à escola' → 'Vou ao colégio'). Não se usa antes de verbos, de palavras masculinas nem de pronomes como 'ela' e 'você'."],
-["porque por que porque|por que porque|porques|diferenca porque",
- "📝 'Por que' (separado, sem acento): pergunta no início ou meio da frase ('Por que você saiu?'). 'Por quê' (acento): pergunta no fim da frase. 'Porque' (junto): resposta ou explicação ('Saí porque chovia'). 'Porquê' (junto, acento): substantivo, com artigo antes ('Não sei o porquê')."],
-["mas mais|diferenca mas mais",
- "📝 'Mas' expressa oposição (= porém): 'Estudei, mas não passei'. 'Mais' expressa quantidade ou intensidade (oposto de menos): 'Quero mais água'."],
-["figuras linguagem|figuras de linguagem|metafora|metonimia|ironia|hiperbole|personificacao",
- "📝 Figuras de linguagem: metáfora (comparação implícita: 'Ele é uma fera'), comparação (usa 'como'), metonímia (troca por relação: 'Li Machado de Assis'), hipérbole (exagero), ironia (diz o contrário do que pensa), personificação (dá traço humano a coisas) e antítese (palavras opostas)."],
-["tipos texto|generos textuais|texto dissertativo|texto narrativo|texto descritivo",
- "📝 Tipos textuais: narrativo (conta fatos com personagens, tempo e espaço), descritivo (mostra características), dissertativo-argumentativo (defende uma ideia com argumentos), injuntivo (dá instruções, como receitas) e expositivo (explica um tema)."],
-["acentuacao|regras acentuacao|oxitona|paroxitona|proparoxitona|silaba tonica",
- "📝 Pela sílaba tônica: oxítonas (última sílaba) levam acento se terminam em a, e, o, em (café, você); paroxítonas (penúltima) levam se terminam em l, n, r, x, ps, ão, i, us, um (fácil, útil, órgão); todas as proparoxítonas (antepenúltima) levam acento (lâmpada, médico)."],
-["virgula|uso virgula|quando usar virgula",
- "📝 Usa-se vírgula para separar itens de uma enumeração, isolar o vocativo ('Ana, venha aqui'), o aposto e expressões explicativas, o adjunto adverbial deslocado e orações coordenadas com 'mas', 'porém'. Não se separa o sujeito do verbo com vírgula."],
-["sentido figurado|denotacao|conotacao",
- "📝 Denotação é o sentido literal da palavra ('A casa pegou fogo'). Conotação é o sentido figurado, que depende do contexto ('Ela está pegando fogo hoje', de muito animada)."],
-["voz passiva|voz ativa",
- "📝 Na voz ativa o sujeito pratica a ação ('O aluno fez a prova'); na passiva ele sofre a ação ('A prova foi feita pelo aluno')."],
-
-/* ---------- CIÊNCIAS ---------- */
-["tabela periodica|elementos quimicos|elemento quimico",
- "⚗️ A tabela periódica organiza os 118 elementos químicos conhecidos em ordem crescente de número atômico (prótons). Colunas são grupos (propriedades parecidas) e linhas são períodos. Foi proposta por Mendeleev em 1869."],
-["simbolos quimicos|simbolo quimico|simbolo ouro|simbolo ferro",
- "⚗️ Símbolos comuns: H hidrogênio, O oxigênio, C carbono, N nitrogênio, Na sódio, K potássio, Ca cálcio, Fe ferro, Cu cobre, Ag prata, Au ouro, Pb chumbo, Hg mercúrio."],
-["ph|escala ph|acido base|acidos bases",
- "⚗️ O pH mede a acidez de 0 a 14: abaixo de 7 é ácido (limão ≈ 2), 7 é neutro (água pura) e acima de 7 é básico ou alcalino (sabão ≈ 10)."],
-["composicao ar|ar atmosfera composicao|gases atmosfera|composicao atmosfera|atmosfera",
- "🌍 O ar seco é cerca de 78% nitrogênio, 21% oxigênio, 0,9% argônio e 0,04% gás carbônico, além de traços de outros gases e vapor de água variável."],
-["energia cinetica|energia potencial|energia mecanica",
- "⚡ Energia cinética (do movimento): Ec = m·v²/2. Energia potencial gravitacional (da altura): Ep = m·g·h. Sem atrito, a soma das duas (energia mecânica) se conserva."],
-["velocidade media|mru|movimento uniforme",
- "🏃 Velocidade média = distância percorrida ÷ tempo gasto (v = Δs/Δt). No movimento retilíneo uniforme (MRU) a velocidade é constante: s = s₀ + v·t. Para converter: km/h ÷ 3,6 = m/s."],
-["densidade",
- "⚖️ Densidade = massa ÷ volume (d = m/V). A da água é 1 g/cm³ (1 kg/L); por isso o gelo (≈ 0,92 g/cm³) flutua."],
-["pressao fisica|pressao",
- "⚖️ Pressão = força ÷ área (p = F/A), medida em pascal (Pa). A pressão atmosférica ao nível do mar é ≈ 101.325 Pa (1 atm)."],
-["onda|ondas|frequencia onda|comprimento onda",
- "🌊 Onda transporta energia sem transportar matéria. Velocidade = comprimento de onda × frequência (v = λ·f). Frequência é medida em hertz (Hz): ciclos por segundo. Ondas mecânicas (som) precisam de meio material; as eletromagnéticas (luz) não."],
-["fases lua|fases da lua",
- "🌙 As fases da Lua são nova, crescente, cheia e minguante, e o ciclo completo dura cerca de 29,5 dias. Elas mudam conforme a parte iluminada da Lua que vemos da Terra; não têm relação com a sombra da Terra (isso é o eclipse)."],
-["mares|mare|por que existem mares",
- "🌊 As marés são causadas principalmente pela atração gravitacional da Lua (e, em menor grau, do Sol) sobre os oceanos. Há duas marés altas e duas baixas por dia, em média."],
-["diferenca clima tempo|clima tempo diferenca|clima",
- "🌦️ Tempo é a condição da atmosfera em um momento e lugar (hoje está chovendo). Clima é o padrão médio do tempo ao longo de muitos anos, geralmente 30 (a região é de clima tropical)."],
-["camada ozonio|ozonio",
- "🌍 A camada de ozônio fica na estratosfera e absorve grande parte da radiação ultravioleta do Sol. Os gases CFC a estavam destruindo; o Protocolo de Montreal (1987) os baniu, e a camada está se recuperando."],
-["coleta seletiva|reciclagem|cores lixeiras|cores reciclagem|coleta seletiva cores|cores coleta seletiva",
- "♻️ Cores da coleta seletiva (Conama 275): azul = papel; vermelho = plástico; verde = vidro; amarelo = metal; preto = madeira; marrom = orgânico; cinza = não reciclável ou misturado; laranja = resíduos perigosos."],
-["energia renovavel|energias renovaveis|fontes energia renovavel",
- "⚡ Energias renováveis vêm de fontes que se regeneram: solar, eólica (vento), hidrelétrica, biomassa, geotérmica e das marés. As não renováveis são petróleo, carvão e gás natural (e urânio, nuclear)."],
-["cadeia alimentar|cadeia trofica",
- "🌿 Cadeia alimentar mostra quem come quem: produtores (plantas, fazem fotossíntese) → consumidores primários (herbívoros) → secundários e terciários (carnívoros), com decompositores (fungos, bactérias) reciclando a matéria no final."],
-["biomas brasileiros|biomas brasil|biomas do brasil|bioma",
- "🌳 O Brasil tem 6 biomas: Amazônia, Cerrado, Mata Atlântica, Caatinga, Pampa e Pantanal."],
-["sistema digestorio|digestao|sistema digestivo",
- "🫃 Digestão: boca (mastigação e saliva) → esôfago → estômago (suco gástrico) → intestino delgado (principal absorção dos nutrientes) → intestino grosso (absorve água) → eliminação. Fígado, vesícula e pâncreas ajudam com bile e enzimas."],
-["sistema respiratorio|respiracao pulmoes|sistema respiratório",
- "🫁 O ar entra pelo nariz ou boca, passa pela faringe, laringe, traqueia e brônquios até os alvéolos nos pulmões, onde o oxigênio passa para o sangue e o gás carbônico sai. O diafragma é o principal músculo da respiração."],
-["sistema circulatorio|circulacao sangue|circulacao sanguinea",
- "❤️ O sistema circulatório leva sangue pelo corpo: coração (bomba), artérias (saem do coração), veias (voltam) e capilares (trocas com os tecidos). A pequena circulação vai do coração aos pulmões e volta; a grande circulação vai ao resto do corpo."],
-["vacina|vacinas|como funciona vacina",
- "💉 A vacina apresenta ao sistema imunológico uma versão inofensiva ou um pedaço do agente causador (antígeno). O corpo cria anticorpos e células de memória e, se encontrar o agente de verdade, responde mais rápido e com mais força."],
-["diferenca virus bacteria|virus bacteria|bacteria virus",
- "🦠 Bactéria é uma célula viva, que vive e se reproduz sozinha; muitas são úteis, e as infecções bacterianas são tratadas com antibióticos. Vírus não é célula, precisa invadir uma célula hospedeira para se multiplicar; antibióticos não funcionam contra vírus."],
-
-/* ---------- HISTÓRIA E GEOGRAFIA ---------- */
-["ditadura militar brasil|golpe 1964|ditadura militar",
- "📜 A ditadura militar brasileira durou de 1964 (golpe de 31 de março/1º de abril) a 1985, quando José Sarney assumiu após a eleição indireta de Tancredo Neves. Foi marcada por censura, perseguição política e atos institucionais, como o AI-5 (1968)."],
-["era vargas|getulio vargas",
- "📜 Getúlio Vargas governou o Brasil de 1930 a 1945 (Governo Provisório, Estado Novo a partir de 1937) e voltou eleito pelo voto de 1951 a 1954, quando morreu. Criou a CLT (1943) e a Petrobras (1953)."],
-["inconfidencia mineira|tiradentes",
- "📜 A Inconfidência Mineira (1789) foi uma conspiração em Minas Gerais contra a cobrança de impostos pela Coroa portuguesa. Tiradentes (Joaquim José da Silva Xavier) foi o único condenado à forca, em 21 de abril de 1792."],
-["constituicao 1988|constituicao federal|constituicao cidada",
- "📜 A Constituição Federal vigente no Brasil foi promulgada em 5 de outubro de 1988, após a ditadura. É chamada de 'Constituição Cidadã' por ampliar direitos e garantias."],
-["guerra fria",
- "📜 A Guerra Fria (cerca de 1947–1991) foi a disputa política, econômica e militar entre Estados Unidos (capitalismo) e União Soviética (socialismo), sem confronto direto entre os dois. Terminou com o fim da URSS em 1991."],
-["revolucao russa",
- "📜 A Revolução Russa de 1917 teve duas fases: em fevereiro derrubou o czar Nicolau II e em outubro os bolcheviques, liderados por Lênin, tomaram o poder, dando origem à União Soviética (1922)."],
-["onu|organizacao nacoes unidas|nacoes unidas",
- "🌍 A ONU (Organização das Nações Unidas) foi fundada em 1945, após a Segunda Guerra, para promover a paz, a cooperação e os direitos humanos. Tem sede em Nova York e 193 países-membros."],
-["uniao europeia|ue",
- "🌍 A União Europeia é um bloco político e econômico de 27 países (o Reino Unido saiu em 2020, o Brexit). Vários membros usam o euro, e há livre circulação de pessoas e mercadorias."],
-["equador linha|linha equador|linha do equador",
- "🌍 A linha do Equador é o paralelo de latitude 0°, que divide a Terra nos hemisférios Norte e Sul. No Brasil passa por Amapá, Pará e Amazonas (e Roraima, em um pequeno trecho)."],
-["fusos horarios brasil|fuso horario brasil|fusos brasil|fuso horario",
- "🕐 O Brasil tem 4 fusos horários: UTC−2 (ilhas oceânicas, como Fernando de Noronha), UTC−3 (horário de Brasília), UTC−4 (por exemplo AM, MT, MS, RO, RR) e UTC−5 (Acre e extremo sudoeste do Amazonas)."],
-["maior estado brasil|maior estado|estado maior",
- "🇧🇷 O maior estado do Brasil em área é o Amazonas (~1,56 milhão de km²). O menor é Sergipe. O mais populoso é São Paulo."],
-["cidade mais populosa brasil|maior cidade brasil|maior cidade",
- "🇧🇷 A cidade mais populosa do Brasil é São Paulo (cerca de 11,4 milhões de habitantes no Censo 2022)."],
-["ponto mais alto brasil|pico neblina|montanha mais alta brasil",
- "🇧🇷 O ponto mais alto do Brasil é o Pico da Neblina (Amazonas), com cerca de 2.995 m."],
-["moeda brasil|real moeda|plano real",
- "🇧🇷 A moeda do Brasil é o real (R$), em vigor desde julho de 1994 com o Plano Real, que ajudou a controlar a hiperinflação."],
-["lingua mais falada|idioma mais falado|idiomas mais falados",
- "🗣️ Em número total de falantes, o inglês é o mais falado do mundo; em falantes nativos, o mandarim lidera. O português é falado por cerca de 260 milhões de pessoas."],
-
-["roblox|script roblox|scripts roblox|script de roblox|lua roblox|luau|lua|programar roblox|criar jogo roblox|script roblox ios|roblox ios|script roblox android|script roblox celular|script roblox pc",
- "🎮 Os scripts do Roblox usam a linguagem Luau (parente do Lua) e são criados no Roblox Studio, que roda em PC ou Mac. No iPhone/iOS você joga e testa, mas não cria. Aqui vão 3 exemplos prontos:\n\n1) Peça que derruba o jogador ao encostar (Script dentro da Part):\n```lua\nlocal parte = script.Parent\nparte.Touched:Connect(function(toque)\n\tlocal humanoide = toque.Parent:FindFirstChild(\"Humanoid\")\n\tif humanoide then\n\t\thumanoide.Health = 0\n\tend\nend)\n```\n2) Placar de moedas (Script em ServerScriptService):\n```lua\ngame.Players.PlayerAdded:Connect(function(jogador)\n\tlocal pasta = Instance.new(\"Folder\")\n\tpasta.Name = \"leaderstats\"\n\tpasta.Parent = jogador\n\tlocal moedas = Instance.new(\"IntValue\")\n\tmoedas.Name = \"Moedas\"\n\tmoedas.Value = 0\n\tmoedas.Parent = pasta\nend)\n```\n3) Botão de tela (LocalScript dentro de um TextButton):\n```lua\nlocal botao = script.Parent\nbotao.MouseButton1Click:Connect(function()\n\tbotao.Text = \"Clicou!\"\nend)\n```\nObs.: eu só ajudo com scripts para criar jogos no Roblox Studio. Scripts de trapaça (executores) violam as regras do Roblox e podem banir sua conta."]
+const ENCICLOPEDIA = [
+  {
+    k: ["seguranca web", "xss", "sql injection", "csrf", "vulnerabilidade web", "ataques web"],
+    r: "🛡️ **Principais Riscos em Sites e Sistemas Web:**\n" +
+      "• **XSS (Cross-Site Scripting):** injeção de script malicioso na página (evite usando `textContent` em vez de `innerHTML` para textos de usuários).\n" +
+      "• **SQL Injection:** invasão de banco de dados via campos de texto (evite usando consultas parametrizadas / Prepared Statements).\n" +
+      "• **CSRF:** envio forçado de ação autenticado (protegido com tokens CSRF e `SameSite` cookies).\n" +
+      "• **Senhas:** nunca guarde em texto puro — use hash seguro como `bcrypt` ou `Argon2`."
+  },
+  {
+    k: ["jwt", "autenticacao", "oauth", "login seguro", "token jwt"],
+    r: "🔑 **Autenticação Moderna (JWT & OAuth):**\n" +
+      "• **JWT (JSON Web Token):** token assinado composto por *Header.Payload.Signature*. Permite verificar quem é o usuário sem consultar sessão no banco a cada clique.\n" +
+      "• **OAuth 2.0:** padrão usado no botão 'Entrar com Google/GitHub', dando acesso limitado sem entregar sua senha ao site."
+  },
+  {
+    k: ["docker", "container", "containers", "virtualizacao"],
+    r: "🐳 **Docker & Containers:**\n" +
+      "Docker empacota seu código + todas as dependências em um **container** leve. Assim, o sistema roda exatamente igual no seu computador, no servidor e na nuvem — acabando com o famoso 'na minha máquina funciona'."
+  },
+  {
+    k: ["websocket", "websockets", "tempo real", "socket io"],
+    r: "⚡ **WebSockets (Comunicação em Tempo Real):**\n" +
+      "Enquanto o HTTP comum funciona por pedido-resposta, o **WebSocket** mantém um túnel aberto nos dois sentidos entre navegador e servidor — ideal para chats ao vivo, jogos multiplayer e cotações em tempo real."
+  },
+  {
+    k: ["rag", "vetores", "embeddings", "ia avancada"],
+    r: "🧠 **RAG (Retrieval-Augmented Generation):**\n" +
+      "Técnica que une **busca em documentos** + **IA**: antes de responder, o sistema encontra os trechos relevantes da sua base de conhecimento e entrega como contexto para gerar uma resposta fiel aos seus dados."
+  },
+  {
+    k: ["lgpd", "protecao de dados", "privacidade dados", "lei dados"],
+    r: "📜 **LGPD (Lei Geral de Proteção de Dados — Lei 13.709/2018):**\n" +
+      "Garante ao cidadão no Brasil o direito de saber **quais dados** uma empresa coleta, **para que usa**, pedir **correção** ou **exclusão** e exigir proteção contra vazamentos."
+  },
+  {
+    k: ["cdi", "tesouro direto", "reserva de emergencia", "investimentos basicos", "renda fixa"],
+    r: "💰 **Noções de Renda Fixa no Brasil:**\n" +
+      "• **Reserva de emergência:** 3 a 6 meses de gastos essenciais em liquidez diária (ex.: Tesouro Selic ou CDB 100% do CDI).\n" +
+      "• **CDI:** taxa muito próxima à Selic usada como referência em CDBs e contas remuneradas.\n" +
+      "• **Tesouro IPCA+:** protege seu dinheiro contra a inflação + uma taxa fixa ao ano."
+  },
+  {
+    k: ["estoicismo", "marco aurelio", "seneca", "epicteto", "filosofia estoica"],
+    r: "🏛️ **Estoicismo (Marco Aurélio, Sêneca, Epicteto):**\n" +
+      "Filosofia prática focada no que está **sob seu controle** (suas atitudes, escolhas e reações) versus o que **não está** (o passado, o clima, a opinião alheia). A ideia central é manter clareza mental mesmo sob pressão."
+  },
+  {
+    k: ["socrates", "platao", "aristoteles", "filosofia grega"],
+    r: "🏺 **Tríade da Filosofia Grega:**\n" +
+      "• **Sócrates:** método de perguntas (*maiêutica*) e 'Só sei que nada sei'.\n" +
+      "• **Platão:** aluno de Sócrates, fundou a Academia e propôs o Mundo das Ideias.\n" +
+      "• **Aristóteles:** aluno de Platão, sistematizou a lógica, a ética da moderação e a ciência empírica."
+  },
+  {
+    k: ["falacias", "falacia logica", "argumentacao", "vieses cognitivos"],
+    r: "🧩 **Falácias & Vieses Comuns:**\n" +
+      "• **Ad Hominem:** atacar a pessoa em vez do argumento dela.\n" +
+      "• **Espantalho:** distorcer a fala do outro para parecer fácil de refutar.\n" +
+      "• **Viés de Confirmação:** procurar só informações que concordam com o que você já acredita."
+  },
+  {
+    k: ["telescopio james webb", "james webb", "jwst"],
+    r: "🔭 **Telescópio Espacial James Webb (JWST):**\n" +
+      "Lançado em dezembro de 2021, observa o universo no **infravermelho** a ~1,5 milhão de km da Terra (ponto L2). Consegue enxergar galáxias formadas logo após o Big Bang e analisar atmosferas de exoplanetas."
+  },
+  {
+    k: ["crispr", "edicao genetica", "genetica moderna"],
+    r: "🧬 **CRISPR-Cas9:**\n" +
+      "Ferramenta revolucionária de edição genética que funciona como uma 'tesoura molecular' programável, permitindo cortar e corrigir trechos específicos de DNA com alta precisão."
+  },
+  {
+    k: ["termodinamica", "leis termodinamica", "entropia"],
+    r: "🔥 **Leis da Termodinâmica:**\n" +
+      "• **1ª Lei:** a energia não é criada nem destruída, apenas transformada.\n" +
+      "• **2ª Lei:** em sistemas isolados, a **entropia** (desordem/dispersão de energia) tende a aumentar — o calor flui naturalmente do corpo mais quente para o mais frio."
+  },
+  {
+    k: ["neuroplasticidade", "como o cerebro aprende", "sono e memoria"],
+    r: "🧠 **Neuroplasticidade & Sono:**\n" +
+      "O cérebro cria e reforça conexões (sinapses) sempre que você pratica algo novo. É durante o **sono profundo e REM** que o cérebro consolida memórias e limpa resíduos metabólicos do dia."
+  }
 ];
+
+function handle(text) {
+  const t = norm(text);
+  if (!t || t.split(" ").length > 10) return null;
+
+  const ehPerguntaOuTema = /^(?:o que e|o que sao|me explica|explica|explique|fale sobre|fala sobre|como funciona|resumo de|resuma)?\s*(.+)$/.test(t);
+  if (!ehPerguntaOuTema) return null;
+
+  let melhor = null;
+  let pontos = 0;
+
+  for (const item of ENCICLOPEDIA) {
+    for (const k of item.k) {
+      if (t === k || t.includes(" " + k) || t.startsWith(k + " ") || t.endsWith(" " + k)) {
+        const sc = k.split(" ").length * 2 + k.length * 0.1;
+        if (sc > pontos) {
+          pontos = sc;
+          melhor = item.r;
+        }
+      }
+    }
+  }
+  return melhor;
+}
+
+export const SaberesPro = { handle, total: ENCICLOPEDIA.length };
