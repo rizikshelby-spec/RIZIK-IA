@@ -1,5 +1,5 @@
-/* BACH AI - SABER 3.0
-   Leitura de textos/código/links, pesquisa inteligente com prioridade para eventos atuais,
+/* BACH AI - SABER 3.1
+   Leitura de textos/código/links, pesquisa inteligente com foco no artigo principal exato,
    catálogo Jikan ao vivo para animes, modo sem limites para criador e zero lookbehind. */
 
 const KB_KEY = "bach_conhecimento_v2";
@@ -14,7 +14,8 @@ const STOP = new Set((
   "pesquisa pesquisar pesquise procure procura buscar busque explica explicar explique resume resumir " +
   "net internet web google online pra pro pros pras ai ta to ne la ca vc pq oq oque aqui escrito escrita " +
   "nisso nisto disso mes meses ano anos semana semanas dia dias hoje amanha ontem falar perguntei perguntar pergutar " +
-  "serve servem servir servisse presta errando errado errada corrigir arrumar falou disse respondeu travou rir chutar"
+  "serve servem servir servisse presta errando errado errada corrigir arrumar falou disse respondeu travou rir chutar " +
+  "fica ficam tipo tip coisa coisas tudo querer escrever escrevi"
 ).split(" "));
 
 const INTENCAO_STOP = new Set((
@@ -222,11 +223,17 @@ async function wiki(q, qk, permiteAdulto = false) {
     const cobSnippet = alvo.size ? [...alvo].filter(w => tkSnippet.has(w)).length / alvo.size : 0;
     const cob = Math.max(cobTitulo, cobSnippet * 0.9);
     const extra = [...tkTitulo].filter(w => !alvo.has(w)).length;
-    return { titulo: r.title, rank: i, cob, v: cob + (i === 0 ? 0.15 : 0) - 0.08 * extra - i * 0.02 };
-  }).filter(c => c.cob >= 0.45 || (c.rank === 0 && c.cob > 0)).sort((a, b) => b.v - a.v).slice(0, 2);
+    return { titulo: r.title, rank: i, cob, cobTitulo, extra, v: cob + (i === 0 ? 0.15 : 0) - 0.12 * extra - i * 0.02 };
+  }).filter(c => c.cob >= 0.45 || (c.rank === 0 && c.cob > 0)).sort((a, b) => b.v - a.v);
+
+  // Se o primeiro resultado bate exatamente com o título pedido (ex.: "Galinha"), não mistura artigos secundários com nome parecido (ex.: "Mané Galinha")
+  let escolhidos = cand.slice(0, 2);
+  if (escolhidos.length === 2 && escolhidos[0].cobTitulo >= 0.9 && escolhidos[0].extra === 0 && escolhidos[1].extra > 0) {
+    escolhidos = [escolhidos[0]];
+  }
 
   const out = [];
-  await Promise.allSettled(cand.map(async (c, n) => {
+  await Promise.allSettled(escolhidos.map(async (c, n) => {
     const p = await get(base + new URLSearchParams({
       action: "query", prop: "extracts", explaintext: "1", exsectionformat: "plain", redirects: "1",
       titles: c.titulo, format: "json", origin: "*"
@@ -257,7 +264,7 @@ const limparMd = t => String(t || "")
 const host = u => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
 
 async function web(q) {
-  const txt = await get("https://r.jina.ai/http://html.duckduckgo.com/html/?q=" + encodeURIComponent(q), 12000);
+  const txt = await get("https://r.jina.ai/http://html.duckduckgo.com/html/?kl=br-pt&q=" + encodeURIComponent(q), 12000);
   const ms = [...txt.matchAll(/^## \[(.*?)\]\((https?:\/\/[^)\s]+)\)/gm)];
   const out = [], seen = new Set();
   for (let i = 0; i < ms.length && out.length < 9; i++) {
@@ -419,8 +426,8 @@ function escolher(c, qs, pedeLista, n = 4, ehAtual = false) {
     x.apoio = new Set(c.filter(y => y.fi !== x.fi && jac(x.k, y.k) > 0.25).map(y => y.fi)).size;
     const lista = pedeLista && (x.s.match(/,/g) || []).length >= 2 ? 1.5 : 0;
     const bonusAtual = ehAtual ? (x.temAnoAtual ? 5 : (x.wiki ? -3 : 0)) : 0;
-    x.v = bm + 3 * x.cob + 1.5 * x.apoio + (x.wiki ? 1 : 0) + (x.lead ? 5 : 0) + (x.principal ? 2 : 0) + lista + bonusAtual;
-    if (x.wiki && !x.principal && temPrincipal) x.v -= 4;
+    x.v = bm + 3 * x.cob + 1.5 * x.apoio + (x.wiki ? 1 : 0) + (x.lead ? 5 : 0) + (x.principal ? 3 : 0) + lista + bonusAtual;
+    if (x.wiki && !x.principal && temPrincipal) x.v -= 5;
   });
 
   const ok = c.filter(x => x.lead || x.cob >= minCob).sort((a, b2) => b2.v - a.v);
