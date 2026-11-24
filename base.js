@@ -1,18 +1,21 @@
-/* BACH AI 4.7 — base de dados, backup completo e exportador .txt alinhado (ADM).
- * Exporta memórias, conversas, arquivos e o código de todos os 35 módulos.
+/* BACH AI 4.8 — base de dados, backup completo e exportador .txt alinhado (ADM).
+ * Exporta memórias, conversas, arquivos e o código de todos os 40 módulos.
  * Chaves secretas nunca são incluídas no backup.
  */
 
 export const ARQUIVOS = [
-  ["index.html", "Interface, temas transparentes, esfera animada, 10 modos, roteamento e chat"],
+  ["index.html", "Interface, temas transparentes, esfera animada, 10 modos, painel de erros ADM e chat"],
   ["cerebro_avancado.js", "NLU, recomendações por gênero, comparações e escrita estruturada"],
   ["llm.js", "Provedor híbrido opcional (ADM)"],
   ["brain.js", "Cérebro, memória de longo prazo e aprendizado"],
-  ["mente.js", "Contexto, jogos, criação de apps e pastas"],
-  ["conversa.js", "Personalidade e conversação"],
+  ["mente.js", "Contexto, jogos, inspeção de módulos, criação de apps e pastas"],
+  ["conversa.js", "Personalidade e conversação natural"],
   ["fatos.js", "Base de fatos e distâncias"],
   ["saberes.js", "Conhecimento adicional"],
+  ["saberes_pro.js", "Sabedoria geral avançada (web, ciência, direito, economia, filosofia)"],
   ["conhecimento.js", "Conhecimento de programação"],
+  ["programacao_termux.js", "Termux, Bash/Linux, scripts e criador autônomo de apps"],
+  ["executor_sandbox.js", "Executor seguro de JavaScript e preview ao vivo de apps HTML/CSS/JS"],
   ["saber.js", "Leitura de textos, código, links e pesquisa"],
   ["dicionario.js", "Dicionário, definições e tradução"],
   ["arquivos.js", "Arquivos e leitura de mídia/OCR"],
@@ -21,7 +24,9 @@ export const ARQUIVOS = [
   ["base.js", "Exportação, importação de backup e pacote .txt"],
   ["autoguard.js", "Monitoramento, Watchdog, Failure Memory, Self-Healing e Rollback"],
   ["registry.js", "Catálogo, instruções de modo e roteador de habilidades"],
-  ["autocorretor.js", "Autocorreção pelo histórico, auditoria /auditar e cópia do chat"],
+  ["autocorretor.js", "Autocorreção pelo histórico, auditoria /auditar e envio à Central ADM"],
+  ["erros_adm.js", "Central de erros do público para o ADM com busca, seleção, exclusão e envio remoto"],
+  ["voz.js", "Motor de voz natural (TTS) corrigido para iOS/Android/PC"],
   ["revisor.js", "Revisor fiel de português, sílabas, código e avaliação de sites"],
   ["editor_adm.js", "Editor interativo ADM (/editar), /tudotxt e central /ajuda"],
   ["utilidades.js", "Senhas, dados, moeda, sorteios, datas, CPF e contador"],
@@ -30,7 +35,7 @@ export const ARQUIVOS = [
   ["estudos.js", "Flashcards, simulado com pontuação e técnicas de estudo"],
   ["dev_ferramentas.js", "Conversor HEX/RGB/HSL, CSS vidro, meta tags e paletas"],
   ["intelligence.js", "Cálculo local e raciocínio aritmético"],
-  ["personality.js", "Piadas e humor local"],
+  ["personality.js", "Piadas interativas que aguardam a resposta do usuário"],
   ["creativity.js", "Ideias, personagens e histórias offline"],
   ["planning.js", "Planejamento de etapas"],
   ["security.js", "Triagem de sinais de golpes"],
@@ -42,7 +47,8 @@ export const ARQUIVOS = [
 ];
 
 export const COMANDOS = [
-  "/ajuda", "/calc (2+3)*4", "/converter 10 km para m",
+  "/ajuda", "/app pomodoro", "/executar codigo", "/preview html",
+  "/calc (2+3)*4", "/converter 10 km para m",
   "/juros simples 1000 2 12", "/fisica velocidade 100 2",
   "/golpe mensagem suspeita", "/quiz", "/resposta A",
   "/flashcard", "/virar", "/simulado", "/alt A", "/tecnica",
@@ -52,10 +58,11 @@ export const COMANDOS = [
   "/cor #8266ff", "/vidro", "/meta Titulo | Descricao", "/paleta oceano",
   "/senha 16", "/dado 20", "/moeda", "/sortear A, B, C", "/cpf 000.000.000-00", "/contar texto",
   "/revisar texto", "/silabas palavra", "/site https://...",
+  "/voz normal", "/voz rapida", "/voz lenta", "/voz teste",
   "/ideia assunto", "/historia tema", "/personagem tema",
   "/plano objetivo", "/automacao tarefa", "/humor",
   "/auditar", "/copiar", "/diagnostico", "/rollback",
-  "/modulos", "/modulo ID on|off", "/editar", "/tudotxt",
+  "/modulos", "/modulo ID on|off", "/editar", "/tudotxt", "/erroremoto URL",
   "/ia status", "/modelo nome", "/historico", "/nova", "/arquivos",
   "/abrir nome", "/buscar palavra", "/apagar nome",
   "/pasta Nome/Sub", "/pastas", "/mover nome para Pasta",
@@ -63,7 +70,12 @@ export const COMANDOS = [
   "/clear", "sobre"
 ];
 
-const CHAVES_OCULTAS = new Set(["bach_gemini_key", "bach_creator_v1", "gh_adm_token_v1"]);
+const CHAVES_OCULTAS = new Set([
+  "bach_gemini_key",
+  "bach_creator_v1",
+  "gh_adm_token_v1",
+  "bach_adm_erro_remote_v1"
+]);
 
 const CONHECIDAS = {
   rizik_brain_v1: "memoria",
@@ -140,8 +152,8 @@ async function gerarTudoTxt(progresso = () => {}) {
 
     linhasIndice.push(
       pad((i + 1) + ".", 4) +
-      pad(path, 24) + " -> " +
-      pad(arqTxt, 24) +
+      pad(path, 26) + " -> " +
+      pad(arqTxt, 26) +
       pad(ok ? qtdLinhas + " linhas" : "NÃO LIDO", 14) +
       pad(kb, 11) +
       funcao
@@ -156,7 +168,7 @@ async function gerarTudoTxt(progresso = () => {}) {
     } else {
       blocos.push(
         "--- START OF FILE " + arqTxt + " ---\n" +
-        "[AVISO: arquivo " + path + " não encontrado ou falhou ao carregar no repositório]\n" +
+        "[AVISO: arquivo " + path + " não encontrado ou falhou ao carregar]\n" +
         "--- END OF FILE " + arqTxt + " ---"
       );
     }
@@ -164,14 +176,14 @@ async function gerarTudoTxt(progresso = () => {}) {
 
   const cabecalho =
     "====================================================================================\n" +
-    "BACH AI 4.7 — PACOTE COMPLETO DE MÓDULOS E CÓDIGOS EM .TXT (MODO ADM)\n" +
+    "BACH AI 4.8 — PACOTE COMPLETO DE MÓDULOS E CÓDIGOS EM .TXT (MODO ADM)\n" +
     "Gerado em: " + new Date().toLocaleString("pt-BR") + "\n" +
     "Arquivos lidos: " + lidos + " de " + ARQUIVOS.length + "\n" +
     "====================================================================================\n\n" +
-    pad("N°", 4) + pad("ORIGEM", 24) + "    " + pad("DESTINO .TXT", 24) + pad("TAMANHO", 14) + pad("KB", 11) + "FUNÇÃO\n" +
-    "-".repeat(108) + "\n" +
+    pad("N°", 4) + pad("ORIGEM", 26) + "    " + pad("DESTINO .TXT", 26) + pad("TAMANHO", 14) + pad("KB", 11) + "FUNÇÃO\n" +
+    "-".repeat(112) + "\n" +
     linhasIndice.join("\n") + "\n" +
-    "-".repeat(108) + "\n\n";
+    "-".repeat(112) + "\n\n";
 
   const conteudo = cabecalho + blocos.join("\n\n");
   const date = new Date().toISOString().slice(0, 10);
@@ -233,7 +245,7 @@ async function montar(context = {}) {
     ["Palavras aprendidas", quantidade(mente.lex)],
     ["Assuntos lembrados", quantidade(mente.assuntos)],
     ["Fatos cadastrados", context.totalFatos ?? "?"],
-    ["Departamentos no catálogo", 29],
+    ["Departamentos no catálogo", 34],
     ["Arquivos de código listados", ARQUIVOS.length]
   ];
 
@@ -253,7 +265,7 @@ async function montar(context = {}) {
 
   const backup = {
     bach: {
-      versao: "4.7",
+      versao: "4.8",
       geradoEm: new Date().toISOString()
     },
     tabelas: {
