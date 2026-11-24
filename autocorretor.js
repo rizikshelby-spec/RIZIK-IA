@@ -1,6 +1,6 @@
 /* BACH AI 4.5 — AUTOCORRETOR & AUDITORIA DE CHAT
    1) Detecta quando a BACH errou ou fugiu do assunto, analisa o histórico da conversa e reprocessa a pergunta original.
-   2) Trata falas emotivas/esticadas e perguntas sobre a própria IA/conversa.
+   2) Trata falas emotivas/esticadas, kaomojis, risadas brasileiras e perguntas sobre a própria IA.
    3) Formata a conversa inteira para copiar sem prints e audita erros com /auditar. */
 
 const K_CORR = "bach_autocorrecoes_v1";
@@ -15,13 +15,14 @@ const norm = t => String(t || "").toLowerCase().normalize("NFD")
   .replace(/\b(msm)\b/g, "mesmo")
   .replace(/\b(hj)\b/g, "hoje")
   .replace(/\b(tip)\b/g, "tipo")
+  .replace(/\b(mn)\b/g, "mano")
   .replace(/[^a-z0-9\s]/g, " ")
   .replace(/\s+/g, " ")
   .trim();
 
 const reduzirRepetidas = t => String(t || "").replace(/([a-zA-ZÀ-ÿ])\1{2,}/g, "$1");
 
-const RE_RECLAMACAO = /\b(voce errou|vc errou|errou|nao foi isso|nao era isso|fugiu do assunto|saiu do assunto|mudou de assunto|nada a ver|nada aver|nada haver|nao entende|nao entendeu|nao capta|respondeu errado|falou errado|disse errado|ta errado|esta errado|nao mandei pesquisar|nao pedi isso|isso ta errado|fazendo pesquisa|fazer pesquisa agora|para de pesquisar|so pesquisa|o que (?:voce )?nao entendeu)\b/;
+const RE_RECLAMACAO = /\b(voce errou|vc errou|vc erro|voce erro|errou|para de errar|esses erros|nesses erros|nao foi isso|nao era isso|fugiu do assunto|saiu do assunto|mudou de assunto|nada a ver|nada aver|nada haver|nao entende|nao entendeu|nao capta|respondeu errado|falou errado|disse errado|ta errado|esta errado|nao mandei pesquisar|nao mandei vc falar|nao pedi isso|nem disse isso|texto do nada|isso ta errado|fazendo pesquisa|fazer pesquisa agora|para de pesquisar|so pesquisa|o que (?:voce )?nao entendeu|senha bosta|chatao|pqp bach|o droga)\b/;
 
 function ehReclamacao(texto) {
   const t = norm(reduzirRepetidas(texto));
@@ -29,13 +30,38 @@ function ehReclamacao(texto) {
   return RE_RECLAMACAO.test(t);
 }
 
+function ehRisada(t) {
+  const s = t.replace(/\s+/g, "");
+  return /(?:[ai]*k{3,}[ais]*|h[aei]+h[aei]+|r+s+r+s+|(?:k+s+){2,}|(?:s+k+){2,}|(?:a+k+){2,}|(?:h+a+){2,})/i.test(s);
+}
+
 function tratarExclamacao(texto) {
-  const limpo = norm(reduzirRepetidas(texto));
+  const raw = String(texto || "").trim();
+  if (!raw) return null;
+
+  // Kaomojis / carinhas de texto (";;-;;", ":(", "-_-", etc.)
+  if (/^[;:.,\-_^~><()'`´=]+$/.test(raw) && raw.length >= 2) {
+    if (/[;:].*[-_]/.test(raw) || raw.includes(":(")) {
+      return "😢 Eita, que carinha triste é essa? Fui eu que errei ou aconteceu alguma coisa?";
+    }
+    return "👀 Tô por aqui! Manda o que você quer conversar ou testar.";
+  }
+
+  // Nunca rouba reclamações (ex.: "Vc errou aiakakak")
+  if (ehReclamacao(raw)) return null;
+
+  const limpo = norm(reduzirRepetidas(raw));
   if (!limpo) return null;
 
-  // Exclamações esticadas ("Aaaaah... deusss")
-  if (/^(?:ah+|oh+|eh+|ih+|uh+|uai+|eita+|nossa+|vixi+|vish+|socorro+|meu deus|o deus+|deus+|caramba+|misericordia+|aff+)(?:\s+(?:ah+|oh+|deus+|meu deus|o deus+|nossa+|eita+|senhor+|socorro+))*$/.test(limpo)) {
-    return "Eita! 😂 Senti a emoção daqui! Respira fundo e me conta o que aconteceu ou o que você precisa agora.";
+  // Risadas com prefixo/gíria ("Uai kkkk", "Mn ikkkkkk", "MN KSKSKSKS", "Akakakak", "Uai ikkkkk")
+  const semGiria = limpo.replace(/\b(uai|mano|aff|nossa|eita|oxi|oxe|nada a ver)\b/g, "").trim();
+  if (semGiria && ehRisada(semGiria) && limpo.split(" ").length <= 5) {
+    return "Haha 😂😂! Boa! Manda a próxima!";
+  }
+
+  // Exclamações esticadas ("Aaaaah... deusss", "Mdss", "Affs", "Aveeeeeeee", "Aiaiii", "Uai")
+  if (/^(?:ah+|oh+|eh+|ih+|uh+|uai+|eita+|nossa+|vixi+|vish+|socorro+|meu deus|o deus+|deus+|caramba+|misericordia+|aff+s?|mds+|ave+|aiai+|ai+|oxi+|oxe+)(?:\s+(?:ah+|oh+|deus+|meu deus|o deus+|nossa+|eita+|senhor+|socorro+|ave+|mds+))*$/.test(limpo)) {
+    return "Eita! 😂 Senti a reação daqui! Me conta o que rolou ou o que você precisa agora.";
   }
 
   // Pergunta sobre consciência / sentimentos da IA (mesmo sem "você")
@@ -43,9 +69,15 @@ function tratarExclamacao(texto) {
     return "Eu não tenho consciência nem sentimentos como uma pessoa — sou uma inteligência artificial feita de código e memória, mas tô sempre evoluindo para conversar melhor com você! 🤖💜";
   }
 
-  // Devolução de pergunta ("eu que pergunto tip oq?", "tipo o que?")
+  // Devolução de pergunta / testes de capacidade ("eu que pergunto tip oq?", "desde quando vc entende?", "acertei msm?")
   if (/^(?:eu que pergunto|tipo o que|o que voce quer fazer|fazer o que agora)/.test(limpo) && limpo.split(" ").length <= 8) {
     return "Haha, você que manda! 😄 Pode pedir uma curiosidade, música, filme, cálculo, senha forte (`/senha`), previsão do tempo ou só bater papo!";
+  }
+  if (/^(?:desde quando (?:voce )?entende|sabe o que exatamente|nah sabe o que)/.test(limpo)) {
+    return "Estou aprendendo cada vez mais com você! 🧠 Entendo de programação, matemática, traduções, clima, curiosidades, filmes/animes/músicas, senhas/sorteios e leitura de fotos/textos. Testa aí!";
+  }
+  if (/^(?:acertei mesmo|acertei|ganhei)$/.test(limpo)) {
+    return "Acertou sim! 🎉 Manda outro jogo (`forca`, `quiz`, `velha` ou `adivinhe`) ou pergunta quando quiser!";
   }
 
   return null;
@@ -103,7 +135,20 @@ function analisarEPreparar(history, ctx = {}) {
   const t = norm(reduzirRepetidas(orig));
   const botErr = String(alvoAnt.respostaBot || "");
 
-  // 1) Se a pergunta original era sobre clima/tempo
+  // 1) Se a pergunta original pedia resumo + código do arquivo/foto
+  if (/\bresum/.test(t) && /\bcodig/.test(t) && ctx.ultimoArquivo?.texto) {
+    registrarCorrecao(orig, "faltou-resumo-com-codigo", "entregou-resumo-e-codigo");
+    const linhas = ctx.ultimoArquivo.texto.split(/\n+/).map(x => x.trim()).filter(Boolean);
+    return {
+      tipo: "direto",
+      texto: "Desculpa! 😅 Antes eu mandei só o bloco para copiar e esqueci o resumo.\n\n" +
+        "📝 **Resumo de " + ctx.ultimoArquivo.nome + ":**\n" +
+        linhas.slice(0, 5).map(l => "• " + l.slice(0, 110)).join("\n") +
+        "\n\n💡 Se quiser tudo traduzido para português, toque em **↩ Responder** no texto da foto e mande **“só traduz”**."
+    };
+  }
+
+  // 2) Se a pergunta original era sobre clima/tempo
   if (/\b(clima|tempo|chuva|chover|chovendo|previsao|calor|frio)\b/.test(t) &&
       !/\b(tempo de|linha do tempo|passatempo|o que e tempo)\b/.test(t)) {
     registrarCorrecao(orig, "clima-nao-detectado", "reencaminhar-clima");
@@ -114,8 +159,8 @@ function analisarEPreparar(history, ctx = {}) {
     };
   }
 
-  // 2) Se a pergunta original pedia tradução de foto/citação
-  if (/\b(traduz|traduza|traduzir|traducao)\b/.test(t) &&
+  // 3) Se a pergunta original pedia tradução de foto/citação
+  if (/\b(traduz|traduza|traduzir|traducao|em portugues)\b/.test(t) &&
       (alvoAnt.cit || ctx.ultimoArquivo?.texto)) {
     registrarCorrecao(orig, "traducao-alvo", "reencaminhar-traducao");
     return {
@@ -126,7 +171,7 @@ function analisarEPreparar(history, ctx = {}) {
     };
   }
 
-  // 3) Se a resposta errada foi uma pesquisa indesejada na Wikipédia
+  // 4) Se a resposta errada foi uma pesquisa indesejada na Wikipédia
   if (/Sobre “|Aqui está o resumo sobre|Pesquisei “/i.test(botErr)) {
     registrarCorrecao(orig, "pesquisa-indevida", "pediu-acao-direta");
     return {
@@ -136,9 +181,9 @@ function analisarEPreparar(history, ctx = {}) {
     };
   }
 
-  // 4) Se a resposta errada foi "Não captei bem" / "Não entendi" / "Essa ficou meio vaga"
+  // 5) Se a resposta errada foi "Não captei bem" / "Não entendi" / "Essa ficou meio vaga"
   if (/Não captei bem|Não entendi direito|Essa ficou meio vaga/i.test(botErr)) {
-    if (/^(o que e|o que sao|quem foi|quem e|onde fica|como funciona|me explica)\b/.test(t)) {
+    if (/^(o que e|o que sao|quem foi|quem e|onde fica|como funciona|me explica)\b/.test(t) || /\bdistancia\b/.test(t)) {
       registrarCorrecao(orig, "nao-entendeu-pergunta", "pesquisar-pergunta");
       return {
         tipo: "pesquisar",
@@ -153,7 +198,7 @@ function analisarEPreparar(history, ctx = {}) {
     };
   }
 
-  // 5) Caso geral
+  // 6) Caso geral
   registrarCorrecao(orig, "desvio-geral", "confirmou-contexto");
   return {
     tipo: "direto",
