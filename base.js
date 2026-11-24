@@ -1,5 +1,5 @@
-/* BACH AI 4.5 — base de dados e backup completo.
- * Exporta memórias, conversas, arquivos e o código de todos os módulos.
+/* BACH AI 4.7 — base de dados, backup completo e exportador .txt alinhado (ADM).
+ * Exporta memórias, conversas, arquivos e o código de todos os 35 módulos.
  * Chaves secretas nunca são incluídas no backup.
  */
 
@@ -10,7 +10,7 @@ export const ARQUIVOS = [
   ["brain.js", "Cérebro, memória de longo prazo e aprendizado"],
   ["mente.js", "Contexto, jogos, criação de apps e pastas"],
   ["conversa.js", "Personalidade e conversação"],
-  ["fatos.js", "Base de fatos"],
+  ["fatos.js", "Base de fatos e distâncias"],
   ["saberes.js", "Conhecimento adicional"],
   ["conhecimento.js", "Conhecimento de programação"],
   ["saber.js", "Leitura de textos, código, links e pesquisa"],
@@ -18,9 +18,17 @@ export const ARQUIVOS = [
   ["arquivos.js", "Arquivos e leitura de mídia/OCR"],
   ["programacao.js", "Programação e humor existente"],
   ["historico.js", "Histórico de conversas"],
-  ["base.js", "Exportação e importação de backup"],
+  ["base.js", "Exportação, importação de backup e pacote .txt"],
   ["autoguard.js", "Monitoramento, Watchdog, Failure Memory, Self-Healing e Rollback"],
   ["registry.js", "Catálogo, instruções de modo e roteador de habilidades"],
+  ["autocorretor.js", "Autocorreção pelo histórico, auditoria /auditar e cópia do chat"],
+  ["revisor.js", "Revisor fiel de português, sílabas, código e avaliação de sites"],
+  ["editor_adm.js", "Editor interativo ADM (/editar), /tudotxt e central /ajuda"],
+  ["utilidades.js", "Senhas, dados, moeda, sorteios, datas, CPF e contador"],
+  ["conversor_texto.js", "Link WhatsApp, maiúsculo/minúsculo, slug, sem acento e Base64"],
+  ["saude_bemestar.js", "IMC, meta de água, calorias, respiração 4-7-8 e pausa ativa"],
+  ["estudos.js", "Flashcards, simulado com pontuação e técnicas de estudo"],
+  ["dev_ferramentas.js", "Conversor HEX/RGB/HSL, CSS vidro, meta tags e paletas"],
   ["intelligence.js", "Cálculo local e raciocínio aritmético"],
   ["personality.js", "Piadas e humor local"],
   ["creativity.js", "Ideias, personagens e histórias offline"],
@@ -34,32 +42,28 @@ export const ARQUIVOS = [
 ];
 
 export const COMANDOS = [
-  "/calc (2+3)*4", "/converter 10 km para m",
-  "/juros simples 1000 2 12",
-  "/fisica velocidade 100 2",
-  "/golpe mensagem suspeita",
-  "/quiz", "/resposta A",
-  "/ideia assunto", "/historia tema",
-  "/personagem tema", "/plano objetivo",
-  "/automacao tarefa", "/humor",
-  "/diagnostico", "/rollback",
-  "/modulos", "/modulo ID on|off",
-  "/ia status", "/modelo nome",
-  "/historico", "/nova", "/arquivos",
+  "/ajuda", "/calc (2+3)*4", "/converter 10 km para m",
+  "/juros simples 1000 2 12", "/fisica velocidade 100 2",
+  "/golpe mensagem suspeita", "/quiz", "/resposta A",
+  "/flashcard", "/virar", "/simulado", "/alt A", "/tecnica",
+  "/imc 70 1.75", "/agua 70", "/calorias 70 1.75 25 m leve", "/respiracao", "/pausa",
+  "/linkzap 11999999999", "/slug titulo", "/base64 texto", "/debase64 codigo",
+  "/maiusculo texto", "/minusculo texto", "/semacento texto", "/inverter texto",
+  "/cor #8266ff", "/vidro", "/meta Titulo | Descricao", "/paleta oceano",
+  "/senha 16", "/dado 20", "/moeda", "/sortear A, B, C", "/cpf 000.000.000-00", "/contar texto",
+  "/revisar texto", "/silabas palavra", "/site https://...",
+  "/ideia assunto", "/historia tema", "/personagem tema",
+  "/plano objetivo", "/automacao tarefa", "/humor",
+  "/auditar", "/copiar", "/diagnostico", "/rollback",
+  "/modulos", "/modulo ID on|off", "/editar", "/tudotxt",
+  "/ia status", "/modelo nome", "/historico", "/nova", "/arquivos",
   "/abrir nome", "/buscar palavra", "/apagar nome",
-  "/pasta Nome/Sub", "/pastas",
-  "/mover nome para Pasta",
-  "/palavra gíria = significado",
-  "/palavras", "/profundo assunto",
-  "/clear", "sobre",
-  "ensine: pergunta => resposta",
-  "corrija: pergunta => nova",
-  "esqueça: pergunta", "sinônimo: a = b",
-  "lembre: algo", "pesquise sobre ...",
-  "pesquise a fundo sobre ...", "clima em (cidade)"
+  "/pasta Nome/Sub", "/pastas", "/mover nome para Pasta",
+  "/palavra gíria = significado", "/palavras", "/profundo assunto",
+  "/clear", "sobre"
 ];
 
-const CHAVES_OCULTAS = new Set(["bach_gemini_key", "bach_creator_v1"]);
+const CHAVES_OCULTAS = new Set(["bach_gemini_key", "bach_creator_v1", "gh_adm_token_v1"]);
 
 const CONHECIDAS = {
   rizik_brain_v1: "memoria",
@@ -106,9 +110,79 @@ async function lerFonte(path) {
     if (!response.ok) throw new Error("HTTP " + response.status);
     return await response.text();
   } catch (error) {
-    console.warn("Não foi possível incluir no backup:", path, error);
+    console.warn("Não foi possível incluir:", path, error);
     return null;
   }
+}
+
+function nomeTxt(path) {
+  return String(path).replace(/\.(js|html)$/i, "") + ".txt";
+}
+
+async function gerarTudoTxt(progresso = () => {}) {
+  const linhasIndice = [];
+  const blocos = [];
+  let lidos = 0;
+
+  for (let i = 0; i < ARQUIVOS.length; i++) {
+    const [path, funcao] = ARQUIVOS[i];
+    const arqTxt = nomeTxt(path);
+    progresso("📦 Lendo (" + (i + 1) + "/" + ARQUIVOS.length + "): " + path + " → " + arqTxt);
+    let source = await lerFonte(path);
+    if (source === null && path === "index.html") {
+      source = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+    }
+
+    const ok = source !== null;
+    if (ok) lidos++;
+    const qtdLinhas = ok ? source.split("\n").length : 0;
+    const kb = ok ? tamanhoKB(source) + " KB" : "FALHOU";
+
+    linhasIndice.push(
+      pad((i + 1) + ".", 4) +
+      pad(path, 24) + " -> " +
+      pad(arqTxt, 24) +
+      pad(ok ? qtdLinhas + " linhas" : "NÃO LIDO", 14) +
+      pad(kb, 11) +
+      funcao
+    );
+
+    if (ok) {
+      blocos.push(
+        "--- START OF FILE " + arqTxt + " ---\n\n" +
+        source.trimEnd() + "\n\n" +
+        "--- END OF FILE " + arqTxt + " ---"
+      );
+    } else {
+      blocos.push(
+        "--- START OF FILE " + arqTxt + " ---\n" +
+        "[AVISO: arquivo " + path + " não encontrado ou falhou ao carregar no repositório]\n" +
+        "--- END OF FILE " + arqTxt + " ---"
+      );
+    }
+  }
+
+  const cabecalho =
+    "====================================================================================\n" +
+    "BACH AI 4.7 — PACOTE COMPLETO DE MÓDULOS E CÓDIGOS EM .TXT (MODO ADM)\n" +
+    "Gerado em: " + new Date().toLocaleString("pt-BR") + "\n" +
+    "Arquivos lidos: " + lidos + " de " + ARQUIVOS.length + "\n" +
+    "====================================================================================\n\n" +
+    pad("N°", 4) + pad("ORIGEM", 24) + "    " + pad("DESTINO .TXT", 24) + pad("TAMANHO", 14) + pad("KB", 11) + "FUNÇÃO\n" +
+    "-".repeat(108) + "\n" +
+    linhasIndice.join("\n") + "\n" +
+    "-".repeat(108) + "\n\n";
+
+  const conteudo = cabecalho + blocos.join("\n\n");
+  const date = new Date().toISOString().slice(0, 10);
+
+  return {
+    nome: "bach-todos-modulos-" + date + ".txt",
+    conteudo,
+    lidos,
+    total: ARQUIVOS.length,
+    kb: tamanhoKB(conteudo)
+  };
 }
 
 async function montar(context = {}) {
@@ -159,7 +233,7 @@ async function montar(context = {}) {
     ["Palavras aprendidas", quantidade(mente.lex)],
     ["Assuntos lembrados", quantidade(mente.assuntos)],
     ["Fatos cadastrados", context.totalFatos ?? "?"],
-    ["Departamentos no catálogo", 24],
+    ["Departamentos no catálogo", 29],
     ["Arquivos de código listados", ARQUIVOS.length]
   ];
 
@@ -179,7 +253,7 @@ async function montar(context = {}) {
 
   const backup = {
     bach: {
-      versao: "4.5",
+      versao: "4.7",
       geradoEm: new Date().toISOString()
     },
     tabelas: {
@@ -271,6 +345,7 @@ function importar(obj) {
 
 export const Base = {
   montar,
+  gerarTudoTxt,
   importar,
   ARQUIVOS,
   COMANDOS
