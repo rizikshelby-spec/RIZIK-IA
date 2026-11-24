@@ -1,7 +1,7 @@
-/* BACH AI - MENTE 2.8
-   Contexto inteligente (não confunde novo assunto com arquivo antigo), troca direta de jogos,
-   criação de apps seguros, pastas e vocabulário. */
-import { Saber } from "./saber.js?v=12";
+/* BACH AI 4.8 — MENTE 3.0
+   Contexto inteligente: entende "Me resume" após fotos/textos, inspeciona módulos de sites/códigos
+   colados ("entra nele e veja quantos módulos tem"), jogos, criação de apps, pastas e vocabulário. */
+import { Saber } from "./saber.js?v=13";
 import { KB, ERROS } from "./conhecimento.js?v=1";
 
 const BT = "\x60\x60\x60";
@@ -25,7 +25,7 @@ const VOCAB = {
   pra: "para", oara: "para", praa: "para", pro: "para o", pras: "para as", pros: "para os",
   qro: "quero", fzer: "fazer", assitir: "assistir", asist: "assistir", recomnda: "recomenda", recomeda: "recomenda",
   cmg: "comigo", entt: "entao", msc: "musica", sla: "sei la", rlx: "relaxa", nmrl: "na moral",
-  ngm: "ninguem", algm: "alguem", msg: "mensagem", tip: "tipo",
+  ngm: "ninguem", algm: "alguem", msg: "mensagem", tip: "tipo", cvs: "conversar",
   pf: "por favor", pfv: "por favor", plis: "por favor", pls: "por favor",
   n: "nao", naum: "nao", nn: "nao", s: "sim", ss: "sim", eh: "e",
   kd: "cade", qnd: "quando", qdo: "quando", qm: "quem", cm: "como", cmo: "como",
@@ -63,7 +63,7 @@ const BASE_LEX = (
   "importante facil dificil grande pequeno alto baixo novo velho rapido devagar muito pouco tudo nada algum alguem ninguem " +
   "sempre nunca depois antes durante porque quando quanto onde quem qual qualquer outro mesmo primeiro ultimo ultimas " +
   "politica economia ciencia tecnologia cultura arte geografia matematica fisica quimica biologia filosofia psicologia direito " +
-  "presidente governo eleicao lei guerra paz energia eletricidade bateria motor robo inteligencia artificial " +
+  "presidente governo eleicao lei guerra paz energia eletricidade bateria motor robo inteligencia artificial termux linux bash " +
   "imagem video foto audio som voz tela teclado mouse camera microfone arquivo pasta pastas documento " +
   "praia montanha rio mar oceano lago ilha deserto neve vento tempestade raio trovao fogo gelo pedra areia " +
   "javascript python html css sql java php csharp ruby rust go kotlin swift react node linux windows android ios github"
@@ -95,7 +95,7 @@ function lev(a, b) {
 
 function corrigir(w) {
   if (w.length < 5 || /\d/.test(w)) return w;
-  if (/^(passe|passa|passar|passou|arroz|manda|mande|pede|pedir|quero|prece|pesse|lancou|lanca|lancar|estreou|saiu|presta|recomenda|indica|bugado|bugada|fazem|travou|arrumo|consertar|entende|entendeu|mandei|responde|pergunto|consciencia|sobreviver)$/.test(w)) return w;
+  if (/^(passe|passa|passar|passou|arroz|manda|mande|pede|pedir|quero|prece|pesse|lancou|lanca|lancar|estreou|saiu|presta|recomenda|indica|bugado|bugada|fazem|travou|arrumo|consertar|entende|entendeu|mandei|responde|pergunto|consciencia|sobreviver|melhore|melhora)$/.test(w)) return w;
   const L = lexico();
   if (L.has(w)) return w;
   const max = w.length >= 8 ? 2 : 1;
@@ -214,6 +214,25 @@ function comandoPasta(t) {
   return null;
 }
 
+/* ---------- inspecionar módulos dentro de HTML/JS ---------- */
+function inspecionarModulosNoCodigo(t, nome) {
+  const achados = new Set();
+  for (const m of t.matchAll(/loadMod\(\s*["']([^"']+)["']/g)) achados.add(m[1]);
+  for (const m of t.matchAll(/\bimport\s+[\s\S]{1,120}?\s+from\s+["']([^"']+)["']/g)) {
+    achados.add(m[1].split("/").pop().split("?")[0]);
+  }
+  for (const m of t.matchAll(/import\(\s*["']([^"']+)["']/g)) {
+    const clean = m[1].split("/").pop().split("?")[0];
+    if (clean && !clean.includes("${")) achados.add(clean);
+  }
+  const lista = [...achados];
+  if (!lista.length) {
+    return "🔍 Analisei **" + (nome || "o arquivo") + "**, mas não encontrei importações explícitas de outros módulos (`import` ou `loadMod`).";
+  }
+  return "📦 **Módulos encontrados dentro de `" + (nome || "arquivo") + "` (" + lista.length + "):**\n\n" +
+    lista.map((m, i) => (i + 1) + ". `" + m + "`").join("\n");
+}
+
 /* ---------- ler/analisar/explicar/encadear o texto atual ---------- */
 function revisar(t) {
   const p = [];
@@ -279,16 +298,26 @@ function explicarCodigoLocal(t) {
     "\n\n💡 Diga “revisar” para caçar erros, “cadeia de códigos” para ligar em outro arquivo ou “resumir” para encurtar.";
 }
 
+function resumirTextoAtual(t) {
+  const r = Saber.summarize(t, 4);
+  if (r.length) return "📝 **Resumo de " + (ctx.nome || "arquivo recente") + ":**\n• " + r.join("\n• ");
+  const linhas = String(t).split(/\n+/).map(l => l.trim()).filter(l => l.length > 3);
+  if (linhas.length) {
+    return "📝 **Resumo do conteúdo lido em " + (ctx.nome || "arquivo") + ":**\n• " + linhas.slice(0, 6).join("\n• ");
+  }
+  return Saber.lerTexto(t);
+}
+
 function sobreTexto(p) {
   const t = ctx.texto, cod = Saber.isCode(t);
-  if (has(p, /escrito|diz|leia|aqui|foto|imagem|print/)) {
+  if (has(p, /\b(modulos?|quantos modulos|quais modulos)\b/) && cod) {
+    return inspecionarModulosNoCodigo(t, ctx.nome);
+  }
+  if (has(p, /escrito|diz|leia|aqui|foto|imagem|print/) && !has(p, /resum/)) {
     return "📝 Texto lido em **" + (ctx.nome || "arquivo recente") + "**:\n\n“" + t.slice(0, 2000) + "”";
   }
   if (cod && has(p, /cadeia|ligar|importar|como usar|copiar|estrutura|fluxo/)) return cadeiaCodigoLocal(t);
-  if (has(p, /resum/)) {
-    const r = Saber.summarize(t, 4);
-    return r.length ? "📝 Resumo de " + ctx.nome + ":\n• " + r.join("\n• ") : Saber.lerTexto(t);
-  }
+  if (has(p, /resum/)) return resumirTextoAtual(t);
   if (cod && has(p, /erro|problema|bug|revis|melhor|conserta|arruma/)) return revisar(t);
   if (cod && has(p, /explic|o que faz|faz o que|fazem o que|o que fazem|para que serve|pra que serve|entend|como funciona|o que e/)) return explicarCodigoLocal(t);
   return "📄 " + ctx.nome + "\n" + Saber.lerTexto(t) + "\n\nPosso também: explicar em detalhes, montar uma cadeia de uso, resumir ou revisar o código.";
@@ -379,9 +408,9 @@ const TEMPLATES = {
 };
 function criar(p) {
   const k = has(p, /velha/) ? "velha" : has(p, /calculadora/) ? "calculadora" : has(p, /tarefa|todo|lista/) ? "tarefas" : has(p, /adivinh|numero/) ? "adivinhacao" : has(p, /site|pagina|tela|landing/) ? "pagina" : null;
-  if (!k) return "Sei montar prontos: jogo da velha, calculadora, lista de tarefas, adivinhe o número e uma página/tela. Diga, por exemplo: crie uma calculadora.";
+  if (!k) return "Sei montar prontos: jogo da velha, calculadora, lista de tarefas, adivinhe o número, pomodoro, bloco de notas, controle de gastos e cobrinha (ou use `/app tema`)!";
   const [nome, cod] = TEMPLATES[k];
-  return "Aqui está o arquivo " + nome + ". Cole num arquivo com esse nome e abra no navegador (ou suba no GitHub Pages):\n\n" + BT + "html\n" + cod + "\n" + BT + "\n\nPara mudar cores e textos, edite o trecho <style> e os textos entre as tags.";
+  return "Aqui está o arquivo " + nome + ". Cole num arquivo com esse nome e abra no navegador (ou teste aqui mesmo com `/preview`!):\n\n" + BT + "html\n" + cod + "\n" + BT;
 }
 
 const PASSOS = [
@@ -398,7 +427,7 @@ const GUIA = "🤖 Como fazer uma IA do zero (o caminho da BACH):\n\n" + PASSOS.
 /* ---------- programação ---------- */
 const LING = { javascript: "JavaScript", js: "JavaScript", python: "Python", html: "HTML", css: "CSS", sql: "SQL" };
 const ROTEIRO = "🗺️ Roteiro: 1) variáveis e tipos, 2) condicionais, 3) loops, 4) funções, 5) arrays e objetos, 6) DOM e eventos (JS), 7) fetch/API e async, 8) um projeto pequeno. Depois: classes, módulos, testes e Git.\nPergunte por qualquer um (ex.: “o que é função?”). Diga “mais” para o nível avançado.";
-const ASSUNTOS = "variáveis, condicionais, loops, funções, arrays, objetos/JSON, classes, async/await, DOM, fetch/API, closures, recursão, algoritmos, regex, Git, SQL, HTML, CSS, Python, módulos, localStorage, debug, testes, jogos, apps e IA";
+const ASSUNTOS = "variáveis, condicionais, loops, funções, arrays, objetos/JSON, classes, async/await, DOM, fetch/API, closures, recursão, algoritmos, regex, Git, SQL, HTML, CSS, Python, Termux, módulos, localStorage, debug, testes, jogos, apps e IA";
 
 const FRACA = new Set("for let var if map get post py ui def then this select join click clique evento eventos cores estilo lista listas jogo jogos game app aplicativo interface teste testes testar bug bugs dict tag tags estrutura scope push pull se senao".split(" "));
 function achaTopico(p) {
@@ -411,7 +440,7 @@ function achaTopico(p) {
   return sc >= 1 ? best : null;
 }
 
-const ACAO_TELA = /\b(cliquei|clique|cliquem|clicar|clica|cliquei nisso|toquei|toca|tocar|apertei|aperta|apertar|botao|menu|aba|tela|opcao)\b/;
+const ACAO_TELA = /\b(cliquei|clique|cliquem|clicar|clica|cliquei nisso|toquei|toca|tocar|apertei|aperta|apertar|botao|menu|aba|tela|opcao|entra nele|entra no site|veja os modulos|quantos modulos)\b/;
 function topico(i, p) {
   const [, b, ex, av] = KB[i], fundo = has(p, /avancad|profund|detalhad|completo/);
   ctx.ultimo = { t: "prog", i };
@@ -437,7 +466,7 @@ function seguimento(p, w) {
 }
 function ajudaProg() {
   ctx.esperando = "prog"; persist();
-  return "Claro! 💻 Me diga o que você quer:\n• aprender um assunto (ex.: “o que é função?”)\n• corrigir um erro (cole a mensagem de erro ou o código)\n• criar algo (ex.: “crie uma calculadora”)\n\nLinguagens que conheço: JavaScript, Python, HTML, CSS e SQL.\nAssuntos: " + ASSUNTOS + ".";
+  return "Claro! 💻 Me diga o que você quer:\n• aprender um assunto (ex.: “o que é função?” ou “termux”)\n• executar um script JS (`/executar ...`)\n• criar um app completo (`/app pomodoro`)\n\nLinguagens: JavaScript, Python, HTML, CSS, SQL, Bash/Termux e Luau.\nAssuntos: " + ASSUNTOS + ".";
 }
 
 /* ---------- principal ---------- */
@@ -458,6 +487,11 @@ function responder(msg) {
   const p = prep(raw), w = p.trim();
 
   if (ctx.jogo) { const r = jogar(w, raw); if (r) return { texto: r, origem: "🎮 jogo" }; }
+
+  // Inspeção direta de módulos de um site/código recém-carregado
+  if (ctx.texto && has(p, /\b(entra nele|entra no site|quantos modulos|quais modulos|veja os modulos|lista os modulos|modulos tem)\b/)) {
+    return { texto: inspecionarModulosNoCodigo(ctx.texto, ctx.nome), origem: "📦 análise de módulos" };
+  }
 
   const sg = seguimento(p, w); if (sg) return { texto: sg, origem: "🧠 lembrei do assunto" };
   const criarV = has(p, / (cria|crie|criar|faz|faca|fazer|monta|monte|gera|gere|programa|programe|constroi) /);
@@ -495,11 +529,10 @@ function responder(msg) {
     };
   }
 
-  // Só lê o arquivo/foto se o usuário citar explicitamente arquivo/foto/código/texto OU se o foco atual ainda for o texto (e não outro assunto como "esse pinguim")
   const mSubst = p.match(/ (?:esse|este|essa|esta) ([a-z]{3,}) /);
   const outroAssunto = mSubst && !/^(texto|textos|codigo|codigos|arquivo|arquivos|print|foto|imagem|bloco|trecho|site|app|script)$/.test(mSubst[1]);
   const pedeExplicitoArq = has(p, / (texto|textos|codigo|codigos|arquivo|arquivos|imagem|foto|print|cadeia) /);
-  const PEDIDO_TEXTO_BARE = /^ ?((me\s+)?explic\w*|resum\w*|revis\w*|analis\w*|conserta\w*|arruma\w*|o que (e|faz|fazem|esta escrito) (isso|aqui)|cadeia de codigos?)(\s+(isso|esse texto|esse codigo|esses codigos|o codigo|os codigos|o texto|essa imagem|essa foto))? ?$/;
+  const PEDIDO_TEXTO_BARE = /^ ?(?:me\s+)?(explic\w*|resum\w*|revis\w*|analis\w*|conserta\w*|arruma\w*|o que (e|faz|fazem|esta escrito) (isso|aqui)|cadeia de codigos?)(\s+(isso|esse texto|esse codigo|esses codigos|o codigo|os codigos|o texto|essa imagem|essa foto))? ?$/;
   const REF_ARQUIVO = / (esse|este|isso|aqui|texto|textos|codigo|codigos|arquivo|arquivos|imagem|foto|print|cadeia) /;
   const ACAO_ARQUIVO = /(o que e|o que faz|faz o que|fazem o que|o que fazem|para que serve|pra que serve|como funciona|explica|explique|resum|erro|problema|entend|leia|le |analis|revis|conserta|arruma|escrito|diz|cadeia|copiar|usar)/;
 
@@ -507,10 +540,9 @@ function responder(msg) {
     if (ctx.texto) return { texto: sobreTexto(p), origem: "📖 leitura do seu arquivo" };
     if (ctx.ultimoMidia) return { texto: "Na última mídia (“" + ctx.ultimoMidia.nome + "”) não encontrei texto legível para explicar. 🖼️", origem: "🧠 contexto" };
     if (ctx.tema) return { pesquisa: ctx.tema, fundo: true };
-    return { texto: "O que você quer que eu explique? Cole o texto/código aqui, envie uma foto pelo + ou me diga o assunto. 🤔", origem: "🧠 contexto" };
+    return { texto: "O que você quer que eu explique ou resuma? Cole o texto/código aqui, envie uma foto pelo + ou me diga o assunto. 🤔", origem: "🧠 contexto" };
   }
 
-  // Se o usuário continuou falando sobre um assunto anterior (ex.: "E esse pinguim faz oq para sobreviver?")
   if (ctx.tema && (outroAssunto || has(p, / (essa|essas|esse|esses|isso|isto|disso|dele|dela|deles|delas|nisso|aquilo|ele|ela|eles|elas) /)) && (pergunta(raw) || has(p, / (faz|fazem|serve|servem|significa|come|sobrevive|vive|mora) /))) {
     const PR = new Set("essa essas esse esses isso isto disso dele dela deles delas nisso aquilo ele ela eles elas faz fazem fazer serve servem o que e sao por para qual quais como me explica".split(" "));
     const seen = new Set(prep(ctx.tema).split(" ")), novo = p.trim().split(" ").filter(x => !PR.has(x) && !seen.has(x) && x.length > 2);
@@ -538,8 +570,8 @@ function responder(msg) {
   if (cap && !has(p, / (horas|hora) /)) {
     const x = cap[1].trim();
     if (has(p, / (programar|codigo|codar|jogar|resumir|pesquisar|escrever|criar|calcular|ler|traduzir|rir) /) && !has(p, / (quadro|desenho|musica|carro|cozinhar|dancar|cantar) /)) {
-      if (/\brir\b/.test(x)) return { texto: "Haha claro! 😂😂 Manda uma piada ou pede “conta uma piada”!", origem: "😄 humor" };
-      return { texto: "Sim! 😊 Eu sei: programar, jogar (forca, velha, quiz, adivinhação), resumir e revisar textos, recomendar filmes/animes/músicas, pesquisar na internet, traduzir idiomas e ler fotos/vídeos.", origem: "🧠 minhas habilidades" };
+      if (/\brir\b/.test(x)) return { texto: "Haha claro! 😂😂 Manda `piada` ou `/humor`!", origem: "😄 humor" };
+      return { texto: "Sim! 😊 Eu sei: programar, Termux, criar apps (`/app`), rodar scripts (`/executar`), jogar, resumir, revisar, recomendar filmes/animes/músicas, pesquisar, traduzir e ler fotos/vídeos.", origem: "🧠 minhas habilidades" };
     }
     const tmCap = tema(x) || x;
     if (tmCap.length >= 2 && pergunta(raw)) { lembrarTema(tmCap); return { pesquisa: tmCap, fundo: true }; }
@@ -557,7 +589,7 @@ function responder(msg) {
   return null;
 }
 
-const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo|vamos falar sobre|falar sobre o que|nao foi isso|travou foi|sabe rir|velho do ceu|conversa comigo|opa o que|oxe o que|entende o que|eu falo de|nao mandei|como assim|porque nao|eu que pergunto|consciencia|fazendo pesquisa|nao entendeu|nao entende|acertei)/;
+const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo|vamos falar sobre|falar sobre o que|nao foi isso|travou foi|sabe rir|velho do ceu|conversa comigo|opa o que|oxe o que|entende o que|eu falo de|nao mandei|como assim|porque nao|eu que pergunto|consciencia|fazendo pesquisa|nao entendeu|nao entende|acertei|que humor ruim|melhore)/;
 const pergunta = t => {
   const p = prep(t);
   if (has(p, SMALL)) return false;
