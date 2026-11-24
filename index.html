@@ -304,20 +304,20 @@ const [
   mConv, mDic, mHist, mBase, mReg, mLLM, mAv,
   mAuto, mRev, mEd, mErros, mVoz, mExec
 ] = await Promise.all([
-  loadMod("brain.js", "./brain.js?v=19"),
-  loadMod("saber.js", "./saber.js?v=13"),
+  loadMod("brain.js", "./brain.js?v=20"),
+  loadMod("saber.js", "./saber.js?v=14"),
   loadMod("programacao.js", "./programacao.js?v=5"),
   loadMod("arquivos.js", "./arquivos.js?v=3"),
   loadMod("mente.js", "./mente.js?v=19"),
   loadMod("fatos.js", "./fatos.js?v=8"),
-  loadMod("conversa.js", "./conversa.js?v=7"),
+  loadMod("conversa.js", "./conversa.js?v=8"),
   loadMod("dicionario.js", "./dicionario.js?v=5"),
   loadMod("historico.js", "./historico.js?v=3"),
   loadMod("base.js", "./base.js?v=8"),
-  loadMod("registry.js", "./registry.js?v=8"),
+  loadMod("registry.js", "./registry.js?v=9"),
   loadMod("llm.js", "./llm.js?v=1"),
-  loadMod("cerebro_avancado.js", "./cerebro_avancado.js?v=4"),
-  loadMod("autocorretor.js", "./autocorretor.js?v=4"),
+  loadMod("cerebro_avancado.js", "./cerebro_avancado.js?v=5"),
+  loadMod("autocorretor.js", "./autocorretor.js?v=5"),
   loadMod("revisor.js", "./revisor.js?v=2"),
   loadMod("editor_adm.js", "./editor_adm.js?v=4"),
   loadMod("erros_adm.js", "./erros_adm.js?v=1"),
@@ -325,7 +325,7 @@ const [
   loadMod("executor_sandbox.js", "./executor_sandbox.js?v=2")
 ]);
 
-const RizikBrain = mBrain.RizikBrain || { think: () => ({ handled: false }), learn: () => {}, remember: () => {}, recall: () => null, logTopic: () => {}, getRecentTopics: () => [], getProfile: () => ({}), getStats: () => ({ examples: 0, synonyms: 0, facts: 0, notes: 0 }) };
+const RizikBrain = mBrain.RizikBrain || { think: () => ({ handled: false }), learn: () => {}, remember: () => {}, recall: () => null, logTopic: () => {}, getRecentTopics: () => [], getProfile: () => ({}), getStats: () => ({ examples: 0, synonyms: 0, facts: 0, notes: 0 }), updateTone: () => ({ mood: "neutro", score: 0 }), getMood: () => ({ mood: "neutro", score: 0, humorAllowed: false }) };
 const Saber = mSaber.Saber || { urlsEm: () => [], isCode: () => false, lerTexto: t => t, buscarConhecimento: () => null, summarize: () => [], pesquisaProfunda: async () => { throw new Error("saber.js indisponível"); }, lerLink: async () => { throw new Error("saber.js indisponível"); } };
 const Prog = mProg.Prog || { humor: () => null, responder: () => null, desconhecido: () => "Não entendi isso." };
 const Arquivos = mArq.Arquivos || { comando: () => null, salvar: a => ({ nome: a.nome || "arquivo", pasta: a.pasta || "Textos" }), lerMidia: async () => { throw new Error("arquivos.js indisponível"); } };
@@ -338,7 +338,7 @@ const Base = mBase.Base || { montar: async () => { throw new Error("base.js indi
 const SkillRouter = mReg.SkillRouter || { handle: () => null, instructions: () => "", modePrompt: () => "" };
 const LLM = mLLM.LLM || { hasModel: () => false, command: () => null, getConfig: () => ({ model: "offline" }) };
 const CerebroAvancado = mAv.CerebroAvancado || { responder: async () => null };
-const AutoCorretor = mAuto.AutoCorretor || { ehReclamacao: () => false, tratarExclamacao: () => null, registrarFalhaPublica: () => {}, analisarEPreparar: () => null, formatarChat: h => JSON.stringify(h), auditarChat: () => "Módulo autocorretor.js não carregado." };
+const AutoCorretor = mAuto.AutoCorretor || { ehReclamacao: () => false, tratarExclamacao: () => null, processarSeguimentoDeCorrecao: () => null, registrarFalhaPublica: () => {}, analisarEPreparar: () => null, formatarChat: h => JSON.stringify(h), auditarChat: () => "Módulo autocorretor.js não carregado." };
 const Revisor = mRev.Revisor || { detectarPedidoDireto: () => null, avaliarSite: async () => "revisor.js não carregado.", revisarCodigoFiel: () => null, revisarPortugues: () => null };
 const EditorADM = mEd.EditorADM || { ativo: () => false, ehPedidoTudoTxt: () => false, resetar: () => {}, comandoConfig: () => null, processar: async () => null, ajudaComandos: () => "Use /ajuda para ver os comandos." };
 const ErrosADM = mErros.ErrosADM || { registrar: () => {}, listar: () => [], contar: () => 0, excluir: () => 0, excluirVarios: () => 0, limparTudo: () => {}, formatarParaCopiar: () => "", comando: () => null };
@@ -446,7 +446,7 @@ const statusPadrao = () => "BACH AI • " + (NOMES_MODOS[modoAtual] || "🤖 Aut
 
 const salvarHist = () => {
   try {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-30).map(h => ({ ...h, text: String(h.text).slice(0, 8000) }))));
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-100).map(h => ({ ...h, text: String(h.text).slice(0, 6000) }))));
   } catch (e) { console.warn(e); }
   try { Historico.salvarAtual(history); } catch (e) { console.warn(e); }
 };
@@ -522,7 +522,7 @@ function falar(texto, tipo = "bot", origem = "", forcar = false, cit = "") {
 }
 
 function restaurar() {
-  history = history.slice(-30);
+  history = history.slice(-100);
   for (const h of history) {
     if (!h || typeof h.text !== "string") continue;
     const u = h.type === "user";
@@ -677,10 +677,10 @@ function abrirSobre() {
   const nov = mk("div", "scard");
   nov.innerHTML =
     "<b>✨ Novidades da v" + APP_VER + ":</b><br>" +
-    "• <b>Criador de Apps & Executor Sandbox:</b> `/app pomodoro`, `/executar`, `/preview` e guias completos de **Termux**<br>" +
-    "• <b>Central de Erros ADM:</b> captura automática de falhas com busca, seleção, exclusão 1 por 1 ou total e envio remoto (`/erroremoto`)<br>" +
-    "• <b>Voz Natural Corrigida:</b> leitura em trechos compatível com iPhone, Android e PC (`/voz`)<br>" +
-    "• <b>Piadas Interativas:</b> faz a pergunta e espera você tentar acertar!<br>" +
+    "• <b>Humor & Tom Adaptativo:</b> acompanha seu estilo ao longo da conversa sem risadas fora de hora<br>" +
+    "• <b>Memória Contínua:</b> acompanha do início ao fim da sessão, compara sites avaliados e aprende com correções<br>" +
+    "• <b>Criador de Apps & Executor Sandbox:</b> `/app pomodoro`, `/executar`, `/preview` e guias de **Termux**<br>" +
+    "• <b>Central de Erros ADM:</b> captura falhas com busca, seleção, exclusão e envio remoto (`/erroremoto`)<br>" +
     "• <b>40 módulos integrados</b> + exportador ADM `/tudotxt`";
 
   const dados = mk("div", "scard");
@@ -834,7 +834,7 @@ async function perguntarIA(texto, extraCtx = "") {
   ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 60000);
   try {
-    let msgs = history.filter(h => h.type === "user" || h.type === "bot").slice(-14).map(h => ({ role: h.type === "user" ? "user" : "assistant", content: (h.cit ? "[Respondendo a: " + h.cit + "]\n" : "") + String(h.text).slice(0, 10000) }));
+    let msgs = history.filter(h => h.type === "user" || h.type === "bot").slice(-18).map(h => ({ role: h.type === "user" ? "user" : "assistant", content: (h.cit ? "[Respondendo a: " + h.cit + "]\n" : "") + String(h.text).slice(0, 10000) }));
     while (msgs.length && msgs[0].role !== "user") msgs.shift();
     if (alvo && msgs.length) msgs[msgs.length - 1].content = "[Respondendo a: " + alvo.slice(0, 1500) + "]\n" + msgs[msgs.length - 1].content;
     const perf = RizikBrain.getProfile(), rec = RizikBrain.getRecentTopics(8).map(x => x.topic);
@@ -1047,13 +1047,14 @@ async function seguir(texto, temIA) {
   }
   return false;
 }
-function ctxConversa() {
+function ctxConversa(tomInfo = { mood: "neutro", score: 0 }) {
   let arquivos = 0; try { arquivos = (JSON.parse(localStorage.getItem("bach_arquivos_v1")) || []).length; } catch {}
   const st = RizikBrain.getStats(), perf = RizikBrain.getProfile();
   return {
     nome: perf.userName, cidade: perf.city, gostos: perf.likes, projetos: perf.projects,
     hora: new Date().getHours(), aprendidas: st.examples, notas: st.notes, arquivos,
-    conversas: Historico.listar(1).total, modoCriador
+    conversas: Historico.listar(1).total, modoCriador,
+    mood: tomInfo.mood, humorScore: tomInfo.score, history, ultimoTema
   };
 }
 
@@ -1098,6 +1099,8 @@ async function rotear(texto) {
     }
     texto = semTag;
   }
+
+  const tomInfo = RizikBrain.updateTone ? RizikBrain.updateTone(texto) : { mood: "neutro", score: 0 };
 
   const cmdVoz = Voz.comando(texto);
   if (cmdVoz) { falar(cmdVoz, "bot", "🔊 voz"); return; }
@@ -1187,7 +1190,7 @@ async function rotear(texto) {
     if (mtCmd) { falar(mtCmd.texto, "bot", mtCmd.origem); return; }
   }
 
-  const dept = SkillRouter.handle(texto, { hasAI: temIA, history, mode: modoAtual });
+  const dept = SkillRouter.handle(texto, { hasAI: temIA, history, mode: modoAtual, mood: tomInfo.mood });
   if (dept) {
     falar(dept.texto, "bot", dept.origem);
     if (dept.previewHtml) {
@@ -1207,7 +1210,19 @@ async function rotear(texto) {
     return lerLinkMsg(links[0], texto, temIA);
   }
 
-  const excl = AutoCorretor.tratarExclamacao(texto);
+  const segCorr = !temIA ? AutoCorretor.processarSeguimentoDeCorrecao?.(texto, history.slice(0, -1)) : null;
+  if (segCorr) {
+    if (segCorr.tipo === "pesquisar") {
+      falar(segCorr.aviso, "bot", "🔄 aprendizado");
+      return pesquisaProfunda(segCorr.query, true);
+    }
+    if (segCorr.texto) {
+      falar(segCorr.texto, "bot", "🧠 aprendi com você");
+      return;
+    }
+  }
+
+  const excl = AutoCorretor.tratarExclamacao(texto, history.slice(0, -1));
   if (excl) { falar(excl, "bot", "💬 conversa"); return; }
 
   if (!temIA && AutoCorretor.ehReclamacao(texto)) {
@@ -1320,7 +1335,8 @@ async function rotear(texto) {
 
   const av = await CerebroAvancado.responder(texto, {
     ultimoArquivo, ultimoTema, ultimaMidiaInfo, ultimoBot: ultimoBotTexto(),
-    modoCriador, nome: RizikBrain.recall("userName")
+    modoCriador, nome: RizikBrain.recall("userName"),
+    history, mood: tomInfo.mood, humorScore: tomInfo.score
   });
   if (av) {
     if (av.tema) {
@@ -1359,7 +1375,7 @@ async function rotear(texto) {
     if (respDic) { ultimoTema = pedidoDic.q; RizikBrain.logTopic(pedidoDic.q); falar(respDic, "bot", "📖 dicionário"); return; }
   }
 
-  const papo = Conversa.responder(texto, ctxConversa()); if (papo) { falar(papo, "bot", "💬 conversa"); return; }
+  const papo = Conversa.responder(texto, ctxConversa(tomInfo)); if (papo) { falar(papo, "bot", "💬 conversa"); return; }
 
   const mt = Mente.responder(texto);
   if (mt) {
@@ -1397,6 +1413,7 @@ async function rotear(texto) {
   }
 
   const desc = Prog.desconhecido(texto);
+  RizikBrain.setPendingError?.(texto, desc);
   registrarErroPublico("nao-entendeu", texto, desc, "nenhum módulo reconheceu");
   falar(desc);
 }
