@@ -57,11 +57,12 @@ h2{margin:0;background:linear-gradient(90deg,#fff,var(--accent),var(--accent2));
 .result{background:var(--bot);border:1px solid var(--border);border-radius:12px;padding:10px;margin:6px 0;max-width:88%;font-size:13px;backdrop-filter:blur(10px)}
 .result h3{margin:0 0 6px;color:#fff;font-size:14px}.result a{color:var(--accent2);overflow-wrap:anywhere;font-weight:bold}
 .msg img,.msg video{max-width:100%;border-radius:10px;display:block}
-footer{flex:none;display:flex;gap:6px;padding:8px 10px;background:var(--panel);backdrop-filter:blur(12px);padding-bottom:max(8px,env(safe-area-inset-bottom));border-top:1px solid var(--border)}
+footer{flex:none;display:flex;align-items:flex-end;gap:6px;padding:8px 10px;background:var(--panel);backdrop-filter:blur(12px);padding-bottom:max(8px,env(safe-area-inset-bottom));border-top:1px solid var(--border)}
 input[type=text]{flex:1;min-width:0;padding:11px;border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.35);color:#fff;font-size:16px}
 button{padding:10px 14px;border:0;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:bold;cursor:pointer}
 button.stop{background:#c0392b}
-#mais,#mic{width:42px;padding:0;font-size:20px;background:rgba(255,255,255,.1);border:1px solid var(--border)}
+#mais,#mic{width:42px;height:44px;padding:0;font-size:20px;background:rgba(255,255,255,.1);border:1px solid var(--border);flex:none}
+#enviar{height:44px;flex:none}
 #mic.gravando{background:#c0392b}
 #menu{display:none;position:fixed;left:10px;bottom:calc(64px + env(safe-area-inset-bottom));background:var(--panel);backdrop-filter:blur(14px);border:1px solid var(--border);border-radius:14px;padding:6px;z-index:12;min-width:240px}
 #menu.aberto{display:block}
@@ -96,7 +97,7 @@ button.stop{background:#c0392b}
 .hrod button{padding:6px 10px;font-size:12px;background:rgba(255,255,255,.1)}
 .scard{background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.5}
 [hidden]{display:none!important}
-textarea#entrada{flex:1;min-width:0;padding:11px;border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.35);color:#fff;font-size:16px;font-family:inherit;line-height:1.35;resize:none;max-height:130px;overflow-y:auto}
+textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.35);color:#fff;font-size:16px;font-family:inherit;line-height:1.35;resize:none;max-height:130px;overflow-y:auto}
 #barras{flex:none;background:var(--panel);border-top:1px solid var(--border)}
 #citbar,#anexos{display:flex;align-items:center;gap:8px;padding:6px 12px;font-size:12px;color:#e5dcff;flex-wrap:wrap}
 #citbar{flex-wrap:nowrap;border-left:3px solid var(--accent)}
@@ -138,7 +139,7 @@ textarea#entrada{flex:1;min-width:0;padding:11px;border:1px solid var(--border);
 
 <footer>
   <button id="mais" aria-label="Mais opções">+</button>
-  <textarea id="entrada" rows="1" enterkeyhint="enter" placeholder="Converse ou digite 'ajuda'..." autocomplete="off"></textarea>
+  <textarea id="entrada" rows="1" enterkeyhint="enter" placeholder="Mensagem ou 'ajuda'..." autocomplete="off"></textarea>
   <button id="mic" aria-label="Falar">🎤</button>
   <button id="enviar">Enviar</button>
 </footer>
@@ -184,7 +185,7 @@ textarea#entrada{flex:1;min-width:0;padding:11px;border:1px solid var(--border);
 
 <script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <script type="module">
-import { RizikBrain } from "./brain.js?v=18";
+import { RizikBrain } from "./brain.js?v=19";
 import { Saber } from "./saber.js?v=12";
 import { Prog } from "./programacao.js?v=5";
 import { Arquivos } from "./arquivos.js?v=3";
@@ -201,7 +202,7 @@ import { CerebroAvancado } from "./cerebro_avancado.js?v=2";
 const $ = id => document.getElementById(id);
 const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status"), hist = $("hist"), sobreEl = $("sobre");
 const HISTORY_KEY = "bach_chat_history_v1", KEY_TEMA = "bach_theme_v1", KEY_CRIADOR = "bach_creator_v1", KEY_VER = "bach_last_version";
-const APP_VER = "4.5", APP_CRIADA = "2026", APP_ATUALIZADA = "23/11/2026";
+const APP_VER = "4.5", APP_CRIADA = "2026", APP_ATUALIZADA = "24/11/2026";
 const LONGO = 700;
 const BT = "\x60\x60\x60";
 const RE_CERCA_ALL = new RegExp("\\x60\\x60\\x60", "g");
@@ -273,7 +274,7 @@ function atualizarBadge() {
   b.textContent = atualizouAgora ? "✨ v" + APP_VER + " NOVA" : "v" + APP_VER;
   b.classList.toggle("nova", atualizouAgora);
   const du = $("drawerUser");
-  if (du) du.textContent = (modoCriador ? "👑 Criador Rizik conectado" : "Criada por Rizik • Gratuita");
+  if (du) du.textContent = modoCriador ? "👑 Criador Rizik conectado" : "Criada por Rizik • Gratuita";
 }
 
 const statusPadrao = () => "BACH AI • " + (NOMES_MODOS[modoAtual] || "🤖 Automático") + (modoCriador ? " • 👑 Criador" : "");
@@ -368,6 +369,7 @@ function falar(texto, tipo = "bot", origem = "", forcar = false, cit = "") {
 function restaurar() {
   history = history.slice(-30);
   for (const h of history) {
+    if (!h || typeof h.text !== "string") continue;
     const u = h.type === "user";
     chat.appendChild(montar(h.text || "", u ? "user" : "bot", h.cit || ""));
     chat.appendChild(acoes(h.text || "", u));
@@ -411,7 +413,7 @@ function abrirSobre() {
     "• Fundo vivo com esfera animada e <b>7 temas</b> (peça “tema vermelho”, “tema azul”, etc.)<br>" +
     "• Menu lateral de aplicativo e tela Sobre<br>" +
     "• Reconhecimento do criador (<b>@rizik2442</b>) com pesquisa sem limites<br>" +
-    "• Correção de nome do usuário, eleições/notícias atuais e gírias brasileiras<br>" +
+    "• Correção do cérebro local, caixa de texto responsiva e leitura de imagens<br>" +
     "• OCR melhorado para prints escuros e leitura estável de vídeos";
 
   const dados = mk("div", "scard");
@@ -438,7 +440,8 @@ function passo(t) { if (pensando) pensando.passo(t); status.textContent = t; }
 function parar() {
   cancelado = true; if (ctrl) ctrl.abort();
   if (pensando) { pensando.fim(); pensando = null; }
-  speechSynthesis.cancel(); busy(false);
+  try { speechSynthesis.cancel(); } catch {}
+  busy(false);
   falar("⏹ Cancelei. Pode mandar outra coisa.", "bot", "", true);
 }
 
@@ -833,7 +836,8 @@ async function rotear(texto) {
 
   const MEMORIA_DIRETA = new Set([
     "learning", "forget", "synonym", "name-set", "note", "notes", "export", "import",
-    "stats", "help", "profile-memory", "autocorrected", "declined", "confirm", "memorySummary", "learned", "name"
+    "stats", "help", "profile-memory", "autocorrected", "declined", "confirm", "memorySummary", "learned", "name",
+    "city", "age", "likes"
   ]);
   if (r.handled && MEMORIA_DIRETA.has(r.intent)) {
     falar(r.text, "bot", "🧠 minha memória");
@@ -846,7 +850,7 @@ async function rotear(texto) {
     return;
   }
   const perguntaMidiaLocal = ehCurtaNaoCodigo &&
-    /\b(escrito|escrita|diz|dizendo|aparece|tem aqui|nessa foto|nesta foto|na foto|nessa imagem|na imagem|no print|nesse print|nesse video|no video)\b/.test(tn) &&
+    /\b(escrito|escrita|diz|dizendo|aparece|tem aqui|tem nessa|tem na|ve|ver|descrev|analisa|leia|mostra)\b/.test(tn) &&
     /\b(aqui|foto|imagem|print|video|isso|essa|esse|nele|nela|escrito)\b/.test(tn);
   if (perguntaMidiaLocal && (ultimaMidiaInfo || ultimoArquivo)) {
     if (temIA && ultimaImagem) { await perguntarIA(texto); return; }
@@ -862,7 +866,7 @@ async function rotear(texto) {
   }
 
   const cidSalva = (() => { try { return localStorage.getItem("bach_cidade"); } catch { return null; } })();
-  if (/^(?:(?:qual|como)\s+(?:(?:est[aá]|[ée])\s+)?(?:a\s+|o\s+)?)?(?:clima|tempo|previs[aã]o(?:\s+do\s+tempo)?)(?:\s+(?:hoje|agora|amanh[aã]))?\s*\??$/i.test(texto) ||
+  if (/^(?:(?:qual|como)\s+(?:(?:est[aá]|[ée])\s+)?(?:a\s+|o\s+)?)?(?:(?:clima|previs[aã]o(?:\s+do\s+tempo)?)\s*(?:hoje|agora|amanh[aã])?)\s*\??$/i.test(texto) ||
       /^(?:tem|vai|vem|est[aá]|esta)\s+.{0,15}(?:chuva|chover|chovendo)(?:\s+(?:hoje|agora|amanh[aã]))?\s*\??$/i.test(texto)) {
     if (cidSalva) return clima(cidSalva);
     aguardaCidade = true; falar("De qual cidade? Me diga só o nome (ex.: Londrina) 🌤️"); return;
@@ -956,7 +960,7 @@ async function rotear(texto) {
   falar(Prog.desconhecido(texto));
 }
 
-function ajustar() { entrada.style.height = "auto"; entrada.style.height = Math.min(entrada.scrollHeight, 130) + "px"; }
+function ajustar() { entrada.style.height = "auto"; entrada.style.height = Math.max(44, Math.min(entrada.scrollHeight, 130)) + "px"; }
 function desenharAnexos() {
   const box = $("anexos"); box.innerHTML = ""; box.hidden = !pendentes.length;
   pendentes.forEach((f, i) => {
@@ -984,6 +988,7 @@ async function enviar() {
   if (!arquivos.length) {
     if (/^(\/clear|\/limpar|\/nova|nova conversa|limpar histórico)$/i.test(texto)) { alvo = null; novaConversa(); return; }
     if (/^(\/historico|\/histórico|histórico|historico)(\s+\d+)?$/i.test(texto)) { alvo = null; abrirHistorico(parseInt((texto.match(/\d+/) || [1])[0], 10) || 1); return; }
+    if (/^(sobre|sobre a bach|vers[aã]o|quem criou|sobre o app)$/i.test(texto)) { alvo = null; abrirSobre(); return; }
     const cmdLLM = LLM.command(texto);
     if (cmdLLM) {
       alvo = null;
@@ -1039,7 +1044,7 @@ menu.onclick = e => {
   const a = b.dataset.acao;
   if (a === "anexar") seletor.click();
   if (a === "profundo") { modoProfundo = !modoProfundo; b.textContent = "🧠 Pensar bastante: " + (modoProfundo ? "ligado" : "desligado"); falar(modoProfundo ? "Modo pensar bastante LIGADO 🧠" : "Modo pensar bastante desligado."); }
-  if (a === "voz") { lerAuto = !lerAuto; b.textContent = "🔊 Ler respostas sozinha: " + (lerAuto ? "ligado" : "desligado"); if (!lerAuto) speechSynthesis.cancel(); }
+  if (a === "voz") { lerAuto = !lerAuto; b.textContent = "🔊 Ler respostas sozinha: " + (lerAuto ? "ligado" : "desligado"); if (!lerAuto) try { speechSynthesis.cancel(); } catch {} }
   if (a === "arquivos") { entrada.value = "/arquivos"; enviar(); }
   if (a === "jogo") { entrada.value = "vamos jogar"; enviar(); }
   if (a === "sobre") abrirSobre();
@@ -1068,11 +1073,19 @@ $("mic").onclick = () => {
 };
 botao.onclick = enviar;
 entrada.addEventListener("input", ajustar);
+entrada.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+    const isTouch = navigator.maxTouchPoints > 0 && window.innerWidth < 768;
+    if (!isTouch) { e.preventDefault(); enviar(); }
+  }
+});
 
 aplicarTema(temaAtual);
 atualizarBadge();
+status.textContent = statusPadrao();
+ajustar();
 try { Historico.salvarAtual(history); } catch {}
-restaurar(); status.textContent = statusPadrao();
+try { restaurar(); } catch (e) { console.warn(e); }
 if (!history.length) {
   const nomeSalvo = RizikBrain.recall("userName");
   falar((nomeSalvo ? "Que bom te ver de volta, **" + nomeSalvo + "**! 💜 " : "Olá! ") + "Sou a **BACH AI** 🧠 (v" + APP_VER + "). Converso, lembro de você quando voltar, mudo de tema (peça “tema vermelho”, “azul”, “neon”...), analiso fotos/vídeos/códigos e pesquiso na internet!", "bot", "", true);
