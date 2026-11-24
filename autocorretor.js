@@ -1,7 +1,7 @@
-/* BACH AI 4.5 — AUTOCORRETOR & AUDITORIA DE CHAT
-   1) Detecta quando a BACH errou ou fugiu do assunto, analisa o histórico da conversa e reprocessa a pergunta original.
+/* BACH AI 4.6 — AUTOCORRETOR & AUDITORIA FIEL DO CHAT
+   1) Detecta reclamações, lê o histórico completo e reprocessa a pergunta original.
    2) Trata falas emotivas/esticadas, kaomojis, risadas brasileiras e perguntas sobre a própria IA.
-   3) Formata a conversa inteira para copiar sem prints e audita erros com /auditar. */
+   3) Auditoria fiel: mostra TODOS os tipos de falhas encontradas com número exato da mensagem (#N). */
 
 const K_CORR = "bach_autocorrecoes_v1";
 const K_FAIL = "bach_failures_v1";
@@ -39,7 +39,6 @@ function tratarExclamacao(texto) {
   const raw = String(texto || "").trim();
   if (!raw) return null;
 
-  // Kaomojis / carinhas de texto (";;-;;", ":(", "-_-", etc.)
   if (/^[;:.,\-_^~><()'`´=]+$/.test(raw) && raw.length >= 2) {
     if (/[;:].*[-_]/.test(raw) || raw.includes(":(")) {
       return "😢 Eita, que carinha triste é essa? Fui eu que errei ou aconteceu alguma coisa?";
@@ -47,34 +46,29 @@ function tratarExclamacao(texto) {
     return "👀 Tô por aqui! Manda o que você quer conversar ou testar.";
   }
 
-  // Nunca rouba reclamações (ex.: "Vc errou aiakakak")
   if (ehReclamacao(raw)) return null;
 
   const limpo = norm(reduzirRepetidas(raw));
   if (!limpo) return null;
 
-  // Risadas com prefixo/gíria ("Uai kkkk", "Mn ikkkkkk", "MN KSKSKSKS", "Akakakak", "Uai ikkkkk")
   const semGiria = limpo.replace(/\b(uai|mano|aff|nossa|eita|oxi|oxe|nada a ver)\b/g, "").trim();
   if (semGiria && ehRisada(semGiria) && limpo.split(" ").length <= 5) {
     return "Haha 😂😂! Boa! Manda a próxima!";
   }
 
-  // Exclamações esticadas ("Aaaaah... deusss", "Mdss", "Affs", "Aveeeeeeee", "Aiaiii", "Uai")
   if (/^(?:ah+|oh+|eh+|ih+|uh+|uai+|eita+|nossa+|vixi+|vish+|socorro+|meu deus|o deus+|deus+|caramba+|misericordia+|aff+s?|mds+|ave+|aiai+|ai+|oxi+|oxe+)(?:\s+(?:ah+|oh+|deus+|meu deus|o deus+|nossa+|eita+|senhor+|socorro+|ave+|mds+))*$/.test(limpo)) {
     return "Eita! 😂 Senti a reação daqui! Me conta o que rolou ou o que você precisa agora.";
   }
 
-  // Pergunta sobre consciência / sentimentos da IA (mesmo sem "você")
   if (/\b(tem|possui|existe|voce tem)\b/.test(limpo) && /\b(consciencia|sentimentos|emocoes|alma)\b/.test(limpo) && limpo.split(" ").length <= 10) {
     return "Eu não tenho consciência nem sentimentos como uma pessoa — sou uma inteligência artificial feita de código e memória, mas tô sempre evoluindo para conversar melhor com você! 🤖💜";
   }
 
-  // Devolução de pergunta / testes de capacidade ("eu que pergunto tip oq?", "desde quando vc entende?", "acertei msm?")
   if (/^(?:eu que pergunto|tipo o que|o que voce quer fazer|fazer o que agora)/.test(limpo) && limpo.split(" ").length <= 8) {
-    return "Haha, você que manda! 😄 Pode pedir uma curiosidade, música, filme, cálculo, senha forte (`/senha`), previsão do tempo ou só bater papo!";
+    return "Haha, você que manda! 😄 Pode pedir uma curiosidade, música, filme, cálculo, senha forte (`/senha`), revisão de texto ou previsão do tempo!";
   }
   if (/^(?:desde quando (?:voce )?entende|sabe o que exatamente|nah sabe o que)/.test(limpo)) {
-    return "Estou aprendendo cada vez mais com você! 🧠 Entendo de programação, matemática, traduções, clima, curiosidades, filmes/animes/músicas, senhas/sorteios e leitura de fotos/textos. Testa aí!";
+    return "Estou aprendendo cada vez mais com você! 🧠 Entendo de programação, ortografia/sílabas, avaliação de sites, traduções, clima, curiosidades, filmes/animes/músicas e senhas. Testa aí!";
   }
   if (/^(?:acertei mesmo|acertei|ganhei)$/.test(limpo)) {
     return "Acertou sim! 🎉 Manda outro jogo (`forca`, `quiz`, `velha` ou `adivinhe`) ou pergunta quando quiser!";
@@ -135,7 +129,6 @@ function analisarEPreparar(history, ctx = {}) {
   const t = norm(reduzirRepetidas(orig));
   const botErr = String(alvoAnt.respostaBot || "");
 
-  // 1) Se a pergunta original pedia resumo + código do arquivo/foto
   if (/\bresum/.test(t) && /\bcodig/.test(t) && ctx.ultimoArquivo?.texto) {
     registrarCorrecao(orig, "faltou-resumo-com-codigo", "entregou-resumo-e-codigo");
     const linhas = ctx.ultimoArquivo.texto.split(/\n+/).map(x => x.trim()).filter(Boolean);
@@ -148,7 +141,6 @@ function analisarEPreparar(history, ctx = {}) {
     };
   }
 
-  // 2) Se a pergunta original era sobre clima/tempo
   if (/\b(clima|tempo|chuva|chover|chovendo|previsao|calor|frio)\b/.test(t) &&
       !/\b(tempo de|linha do tempo|passatempo|o que e tempo)\b/.test(t)) {
     registrarCorrecao(orig, "clima-nao-detectado", "reencaminhar-clima");
@@ -159,7 +151,6 @@ function analisarEPreparar(history, ctx = {}) {
     };
   }
 
-  // 3) Se a pergunta original pedia tradução de foto/citação
   if (/\b(traduz|traduza|traduzir|traducao|em portugues)\b/.test(t) &&
       (alvoAnt.cit || ctx.ultimoArquivo?.texto)) {
     registrarCorrecao(orig, "traducao-alvo", "reencaminhar-traducao");
@@ -171,17 +162,15 @@ function analisarEPreparar(history, ctx = {}) {
     };
   }
 
-  // 4) Se a resposta errada foi uma pesquisa indesejada na Wikipédia
   if (/Sobre “|Aqui está o resumo sobre|Pesquisei “/i.test(botErr)) {
     registrarCorrecao(orig, "pesquisa-indevida", "pediu-acao-direta");
     return {
       tipo: "direto",
       texto: "Desculpa mesmo por ter pesquisado na internet sem você pedir! 😅\n\nVi que antes você tinha mandado: **“" + orig + "”**.\n" +
-        "Me diga rapidinho o que você queria com isso — conversar, fazer uma conta, traduzir ou explicar algo — que eu respondo direto sem pesquisar à toa!"
+        "Me diga rapidinho o que você queria com isso — conversar, revisar texto, fazer conta ou traduzir — que eu respondo direto!"
     };
   }
 
-  // 5) Se a resposta errada foi "Não captei bem" / "Não entendi" / "Essa ficou meio vaga"
   if (/Não captei bem|Não entendi direito|Essa ficou meio vaga/i.test(botErr)) {
     if (/^(o que e|o que sao|quem foi|quem e|onde fica|como funciona|me explica)\b/.test(t) || /\bdistancia\b/.test(t)) {
       registrarCorrecao(orig, "nao-entendeu-pergunta", "pesquisar-pergunta");
@@ -198,7 +187,6 @@ function analisarEPreparar(history, ctx = {}) {
     };
   }
 
-  // 6) Caso geral
   registrarCorrecao(orig, "desvio-geral", "confirmou-contexto");
   return {
     tipo: "direto",
@@ -226,25 +214,37 @@ function formatarChat(history) {
 function auditarChat(history) {
   const erros = [];
   const lista = Array.isArray(history) ? history : [];
+  let ultimaBot = "";
 
   for (let i = 0; i < lista.length; i++) {
     const m = lista[i];
     if (!m || !m.text) continue;
     const txt = String(m.text);
+    const num = "#" + (i + 1);
+    const antUser = lista[i - 1]?.type === "user" ? String(lista[i - 1].text) : "";
 
-    if (m.type !== "user" && /Não captei bem|Não entendi direito|Essa ficou meio vaga|Deu um erro inesperado/i.test(txt)) {
-      const ant = lista[i - 1]?.type === "user" ? lista[i - 1].text : "(desconhecida)";
-      erros.push("• Não entendeu: “" + String(ant).slice(0, 70) + "”");
-    }
-    if (m.type === "user" && ehReclamacao(txt)) {
-      const alvoU = lista[i - 2]?.type === "user" ? lista[i - 2].text : "(anterior)";
-      erros.push("• Usuário reclamou (“" + txt.slice(0, 45) + "”) após: “" + String(alvoU).slice(0, 60) + "”");
-    }
-    if (m.type !== "user" && /Sobre “|Aqui está o resumo sobre/i.test(txt)) {
-      const antU = lista[i - 1]?.type === "user" ? String(lista[i - 1].text) : "";
-      if (antU && !/\b(pesquis|procur|busc|o que e|quem foi|quem e|como funciona|me explica)\b/i.test(norm(antU))) {
-        erros.push("• Pesquisa automática suspeita para: “" + antU.slice(0, 60) + "”");
+    if (m.type !== "user") {
+      if (/Não captei bem|Não entendi direito|Essa ficou meio vaga|Deu um erro inesperado/i.test(txt)) {
+        erros.push("• [" + num + "] Não entendeu: “" + antUser.slice(0, 65) + "”");
       }
+      if (/Sobre “|Aqui está o resumo sobre/i.test(txt)) {
+        if (antUser && !/\b(pesquis|procur|busc|o que e|quem foi|quem e|como funciona|me explica|distancia|historia)\b/i.test(norm(antUser))) {
+          erros.push("• [" + num + "] Pesquisa automática fora de hora para: “" + antUser.slice(0, 60) + "”");
+        }
+      }
+      if (/^📄\s+IMG_|^📝 Texto lido em \*\*IMG_/i.test(txt) && antUser && !/\b(foto|imagem|print|escrito|texto|codigo|ler|leia|resume)\b/i.test(norm(antUser))) {
+        erros.push("• [" + num + "] Vazou arquivo/foto antiga ao responder: “" + antUser.slice(0, 60) + "”");
+      }
+      if (/Tradução automática \(MyMemory\)/i.test(txt) && antUser && /\b(responde|fala|escreve)\s+em\s+portugues/i.test(norm(antUser))) {
+        erros.push("• [" + num + "] Traduziu comando de idioma como se fosse palavra: “" + antUser.slice(0, 50) + "”");
+      }
+      if (ultimaBot && txt === ultimaBot && txt.length > 25 && !/Nova conversa/i.test(txt)) {
+        erros.push("• [" + num + "] Resposta idêntica repetida em sequência para: “" + antUser.slice(0, 50) + "”");
+      }
+      ultimaBot = txt;
+    } else if (ehReclamacao(txt)) {
+      const alvoU = lista[i - 2]?.type === "user" ? String(lista[i - 2].text) : "(anterior)";
+      erros.push("• [" + num + "] Usuário reclamou (“" + txt.slice(0, 40) + "”) após: “" + alvoU.slice(0, 55) + "”");
     }
   }
 
@@ -253,28 +253,33 @@ function auditarChat(history) {
   try { corrs = JSON.parse(localStorage.getItem(K_CORR) || "[]"); } catch {}
 
   const out = [
-    "🩺 **AUDITORIA DE ERROS DA BACH AI**",
+    "🩺 **AUDITORIA FIEL DE ERROS DA BACH AI**",
     "• Mensagens analisadas nesta conversa: " + lista.length,
-    "• Falhas encontradas no chat atual: " + erros.length,
+    "• Total de erros detectados no chat: " + erros.length,
     "• Auto-correções registradas: " + corrs.length,
-    "• Falhas técnicas (AutoGuard): " + fails.length,
+    "• Registros técnicos (AutoGuard): " + fails.length,
     ""
   ];
 
   if (erros.length) {
-    out.push("❌ **Pontos onde a IA errou / não entendeu neste chat:**");
-    out.push(...erros.slice(-10));
+    out.push("❌ **Todos os erros encontrados (do mais antigo ao atual):**");
+    out.push(...erros.slice(-30));
+    out.push("");
+  }
+  if (corrs.length) {
+    out.push("🔄 **Últimas auto-correções:**");
+    out.push(...corrs.slice(-5).map(c => "• [" + c.motivo + "] “" + c.pergunta + "”"));
     out.push("");
   }
   if (fails.length) {
     out.push("⚠️ **Últimos registros técnicos:**");
-    out.push(...fails.slice(-5).map(f => "• [" + f.module + "] " + (f.input || f.detail)));
+    out.push(...fails.slice(-8).map(f => "• [" + f.module + "] " + (f.input || f.detail)));
     out.push("");
   }
   if (!erros.length && !fails.length) {
     out.push("✅ Nenhuma falha detectada nesta conversa!");
   } else {
-    out.push("💡 Toque em **📋 Copiar** abaixo e me mande esse relatório para eu melhorar os módulos!");
+    out.push("💡 Toque em **📋 Copiar** abaixo e me mande esse relatório para continuarmos lapidando a IA!");
   }
 
   return out.join("\n");
