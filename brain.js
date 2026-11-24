@@ -1,4 +1,4 @@
-/* BACH AI - CÉREBRO 0.9.1
+/* BACH AI - CÉREBRO 0.9.2
    Conversa, memória automática do usuário e dos assuntos, aprendizado, autocorreção e backup. */
 
 const KEY = "rizik_brain_v1";
@@ -246,10 +246,10 @@ function classify(message) {
   if (/^(tchau|ate mais|falou|fui|ate logo|bye|adios)$/.test(t)) return "goodbye";
   if (/que horas|hora agora/.test(t)) return "time";
   if (/que dia|data de hoje/.test(t)) return "date";
-  if (/^(qual e )?meu nome$/.test(t)) return "name";
-  if (/^(onde (eu )?moro|qual (e )?minha cidade)$/.test(t)) return "city";
-  if (/^(quantos anos (eu )?tenho|qual (e )?minha idade)$/.test(t)) return "age";
-  if (/^(do que eu gosto|quais (sao )?meus gostos)$/.test(t)) return "likes";
+  if (/^(qual (e )?(o )?|como (se )?chama (o )?)?meu nome$/.test(t) || /^quem sou eu$/.test(t)) return "name";
+  if (/^(onde (eu )?moro|qual (e )?(a )?minha cidade)$/.test(t)) return "city";
+  if (/^(quantos anos (eu )?tenho|qual (e )?(a )?minha idade)$/.test(t)) return "age";
+  if (/^(do que eu gosto|quais (sao )?(os )?meus gostos)$/.test(t)) return "likes";
   if (/^(o que voce lembra de mim|o que voce sabe de mim|o que voce sabe sobre mim|lembra do que falamos|do que falamos|quais assuntos falamos)$/.test(t)) return "memorySummary";
   return "unknown";
 }
@@ -258,7 +258,7 @@ const R = (text, intent) => ({ handled: true, intent, text });
 
 function analyzeText(txt) {
   const words = txt.trim().split(/\s+/).length;
-  const code = /(\bconst\b|\bfunction\b|=>|<\/?[a-z]+>|\bimport\b|\breturn\b)/.test(txt);
+  const code = /(\bconst\b|\bfunction\b|=>|<\/?[a-z]+>|\bimport\b|\bexport\b|\breturn\b)/.test(txt);
   return "Recebi um texto grande: " + words + " palavras e " + txt.length + " caracteres." +
     (code ? " Parece código de programação." : "") +
     "\n\nPosso resumir, explicar o funcionamento, montar uma cadeia de uso ou revisar o código.";
@@ -272,19 +272,18 @@ const HELP =
   "• esqueça: pergunta\n" +
   "• sinônimo: gíria = palavra (ou sinônimos: top, daora = legal)\n" +
   "• meu nome é ... / eu gosto de ... / moro em ...\n\n" +
+  "🎨 Visual e Modos\n" +
+  "• Use o menu ☰ ou peça: “tema vermelho”, “tema azul”, “tema neon”...\n" +
+  "• Use os 10 modos no topo (Automático, Raciocínio, Pesquisa, Programação, Visão...)\n\n" +
   "🔎 Pesquisar, recomendar e traduzir\n" +
-  "• Use os 10 modos no topo (Automático, Raciocínio, Pesquisa, Programação, Visão...)\n" +
-  "• pesquise sobre ... / pesquise a fundo sobre ...\n" +
-  "• recomenda filmes de drama / sertanejo / animes / séries\n" +
+  "• pesquise sobre ... / recomenda filmes de drama / sertanejo / animes / séries\n" +
   "• escreva um e-mail / plano de estudos / diferença entre X e Y\n" +
-  "• o que significa ... / como se diz ... em inglês\n" +
-  "• clima em (sua cidade)\n\n" +
+  "• o que significa ... / como se diz ... em inglês / clima em (sua cidade)\n\n" +
   "🛠️ Ferramentas rápidas\n" +
   "• /calc • /converter • /juros • /fisica • /golpe • /quiz\n\n" +
   "📁 Arquivos e Histórico\n" +
   "• botão + para anexar fotos, vídeos e textos\n" +
-  "• /arquivos, /abrir nome, /buscar palavra, /apagar nome\n" +
-  "• /historico • /nova • /clear";
+  "• /arquivos, /abrir nome, /buscar palavra, /apagar nome • /historico • /nova • /clear";
 
 function buildMemorySummary() {
   const nome = recall("userName");
@@ -344,9 +343,14 @@ function think(message) {
 
   m = original.match(/^(?:meu nome [eé]|me chamo|pode me chamar de)\s+(.+)$/i);
   if (m) {
-    const nome = m[1].trim().replace(/[.!]+$/, "").slice(0, 40);
+    const limpo = m[1]
+      .replace(/\s+(?:sabia|viu|ta|tá|ok|hein|po|pô|cara|mano|vei|véi|nmrl)\s*[!.]*$/i, "")
+      .trim()
+      .replace(/[.!]+$/, "")
+      .slice(0, 40);
+    const nome = limpo.charAt(0).toUpperCase() + limpo.slice(1);
     remember("userName", nome);
-    return R(`Prazer, ${nome}! Vou lembrar do seu nome. 😊`, "name-set");
+    return R(`Prazer, ${nome}! Vou lembrar do seu nome sempre que você voltar. 😊`, "name-set");
   }
 
   m = original.match(/^lembre\s*:\s*(.+)$/i);
@@ -392,7 +396,7 @@ function think(message) {
   const intent = classify(original);
 
   if (intent === "identity") {
-    return R("Sou a BACH AI! 🧠 Fui criada no seu projeto BACH AI. Tenho memória, leitura de fotos/códigos, recomendações, escrita, cálculos, tradução e pesquisa na internet.", intent);
+    return R("Sou a BACH AI! 🧠 Fui criada por Rizik para ajudar todo mundo de graça — com memória, leitura de fotos/vídeos/códigos, temas e pesquisa na internet.", intent);
   }
 
   const { item, score } = bestExample(original);
@@ -415,32 +419,10 @@ function think(message) {
     case "wellbeing": return R("Estou ótima e pronta para conversar com você! 😄", intent);
     case "thanks": return R(pick(["Por nada! Sempre que precisar, estou aqui. 😊", "Disponha! 💜"]), intent);
     case "goodbye": return R(pick(["Até mais! 👋", "Até logo! Volte sempre! 💜"]), intent);
-    case "capabilities": return R("Posso conversar, lembrar do que você me conta, aprender respostas, traduzir idiomas, ler fotos e códigos, recomendar filmes/animes/músicas, escrever textos, calcular, jogar e pesquisar na internet! 🧠", intent);
+    case "capabilities": return R("Posso conversar, lembrar de você quando voltar ao site, mudar meu tema visual, traduzir idiomas, ler fotos/vídeos/códigos, recomendar filmes/animes/músicas, escrever textos, calcular, jogar e pesquisar na internet! 🧠", intent);
     case "canread": return R("Sim! Leio textos, códigos, links, fotos (inclusive prints em modo escuro) e vídeos. Resumo, explico funções e reviso códigos.", intent);
     case "time": return R("Agora são " + new Date().toLocaleTimeString("pt-BR") + ".", intent);
     case "date": return R("Hoje é " + new Date().toLocaleDateString("pt-BR") + ".", intent);
-    case "name": return R(nome ? "Seu nome é " + nome + "." : "Ainda não sei seu nome. Diga: meu nome é ...", intent);
+    case "name": return R(nome ? "Seu nome é **" + nome + "**! 😊" : "Ainda não sei seu nome. Diga: meu nome é ...", intent);
     case "city": return R(data.profile.city ? "Você me disse que é de " + data.profile.city + ". 📍" : "Ainda não sei onde você mora. Pode me contar!", intent);
-    case "age": return R(data.profile.age ? "Você me disse que tem " + data.profile.age + " anos. 🎂" : "Ainda não sei sua idade.", intent);
-    case "likes": return R(data.profile.likes.length ? "Você me contou que gosta de: " + data.profile.likes.join(", ") + ". 💜" : "Ainda não sei do que você gosta. Me conte!", intent);
-    case "memorySummary": return R(buildMemorySummary(), intent);
-    default: return { handled: false, intent: "unknown", text: null };
-  }
-}
-
-function getStats() {
-  return {
-    examples: data.examples.length,
-    facts: Object.keys(data.facts).length,
-    synonyms: Object.keys(data.synonyms).length,
-    notes: data.notes.length,
-    topics: data.topics.length,
-    version: data.version
-  };
-}
-
-export const RizikBrain = {
-  version: "0.9.1",
-  think, learn, forget, remember, recall, classify, getStats,
-  getProfile, logTopic, getRecentTopics
-};
+    case "age": return R(data.pr
