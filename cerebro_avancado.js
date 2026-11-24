@@ -1,1137 +1,522 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0d0e1a">
-<title>BACH AI</title>
-<style>
-:root{
-  --bg:#0d0e1a;--panel:rgba(22,24,42,.84);--panel2:rgba(16,18,32,.92);
-  --border:rgba(138,118,255,.3);--accent:#8266ff;--accent2:#e056fd;
-  --text:#f5f6ff;--muted:#b4b8d8;--bot:rgba(30,34,60,.18);--user:rgba(98,66,220,.24);
-  --orb1:#8c6eff;--orb2:#ff4fd8;--orbGlow:rgba(140,110,255,.65);
-}
-*{box-sizing:border-box}
-html,body{height:100%}
-body{margin:0;background:radial-gradient(circle at top,rgba(255,255,255,.04),transparent 55%),var(--bg);color:var(--text);font-family:Arial,sans-serif;display:flex;flex-direction:column;height:100dvh;overflow:hidden;transition:background .4s ease}
-#orb-bg{
-  position:fixed;left:50%;top:50%;
-  width:clamp(210px,52vw,290px);height:clamp(210px,52vw,290px);
-  border-radius:46% 54% 58% 42% / 52% 42% 58% 48%;
-  background:radial-gradient(circle at 35% 32%,rgba(255,255,255,.42),var(--orb1) 38%,var(--orb2) 76%,transparent 100%);
-  box-shadow:0 0 70px var(--orbGlow),inset 0 0 32px rgba(255,255,255,.25);
-  opacity:.52;pointer-events:none;z-index:0;
-  animation:orbMove 16s ease-in-out infinite,orbMorph 5s ease-in-out infinite;
-  transition:background .5s ease,box-shadow .5s ease;
-}
-#orb-bg::before,#orb-bg::after{
-  content:"";position:absolute;border-radius:50%;pointer-events:none;
-}
-#orb-bg::before{
-  inset:-18%;
-  background:repeating-conic-gradient(from 0deg,var(--orb1) 0deg 6deg,transparent 9deg 24deg,var(--orb2) 26deg 32deg,transparent 35deg 50deg);
-  -webkit-mask-image:radial-gradient(circle,rgba(0,0,0,.95) 20%,rgba(0,0,0,.7) 46%,transparent 72%);
-  mask-image:radial-gradient(circle,rgba(0,0,0,.95) 20%,rgba(0,0,0,.7) 46%,transparent 72%);
-  filter:blur(3px);opacity:.9;
-  animation:orbSpinA 8s linear infinite,orbSpikeA 2.4s ease-in-out infinite;
-}
-#orb-bg::after{
-  inset:-24%;
-  background:repeating-conic-gradient(from 14deg,rgba(255,255,255,.72) 0deg 4deg,transparent 7deg 28deg,var(--orb2) 30deg 35deg,transparent 38deg 58deg);
-  -webkit-mask-image:radial-gradient(circle,transparent 16%,rgba(0,0,0,.85) 42%,transparent 70%);
-  mask-image:radial-gradient(circle,transparent 16%,rgba(0,0,0,.85) 42%,transparent 70%);
-  filter:blur(2.5px);opacity:.78;
-  animation:orbSpinB 11s linear infinite reverse,orbSpikeB 3s ease-in-out infinite;
-}
-@keyframes orbMove{
-  0%{transform:translate(-50%,-50%) translate(0px,0px) scale(1)}
-  20%{transform:translate(-50%,-50%) translate(44px,-36px) scale(1.06)}
-  40%{transform:translate(-50%,-50%) translate(-46px,-28px) scale(.95)}
-  60%{transform:translate(-50%,-50%) translate(40px,38px) scale(1.05)}
-  80%{transform:translate(-50%,-50%) translate(-38px,34px) scale(.97)}
-  100%{transform:translate(-50%,-50%) translate(0px,0px) scale(1)}
-}
-@keyframes orbMorph{
-  0%{border-radius:46% 54% 58% 42% / 52% 42% 58% 48%}
-  25%{border-radius:62% 38% 44% 56% / 38% 60% 40% 62%}
-  50%{border-radius:38% 62% 56% 44% / 58% 36% 64% 42%}
-  75%{border-radius:56% 44% 36% 64% / 44% 58% 42% 56%}
-  100%{border-radius:46% 54% 58% 42% / 52% 42% 58% 48%}
-}
-@keyframes orbSpinA{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-@keyframes orbSpinB{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-@keyframes orbSpikeA{0%,100%{scale:.88}50%{scale:1.18}}
-@keyframes orbSpikeB{0%,100%{scale:1.14}50%{scale:.86}}
-header,#modos,#chat,#barras,footer{position:relative;z-index:1}
-header{padding:10px 14px;background:var(--panel);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);flex:none}
-.htop{display:flex;align-items:center;gap:10px}
-#btnDrawer{width:38px;height:38px;padding:0;font-size:20px;background:rgba(255,255,255,.08);border:1px solid var(--border);border-radius:11px;display:flex;align-items:center;justify-content:center}
-.hbrand{flex:1;min-width:0}
-.htitle{display:flex;align-items:center;gap:8px}
-h2{margin:0;background:linear-gradient(90deg,#fff,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent;font-size:19px}
-#verBadge{font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.1);border:1px solid var(--border);color:var(--text);cursor:pointer;font-weight:bold}
-#verBadge.nova{background:linear-gradient(90deg,var(--accent),var(--accent2));border-color:transparent}
-#status{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
-#modos{display:flex;gap:6px;overflow-x:auto;padding:7px 10px;background:var(--panel2);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);flex:none}
-#modos::-webkit-scrollbar{display:none}
-.modo{flex:none;padding:5px 11px;font-size:12px;font-weight:normal;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:999px;color:var(--text);cursor:pointer;transition:.2s}
-.modo.on{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent;color:#fff;font-weight:bold;box-shadow:0 2px 12px var(--orbGlow)}
-#chat{flex:1;overflow:auto;padding:12px 10px 16px;width:100%;max-width:850px;margin:0 auto}
-.msg{padding:9px 12px;margin:6px 0;border-radius:15px;max-width:85%;width:fit-content;line-height:1.48;overflow-wrap:anywhere;font-size:14px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);text-shadow:0 1px 2px rgba(0,0,0,.65)}
-.msg .t{white-space:pre-wrap}
-.bot{background:var(--bot);border:1px solid var(--border);margin-right:auto}
-.user{background:var(--user);border:1px solid rgba(255,255,255,.22);margin-left:auto;box-shadow:0 3px 14px rgba(0,0,0,.15)}
-.pensando{opacity:.88;border-style:dashed;white-space:pre-line}
-.acoes{display:flex;gap:6px;margin:-2px 0 6px}
-.acoes button{padding:3px 9px;font-size:12px;font-weight:normal;background:rgba(255,255,255,.08);backdrop-filter:blur(6px);border-radius:10px;color:var(--text)}
-.meta{color:var(--muted);font-size:11px;margin:2px 4px 4px;white-space:pre-line}
-.cartao{border:1px solid var(--border);border-radius:10px;margin:6px 0;background:rgba(0,0,0,.25);overflow:hidden;min-width:230px}
-.topo{display:flex;align-items:center;gap:6px;padding:6px 8px;font-size:12px;color:#e4ddff}
-.topo span{flex:1}
-.topo button{padding:4px 9px;font-size:12px;font-weight:normal;background:rgba(255,255,255,.12);border-radius:8px}
-.cartao details{border-top:1px solid rgba(255,255,255,.1)}
-.cartao summary{padding:5px 8px;font-size:12px;color:var(--muted);cursor:pointer}
-.cartao pre{margin:0;padding:8px;max-height:320px;overflow:auto;font-size:12px;line-height:1.4;white-space:pre-wrap;color:#eef0ff}
-.result{background:var(--bot);border:1px solid var(--border);border-radius:12px;padding:10px;margin:6px 0;max-width:88%;font-size:13px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);text-shadow:0 1px 2px rgba(0,0,0,.65)}
-.result h3{margin:0 0 6px;color:#fff;font-size:14px}.result a{color:var(--accent2);overflow-wrap:anywhere;font-weight:bold}
-.msg img,.msg video{max-width:100%;border-radius:10px;display:block}
-footer{flex:none;display:flex;align-items:flex-end;gap:6px;padding:8px 10px;background:var(--panel);backdrop-filter:blur(12px);padding-bottom:max(8px,env(safe-area-inset-bottom));border-top:1px solid var(--border)}
-input[type=text]{flex:1;min-width:0;padding:11px;border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.35);color:#fff;font-size:16px}
-button{padding:10px 14px;border:0;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:bold;cursor:pointer}
-button.stop{background:#c0392b}
-#mais,#mic{width:42px;height:44px;padding:0;font-size:20px;background:rgba(255,255,255,.1);border:1px solid var(--border);flex:none}
-#enviar{height:44px;flex:none}
-#mic.gravando{background:#c0392b}
-#menu{display:none;position:fixed;left:10px;bottom:calc(64px + env(safe-area-inset-bottom));background:var(--panel);backdrop-filter:blur(14px);border:1px solid var(--border);border-radius:14px;padding:6px;z-index:12;min-width:240px}
-#menu.aberto{display:block}
-#menu button{display:block;width:100%;text-align:left;background:none;padding:11px 12px;font-weight:normal;font-size:15px}
-#drawerBack{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);z-index:20}
-#drawerBack.aberto{display:flex}
-#drawer{width:min(310px,84vw);height:100%;background:var(--panel2);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:14px;gap:8px;overflow:auto}
-.dhead{display:flex;align-items:center;justify-content:space-between;padding-bottom:10px;border-bottom:1px solid var(--border)}
-.dhead b{font-size:17px;color:#fff}
-.dsub{font-size:11px;color:var(--muted);margin-top:2px}
-.dclose{padding:6px 10px;background:rgba(255,255,255,.1);border-radius:9px}
-.dbtn{width:100%;text-align:left;background:rgba(255,255,255,.06);border:1px solid var(--border);padding:10px 12px;font-weight:normal;font-size:14px;border-radius:12px}
-.dtemas{display:flex;flex-wrap:wrap;gap:6px;padding:6px 2px}
-.tpill{padding:6px 10px;font-size:12px;border-radius:999px;border:1px solid rgba(255,255,255,.22);font-weight:bold;background:rgba(255,255,255,.08)}
-.tpill.on{box-shadow:0 0 0 2px #fff}
-.dinfo{margin-top:auto;padding-top:10px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);line-height:1.5}
-#hist,#sobre{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:30;align-items:flex-end;justify-content:center}
-#hist.aberto,#sobre.aberto{display:flex}
-.hbox,.sbox{background:var(--panel2);border:1px solid var(--border);border-radius:18px 18px 0 0;width:100%;max-width:640px;max-height:88dvh;display:flex;flex-direction:column;padding:14px;gap:10px;overflow:auto}
-.sbox{border-radius:18px;margin:auto 12px;max-width:520px}
-.htopo{display:flex;gap:8px;align-items:center}.htopo b{color:#fff;white-space:nowrap}
-.htopo input{padding:8px 10px;font-size:14px}.htopo button{padding:8px 12px;background:rgba(255,255,255,.12)}
-.hlista{overflow:auto;flex:1;display:flex;flex-direction:column;gap:6px;min-height:120px}
-.hitem{display:flex;gap:6px;align-items:center;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:12px;padding:8px 10px}
-.hitem.atual{border-color:var(--accent)}.hinfo{flex:1;min-width:0;cursor:pointer}
-.htit{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hmeta{font-size:11px;color:var(--muted);margin-top:2px}
-.hitem button{background:none;padding:6px 8px}.hvazio{color:var(--muted);text-align:center;padding:24px 0;font-size:14px}
-.hpag{display:flex;flex-wrap:wrap;gap:4px;justify-content:center}
-.hpag button{min-width:32px;padding:6px 0;font-size:13px;background:rgba(255,255,255,.1)}
-.hpag button.on{background:var(--accent)}.hpag button.vazia{opacity:.35}.hpag button:disabled{opacity:.3}
-.hrod{display:flex;gap:8px;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted)}
-.hrod button{padding:6px 10px;font-size:12px;background:rgba(255,255,255,.1)}
-.scard{background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.5}
-[hidden]{display:none!important}
-textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.35);color:#fff;font-size:16px;font-family:inherit;line-height:1.35;resize:none;max-height:130px;overflow-y:auto}
-#barras{flex:none;background:var(--panel);border-top:1px solid var(--border)}
-#citbar,#anexos{display:flex;align-items:center;gap:8px;padding:6px 12px;font-size:12px;color:#e5dcff;flex-wrap:wrap}
-#citbar{flex-wrap:nowrap;border-left:3px solid var(--accent)}
-#citbar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#citbar button,#anexos button{padding:2px 8px;font-size:12px;background:rgba(255,255,255,.12)}
-.chip{display:flex;gap:6px;align-items:center;background:rgba(255,255,255,.1);border-radius:10px;padding:3px 4px 3px 9px;max-width:100%;overflow-wrap:anywhere}
-.cit{border-left:3px solid var(--accent2);background:rgba(0,0,0,.25);border-radius:6px;padding:4px 8px;margin-bottom:6px;font-size:12px;color:#e9dfff;white-space:pre-wrap;overflow-wrap:anywhere}
-.acoes.user{justify-content:flex-end}
-</style>
-</head>
-<body>
-<div id="orb-bg" aria-hidden="true"></div>
+/* BACH AI - CÉREBRO AVANÇADO 2.2
+   NLU natural, temas por voz/texto, recomendações por gênero, séries ao vivo,
+   escrita estruturada, controle de contexto e integração com AutoGuard. */
+import { AutoGuard } from "./autoguard.js?v=1";
 
-<header>
-  <div class="htop">
-    <button id="btnDrawer" aria-label="Abrir menu">☰</button>
-    <div class="hbrand">
-      <div class="htitle"><h2>BACH AI 🧠</h2><span id="verBadge" title="Sobre e novidades">v4.5</span></div>
-      <div id="status">Carregando...</div>
-    </div>
-  </div>
-</header>
+const norm = t => String(t || "").toLowerCase().normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .replace(/\b(vc|vce)\b/g, "voce")
+  .replace(/\b(oq|oqe|oque)\b/g, "o que")
+  .replace(/\b(pq|pk)\b/g, "porque")
+  .replace(/\b(oara|pra|praa)\b/g, "para")
+  .replace(/\b(cmg)\b/g, "comigo")
+  .replace(/\b(entt)\b/g, "entao")
+  .replace(/\b(msc)\b/g, "musica")
+  .replace(/\b(sla)\b/g, "sei la")
+  .replace(/\b(rlx)\b/g, "relaxa")
+  .replace(/\b(nmrl)\b/g, "na moral")
+  .replace(/\b(jaja)\b/g, "ja ja")
+  .replace(/\b(nd)\b/g, "nada")
+  .replace(/\b(tlvz)\b/g, "talvez")
+  .replace(/\b(tbm|tb|tmb)\b/g, "tambem")
+  .replace(/\b(msm)\b/g, "mesmo")
+  .replace(/\b(hj)\b/g, "hoje")
+  .replace(/[^a-z0-9\s]/g, " ")
+  .replace(/\s+/g, " ")
+  .trim();
 
-<nav id="modos" aria-label="Modos de funcionamento">
-  <button class="modo on" data-modo="auto">🤖 Automático</button>
-  <button class="modo" data-modo="raciocinio">🧠 Raciocínio</button>
-  <button class="modo" data-modo="pesquisa">🌐 Pesquisa</button>
-  <button class="modo" data-modo="aprendizado">📚 Aprendizado</button>
-  <button class="modo" data-modo="programacao">💻 Programação</button>
-  <button class="modo" data-modo="matematica">🔢 Matemática</button>
-  <button class="modo" data-modo="visao">👁️ Imagens</button>
-  <button class="modo" data-modo="voz">🎙️ Voz</button>
-  <button class="modo" data-modo="criatividade">✍️ Criatividade</button>
-  <button class="modo" data-modo="documentos">📄 Documentos</button>
-</nav>
+const giro = {};
+const girar = (k, arr) => { giro[k] = ((giro[k] ?? -1) + 1) % arr.length; return arr[giro[k]]; };
 
-<main id="chat"></main>
-<div id="barras"><div id="citbar" hidden></div><div id="anexos" hidden></div></div>
-
-<footer>
-  <button id="mais" aria-label="Mais opções">+</button>
-  <textarea id="entrada" rows="1" enterkeyhint="enter" placeholder="Mensagem ou 'ajuda'..." autocomplete="off"></textarea>
-  <button id="mic" aria-label="Falar">🎤</button>
-  <button id="enviar">Enviar</button>
-</footer>
-
-<div id="menu">
-  <button data-acao="anexar">📎 Anexar foto, vídeo ou arquivo</button>
-  <button data-acao="profundo">🧠 Pensar bastante: desligado</button>
-  <button data-acao="voz">🔊 Ler respostas sozinha: desligado</button>
-  <button data-acao="arquivos">📁 Meus arquivos</button>
-  <button data-acao="jogo">🎮 Jogar um joguinho</button>
-  <button data-acao="sobre">ℹ️ Sobre a BACH AI</button>
-</div>
-
-<div id="drawerBack">
-  <aside id="drawer" aria-label="Menu do aplicativo">
-    <div class="dhead">
-      <div>
-        <b>BACH AI 🧠</b>
-        <div class="dsub" id="drawerUser">Criada por Rizik • Gratuita</div>
-      </div>
-      <button class="dclose" id="fecharDrawer">✕</button>
-    </div>
-    <button class="dbtn" data-d="nova">➕ Nova conversa</button>
-    <button class="dbtn" data-d="historico">🕘 Histórico de conversas</button>
-    <button class="dbtn" data-d="arquivos">📁 Meus arquivos</button>
-    <button class="dbtn" data-d="anexar">📎 Anexar mídia / documento</button>
-    <button class="dbtn" data-d="jogo">🎮 Jogos no chat</button>
-    <div style="font-size:12px;color:var(--muted);margin-top:4px">🎨 Temas e Cores (ou peça no chat!):</div>
-    <div class="dtemas" id="listaTemas"></div>
-    <button class="dbtn" data-d="sobre">ℹ️ Sobre o App &amp; Atualizações</button>
-    <div class="dinfo">
-      <b>Criador:</b> Rizik<br>
-      <b>Versão:</b> 4.5 (2026)<br>
-      Suas conversas e memórias ficam salvas quando você volta ao site.
-    </div>
-  </aside>
-</div>
-
-<input id="seletor" type="file" hidden multiple accept="image/*,video/*,.txt,.md,.js,.html,.css,.json,.csv,.py,.xml,.log,.ts,.java,.c,.cpp,.sql,.yml,.yaml">
-<div id="hist"></div>
-<div id="sobre"></div>
-<input id="seletorBase" type="file" hidden accept=".json,application/json">
-
-<script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
-<script type="module">
-import { RizikBrain } from "./brain.js?v=19";
-import { Saber } from "./saber.js?v=12";
-import { Prog } from "./programacao.js?v=5";
-import { Arquivos } from "./arquivos.js?v=3";
-import { Mente } from "./mente.js?v=15";
-import { Fatos } from "./fatos.js?v=7";
-import { Conversa } from "./conversa.js?v=5";
-import { Dic } from "./dicionario.js?v=4";
-import { Historico } from "./historico.js?v=3";
-import { Base } from "./base.js?v=5";
-import { SkillRouter } from "./registry.js?v=3";
-import { LLM } from "./llm.js?v=1";
-import { CerebroAvancado } from "./cerebro_avancado.js?v=3";
-
-const $ = id => document.getElementById(id);
-const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status"), hist = $("hist"), sobreEl = $("sobre");
-const HISTORY_KEY = "bach_chat_history_v1", KEY_TEMA = "bach_theme_v1", KEY_CRIADOR = "bach_creator_v1", KEY_VER = "bach_last_version";
-const APP_VER = "4.5", APP_CRIADA = "2026", APP_ATUALIZADA = "24/11/2026";
-const LONGO = 700;
-const BT = "\x60\x60\x60";
-const RE_CERCA_ALL = new RegExp("\\x60\\x60\\x60", "g");
-const RE_CERCA_SPLIT = new RegExp("\\x60\\x60\\x60([\\w+-]*)[ \\t]*\\n?([\\s\\S]*?)\\x60\\x60\\x60", "g");
-
-const TEMAS = {
-  roxo:     { nome: "💜 Roxo",     bg:"#0d0e1a", panel:"rgba(22,24,42,.84)", panel2:"rgba(16,18,32,.92)", border:"rgba(138,118,255,.32)", accent:"#8266ff", accent2:"#e056fd", bot:"rgba(30,34,60,.18)", user:"rgba(98,66,220,.24)", orb1:"#8c6eff", orb2:"#ff4fd8", glow:"rgba(140,110,255,.65)" },
-  vermelho: { nome: "❤️ Vermelho", bg:"#16070b", panel:"rgba(36,14,20,.84)", panel2:"rgba(26,10,14,.92)", border:"rgba(255,70,95,.34)",   accent:"#ff3555", accent2:"#ff7c43", bot:"rgba(44,18,26,.18)", user:"rgba(195,28,55,.24)", orb1:"#ff2a4b", orb2:"#ff8533", glow:"rgba(255,50,80,.65)" },
-  azul:     { nome: "💙 Azul",     bg:"#07101f", panel:"rgba(14,24,44,.84)", panel2:"rgba(10,18,34,.92)", border:"rgba(55,165,255,.32)",  accent:"#2997ff", accent2:"#00e5ff", bot:"rgba(18,34,60,.18)", user:"rgba(24,108,210,.24)", orb1:"#2997ff", orb2:"#00f2fe", glow:"rgba(40,160,255,.65)" },
-  verde:    { nome: "💚 Verde",    bg:"#06150f", panel:"rgba(12,32,24,.84)", panel2:"rgba(8,24,18,.92)",  border:"rgba(25,215,140,.32)",  accent:"#10d48e", accent2:"#7dff7a", bot:"rgba(16,44,34,.18)", user:"rgba(14,142,96,.24)",  orb1:"#0fd68c", orb2:"#4dff88", glow:"rgba(20,215,140,.6)" },
-  rosa:     { nome: "🩷 Rosa",     bg:"#170713", panel:"rgba(36,14,32,.84)", panel2:"rgba(26,10,24,.92)", border:"rgba(255,85,185,.34)",  accent:"#ff4db8", accent2:"#a66bff", bot:"rgba(46,20,42,.18)", user:"rgba(196,40,136,.24)", orb1:"#ff3ea5", orb2:"#a66bff", glow:"rgba(255,65,175,.65)" },
-  dourado:  { nome: "💛 Dourado",  bg:"#150f05", panel:"rgba(34,25,12,.84)", panel2:"rgba(24,18,8,.92)",  border:"rgba(255,180,45,.34)",  accent:"#ffb020", accent2:"#ff662b", bot:"rgba(44,34,16,.18)", user:"rgba(186,115,15,.24)", orb1:"#ffb020", orb2:"#ff5e36", glow:"rgba(255,175,35,.62)" },
-  neon:     { nome: "⚡ Neon",     bg:"#090716", panel:"rgba(18,16,38,.86)", panel2:"rgba(12,11,28,.94)", border:"rgba(0,245,212,.34)",   accent:"#00e5c8", accent2:"#f15bb5", bot:"rgba(22,26,56,.18)", user:"rgba(126,38,215,.24)", orb1:"#00f5d4", orb2:"#f15bb5", glow:"rgba(0,240,210,.62)" }
+const FILMES_GENERO = {
+  drama: [
+    "Um Sonho de Liberdade (1994) — amizade e esperança dentro de uma prisão.",
+    "À Espera de um Milagre (1999) — drama emocionante com realismo mágico.",
+    "A Lista de Schindler (1993) — história real impactante da 2ª Guerra.",
+    "À Procura da Felicidade (2006) — superação baseada em fatos reais.",
+    "O Pianista (2002) — sobrevivência através da música.",
+    "Central do Brasil (1998) — clássico nacional premiado e tocante.",
+    "Parasita (2019) — drama social afiado cheio de reviravoltas."
+  ],
+  aventura: [
+    "Interestelar (2014) — viagem espacial para salvar a humanidade.",
+    "O Senhor dos Anéis: A Sociedade do Anel (2001) — épico de fantasia.",
+    "Piratas do Caribe: A Maldição do Pérola Negra (2003) — aventura divertida.",
+    "Indiana Jones e os Caçadores da Arca Perdida (1981) — clássico absoluto.",
+    "Jurassic Park (1993) — parque de dinossauros que sai do controle.",
+    "Duna: Parte Dois (2024) — aventura épica de ficção científica.",
+    "Avatar (2009) — expedição visual em outro planeta."
+  ],
+  acao: [
+    "Batman: O Cavaleiro das Trevas (2008) — ação policial e vilão icônico.",
+    "Mad Max: Estrada da Fúria (2015) — ritmo frenético do início ao fim.",
+    "John Wick: De Volta ao Jogo (2014) — coreografias de ação precisas.",
+    "Gladiador (2000) — épico de honra e arena na Roma Antiga.",
+    "Top Gun: Maverick (2022) — ação aérea espetacular.",
+    "Matrix (1999) — ação e ficção que mudou o cinema.",
+    "Tropa de Elite (2007) — ação policial brasileira intensa."
+  ],
+  terror: [
+    "Invocação do Mal (2013) — terror sobrenatural clássico.",
+    "Corra! (2017) — terror psicológico inteligente e tenso.",
+    "O Iluminado (1980) — suspense e terror psicológico atemporal.",
+    "Hereditário (2018) — terror pesado e perturbador.",
+    "Um Lugar Silencioso (2018) — tensão onde qualquer som é fatal.",
+    "Fale Comigo (2022) — terror moderno criativo."
+  ],
+  suspense: [
+    "Seven: Os Sete Crimes Capitais (1995) — investigação policial sombria.",
+    "Ilha do Medo (2010) — mistério em um hospital psiquiátrico.",
+    "Os Suspeitos / Prisoners (2013) — suspense denso sobre sequestro.",
+    "Garota Exemplar (2014) — reviravoltas sobre um desaparecimento.",
+    "O Silêncio dos Inocentes (1991) — clássico policial e psicológico."
+  ],
+  comedia: [
+    "Se Beber, Não Case! (2009) — comédia caótica de amigos em Las Vegas.",
+    "As Branquelas (2004) — clássico de comédia popular no Brasil.",
+    "O Auto da Compadecida (2000) — obra-prima do humor brasileiro.",
+    "Minha Mãe é uma Peça (2013) — comédia nacional leve e certeira.",
+    "Click (2006) — comédia com emoção."
+  ],
+  ficcao: [
+    "A Origem / Inception (2010) — invasão de sonhos em camadas.",
+    "Interestelar (2014) — relatividade, buracos negros e emoção.",
+    "Blade Runner 2049 (2017) — ficção visual sobre humanidade.",
+    "A Chegada / Arrival (2016) — contato alienígena e linguagem.",
+    "Ex Machina (2014) — suspense sobre inteligência artificial."
+  ],
+  romance: [
+    "Questão de Tempo (2013) — romance leve sobre aproveitar a vida.",
+    "Brilho Eterno de uma Mente Sem Lembranças (2004) — criativo e profundo.",
+    "Orgulho e Preconceito (2005) — romance clássico de época.",
+    "Como Eu Era Antes de Você (2016) — romance emocionante.",
+    "La La Land (2016) — romance musical sobre sonhos."
+  ],
+  animacao: [
+    "Homem-Aranha no Aranhaverso (2018) — visual e história incríveis.",
+    "A Viagem de Chihiro (2001) — fantasia mágica do Studio Ghibli.",
+    "Divertida Mente (2015) — criativo sobre nossas emoções.",
+    "Wall-E (2008) — ficção científica encantadora.",
+    "Gato de Botas 2: O Último Pedido (2022) — aventura surpreendente."
+  ],
+  brasileiro: [
+    "Cidade de Deus (2002) — referência mundial do cinema brasileiro.",
+    "O Auto da Compadecida (2000) — humor e cultura nordestina geniais.",
+    "Central do Brasil (1998) — drama humano premiado.",
+    "Tropa de Elite (2007) — ação e debate social.",
+    "Bacurau (2019) — faroeste, mistério e crítica social."
+  ]
 };
 
-const NOMES_MODOS = {
-  auto: "🤖 Automático", raciocinio: "🧠 Raciocínio", pesquisa: "🌐 Pesquisa",
-  aprendizado: "📚 Aprendizado", programacao: "💻 Programação", matematica: "🔢 Matemática",
-  visao: "👁️ Imagens", voz: "🎙️ Voz", criatividade: "✍️ Criatividade", documentos: "📄 Documentos"
+const MUSICAS_GENERO = {
+  sertanejo: [
+    "Chitãozinho & Xororó — Evidências",
+    "Zezé Di Camargo & Luciano — É o Amor",
+    "Marília Mendonça — Infiel / Leão",
+    "Jorge & Mateus — Sosseguei / Logo Eu",
+    "Henrique & Juliano — Cuida Bem Dela / Liberdade Provisória",
+    "Ana Castela — Nosso Quadro"
+  ],
+  mpb: [
+    "Tim Maia — Gostava Tanto de Você",
+    "Djavan — Oceano / Flor de Lis",
+    "Chico Buarque — Construção",
+    "Elis Regina & Tom Jobim — Águas de Março",
+    "Marisa Monte — Ainda Bem",
+    "Seu Jorge — Burguesinha"
+  ],
+  rock: [
+    "Legião Urbana — Tempo Perdido",
+    "Charlie Brown Jr. — Dias de Luta, Dias de Glória",
+    "Skank — Vou Deixar",
+    "Capital Inicial — Primeiros Erros",
+    "Os Paralamas do Sucesso — Lanterna dos Afogados",
+    "Linkin Park — Numb / In The End"
+  ],
+  rap: [
+    "Racionais MC's — Vida Loka (Parte 1) / Negro Drama",
+    "Sabotage — Um Bom Lugar",
+    "Emicida — AmarElo",
+    "Criolo — Não Existe Amor em SP",
+    "Djonga — Olho de Tigre",
+    "Matuê — Máquina do Tempo"
+  ],
+  samba: [
+    "Cartola — As Rosas Não Falam",
+    "Jorge Aragão — Coisa de Pele",
+    "Zeca Pagodinho — Deixa a Vida Me Levar",
+    "Exaltasamba — Tá Vendo Aquela Lua",
+    "Menos é Mais — Lapada Dela / Melhor Eu Ir"
+  ],
+  funk: [
+    "MC Kevinho — Olha a Explosão",
+    "Ludmilla — Favela Chegou",
+    "Anitta — Vai Malandra / Envolver",
+    "MC Hariel — Maçã Verde",
+    "Pedro Sampaio — Dançarina"
+  ],
+  pop: [
+    "Jão — Idiota / Me Lambe",
+    "Luísa Sonza — Chico / Penhasco",
+    "Iza — Pesadão / Dona de Mim",
+    "Anavitória — Trevo (Tu)",
+    "The Weeknd — Blinding Lights"
+  ],
+  eletronica: [
+    "Alok — Hear Me Now",
+    "Vintage Culture — Hollywood",
+    "Avicii — Wake Me Up",
+    "Daft Punk — Get Lucky / Instant Crush"
+  ]
 };
 
-let history = [], pensando = null, modoProfundo = false, lerAuto = false, modoAtual = "auto";
-let ultimoTema = null, ultimaOrigem = "", aguardaCidade = false, citacao = null, alvo = null, pendentes = [];
-let ocupado = false, cancelado = false, ctrl = null, ultimoArquivo = null, ultimaImagem = null, ultimaMidiaInfo = null;
-let temaAtual = "roxo", modoCriador = false, atualizouAgora = false;
+const SERIES_GERAL = [
+  "Breaking Bad — professor vira mestre do crime em um drama impecável.",
+  "Stranger Things — mistério, nostalgia dos anos 80 e ficção.",
+  "Dark — ficção científica alemã genial sobre viagem no tempo.",
+  "The Last of Us — drama pós-apocalíptico emocionante.",
+  "Round 6 — suspense intenso de sobrevivência.",
+  "The Boys — sátira ácida sobre super-heróis.",
+  "Brooklyn Nine-Nine — comédia policial leve e rápida."
+];
 
-try {
-  history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
-  if (!Array.isArray(history)) history = [];
-  temaAtual = localStorage.getItem(KEY_TEMA) || "roxo";
-  modoCriador = localStorage.getItem(KEY_CRIADOR) === "1";
-  const prevV = localStorage.getItem(KEY_VER);
-  if (prevV !== APP_VER) { atualizouAgora = true; localStorage.setItem(KEY_VER, APP_VER); }
-} catch { history = []; }
+const COMPARACOES = {
+  "javascript|python": "⚖️ **JavaScript vs Python:**\n• **JavaScript:** roda nativo no navegador, domina sites e apps web (React, Node.js).\n• **Python:** leitura mais limpa, domina dados, IA e automação.\n👉 Quer criar sites? Comece por JS. Quer dados/IA? Python.",
+  "html|css": "⚖️ **HTML vs CSS:**\n• **HTML** é a estrutura (títulos, textos, botões).\n• **CSS** é o visual (cores, tamanhos, animações).\n👉 Trabalham juntos em toda página web.",
+  "ssd|hd": "⚖️ **SSD vs HD:**\n• **HD:** disco mecânico; mais barato, porém lento.\n• **SSD:** memória flash; muito mais rápido e silencioso.",
+  "alcool|etanol|gasolina": "⚖️ **Etanol vs Gasolina:**\nDivida o preço do etanol pelo da gasolina. Se der **até 0,70**, o etanol costuma compensar.",
+  "debito|credito": "⚖️ **Débito vs Crédito:**\n• **Débito:** sai na hora e evita dívida.\n• **Crédito:** concentra na fatura e parcela, mas exige pagar em dia para fugir de juros."
+};
 
-function aplicarTema(nome) {
-  const k = TEMAS[nome] ? nome : "roxo";
-  const t = TEMAS[k];
-  temaAtual = k;
-  const r = document.documentElement.style;
-  r.setProperty("--bg", t.bg); r.setProperty("--panel", t.panel); r.setProperty("--panel2", t.panel2);
-  r.setProperty("--border", t.border); r.setProperty("--accent", t.accent); r.setProperty("--accent2", t.accent2);
-  r.setProperty("--bot", t.bot); r.setProperty("--user", t.user);
-  r.setProperty("--orb1", t.orb1); r.setProperty("--orb2", t.orb2); r.setProperty("--orbGlow", t.glow);
-  const mc = document.querySelector('meta[name="theme-color"]');
-  if (mc) mc.setAttribute("content", t.bg);
-  try { localStorage.setItem(KEY_TEMA, k); } catch {}
-  desenharTemas();
-  return t.nome;
-}
+const CONHECIMENTO_PRATICO = [
+  [/\b(produtividade|foco|procrastin|estudar melhor|como estudar|concentr)\b/,
+   "🎯 **Técnicas para focar e estudar melhor:**\n1. **Pomodoro:** 25 min focado + 5 min de pausa.\n2. **Estudo ativo:** explique o assunto em voz alta ou faça exercícios.\n3. **Regra dos 2 minutos:** se leva menos de 2 min, faça agora."],
+  [/\b(50 30 20|organizar dinheiro|economizar|orcamento|educacao financeira|guardar dinheiro)\b/,
+   "💰 **Método 50-30-20:**\n• **50%** necessidades essenciais.\n• **30%** lazer e desejos.\n• **20%** reserva de emergência e investimentos."],
+  [/\b(redacao|enem|dissertacao|escrever bem)\b/,
+   "✍️ **Estrutura de Redação (ENEM):**\n1. **Introdução:** tema + tese + 2 argumentos.\n2. **D1 e D2:** defenda os argumentos com repertório e consequências.\n3. **Conclusão:** Quem + O quê + Como + Para quê + Detalhamento."],
+  [/\b(curriculo|entrevista|emprego|trabalho)\b/,
+   "💼 **Dicas de Currículo e Entrevista:**\n• Currículo em 1–2 páginas com resultados reais.\n• Na entrevista use o método **STAR** (Situação, Tarefa, Ação, Resultado)."],
+  [/\b(direito consumidor|procon|arrependimento|troca|garantia|reembolso)\b/,
+   "⚖️ **Direitos básicos (CDC Brasil):**\n• Compras online: **7 dias corridos** para devolução e reembolso total.\n• Defeito: 30 dias (não duráveis) ou 90 dias (duráveis) de garantia legal."]
+];
 
-function desenharTemas() {
-  const box = $("listaTemas");
-  if (!box) return;
-  box.innerHTML = "";
-  for (const [k, t] of Object.entries(TEMAS)) {
-    const b = mk("button", "tpill" + (k === temaAtual ? " on" : ""), t.nome);
-    b.style.borderColor = t.accent;
-    b.onclick = () => {
-      aplicarTema(k);
-      falar("🎨 Tema alterado para **" + t.nome + "**! Ficou salvo para quando você voltar.", "bot", "🎨 tema", true);
-    };
-    box.append(b);
-  }
-}
-
-function atualizarBadge() {
-  const b = $("verBadge");
-  b.textContent = atualizouAgora ? "✨ v" + APP_VER + " NOVA" : "v" + APP_VER;
-  b.classList.toggle("nova", atualizouAgora);
-  const du = $("drawerUser");
-  if (du) du.textContent = modoCriador ? "👑 Criador Rizik conectado" : "Criada por Rizik • Gratuita";
-}
-
-const statusPadrao = () => "BACH AI • " + (NOMES_MODOS[modoAtual] || "🤖 Automático") + (modoCriador ? " • 👑 Criador" : "");
-
-const salvarHist = () => {
+async function buscarSeriesTVMaze(termo) {
+  const c = new AbortController();
+  const id = setTimeout(() => c.abort(), 8000);
   try {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-30).map(h => ({ ...h, text: String(h.text).slice(0, 8000) }))));
-  } catch (e) { console.warn(e); }
-  try { Historico.salvarAtual(history); } catch (e) { console.warn(e); }
-};
-
-function busy(b) {
-  ocupado = b;
-  botao.textContent = b ? "⏹" : "Enviar";
-  botao.classList.toggle("stop", b);
-  if (!b) status.textContent = statusPadrao();
-}
-
-/* ---------- utilitários ---------- */
-async function copiar(t, btn) {
-  try { await navigator.clipboard.writeText(t); }
-  catch { const a = document.createElement("textarea"); a.value = t; document.body.appendChild(a); a.select(); document.execCommand("copy"); a.remove(); }
-  if (btn) { const o = btn.textContent; btn.textContent = "✅ Copiado"; setTimeout(() => btn.textContent = o, 1500); }
-}
-function baixar(t, nome) {
-  const u = URL.createObjectURL(new Blob([t], { type: /\.json$/.test(nome) ? "application/json" : "text/plain;charset=utf-8" }));
-  const a = document.createElement("a"); a.href = u; a.download = nome; a.click(); setTimeout(() => URL.revokeObjectURL(u), 3000);
-}
-const EXT = { html: "html", js: "js", javascript: "js", css: "css", python: "py", py: "py", json: "json", sql: "sql", java: "java", ts: "ts", lua: "lua", txt: "txt" };
-function mk(tag, cls, txt) { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
-
-function cartao(titulo, conteudo, arquivo, aberto, previa) {
-  const c = mk("div", "cartao"), top = mk("div", "topo"), b1 = mk("button", "", "📋 Copiar"), b2 = mk("button", "", "⬇️ Baixar");
-  b1.onclick = () => copiar(conteudo, b1); b2.onclick = () => baixar(conteudo, arquivo);
-  top.append(mk("span", "", titulo), b1, b2);
-  const d = mk("details"); if (aberto) d.open = true;
-  d.append(mk("summary", "", "Ver conteúdo"), mk("pre", "", previa && conteudo.length > previa ? conteudo.slice(0, previa) + "\n\n[... prévia: o arquivo completo tem " + conteudo.length + " caracteres; use Copiar ou Baixar]" : conteudo));
-  c.append(top, d); return c;
-}
-
-/* ---------- bolhas ---------- */
-function montar(texto, tipo, cit = "") {
-  const w = mk("div", "msg " + tipo);
-  if (cit) w.appendChild(mk("div", "cit", "↩ " + cit));
-  const txtBruto = String(texto);
-  const cercas = (txtBruto.match(RE_CERCA_ALL) || []).length;
-  const p = cercas % 2 === 0 ? txtBruto.split(RE_CERCA_SPLIT) : [txtBruto];
-  for (let i = 0; i < p.length; i += 3) {
-    const t = p[i].trim();
-    if (t) {
-      if (t.length > (tipo === "user" ? LONGO : 3500)) {
-        const n = t.split(/\n/).length;
-        w.appendChild(cartao("📄 Texto longo • " + t.split(/\s+/).length + " palavras, " + n + " linhas", t, "texto-bach.txt", false));
-      } else w.appendChild(mk("div", "t", t));
-    }
-    if (i + 2 < p.length) {
-      const lang = (p[i + 1] || "").toLowerCase(), code = p[i + 2].replace(/\n$/, ""), n = code.split("\n").length;
-      w.appendChild(cartao("💻 " + (lang || "código") + " • " + n + " linhas", code, "bach-codigo." + (EXT[lang] || "txt"), n <= 18));
-    }
-  }
-  return w;
-}
-function textoFalavel(t) {
-  return String(t).replace(RE_CERCA_SPLIT, " (código na tela) ").replace(/[*_#`>|]/g, " ").replace(/https?:\/\/\S+/g, " ").replace(/\s+/g, " ").trim();
-}
-function ler(texto, btn) {
-  if (!("speechSynthesis" in window)) return;
-  if (speechSynthesis.speaking) { speechSynthesis.cancel(); if (btn) btn.textContent = "🔊 Ouvir"; return; }
-  const u = new SpeechSynthesisUtterance(textoFalavel(texto).slice(0, 4000)); u.lang = "pt-BR";
-  u.onend = u.onerror = () => { if (btn) btn.textContent = "🔊 Ouvir"; };
-  if (btn) btn.textContent = "⏹ Parar"; speechSynthesis.speak(u);
-}
-function acoes(texto, user) {
-  const a = mk("div", "acoes" + (user ? " user" : "")), b2 = mk("button", "", "📋 Copiar"), b3 = mk("button", "", "↩ Responder");
-  b2.onclick = () => copiar(texto, b2); b3.onclick = () => responderA(texto, user ? "user" : "bot");
-  if (!user) { const b1 = mk("button", "", "🔊 Ouvir"); b1.onclick = () => ler(texto, b1); a.append(b1); }
-  a.append(b2, b3); return a;
-}
-
-function falar(texto, tipo = "bot", origem = "", forcar = false, cit = "") {
-  if (tipo === "bot" && cancelado && !forcar) return;
-  let seg = null;
-  if (tipo === "bot" && pensando) { seg = pensando.fim(); pensando = null; }
-  chat.appendChild(montar(texto, tipo, cit));
-  chat.appendChild(acoes(texto, tipo === "user"));
-  if (seg !== null) chat.appendChild(mk("div", "meta", (seg < 0.3 ? "⚡ Respondi na hora" : "⏱ Pensei por " + seg.toFixed(1) + " s") + (origem ? " • " + origem : "")));
-  chat.scrollTop = chat.scrollHeight;
-  history.push({ text: String(texto), type: tipo, ...(cit ? { cit } : {}) }); salvarHist();
-  if (tipo === "bot") ultimaOrigem = origem;
-  if (tipo === "bot" && (lerAuto || modoAtual === "voz")) ler(texto);
-}
-function restaurar() {
-  history = history.slice(-30);
-  for (const h of history) {
-    if (!h || typeof h.text !== "string") continue;
-    const u = h.type === "user";
-    chat.appendChild(montar(h.text || "", u ? "user" : "bot", h.cit || ""));
-    chat.appendChild(acoes(h.text || "", u));
-  }
-  chat.scrollTop = chat.scrollHeight;
-}
-function criarResultado(titulo, resumo, url) {
-  if (!/^https?:\/\//i.test(url)) return;
-  const c = mk("article", "result"), a = mk("a", "", "Abrir fonte ↗");
-  a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer";
-  c.append(mk("h3", "", titulo)); if (resumo) c.appendChild(mk("div", "", resumo)); c.append(a);
-  chat.appendChild(c); chat.scrollTop = chat.scrollHeight;
-}
-
-/* ---------- Sobre a BACH AI ---------- */
-function abrirSobre() {
-  atualizouAgora = false;
-  atualizarBadge();
-  const st = RizikBrain.getStats();
-  let arqs = 0; try { arqs = (JSON.parse(localStorage.getItem("bach_arquivos_v1")) || []).length; } catch {}
-  sobreEl.innerHTML = "";
-  sobreEl.classList.add("aberto");
-  sobreEl.onclick = e => { if (e.target === sobreEl) sobreEl.classList.remove("aberto"); };
-
-  const box = mk("div", "sbox"), top = mk("div", "htopo"), fechar = mk("button", "", "✕");
-  fechar.onclick = () => sobreEl.classList.remove("aberto");
-  top.append(mk("b", "", "ℹ️ Sobre a BACH AI"), mk("span", "", ""), fechar);
-  top.children[1].style.flex = "1";
-
-  const info = mk("div", "scard");
-  info.innerHTML =
-    "<b>Nome:</b> BACH AI 🧠<br>" +
-    "<b>Versão atual:</b> v" + APP_VER + " (atualizada em " + APP_ATUALIZADA + ")<br>" +
-    "<b>Ano de criação:</b> " + APP_CRIADA + "<br>" +
-    "<b>Criador:</b> Rizik<br>" +
-    "<b>Motivo da criação:</b> Criar uma inteligência artificial própria, gratuita e livre para ajudar todo mundo no dia a dia — com memória persistente, pesquisa, leitura de fotos/vídeos e programação.";
-
-  const nov = mk("div", "scard");
-  nov.innerHTML =
-    "<b>✨ Novidades da v" + APP_VER + ":</b><br>" +
-    "• Fundo vivo com esfera pulsante e <b>7 temas</b> com mensagens transparentes<br>" +
-    "• Menu lateral de aplicativo e tela Sobre<br>" +
-    "• Pesquisa aprofundada inteligente, eleições/notícias atuais e gírias brasileiras<br>" +
-    "• Correção do cérebro local, caixa de texto responsiva e leitura de imagens<br>" +
-    "• OCR melhorado para prints escuros e leitura estável de vídeos";
-
-  const dados = mk("div", "scard");
-  dados.innerHTML =
-    "<b>📊 Memória salva neste aparelho:</b><br>" +
-    "• Respostas ensinadas: " + st.examples + " • Notas: " + st.notes + "<br>" +
-    "• Arquivos guardados: " + arqs + " • Conversas: " + Historico.listar(1).total;
-
-  box.append(top, info, nov, dados);
-  sobreEl.append(box);
-}
-
-/* ---------- pensando / cancelar ---------- */
-function pensar() {
-  const div = mk("div", "msg bot pensando"), t0 = performance.now(), linhas = [];
-  const render = () => { div.textContent = "🤔 Pensando... " + ((performance.now() - t0) / 1000).toFixed(1) + " s\n" + linhas.join("\n") + "\n(toque em ⏹ para cancelar)"; };
-  const timer = setInterval(render, 200); chat.appendChild(div); render(); chat.scrollTop = chat.scrollHeight;
-  return {
-    passo(t) { linhas.push("• " + t); if (linhas.length > 5) linhas.shift(); render(); },
-    fim() { clearInterval(timer); div.remove(); return (performance.now() - t0) / 1000; }
-  };
-}
-function passo(t) { if (pensando) pensando.passo(t); status.textContent = t; }
-function parar() {
-  cancelado = true; if (ctrl) ctrl.abort();
-  if (pensando) { pensando.fim(); pensando = null; }
-  try { speechSynthesis.cancel(); } catch {}
-  busy(false);
-  falar("⏹ Cancelei. Pode mandar outra coisa.", "bot", "", true);
-}
-
-/* ---------- rede / clima / notícias / pesquisa ---------- */
-async function requisicao(url, tempo = 16000) {
-  const c = new AbortController(), t = setTimeout(() => c.abort(), tempo);
-  try { const r = await fetch(url, { signal: c.signal }); if (!r.ok) throw new Error("HTTP " + r.status); return r; } finally { clearTimeout(t); }
-}
-async function clima(cidade) {
-  try {
-    passo("📍 Procurando “" + cidade + "”...");
-    const geo = await (await requisicao("https://geocoding-api.open-meteo.com/v1/search?name=" + encodeURIComponent(cidade) + "&count=5&language=pt&format=json")).json();
-    const L = geo.results || [], l = L.find(x => x.country_code === "BR") || L[0];
-    if (!l) throw new Error("Cidade não encontrada.");
-    try { localStorage.setItem("bach_cidade", l.name); } catch {}
-    RizikBrain.logTopic("clima em " + l.name);
-    passo("🌡️ Buscando a previsão de " + l.name + "...");
-    const p = new URLSearchParams({
-      latitude: l.latitude, longitude: l.longitude,
-      current: "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m",
-      daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
-      timezone: "auto", forecast_days: "3"
+    const r = await fetch("https://api.tvmaze.com/search/shows?q=" + encodeURIComponent(termo), { signal: c.signal });
+    if (!r.ok) return null;
+    const arr = await r.json();
+    if (!Array.isArray(arr) || !arr.length) return null;
+    const linhas = arr.slice(0, 6).map((item, i) => {
+      const s = item.show;
+      const ano = s.premiered ? " (" + s.premiered.slice(0, 4) + ")" : "";
+      const nota = s.rating?.average ? " • Nota " + s.rating.average : "";
+      const gens = (s.genres || []).slice(0, 3).join(", ");
+      return (i + 1) + ". " + s.name + ano + nota + (gens ? " — " + gens : "");
     });
-    const d = await (await requisicao("https://api.open-meteo.com/v1/forecast?" + p)).json(), c = d.current;
-    const cond = k => k === 0 ? "Céu limpo" : [1, 2, 3].includes(k) ? "Nublado" : [45, 48].includes(k) ? "Neblina" : [51, 53, 55, 61, 63, 65, 80, 81, 82].includes(k) ? "Chuva ou garoa" : [95, 96, 99].includes(k) ? "Tempestade" : "Variável";
-    let r = "🌤️ CLIMA: " + l.name + "\n\nTemperatura: " + c.temperature_2m + "°C (sensação " + c.apparent_temperature + "°C)\nCondição: " + cond(c.weather_code) + "\nUmidade: " + c.relative_humidity_2m + "%\nVento: " + c.wind_speed_10m + " km/h\n\nPREVISÃO:\n";
-    d.daily.time.forEach((x, i) => r += x + ": " + cond(d.daily.weather_code[i]) + ", " + d.daily.temperature_2m_min[i] + "°–" + d.daily.temperature_2m_max[i] + "°C, chuva " + d.daily.precipitation_probability_max[i] + "%\n");
-    falar(r, "bot", "🌤️ clima");
-  } catch (e) { console.error(e); falar("Não consegui consultar o clima dessa cidade."); }
-}
-
-const extrairPesquisa = t => (t.match(/^(?:(?:fa[cç]a|faz|fazer|pode)\s+)?(?:uma\s+)?(?:pesquise|pesquisa|pesquisar|procure|procura|buscar|busque|busca)\s+(?:(?:uma\s+)?(?:pesquisa|busca)\s+)?(?:(?:na\s+internet|na\s+web|na\s+net|no\s+google|online)\s+)?(?:pra\s+mim\s+|por\s+favor\s+)?(?:sobre\s+|por\s+|a\s+respeito\s+de\s+)?(.+)/i) || [])[1]?.trim() ?? null;
-const extrairClima = t => {
-  const x = t.trim().replace(/[?!.]+$/, "");
-  const m = x.match(/^(?:(?:qual|como)\s+(?:(?:est[aá]|[ée])\s+)?(?:a\s+|o\s+)?)?(?:(?:clima|previs[aã]o(?:\s+do\s+tempo)?)\s+(?:em|de|para|pra|na|no|do|da)|tempo\s+(?:em|na|no))\s+(.+)$/i)
-    || x.match(/^(?:vai|ir[aá]|tem|vem)\s+(?:chover|chuva)\s+(?:em|na|no|para|pra)\s+(.+?)(?:\s+(?:hoje|amanh[aã]|agora))?$/i)
-    || x.match(/^(?:est[aá]\s+)?(?:chovendo|fazendo\s+(?:frio|calor))\s+(?:em|na|no)\s+(.+)$/i);
-  return m ? m[1].trim() : null;
-};
-const extrairProfundo = t => (t.match(/^(?:(?:fa[cç]a|faz|pode)\s+)?(?:uma\s+)?(?:(?:pesquise|pesquisa|pesquisar|busque|busca|procure)\s+(?:a\s*fundo|profundamente|em\s+profundidade|bem\s+fundo)|pesquisa profunda|aprofunde|\/profundo)\s*(?:sobre\s+|a respeito de\s+)?(.+)/i) || [])[1]?.trim() ?? null;
-function dividirTemas(q) {
-  return String(q).split(/\s+e\s+(?:tamb[eé]m\s+)?sobre\s+|\s*;\s*|\s+e\s+tamb[eé]m\s+/i)
-    .map(t => t.replace(/^(?:a\s+|as\s+|o\s+|os\s+)?(?:mat[eé]rias?|assuntos?|conte[uú]dos?|temas?)\s+(?:de|do|da|sobre)\s+/i, "").trim())
-    .filter(t => t.length > 2).slice(0, 3);
-}
-
-const lim = x => String(x).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-const limpo = x => lim(String(x).replace(/!\[[^\]]*\]\([^)]*\)/g, " ").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/\]\([^)]*\)?/g, " ").replace(/[\[\]]/g, " ").replace(/https?:\/\/\S+/g, " ").replace(/[#*_`>|]/g, " "));
-async function noticias(q) {
-  passo("📰 Buscando as manchetes de hoje...");
-  try {
-    const txt = await (await requisicao("https://r.jina.ai/http://html.duckduckgo.com/html/?df=d&q=" + encodeURIComponent(q), 14000)).text();
-    const ms = [...txt.matchAll(/^## \[(.*?)\]\((https?:\/\/[^)\s]+)\)/gm)], itens = [], vistos = new Set();
-    for (let i = 0; i < ms.length && itens.length < 6; i++) {
-      let l = ms[i][2]; try { const u = new URL(l); if (u.hostname.includes("duckduckgo.com")) l = u.searchParams.get("uddg") || l; } catch {}
-      if (!/^https?:\/\//.test(l) || vistos.has(l) || /duckduckgo\.com/.test(l)) continue; vistos.add(l);
-      const a = ms[i].index + ms[i][0].length, b = i + 1 < ms.length ? ms[i + 1].index : txt.length;
-      let sn1 = limpo(txt.slice(a, b)); if (sn1.length < 25) sn1 = "";
-      itens.push({ t: limpo(ms[i][1]), l, s: sn1.slice(0, 180) });
-    }
-    if (!itens.length) throw new Error("vazio");
-    RizikBrain.logTopic("notícias");
-    falar("📰 Manchetes de " + new Date().toLocaleDateString("pt-BR") + ":\n\n" + itens.map(x => "• " + x.t + (x.s ? "\n  " + x.s : "")).join("\n\n"), "bot", "🌐 notícias");
-    itens.forEach(x => { try { criarResultado(new URL(x.l).hostname.replace(/^www\./, ""), "", x.l); } catch {} });
-  } catch (e) { console.error(e); falar("Não consegui buscar as notícias agora. Tente de novo em instantes."); }
-}
-
-async function pesquisaProfunda(q, fundo = true) {
-  const temas = dividirTemas(q);
-  if (temas.length > 1) { for (const t of temas) { if (cancelado) return; await pesquisaProfunda(t, fundo); } return; }
-  q = temas[0] || q;
-  const temaLimpo = Mente.tema(q) || q;
-  ultimoTema = temaLimpo;
-  const usarFundo = modoProfundo || modoCriador || modoAtual === "raciocinio" || fundo;
-
-  let deuFato = false;
-  if (/\b(piadas?|humor|engra[cç]ad[oa]s?)\b/i.test(q)) { falar("Piada eu tenho de sobra! 😄\n\n" + Prog.humor("conta uma piada"), "bot", "😄 meu repertório"); return; }
-  const fato = Fatos.responder(temaLimpo) || Fatos.responder(q);
-  if (fato && !usarFundo) { deuFato = true; RizikBrain.logTopic(temaLimpo); falar(fato, "bot", "📘 base de fatos"); return; }
-  if (fato) { deuFato = true; RizikBrain.logTopic(temaLimpo); falar(fato, "bot", "📘 base de fatos"); }
-
-  passo((usarFundo ? "🔎 Pesquisando a fundo: " : "🔎 Pesquisando: ") + temaLimpo);
-  try {
-    const r = await Saber.pesquisaProfunda(q, passo, usarFundo, { semLimite: modoCriador });
-    const tx = r.texto.replace(/\n\n💬 Em poucas palavras:[^\n]*/, "").replace(/\n\n🔍 Como cheguei nisso:[^\n]*/, "").replace(/\nℹ️[^\n]*/, "").replace(/\n\n💾 Guardei[^\n]*/, "").replace(/\n\n🚫 Não guardei[^\n]*/, "");
-    if (r.conf !== "baixa") { Mente.lembrarTema(temaLimpo); RizikBrain.logTopic(temaLimpo); }
-    falar(tx, "bot", "🌐 internet, filtrada e resumida");
-    if (r.conf !== "baixa") Arquivos.salvar({ nome: "pesquisa-" + temaLimpo.slice(0, 24), pasta: Mente.pasta("Pesquisas"), texto: r.texto, tipo: "pesquisa" });
-    r.fontes.forEach(f => criarResultado(f.titulo, "", f.url));
-  } catch (e) {
-    console.error(e);
-    if (e.message === "irrelevante" && deuFato) return;
-    if (e.message === "sem-dados-futuros") {
-      falar("Não consigo prever uma lista completa de lançamentos futuros do próximo mês sem um calendário específico. 🎬 Se quiser, posso te recomendar ótimos filmes ou animes agora mesmo — é só pedir: “me recomenda filmes de ação” ou “me recomenda animes”!");
-      return;
-    }
-    if (e.message === "meta-referencia") {
-      falar("Acho que você está falando sobre algo que eu mesma disse! 🤔 Me diga o assunto com outras palavras ou use ↩ Responder no balão.");
-      return;
-    }
-    falar(e.message === "irrelevante" ? "Não achei resultados confiáveis para “" + temaLimpo + "”. Tente perguntar com outras palavras! 🔍" : "Não consegui consultar a internet agora. No modo local continuo respondendo normalmente!");
-  }
-}
-
-/* ---------- Motor opcional ---------- */
-const SISTEMA = `Você é a BACH AI, criada por Rizik, assistente inteligente em português do Brasil. Seja simpática, direta e precisa.`;
-async function perguntarIA(texto, extraCtx = "") {
-  passo("🧠 Raciocinando...");
-  ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 60000);
-  try {
-    let msgs = history.filter(h => h.type === "user" || h.type === "bot").slice(-14).map(h => ({ role: h.type === "user" ? "user" : "assistant", content: (h.cit ? "[Respondendo a: " + h.cit + "]\n" : "") + String(h.text).slice(0, 10000) }));
-    while (msgs.length && msgs[0].role !== "user") msgs.shift();
-    if (alvo && msgs.length) msgs[msgs.length - 1].content = "[Respondendo a: " + alvo.slice(0, 1500) + "]\n" + msgs[msgs.length - 1].content;
-    const perf = RizikBrain.getProfile(), rec = RizikBrain.getRecentTopics(8).map(x => x.topic);
-    let sis = SISTEMA + "\n\n" + SkillRouter.modePrompt(modoAtual) + "\n\n" + SkillRouter.instructions();
-    if (perf.userName) sis += "\nNome do usuário: " + perf.userName + ".";
-    if (modoCriador) sis += "\nO usuário atual é Rizik, o seu criador.";
-    if (perf.city) sis += "\nCidade: " + perf.city + ".";
-    if (perf.likes?.length) sis += "\nGostos: " + perf.likes.join(", ") + ".";
-    if (rec.length) sis += "\nAssuntos recentes: " + rec.join(", ") + ".";
-    if (ultimoArquivo) sis += "\n\nARQUIVO ATUAL (" + ultimoArquivo.nome + "):\n" + ultimoArquivo.texto.slice(0, 25000);
-    if (extraCtx) sis += "\n\nCONTEXTO:\n" + extraCtx;
-    const enviarImg = Boolean(ultimaImagem && (modoAtual === "visao" || /foto|imagem|print|tela|leia|veja|olhe|escrito|nela|isso|aqui/i.test(texto)));
-    const res = await LLM.generate({ system: sis, messages: msgs, image: enviarImg ? ultimaImagem : null, temperature: modoAtual === "criatividade" ? 0.75 : 0.35, signal: ctrl.signal });
-    falar(res.text || "Não consegui formular a resposta.", "bot", "🧠 BACH AI");
-  } catch (e) {
-    if (e.name !== "AbortError") { console.error(e); falar("Tive um problema na consulta (" + (e.message || "erro de conexão") + ")."); }
-  } finally { clearTimeout(timer); ctrl = null; }
-}
-
-/* ---------- arquivos e imagem multimodal ---------- */
-function imagemParaBase64(file) {
-  return new Promise(resolve => {
-    const url = URL.createObjectURL(file), img = new Image();
-    const timer = setTimeout(() => { URL.revokeObjectURL(url); resolve(null); }, 10000);
-    img.onload = () => {
-      clearTimeout(timer);
-      try {
-        const max = 1280, esc = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement("canvas");
-        c.width = Math.max(1, Math.round(img.naturalWidth * esc)); c.height = Math.max(1, Math.round(img.naturalHeight * esc));
-        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-        resolve({ mimeType: "image/jpeg", base64: c.toDataURL("image/jpeg", 0.85).split(",")[1] });
-      } catch { resolve(null); }
-      finally { URL.revokeObjectURL(url); }
+    return {
+      texto: "📺 **Séries encontradas para “" + termo + "”:**\n\n" + linhas.join("\n") + "\n\n💡 Quer a sinopse? Peça: “pesquise sobre [nome da série]”.",
+      origem: "📺 catálogo de séries"
     };
-    img.onerror = () => { clearTimeout(timer); URL.revokeObjectURL(url); resolve(null); };
-    img.src = url;
-  });
+  } catch { return null; }
+  finally { clearTimeout(id); }
 }
 
-function mostrarPreview(p) {
-  const d = mk("div", "msg bot"), el = document.createElement(p.kind === "video" ? "video" : "img");
-  el.src = p.url;
-  if (p.kind === "video") { el.controls = true; el.muted = true; el.playsInline = true; }
-  d.appendChild(el); chat.appendChild(d);
+function detectarTemaPedido(t) {
+  if (/^(quais temas|temas|quais cores|mudar cor|trocar cor|mudar tema|trocar tema)$/.test(t)) {
+    return { listar: true };
+  }
+  if (/\b(significa|significado|por que|porque|qual e a cor|qual a cor|bandeira|arco iris|ceu|mar|sol|sangue|planta)\b/.test(t) &&
+      !/\b(tema|aparencia|visual|interface)\b/.test(t)) {
+    return null;
+  }
+  const pedeTema = /\b(tema|aparencia|visual|interface|muda|mudar|troca|trocar|coloca|colocar|bota|botar|deixa|deixar|ativa|ativar|fundo)\b/.test(t) ||
+    /\bcor\s+(?:do\s+site|da\s+tela|do\s+chat|do\s+fundo|para)\b/.test(t);
+  if (!pedeTema && t.split(" ").length > 2) return null;
+  if (/\bvermelh[oa]\b/.test(t)) return "vermelho";
+  if (/\brox[oa]\b/.test(t)) return "roxo";
+  if (/\bazul\b/.test(t)) return "azul";
+  if (/\bverd[ea]\b/.test(t)) return "verde";
+  if (/\brosa\b/.test(t)) return "rosa";
+  if (/\bdourad[oa]|amarel[oa]|laranja\b/.test(t)) return "dourado";
+  if (/\bneon|cyberpunk|colorid[oa]\b/.test(t)) return "neon";
+  return null;
 }
 
-async function processarArquivo(f, silenciosoSeTexto = false) {
-  busy(true); cancelado = false; falar("📎 " + f.name, "user"); pensando = pensar();
-  passo("📂 Abrindo " + f.name + "...");
-  try {
-    const r = await Arquivos.lerMidia(f, passo);
-    if (r.preview) mostrarPreview(r.preview);
-    let resposta = r.resumo, pasta = r.pasta, texto = "";
+function gerarEscrita(t, raw) {
+  const mEmail = raw.match(/(?:escrev[ae]|faz|faca|crie|cria|monte|monta|redija)\s+(?:um\s+|uma\s+)?(e-?mail|mensagem|carta|aviso|convite|texto|redacao|historia|conto|legenda|bio|poema|roteiro)\s*(?:sobre|de|para|com o tema)?\s*(.+)?/i);
+  if (!mEmail) return null;
+  const tipo = norm(mEmail[1]);
+  const assunto = (mEmail[2] || "o assunto pedido").replace(/[?!.]+$/, "").trim();
 
-    if (r.tipo === "texto") {
-      passo("📖 Lendo o conteúdo...");
-      resposta = Saber.lerTexto(r.texto);
-      pasta = Mente.pasta(Saber.isCode(r.texto) ? "Códigos" : "Textos");
-      texto = r.texto; Mente.setTexto(f.name, r.texto);
-      ultimoArquivo = { nome: f.name, texto: r.texto }; ultimaImagem = null; ultimaMidiaInfo = null;
-    } else if (r.tipo === "imagem") {
-      ultimaMidiaInfo = { nome: f.name, tipo: r.tipo, resumo: r.resumo };
-      ultimaImagem = await imagemParaBase64(f);
-      const ocrMatch = String(r.resumo || "").match(/Texto que consegui ler na imagem:\s*\n[“"]([\s\S]+)[”"]\s*$/);
-      const ocrTexto = ocrMatch ? ocrMatch[1].trim() : "";
-      Mente.setMidia(f.name, r.tipo, ocrTexto);
-      ultimoArquivo = ocrTexto ? { nome: f.name, texto: ocrTexto } : null;
-    } else {
-      ultimaMidiaInfo = { nome: f.name, tipo: r.tipo, resumo: r.resumo };
-      ultimaImagem = null;
-      const vidOcr = String(r.resumo || "").match(/Texto visível no quadro do vídeo:\s*\n[“"]([\s\S]+)[”"]\s*$/);
-      const vidTexto = vidOcr ? vidOcr[1].trim() : "";
-      Mente.setMidia(f.name, r.tipo, vidTexto);
-      ultimoArquivo = vidTexto ? { nome: f.name, texto: vidTexto } : null;
-    }
-
-    const a = Arquivos.salvar({ nome: f.name, pasta, texto, resumo: resposta.slice(0, 300), tipo: r.tipo });
-    if (!silenciosoSeTexto) falar(resposta + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos");
-    else if (pensando) { pensando.fim(); pensando = null; }
-  } catch (e) { console.error(e); falar("Não consegui abrir esse arquivo. " + (e.message || "")); }
-  finally { busy(false); }
+  if (/email|carta/.test(tipo)) {
+    return "✉️ **Rascunho de E-mail sobre “" + assunto + "”:**\n\n" +
+      "**Assunto:** " + assunto.charAt(0).toUpperCase() + assunto.slice(1) + "\n\n" +
+      "Olá, [Nome],\n\nEspero que esteja tudo bem.\n\n" +
+      "Escrevo para tratar sobre **" + assunto + "**. Gostaria de alinhar os próximos passos e confirmar sua disponibilidade.\n\n" +
+      "Atenciosamente,\n[Seu Nome]";
+  }
+  if (/mensagem|aviso|convite/.test(tipo)) {
+    return "💬 **Modelo de Mensagem sobre “" + assunto + "”:**\n\nOi, [Nome]! Tudo bem? 😊\nEstou passando para falar sobre **" + assunto + "**. Quando puder, me dá um retorno!";
+  }
+  if (/legenda|bio/.test(tipo)) {
+    return "✨ **Legendas sobre “" + assunto + "”:**\n\n1. \"Um passo de cada vez em direção ao que importa. 🚀 (" + assunto + ")\"\n2. \"Foco no processo, constância no resultado. ✨\"";
+  }
+  if (/redacao/.test(tipo)) {
+    return "📝 **Esqueleto de Redação sobre “" + assunto + "”:**\n\n• **Introdução:** contextualize **" + assunto + "** e apresente sua tese.\n• **D1:** causas do problema.\n• **D2:** impactos na sociedade.\n• **Conclusão:** proposta prática (Quem, O quê, Como e Para quê).";
+  }
+  if (/historia|conto|roteiro/.test(tipo)) {
+    return "📖 **História curta — “" + assunto + "”:**\n\nTudo começou em uma tarde comum, quando um pequeno detalhe sobre **" + assunto + "** chamou a atenção. Cada pista levava a uma escolha difícil: seguir o seguro ou descobrir a verdade. No final, a resposta estava exatamente naquilo que ninguém havia observado antes.";
+  }
+  return null;
 }
 
-/* ---------- histórico ---------- */
-function novaConversa() {
-  try { speechSynthesis.cancel(); } catch {}
-  Historico.nova(); history = []; try { localStorage.removeItem(HISTORY_KEY); } catch {}
-  ultimoArquivo = null; ultimaImagem = null; ultimaMidiaInfo = null; ultimoTema = null;
-  chat.innerHTML = ""; hist.classList.remove("aberto");
-  falar("Nova conversa! 🧹 A anterior ficou guardada no histórico. Tudo que eu aprendi sobre você continua salvo!", "bot", "", true);
+function detectarGeneroFilme(t) {
+  if (/drama|triste|emocion/.test(t)) return ["drama", "Drama"];
+  if (/aventura|epico|viagem/.test(t)) return ["aventura", "Aventura"];
+  if (/acao|luta|tiro|adrenalina/.test(t)) return ["acao", "Ação"];
+  if (/terror|medo|susto|horror/.test(t)) return ["terror", "Terror"];
+  if (/suspense|misterio|policial|investigacao/.test(t)) return ["suspense", "Suspense"];
+  if (/comedia|engracado|humor|rir/.test(t)) return ["comedia", "Comédia"];
+  if (/ficcao|espaco|futuro|sci fi/.test(t)) return ["ficcao", "Ficção Científica"];
+  if (/romance|amor|casal/.test(t)) return ["romance", "Romance"];
+  if (/animacao|desenho|infantil/.test(t)) return ["animacao", "Animação"];
+  if (/brasileir|nacional/.test(t)) return ["brasileiro", "Cinema Brasileiro"];
+  return null;
 }
-function abrirConversa(id) {
-  const msgs = Historico.abrir(id); if (!msgs) return;
-  history = msgs.map(m => ({ text: m.text, type: m.type, ...(m.cit ? { cit: m.cit } : {}) }));
-  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch {}
-  chat.innerHTML = ""; restaurar(); hist.classList.remove("aberto");
+
+function detectarGeneroMusica(t) {
+  if (/sertanejo|modao|sofr/.test(t)) return ["sertanejo", "Sertanejo"];
+  if (/mpb|classico brasileiro|bossa/.test(t)) return ["mpb", "MPB"];
+  if (/rock/.test(t)) return ["rock", "Rock"];
+  if (/rap|hip hop|trap/.test(t)) return ["rap", "Rap / Hip-Hop"];
+  if (/samba|pagode/.test(t)) return ["samba", "Samba / Pagode"];
+  if (/funk/.test(t)) return ["funk", "Funk"];
+  if (/pop/.test(t)) return ["pop", "Pop"];
+  if (/eletronica|dj|edm/.test(t)) return ["eletronica", "Eletrônica"];
+  return null;
 }
-function abrirHistorico(pag = 1, termo = "") {
-  const r = Historico.listar(pag, termo);
-  hist.innerHTML = ""; hist.classList.add("aberto");
-  hist.onclick = e => { if (e.target === hist) hist.classList.remove("aberto"); };
-  const box = mk("div", "hbox"), top = mk("div", "htopo"), fechar = mk("button", "", "✕"), busca = mk("input");
-  busca.type = "text"; busca.placeholder = "Buscar nas conversas..."; busca.value = termo;
-  busca.onkeydown = e => { if (e.key === "Enter") abrirHistorico(1, busca.value); };
-  fechar.onclick = () => hist.classList.remove("aberto");
-  top.append(mk("b", "", "🕘 Histórico"), busca, fechar);
-  const lista = mk("div", "hlista");
-  if (!r.itens.length) lista.append(mk("div", "hvazio", termo ? "Nada encontrado." : "Ainda não há conversas salvas."));
-  for (const s of r.itens) {
-    const li = mk("div", "hitem" + (s.id === r.atual ? " atual" : "")), info = mk("div", "hinfo"), del = mk("button", "", "🗑");
-    info.append(mk("div", "htit", s.titulo), mk("div", "hmeta", new Date(s.em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) + " • " + s.qtd + " msgs" + (s.id === r.atual ? " • atual" : "")));
-    info.onclick = () => abrirConversa(s.id);
-    del.onclick = e => {
-      e.stopPropagation();
-      if (!confirm("Apagar esta conversa do histórico?")) return;
-      const nova = Historico.apagar(s.id);
-      if (nova) { history = []; try { localStorage.removeItem(HISTORY_KEY); } catch {} chat.innerHTML = ""; falar("Conversa apagada. Começamos uma nova! 🧹", "bot", "", true); }
-      abrirHistorico(r.pagina, termo);
+
+async function responder(raw, ctx = {}) {
+  const t = norm(raw);
+  if (!t) return null;
+  const nomeUser = ctx.nome ? ", " + ctx.nome : "";
+
+  // 0) Diagnóstico e Rollback do AutoGuard
+  if (/^\/?(diagnostico|saude|relatorio de erros|autoavaliacao|monitoramento)$/i.test(t)) {
+    return { texto: AutoGuard.diagnose(), origem: "🛡️ autoguard" };
+  }
+  if (/^\/?rollback$/i.test(t)) {
+    const rb = AutoGuard.rollback();
+    return {
+      texto: rb.ok
+        ? "♻️ Rollback concluído! Restaurei a memória limpa de " + new Date(rb.at).toLocaleString("pt-BR") + "."
+        : "Não foi possível fazer rollback: " + rb.msg,
+      origem: "🛡️ rollback"
     };
-    li.append(info, del); lista.append(li);
   }
-  const pg = mk("div", "hpag"), ant = mk("button", "", "◀"), prox = mk("button", "", "▶");
-  ant.disabled = r.pagina <= 1; prox.disabled = r.pagina >= r.paginas;
-  ant.onclick = () => abrirHistorico(r.pagina - 1, termo); prox.onclick = () => abrirHistorico(r.pagina + 1, termo);
-  pg.append(ant);
-  for (let p = 1; p <= r.paginas; p++) {
-    const b = mk("button", p === r.pagina ? "on" : p > r.totalPaginas ? "vazia" : "", String(p));
-    b.onclick = () => abrirHistorico(p, termo); pg.append(b);
-  }
-  pg.append(prox);
-  const rod = mk("div", "hrod"), novo = mk("button", "", "➕ Nova conversa"), tudo = mk("button", "", "🗑 Apagar tudo");
-  novo.onclick = novaConversa;
-  tudo.onclick = () => {
-    if (!confirm("Apagar TODO o histórico de conversas? A memória de aprendizado não é apagada.")) return;
-    Historico.limparTudo(); history = []; try { localStorage.removeItem(HISTORY_KEY); } catch {}
-    chat.innerHTML = ""; hist.classList.remove("aberto");
-    falar("Histórico apagado. Sua memória de aprendizado continua guardada.", "bot", "", true);
-  };
-  rod.append(mk("span", "", r.total + " conversa(s) • página " + r.pagina + " de " + r.paginas), novo, tudo);
-  box.append(top, lista, pg, rod); hist.append(box);
-}
 
-/* ---------- /basedados (ADM) ---------- */
-async function exportarBase() {
-  passo("📦 Reunindo memória, conversas, interface e módulos...");
-  const cfg = LLM.getConfig();
-  const b = await Base.montar({
-    history, idAtual: Historico.idAtual(), status: statusPadrao(), statsMente: Mente.stats(), totalFatos: Fatos.total,
-    estado: { modoProfundo, lerAuto, modoAtual, temaAtual, modoCriador, temChaveIA: LLM.hasModel(), modelo: cfg.model },
-    menu: [...document.querySelectorAll("#menu button")].map(x => x.textContent.trim())
-  });
-  falar("📦 BASE DE DADOS DA BACH — " + new Date().toLocaleString("pt-BR") + "\n\nTabela:\n" + BT + "txt\n" + b.tabelaModulos + "\n" + BT + "\nDados:\n" + BT + "txt\n" + b.tabelaDados + "\n" + BT + "\nBackup: " + b.tamanhoKb + " KB.", "bot", "📦 /basedados");
-  chat.appendChild(cartao("📦 " + b.nome + " • " + b.tamanhoKb + " KB", b.json, b.nome, false, 2500));
-  chat.scrollTop = chat.scrollHeight;
-}
-
-async function lerLinkMsg(url, texto, temIA) {
-  passo("🔗 Abrindo o link: " + url.slice(0, 60) + "...");
-  try {
-    const r = await Saber.lerLink(url), leitura = Saber.lerTexto(r.texto);
-    const a = Arquivos.salvar({ nome: r.nome, pasta: Mente.pasta(Saber.isCode(r.texto) ? "Códigos" : "Textos"), texto: r.texto, resumo: leitura.slice(0, 300), tipo: "link" });
-    ultimoArquivo = { nome: a.nome, texto: r.texto }; Mente.setTexto(a.nome, r.texto);
-    ultimaImagem = null; ultimaMidiaInfo = null;
-    RizikBrain.logTopic(a.nome);
-    if (temIA && texto.replace(url, "").trim().length > 3) { await perguntarIA(texto); return; }
-    falar("🔗 Abri " + r.url + "\n\n" + leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\n💡 Pergunte: “explica”, “cadeia de códigos”, “resume” ou “revisa”.", "bot", "🔗 link");
-  } catch (e) { console.error(e); falar("Não consegui abrir esse link. Se for privado, copie o texto e cole aqui. 📋"); }
-}
-
-function ultimoBotTexto() {
-  if (alvo) return alvo;
-  for (let i = history.length - 1; i >= 0; i--) if (history[i].type !== "user") return String(history[i].text);
-  return "";
-}
-async function seguir(texto, temIA) {
-  const ntBruto = sn(texto);
-  if (ntBruto.split(" ").length > 10) return false;
-  const nt = ntBruto.replace(/^(?:(?:ah|oh|sim|ok|okay|certo|blz|beleza|entendi|tendi|saquei|ta|tudo bem|bom|entao|agora|por favor|pfv|pf)\s+)+/, "").trim();
-  const base = ultimoBotTexto(); if (!base) return false;
-
-  if (/\b(numeracao|numerado|numerada|numerar|enumere|enumera|enumerar|em lista|em topicos|em itens|em passos|listar isso|lista isso)\b/.test(nt)) {
-    if (temIA) return false;
-    falar(Fatos.enumerar(base) || "Não achei uma lista para numerar nessa resposta. 🤔", "bot", "🔢 formatação"); return true;
-  }
-  if (/^(resuma|resume|resumir|resumo|mais curto|encurta|encurte|resumindo)( isso| tudo| a resposta)?$/.test(nt)) {
-    if (temIA) return false;
-    if (ultimoArquivo?.texto && /Guardei em:|Li o texto|Funções que encontrei/i.test(base)) {
-      const resp = Mente.responder("resuma esse texto");
-      if (resp?.texto) { falar(resp.texto, "bot", "📝 resumo do arquivo"); return true; }
+  // 1) Troca de temas visuais pelo chat
+  const temaPedido = detectarTemaPedido(t);
+  if (temaPedido) {
+    if (temaPedido.listar) {
+      return {
+        texto: "🎨 **Temas disponíveis na BACH AI:**\n• 💜 Roxo • ❤️ Vermelho • 💙 Azul • 💚 Verde • 🩷 Rosa • 💛 Dourado • ⚡ Neon\n\nÉ só pedir, por exemplo: **“muda o tema para vermelho”** (ou escolher no menu ☰)!",
+        origem: "🎨 temas"
+      };
     }
-    falar(Fatos.resumir(base) || "Essa resposta já é curta. 🙂", "bot", "📝 resumo"); return true;
+    return { tema: temaPedido };
   }
 
-  const pedeExplicarArquivo = /Guardei em:|Texto que consegui ler|Texto visível|Li o texto|Funções que encontrei|Parece (HTML|JavaScript|Python|código)/i.test(base) &&
-    (/(esse|este|esses|estes|isso|aqui|codigo|codigos|texto|arquivo|foto|imagem|print|cadeia|ele|ela).*(faz|fazem|serve|servem|explic|funciona|o que e|o que|escrito|diz|copiar)/.test(nt) ||
-     /^(me\s+)?(explica|explique|explicar|o que faz|fazem o que|ele faz|para que serve|o que e isso|o que esta escrito)/.test(nt));
-  if (pedeExplicarArquivo && ultimoArquivo?.texto && !temIA) {
-    const resp = Mente.responder(texto);
-    if (resp?.texto) { falar(resp.texto, "bot", "📖 leitura do arquivo"); return true; }
+  // 2) Perguntas sobre a própria BACH / Criador / Autocorreção
+  if (/\b(voce|bach)\b/.test(t) && /\b(serve|servir|presta|funciona|utilidade|objetivo|capacidade)\b/.test(t)) {
+    return {
+      texto: "Eu sou a **BACH AI** 🧠, criada por Rizik! Sirvo para:\n• Conversar, mudar de tema (vermelho, azul, neon...) e lembrar de você quando voltar.\n• Ler fotos, prints escuros, vídeos e revisar/encadear códigos.\n• Recomendar filmes por gênero, séries, animes e músicas.\n• Pesquisar na internet, traduzir idiomas, calcular, gerar senhas e jogar!",
+      origem: "🧠 sobre a BACH"
+    };
+  }
+  if (/^(eu sou seu dono|sou seu dono|eu te criei|sou seu criador|sou o rizik)$/.test(t)) {
+    return {
+      texto: ctx.modoCriador
+        ? "👑 Sim, Rizik! Seu modo administrador já está ativo!"
+        : "Fui criada por Rizik! 😊 Se quiser que eu lembre do seu nome nas conversas, diga: **meu nome é ...**",
+      origem: "🧠 sobre a BACH"
+    };
+  }
+  if (/\b(como posso te melhorar|como te melhorar|o que melhorar em voce|auto se arrumar|se corrigir|consegue se corrigir)\b/.test(t)) {
+    return {
+      texto: "🛠️ Eu já tenho **AutoGuard** rodando em tempo real (monitora erros, limpa cache antes de travar e salva *snapshots* para `/rollback`), mas em arquivos estáticos no GitHub eu não edito meus próprios `.js` sozinha.\n\nPara me ensinar ou corrigir respostas na hora, use:\n• **corrija: pergunta => resposta certa**\n• **`/diagnostico`** para ver os erros registrados!",
+      origem: "🛡️ evolução"
+    };
+  }
+  if (/^e do o que exatamente voce entende$/.test(t) || /^do que voce entende$/.test(t)) {
+    return {
+      texto: "Eu entendo de: **programação** (JS, Python, HTML, CSS, SQL), **matemática e conversões**, **ciência, história e geografia**, **tradução de idiomas**, **recomendações** (filmes, séries, animes, músicas), **escrita de textos/e-mails**, **utilidades** (senhas, dados, datas) e **pesquisa na internet**! Digite `ajuda` para ver exemplos.",
+      origem: "🧠 habilidades"
+    };
   }
 
-  if (!temIA && (/^(me\s+)?(explica|explique|explicar)(\s+isso|\s+melhor|\s+o\s+que\s+(e|eh)\s+isso)?$/.test(nt) ||
-      /^(mais detalhes|detalhe|detalhes|aprofunde|aprofunda|me explique mais|conte mais|conta mais|fale mais|continue|e mais)( isso| sobre isso)?$/.test(nt))) {
-    if (ultimoTema && /fatos|internet|dicionário/.test(ultimaOrigem)) { await pesquisaProfunda(ultimoTema, true); return true; }
-    if (base.length > 140) { falar("📌 Resumindo:\n\n" + (Fatos.resumir(base) || base.slice(0, 500)), "bot", "🧠 contexto"); return true; }
+  // 3) Pedidos de idioma da conversa ("Responde em português") e esclarecimento sobre números
+  if (/^(?:me\s+)?(?:respond[ae]|fal[ae]|escrev[ae]|convers[ae])\s+(?:so\s+)?em\s+portugues$/.test(t)) {
+    return {
+      texto: "Já estou falando em português com você" + nomeUser + "! 😊 Se você quiser traduzir algum texto em inglês que eu enviei (como de uma foto), toque em **↩ Responder** nele e mande **“só traduz”**.",
+      origem: "💬 conversa"
+    };
   }
-  return false;
-}
-function ctxConversa() {
-  let arquivos = 0; try { arquivos = (JSON.parse(localStorage.getItem("bach_arquivos_v1")) || []).length; } catch {}
-  const st = RizikBrain.getStats(), perf = RizikBrain.getProfile();
-  return {
-    nome: perf.userName, cidade: perf.city, gostos: perf.likes, projetos: perf.projects,
-    hora: new Date().getHours(), aprendidas: st.examples, notas: st.notes, arquivos,
-    conversas: Historico.listar(1).total, modoCriador
-  };
-}
+  if (/^(?:eu\s+)?fal[oa]\s+(?:sobre|de)\s+numer/.test(t)) {
+    return {
+      texto: "Se quiser que eu calcule algo, mande a conta direto (ex.: `15 * 8` ou `15% de 200`). Se quiser transformar uma resposta anterior em lista numerada, toque em **↩ Responder** nela e diga **“em lista”**! 🔢",
+      origem: "🔢 dica"
+    };
+  }
 
-/* ---------- roteamento central ---------- */
-const sn = t => String(t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+  // 4) Feedback de erro / frustração / "não mandei pesquisar" / "não entende o que eu digo?"
+  if (/\b(nao foi|nao era|falou errado|disse errado|respondeu errado|entendeu errado|errando|ta errado|esta errado|vc ainda erra|voce ainda erra|so erra|voce e burro|burra|nada a ver|nada aver|nada haver|erros atrais|erros atras|da erro|dando erro|para de dizer que travou|travou foi|pergutar mais|chutar o que|chutar oq|nao mandei pesquisar|nao pedi pesquisa|nao pedi pra pesquisar|nao era pra pesquisar|para de pesquisar|nao entende|nao entendeu)\b/.test(t) ||
+      /^(te |quero |vou |vamos te |irei te )?(corrigir|arrumar|consertar|ensinar)( ta)?$/.test(t) ||
+      /\b(arrumo tudo|arrumo voce|irei te consertar|para que fui criala)\b/.test(t)) {
+    AutoGuard.recordFailure({ module: "conversa", type: "user-feedback", input: raw, detail: ctx.ultimoBot ? ctx.ultimoBot.slice(0, 100) : "insatisfação" });
+    return {
+      texto: girar("fb-err", [
+        "Desculpa mesmo por essa" + nomeUser + "! 😅 Não vou pesquisar à toa. Me diga em uma frase simples o que você quer saber ou fazer agora!",
+        "Foi mal" + nomeUser + "! 😕 Anotei essa falha para melhorar. Pode mandar direto o assunto, a conta, ou usar **↩ Responder** na mensagem certa!"
+      ]),
+      origem: "🔄 autocorreção"
+    };
+  }
 
-async function rotear(texto) {
-  const cmd = texto.toLowerCase().trim(), temIA = LLM.hasModel();
-  const tn = sn(texto);
-
-  if (/@rizik2442/i.test(texto)) {
-    modoCriador = true;
-    try { localStorage.setItem(KEY_CRIADOR, "1"); } catch {}
-    RizikBrain.remember("userName", "Rizik");
-    atualizarBadge();
-    status.textContent = statusPadrao();
-    const semTag = texto.replace(/@rizik2442/gi, "").trim();
-    if (!semTag) {
-      falar("👑 Acesso de administrador ativado! Pesquisa profunda sem limites liberada. O que vamos fazer agora? 🚀", "bot", "👑 adm");
-      return;
+  // 5) Respostas curtas de acompanhamento ("opa oq?", "aham tabom", "é ta feio msm hein")
+  if (/^(?:opa|oxe|ue|como assim|que|o que)\s*(?:o que)?$/.test(t) || /^(?:porque nao|porque nao pode|perguntar o que|oque perguntar|ah ta claro)$/.test(t)) {
+    if (ctx.ultimoBot && /calendário|lançamentos futuros/i.test(ctx.ultimoBot)) {
+      return {
+        texto: "Porque eu não tenho acesso ao calendário oficial atualizado de estreias dos cinemas do mês que vem — e prefiro te avisar do que inventar datas falsas! Mas posso recomendar ótimos filmes por gênero agora se você pedir. 🎬",
+        origem: "🧠 contexto"
+      };
     }
-    texto = semTag;
+    return {
+      texto: girar("acomp", [
+        "Foi só um jeito de dizer que estou ouvindo! 😄 Manda sua pergunta, foto, código ou pedido.",
+        "Me diga qual assunto ou dúvida você quer resolver agora! Pode ser código, filme, música, conta, tradução ou clima. 😊"
+      ]),
+      origem: "💬 conversa"
+    };
   }
 
-  if (aguardaCidade) {
-    aguardaCidade = false;
-    if (!/^\//.test(texto) && texto.split(/\s+/).length <= 5) return clima(texto.replace(/^(em|na|no|de|para)\s+/i, "").replace(/[?!.]+$/, ""));
+  if (/^(?:aham|ahan|uhum|ok|okay|ta\s*bom|tabom|blz|beleza|ata|entendi|tendi|saquei|fechou|suave|de boa|firmeza|show|top|pode crer)(?:\s+(?:tabom|ta\s*bom|entao|ne|blz|ok|po))*$/.test(t)) {
+    return {
+      texto: girar("ok-nat", [
+        "Beleza! 😄 Tô por aqui — quando quiser, manda a próxima.",
+        "Combinado! 👍 Se precisar de pesquisa, tema, senha, cálculo ou traduzir algo, é só falar.",
+        "Fechou! 💜 Qualquer coisa tô pronta aqui."
+      ]),
+      origem: "💬 conversa"
+    };
   }
 
-  if (/^\/(basedados|dadosbach)\b/.test(cmd)) return exportarBase();
-  if (/^\/importarbase\b/.test(cmd)) { falar("📥 Escolha o arquivo .json que você baixou com /basedados."); $("seletorBase").click(); return; }
-  if (/^(sobre|sobre a bach|versao|quem criou|sobre o app)$/i.test(tn)) { abrirSobre(); return; }
-
-  if (Mente.jogando()) {
-    const mtJogo = Mente.responder(texto);
-    if (mtJogo) { falar(mtJogo.texto, "bot", mtJogo.origem || "🎮 jogo"); return; }
+  if (/\b(ta feio|ta osso|ta dificil|ta complicado|que coisa)\b/.test(t) && t.split(" ").length <= 7) {
+    return {
+      texto: "Pois é 😅! Mas se quiser ajustar algum visual (peça “tema azul”, “neon”...) ou tentar outra pergunta, tô aqui!",
+      origem: "💬 conversa"
+    };
   }
 
-  const arq = Arquivos.comando(texto); if (arq) { falar(arq, "bot", "📁 seus arquivos"); return; }
-  if (/^\/(pastas?|mover|palavras?)\b/i.test(texto)) {
-    const mtCmd = Mente.responder(texto);
-    if (mtCmd) { falar(mtCmd.texto, "bot", mtCmd.origem); return; }
+  // 6) Conversa solta, gírias brasileiras e risadas
+  if (/^(conversa comigo|vamos conversar|bora conversar|fala comigo|fale comigo)$/.test(t)) {
+    return {
+      texto: girar("conv-solta", [
+        "Bora" + nomeUser + "! 😄 Sobre o que você quer trocar ideia hoje? Filmes, música, programação, curiosidades ou algum projeto seu?",
+        "Tô aqui" + nomeUser + "! 💜 Quer uma curiosidade, uma recomendação de filme/música ou ajuda em alguma coisa?"
+      ]),
+      origem: "💬 conversa"
+    };
   }
-
-  const dept = SkillRouter.handle(texto, { hasAI: temIA, history, mode: modoAtual });
-  if (dept) { falar(dept.texto, "bot", dept.origem); return; }
-
-  const links = Saber.urlsEm(texto);
-  if (links.length && texto.length < 400 && !Saber.isCode(texto) && texto.replace(links[0], "").trim().split(/\s+/).filter(Boolean).length <= 12) {
-    return lerLinkMsg(links[0], texto, temIA);
-  }
-
-  passo("🧠 Consultando minha memória...");
-  const r = RizikBrain.think(texto);
-  if (r.intent === "longtext") {
-    const cod = Saber.isCode(texto), leitura = Saber.lerTexto(texto);
-    const a = Arquivos.salvar({ texto, pasta: Mente.pasta(cod ? "Códigos" : "Textos"), resumo: leitura.slice(0, 300) });
-    ultimoArquivo = { nome: a.nome, texto }; Mente.setTexto(a.nome, texto);
-    ultimaImagem = null; ultimaMidiaInfo = null;
-    RizikBrain.logTopic(a.nome);
-    if (temIA) { await perguntarIA(texto); return; }
-    falar(leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos\n💡 Agora pergunte: “o que é esse texto?”, “explica”, “cadeia de códigos”, “resume” ou “revisa”.");
-    return;
-  }
-
-  const MEMORIA_DIRETA = new Set([
-    "learning", "forget", "synonym", "name-set", "note", "notes", "export", "import",
-    "stats", "help", "profile-memory", "autocorrected", "declined", "confirm", "memorySummary", "learned", "name",
-    "city", "age", "likes"
-  ]);
-  if (r.handled && MEMORIA_DIRETA.has(r.intent)) {
-    falar(r.text, "bot", "🧠 minha memória");
-    return;
-  }
-
-  const ehCurtaNaoCodigo = !Saber.isCode(texto) && texto.length <= 160 && tn.split(" ").length <= 18;
-  if (ehCurtaNaoCodigo && ultimaMidiaInfo?.tipo === "video" && /\b(audio|som|voz|fala|falou|disse|falei|cantou)\b/.test(tn)) {
-    falar("🎬 Eu ainda não transcrevo a fala ou áudio dentro de vídeos — por enquanto analiso duração, resolução, cores predominantes e textos escritos na tela do vídeo.", "bot", "🎬 análise de vídeo");
-    return;
-  }
-  const perguntaMidiaLocal = ehCurtaNaoCodigo &&
-    /\b(escrito|escrita|diz|dizendo|aparece|tem aqui|tem nessa|tem na|ve|ver|descrev|analisa|leia|mostra)\b/.test(tn) &&
-    /\b(aqui|foto|imagem|print|video|isso|essa|esse|nele|nela|escrito)\b/.test(tn);
-  if (perguntaMidiaLocal && (ultimaMidiaInfo || ultimoArquivo)) {
-    if (temIA && ultimaImagem) { await perguntarIA(texto); return; }
-    if (ultimoArquivo?.texto) {
-      const querCodigo = /\b(codigo|copiar|bloco|txt)\b/.test(tn);
-      falar(querCodigo
-        ? "📝 Texto de **" + ultimoArquivo.nome + "** pronto para copiar:\n\n" + BT + "txt\n" + ultimoArquivo.texto.slice(0, 3000) + "\n" + BT
-        : "📝 Texto encontrado em **" + ultimoArquivo.nome + "**:\n\n“" + ultimoArquivo.texto.slice(0, 2000) + "”",
-        "bot", "👁️ leitura direta");
-      return;
+  if (/^(ae+|uai+|vixi+|vish+|eita+|oxe+|oxente|vey.*|uhum.*|ta mas pera.*|para+|wtf|so voce tem problemas)$/.test(t) ||
+      /^(k+a+|k+s+|s+k+|j+k+|h+a+|r+s+)/i.test(t.replace(/\s+/g, ""))) {
+    if (/^(k+a+|k+s+|s+k+|j+k+|h+a+|r+s+)/i.test(t.replace(/\s+/g, "")) || /^sabe rir$/.test(t)) {
+      return { texto: girar("risos", ["Hahaha 😂😂! Tô rindo junto!", "Kkkkkk 😄 Boa!", "Ksksksks 😂 Manda a próxima!"]), origem: "😄 humor" };
     }
-    if (ultimaMidiaInfo) { falar(ultimaMidiaInfo.resumo, "bot", "👁️ análise de mídia"); return; }
+    return { texto: girar("giria-ok", ["Tô por aqui! 😄 Manda o que você precisa agora.", "Opa! 👀 Pode mandar sua pergunta, foto ou assunto."]), origem: "💬 conversa" };
   }
 
-  const cidSalva = (() => { try { return localStorage.getItem("bach_cidade"); } catch { return null; } })();
-  if (/^(?:(?:qual|como)\s+(?:(?:est[aá]|[ée])\s+)?(?:a\s+|o\s+)?)?(?:(?:clima|previs[aã]o(?:\s+do\s+tempo)?)\s*(?:hoje|agora|amanh[aã])?)\s*\??$/i.test(texto) ||
-      /^(?:tem|vai|vem|est[aá]|esta)\s+.{0,15}(?:chuva|chover|chovendo)(?:\s+(?:hoje|agora|amanh[aã]))?\s*\??$/i.test(texto)) {
-    if (cidSalva) return clima(cidSalva);
-    aguardaCidade = true; falar("De qual cidade? Me diga só o nome (ex.: Londrina) 🌤️"); return;
-  }
-  const cid = extrairClima(texto); if (cid) return clima(cid);
-
-  if (modoAtual === "pesquisa") return pesquisaProfunda(extrairProfundo(texto) || extrairPesquisa(texto) || texto, true);
-  if (modoAtual === "visao") {
-    if (!ultimaImagem && !ultimaMidiaInfo) { falar("👁️ Modo Imagens ativo: toque no + para enviar uma foto ou vídeo!"); return; }
-    if (temIA && ultimaImagem) return perguntarIA(texto);
-    falar(ultimaMidiaInfo?.resumo || "Envie uma foto pelo + para eu analisar.", "bot", "👁️ análise de imagem"); return;
-  }
-  if (modoAtual === "documentos") {
-    if (!ultimoArquivo) { falar("📄 Modo Documentos ativo: cole um texto longo, um link ou anexe um arquivo pelo +."); return; }
-    if (temIA) return perguntarIA(texto);
-    const mtDoc = Mente.responder(texto);
-    falar(mtDoc?.texto || Saber.lerTexto(ultimoArquivo.texto), "bot", "📄 documentos"); return;
+  // 7) Pergunta curta dependente de contexto
+  if (/^(para que serve|serve para que|ele faz o que|ela faz o que|isso faz o que|como isso funciona|como funciona|me da um exemplo|da um exemplo)$/.test(t)) {
+    if (ctx.ultimoArquivo?.texto) return { usarMenteTexto: true };
+    if (ctx.ultimoTema) return { pesquisarTema: ctx.ultimoTema + " para que serve como funciona" };
+    return { texto: "Para que serve o quê exatamente? 😊 Cole um código/texto ou me diga o nome do assunto!", origem: "🧠 contexto" };
   }
 
-  if (/\b(jogar|jogo da velha|jogo da forca|forca|adivinhe o numero)\b/i.test(tn) && !/\b(crie|criar|faca|fazer|programe|explique|o que e)\b/i.test(tn)) {
-    const mtJ = Mente.responder(texto);
-    if (mtJ?.texto) { falar(mtJ.texto, "bot", mtJ.origem || "🎮 jogos"); return; }
+  // 8) Recomendações inteligentes por gênero
+  const pedeRec = /\b(recomenda\w*|indica\w*|suger\w*|lista\w*|melhores|bons|boas|quero assistir|quero ouvir|procura|manda|mandar)\b/.test(t);
+  const genMusica = detectarGeneroMusica(t);
+  if (genMusica && (pedeRec || t.split(" ").length <= 4)) {
+    const [key, nome] = genMusica;
+    return {
+      texto: "🎶 **Recomendações de " + nome + ":**\n\n" + MUSICAS_GENERO[key].map((m, i) => (i + 1) + ". " + m).join("\n") +
+        "\n\n💡 Quer outro estilo (sertanejo, MPB, rock, rap, samba/pagode, funk, pop, eletrônica)?",
+      origem: "🎵 recomendações"
+    };
   }
-  if (/^\s*(?:quais\s+(?:sao\s+)?(?:as\s+)?)?(?:ultimas\s+)?noticias(?:\s+(?:do|de)\s+(?:brasil|mundo|hoje))?\s*\??$/i.test(tn)) {
-    return noticias(/brasil/i.test(texto) ? "ultimas noticias do brasil hoje" : "ultimas noticias do mundo hoje");
-  }
-
-  if (temIA) { await perguntarIA(texto); return; }
-
-  const av = await CerebroAvancado.responder(texto, {
-    ultimoArquivo, ultimoTema, ultimaMidiaInfo, ultimoBot: ultimoBotTexto(),
-    modoCriador, nome: RizikBrain.recall("userName")
-  });
-  if (av) {
-    if (av.tema) {
-      const nomeT = aplicarTema(av.tema);
-      falar("🎨 Pronto! Mudei o visual para **" + nomeT + "** (inclusive a esfera animada do fundo!). Se sair do site e voltar, ele continua assim. ✨", "bot", "🎨 temas");
-      return;
-    }
-    if (av.usarMenteTexto && ultimoArquivo?.texto) {
-      const mtTex = Mente.responder(texto) || { texto: Saber.lerTexto(ultimoArquivo.texto), origem: "📖 leitura do arquivo" };
-      falar(mtTex.texto, "bot", mtTex.origem || "📖 leitura do arquivo");
-      return;
-    }
-    if (av.pesquisarTema) return pesquisaProfunda(av.pesquisarTema, true);
-    if (av.texto) { falar(av.texto, "bot", av.origem || "🧠 BACH AI"); return; }
+  if (/\bmusica\b/.test(t) && (pedeRec || /\bumas ai\b/.test(t))) {
+    return {
+      texto: "🎶 **Músicas brasileiras para curtir agora:**\n\n• **Sertanejo:** Marília Mendonça — Leão\n• **MPB:** Tim Maia — Gostava Tanto de Você\n• **Rock:** Charlie Brown Jr. — Dias de Luta, Dias de Glória\n• **Rap:** Racionais MC's — Vida Loka (Parte 1)\n• **Pagode:** Menos é Mais — Melhor Eu Ir\n\n💡 Diga o estilo que você prefere (ex.: “me recomenda sertanejo” ou “funk”)!",
+      origem: "🎵 recomendações"
+    };
   }
 
-  const prof = extrairProfundo(texto); if (prof !== null) return pesquisaProfunda(prof, true);
-  const cons = extrairPesquisa(texto); if (cons !== null) return pesquisaProfunda(cons, modoProfundo || modoCriador);
-
-  if (await seguir(texto, false)) return;
-
-  const pedidoDic = Dic.detectar(texto);
-  if (pedidoDic && pedidoDic.q === "__ALVO__") pedidoDic.q = (alvo || ultimoBotTexto() || "").slice(0, 500);
-  if (pedidoDic && pedidoDic.tipo !== "def") {
-    passo("🌍 Consultando dicionário e tradutor...");
-    const respDic = await Dic.consultar(pedidoDic, passo);
-    if (respDic) { if (pedidoDic.q && pedidoDic.q !== "__ALVO__") RizikBrain.logTopic(pedidoDic.q.slice(0, 60)); falar(respDic, "bot", "🌍 dicionário"); return; }
-  }
-
-  const eu = Fatos.sobreMim(texto); if (eu) { falar(eu, "bot", "🧠 sobre mim"); return; }
-  const fato = Fatos.responder(texto);
-  if (fato) { ultimoTema = Mente.tema(texto) || texto; RizikBrain.logTopic(ultimoTema); falar(fato, "bot", "📘 base de fatos"); return; }
-  if (pedidoDic && pedidoDic.tipo === "def") {
-    passo("📖 Consultando dicionário...");
-    const respDic = await Dic.consultar(pedidoDic, passo);
-    if (respDic) { ultimoTema = pedidoDic.q; RizikBrain.logTopic(pedidoDic.q); falar(respDic, "bot", "📖 dicionário"); return; }
-  }
-
-  const papo = Conversa.responder(texto, ctxConversa()); if (papo) { falar(papo, "bot", "💬 conversa"); return; }
-
-  const mt = Mente.responder(texto);
-  if (mt) {
-    if (mt.noticias) return noticias(mt.q);
-    if (mt.pesquisa) return pesquisaProfunda(mt.pesquisa, mt.fundo !== false);
-    if (mt.apagar) { const resAp = Arquivos.comando("/apagar " + mt.apagar); falar(resAp || "Não consegui apagar esse arquivo.", "bot", "🗑️ arquivos"); return; }
-    falar(mt.texto, "bot", mt.origem || "🧠 minha mente"); return;
-  }
-
-  if (r.handled) { falar(r.text, "bot", "🧠 minha memória"); return; }
-
-  const graca = Prog.humor(texto); if (graca) { falar(graca, "bot", "😄 meu repertório"); return; }
-  const prog = Prog.responder(texto); if (prog) { falar(prog, "bot", "💻 programação"); return; }
-  const k = Saber.buscarConhecimento(texto); if (k) { falar(k, "bot", "📚 o que aprendi"); return; }
-
-  if (Mente.pergunta(texto)) {
-    if (Fatos.sobreVoce(texto)) { falar("Sou a BACH AI 🧠! Pode me perguntar de outro jeito ou digitar “ajuda” para ver tudo que sei fazer.", "bot", "🧠 sobre mim"); return; }
-    const tm = Mente.tema(texto);
-    if (tm && tm.length >= 2) return pesquisaProfunda(texto, true);
-    falar("Pode me explicar um pouquinho melhor o que você quer saber? 🤔"); return;
-  }
-
-  falar(Prog.desconhecido(texto));
-}
-
-function ajustar() { entrada.style.height = "auto"; entrada.style.height = Math.max(44, Math.min(entrada.scrollHeight, 130)) + "px"; }
-function desenharAnexos() {
-  const box = $("anexos"); box.innerHTML = ""; box.hidden = !pendentes.length;
-  pendentes.forEach((f, i) => {
-    const c = mk("span", "chip", "📎 " + f.name), x = mk("button", "", "✕");
-    x.onclick = () => { pendentes.splice(i, 1); desenharAnexos(); };
-    c.append(x); box.append(c);
-  });
-}
-function limparCit() { citacao = null; const b = $("citbar"); b.hidden = true; b.innerHTML = ""; }
-function responderA(texto, tipo) {
-  citacao = { texto: String(texto), tipo };
-  const bar = $("citbar"), x = mk("button", "", "✕"); bar.innerHTML = ""; bar.hidden = false; x.onclick = limparCit;
-  bar.append(mk("span", "", "↩ Respondendo " + (tipo === "user" ? "a você: " : "à BACH: ") + String(texto).replace(/\s+/g, " ").slice(0, 90)), x);
-  entrada.focus();
-}
-
-async function enviar() {
-  if (ocupado) { parar(); return; }
-  const texto = entrada.value.trim(), arquivos = pendentes.splice(0);
-  if (!texto && !arquivos.length) return;
-  entrada.value = ""; ajustar(); desenharAnexos();
-  const cit = citacao ? (citacao.tipo === "user" ? "Você: " : "BACH: ") + citacao.texto.replace(/\s+/g, " ").slice(0, 160) : "";
-  alvo = citacao ? citacao.texto : null; limparCit();
-
-  if (!arquivos.length) {
-    if (/^(\/clear|\/limpar|\/nova|nova conversa|limpar histórico)$/i.test(texto)) { alvo = null; novaConversa(); return; }
-    if (/^(\/historico|\/histórico|histórico|historico)(\s+\d+)?$/i.test(texto)) { alvo = null; abrirHistorico(parseInt((texto.match(/\d+/) || [1])[0], 10) || 1); return; }
-    if (/^(sobre|sobre a bach|vers[aã]o|quem criou|sobre o app)$/i.test(texto)) { alvo = null; abrirSobre(); return; }
-    const cmdLLM = LLM.command(texto);
-    if (cmdLLM) {
-      alvo = null;
-      falar(cmdLLM.secret ? texto.split(/\s+/)[0] + " ••••••" : texto, "user", "", false, cit);
-      falar(cmdLLM.text, "bot", "⚙️ configuração", true); status.textContent = statusPadrao(); return;
+  const genFilme = detectarGeneroFilme(t);
+  if (/\b(filme|filmes)\b/.test(t) && (pedeRec || genFilme)) {
+    if (genFilme) {
+      const [key, nome] = genFilme;
+      return {
+        texto: "🎬 **Filmes recomendados de " + nome + ":**\n\n" + FILMES_GENERO[key].map((f, i) => (i + 1) + ". " + f).join("\n") +
+          "\n\n💡 Quer outro gênero ou a sinopse de algum?",
+        origem: "🎬 recomendações"
+      };
     }
   }
 
-  if (arquivos.length) {
-    const vaiIA = Boolean(texto && LLM.hasModel());
-    for (const f of arquivos) { if (cancelado) break; await processarArquivo(f, vaiIA); }
-    if (!texto || cancelado) { alvo = null; return; }
+  if (/\b(serie|series)\b/.test(t) && pedeRec) {
+    const termoLimpo = t.replace(/\b(me|recomenda\w*|indica\w*|suger\w*|uma|umas|serie|series|boas|bons|de|para|assistir)\b/g, "").trim();
+    if (termoLimpo.length >= 3) {
+      const tv = await buscarSeriesTVMaze(termoLimpo);
+      if (tv) return tv;
+    }
+    return {
+      texto: "📺 **Séries recomendadas:**\n\n" + SERIES_GERAL.map((s, i) => (i + 1) + ". " + s).join("\n") +
+        "\n\n💡 Diga um gênero (ex.: “séries de crime”) que eu busco mais!",
+      origem: "📺 recomendações"
+    };
   }
 
-  cancelado = false; busy(true);
-  falar(texto, "user", "", false, cit);
-  pensando = pensar(); passo("👀 Analisando sua mensagem...");
-  try { await rotear(texto); }
-  catch (e) { console.error(e); falar("Deu um erro inesperado: " + (e.message || "tente novamente.")); }
-  finally { if (pensando) { pensando.fim(); pensando = null; } alvo = null; busy(false); }
-}
-
-/* ---------- modos, drawer, menu, voz, eventos ---------- */
-$("modos").onclick = e => {
-  const b = e.target.closest("button[data-modo]"); if (!b) return;
-  document.querySelectorAll("#modos .modo").forEach(x => x.classList.remove("on"));
-  b.classList.add("on"); modoAtual = b.dataset.modo;
-  if (modoAtual === "voz") { lerAuto = true; const bv = menu.querySelector('[data-acao="voz"]'); if (bv) bv.textContent = "🔊 Ler respostas sozinha: ligado"; }
-  status.textContent = statusPadrao();
-};
-
-const drawerBack = $("drawerBack"), menu = $("menu"), seletor = $("seletor");
-$("btnDrawer").onclick = () => drawerBack.classList.add("aberto");
-$("fecharDrawer").onclick = () => drawerBack.classList.remove("aberto");
-drawerBack.onclick = e => { if (e.target === drawerBack) drawerBack.classList.remove("aberto"); };
-$("verBadge").onclick = abrirSobre;
-
-$("drawer").onclick = e => {
-  const b = e.target.closest("button[data-d]"); if (!b) return;
-  drawerBack.classList.remove("aberto");
-  const d = b.dataset.d;
-  if (d === "nova") novaConversa();
-  if (d === "historico") abrirHistorico(1);
-  if (d === "arquivos") { entrada.value = "/arquivos"; enviar(); }
-  if (d === "anexar") seletor.click();
-  if (d === "jogo") { entrada.value = "vamos jogar"; enviar(); }
-  if (d === "sobre") abrirSobre();
-};
-
-$("mais").onclick = () => menu.classList.toggle("aberto");
-menu.onclick = e => {
-  const b = e.target.closest("button[data-acao]"); if (!b) return; menu.classList.remove("aberto");
-  const a = b.dataset.acao;
-  if (a === "anexar") seletor.click();
-  if (a === "profundo") { modoProfundo = !modoProfundo; b.textContent = "🧠 Pensar bastante: " + (modoProfundo ? "ligado" : "desligado"); falar(modoProfundo ? "Modo pensar bastante LIGADO 🧠" : "Modo pensar bastante desligado."); }
-  if (a === "voz") { lerAuto = !lerAuto; b.textContent = "🔊 Ler respostas sozinha: " + (lerAuto ? "ligado" : "desligado"); if (!lerAuto) try { speechSynthesis.cancel(); } catch {} }
-  if (a === "arquivos") { entrada.value = "/arquivos"; enviar(); }
-  if (a === "jogo") { entrada.value = "vamos jogar"; enviar(); }
-  if (a === "sobre") abrirSobre();
-};
-
-$("seletorBase").onchange = async () => {
-  const f = $("seletorBase").files[0]; $("seletorBase").value = ""; if (!f) return;
-  try { const n = Base.importar(JSON.parse(await f.text())); alert("✅ Backup restaurado (" + n + " partes). A tela vai recarregar."); location.reload(); }
-  catch (e) { falar("Não consegui restaurar: " + (e.message || "arquivo inválido"), "bot", "", true); }
-};
-seletor.onchange = () => {
-  const L = [...seletor.files]; seletor.value = ""; pendentes.push(...L); desenharAnexos();
-  status.textContent = "📎 " + pendentes.length + " anexo(s) prontos. Escreva sua pergunta e toque em Enviar.";
-  entrada.focus();
-};
-
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition; let rec = null;
-$("mic").onclick = () => {
-  if (!SR) { falar("Seu navegador não tem reconhecimento de voz. Tente no Chrome.", "bot", "", true); return; }
-  if (rec) { rec.stop(); return; }
-  rec = new SR(); rec.lang = "pt-BR"; rec.interimResults = true; $("mic").classList.add("gravando");
-  rec.onresult = e => { entrada.value = [...e.results].map(r => r[0].transcript).join(" "); ajustar(); };
-  rec.onend = () => { rec = null; $("mic").classList.remove("gravando"); if (entrada.value.trim()) entrada.focus(); };
-  rec.onerror = () => { rec = null; $("mic").classList.remove("gravando"); };
-  rec.start();
-};
-botao.onclick = enviar;
-entrada.addEventListener("input", ajustar);
-entrada.addEventListener("keydown", e => {
-  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
-    const isTouch = navigator.maxTouchPoints > 0 && window.innerWidth < 768;
-    if (!isTouch) { e.preventDefault(); enviar(); }
+  // 9) Comparações, Conhecimento Prático, Planos e Escrita
+  const mComp = t.match(/(?:diferenca entre|compar\w* entre|pros e contras de|vantagens e desvantagens de)\s+(.+?)\s+e\s+(.+)/) ||
+                t.match(/^(.+?)\s+(?:vs|versus)\s+(.+)$/);
+  if (mComp) {
+    const a = mComp[1].trim(), b = mComp[2].trim();
+    for (const [chaves, resp] of Object.entries(COMPARACOES)) {
+      const partes = chaves.split("|");
+      if (partes.some(p => a.includes(p)) && partes.some(p => b.includes(p))) return { texto: resp, origem: "⚖️ comparação" };
+    }
   }
-});
 
-aplicarTema(temaAtual);
-atualizarBadge();
-status.textContent = statusPadrao();
-ajustar();
-try { Historico.salvarAtual(history); } catch {}
-try { restaurar(); } catch (e) { console.warn(e); }
-if (!history.length) {
-  const nomeSalvo = RizikBrain.recall("userName");
-  falar((nomeSalvo ? "Que bom te ver de volta, **" + nomeSalvo + "**! 💜 " : "Olá! ") + "Sou a **BACH AI** 🧠 (v" + APP_VER + "). Converso, lembro de você quando voltar, mudo de tema (peça “tema vermelho”, “azul”, “neon”...), analiso fotos/vídeos/códigos e pesquiso na internet!", "bot", "", true);
+  for (const [re, resp] of CONHECIMENTO_PRATICO) {
+    if (re.test(t)) return { texto: resp, origem: "📚 conhecimento prático" };
+  }
+
+  const mPlano = t.match(/^(?:cria|crie|faz|faca|monta|monte|me ajuda a)?\s*(?:um\s+)?(?:plano de estudos|roteiro de estudos|como aprender|passo a passo para aprender)\s+(?:de\s+|para\s+)?(.+)$/);
+  if (mPlano) {
+    const temaEstudo = mPlano[1].trim();
+    return {
+      texto: "🗺️ **Plano prático para aprender " + temaEstudo + ":**\n\n1. **Base:** conceitos essenciais de " + temaEstudo + ".\n2. **Prática diária:** 30 min com exercícios reais.\n3. **Projeto:** construa algo pequeno aplicando o que aprendeu.\n4. **Revisão:** explique o tema com suas palavras.",
+      origem: "🗺️ planejamento"
+    };
+  }
+
+  const escrita = gerarEscrita(t, raw);
+  if (escrita) return { texto: escrita, origem: "✍️ escrita criativa" };
+
+  return null;
 }
-</script>
-</body>
-</html>
+
+export const CerebroAvancado = { responder };
