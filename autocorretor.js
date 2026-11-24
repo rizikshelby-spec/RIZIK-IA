@@ -1,10 +1,10 @@
-/* BACH AI 4.8 — AUTOCORRETOR & AUDITORIA FIEL + INTEGRAÇÃO CENTRAL DE ERROS ADM
+/* BACH AI 4.9 — AUTOCORRETOR & AUDITORIA FIEL + INTEGRAÇÃO CENTRAL DE ERROS ADM
    1) Detecta reclamações, lê o histórico completo e reprocessa a pergunta original.
    2) Trata falas emotivas/esticadas, kaomojis, risadas brasileiras e perguntas sobre a própria IA.
    3) Envia toda resposta inválida, não entendida ou erro do público direto para a Central ADM. */
 
 let errosAdmMod = null;
-import("./erros_adm.js?v=1").then(m => { errosAdmMod = m?.ErrosADM || null; }).catch(() => {});
+import("./erros_adm.js?v=2").then(m => { errosAdmMod = m?.ErrosADM || null; }).catch(() => {});
 
 const K_CORR = "bach_autocorrecoes_v1";
 const K_FAIL = "bach_failures_v1";
@@ -54,7 +54,7 @@ function registrarFalhaPublica({ tipo = "nao-entendeu", entrada = "", resposta =
       resposta: String(resposta || "").slice(0, 240),
       motivo: String(motivo || "").slice(0, 140)
     });
-    localStorage.setItem(K, JSON.stringify(arr.slice(-200)));
+    localStorage.setItem(K, JSON.stringify(arr.slice(-250)));
   } catch {}
 }
 
@@ -239,7 +239,7 @@ function formatarChat(history) {
   return linhas.join("\n");
 }
 
-function auditarChat(history) {
+function auditarChat(history, isAdm = false) {
   const erros = [];
   const lista = Array.isArray(history) ? history : [];
   let ultimaBot = "";
@@ -266,7 +266,7 @@ function auditarChat(history) {
       if (/Tradução automática \(MyMemory\)/i.test(txt) && antUser && /\b(responde|fala|escreve)\s+em\s+portugues/i.test(norm(antUser))) {
         erros.push("• [" + num + "] Traduziu comando de idioma como se fosse palavra: “" + antUser.slice(0, 50) + "”");
       }
-      if (ultimaBot && txt === ultimaBot && txt.length > 25 && !/Nova conversa/i.test(txt)) {
+      if (ultimaBot && txt === ultimaBot && txt.length > 25 && !/Nova conversa|Alguns módulos não carregaram/i.test(txt)) {
         erros.push("• [" + num + "] Resposta idêntica repetida em sequência para: “" + antUser.slice(0, 50) + "”");
       }
       ultimaBot = txt;
@@ -279,17 +279,19 @@ function auditarChat(history) {
   let fails = [], corrs = [], admCount = 0;
   try { fails = JSON.parse(localStorage.getItem(K_FAIL) || "[]"); } catch {}
   try { corrs = JSON.parse(localStorage.getItem(K_CORR) || "[]"); } catch {}
-  try { admCount = (JSON.parse(localStorage.getItem("bach_adm_erros_v1") || "[]")).length; } catch {}
+  if (isAdm) {
+    try { admCount = (JSON.parse(localStorage.getItem("bach_adm_erros_v1") || "[]")).length; } catch {}
+  }
 
   const out = [
     "🩺 **AUDITORIA FIEL DE ERROS DA BACH AI**",
     "• Mensagens analisadas nesta conversa: " + lista.length,
-    "• Total de erros detectados no chat: " + erros.length,
-    "• Erros salvos na Central ADM: " + admCount,
-    "• Auto-correções registradas: " + corrs.length,
-    "• Registros técnicos (AutoGuard): " + fails.length,
-    ""
+    "• Total de erros detectados no chat: " + erros.length
   ];
+  if (isAdm) out.push("• Erros salvos na Central ADM: " + admCount);
+  out.push("• Auto-correções registradas: " + corrs.length);
+  out.push("• Registros técnicos (AutoGuard): " + fails.length);
+  out.push("");
 
   if (erros.length) {
     out.push("❌ **Todos os erros encontrados (do mais antigo ao atual):**");
@@ -309,7 +311,9 @@ function auditarChat(history) {
   if (!erros.length && !fails.length) {
     out.push("✅ Nenhuma falha detectada nesta conversa!");
   } else {
-    out.push("💡 Toque em **📋 Copiar** abaixo (ou abra **🚨 Erros do Público** no menu ADM) para me mandar esse relatório!");
+    out.push(isAdm
+      ? "💡 Toque em **📋 Copiar** abaixo ou abra **☰ → 🚨 Erros do Público**!"
+      : "💡 Toque em **📋 Copiar** abaixo se quiser guardar este relatório!");
   }
 
   return out.join("\n");
