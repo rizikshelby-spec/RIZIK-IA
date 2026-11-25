@@ -33,7 +33,7 @@ const GUIAS_TERMUX = [
    "**4. Rodar um servidor web no celular:**\n" +
    BT + "bash\npython -m http.server 8080\n" + BT + "\n" +
    "Depois abra `http://localhost:8080` no navegador!\n\n" +
-   "💡 Peça: `termux python`, `termux node`, `termux git`, `criar script sh` ou diga `cria para mim`!"],
+   "💡 Peça: `termux python`, `termux node`, `termux git`, `criar script sh` ou diga `cria um app`!"],
 
   [/\btermux\b.*\b(python|pip|flask|bot)\b|\bpython\b.*\btermux\b/,
    "🐍 **Python no Termux:**\n" + BT + "bash\npkg install python -y\npython --version\npip install --upgrade pip\n" + BT + "\nPara criar um ambiente virtual e rodar scripts:\n" + BT + "bash\npython -m venv venv\nsource venv/bin/activate\npip install requests flask\npython meu_script.py\n" + BT],
@@ -48,7 +48,7 @@ const GUIAS_TERMUX = [
    "🔐 **SSH & Sessões em 2º Plano (`tmux`) no Termux:**\n" + BT + "bash\npkg install openssh tmux -y\npasswd\nsshd\nwhoami\n" + BT + "\nNo PC, conecte com: `ssh -p 8022 USUARIO@IP_DO_CELULAR`\nPara deixar rodando em segundo plano: `tmux new -s robo` (Ctrl+B depois D minimiza; `tmux attach -t robo` volta)."],
 
   [/\b(script|criar script|fazer script)\b.*\b(sh|bash|linux|termux|automacao)\b|\b(chmod|shebang|bash)\b/,
-   "📜 **Como criar e executar um Script `.sh` no Termux/Linux:**\n\n1. Crie o arquivo `nano rodar.sh`:\n" + BT + "bash\n#!/data/data/com.termux/files/usr/bin/bash\necho \"🚀 Iniciando tarefa...\"\ndate\npkg list-installed | head -n 10\n" + BT + "\n2. Dê permissão de execução e rode:\n" + BT + "bash\nchmod +x rodar.sh\n./rodar.sh\n" + BT + "\n*(Diga **“cria para mim”** que eu gero um script painel completo pronto para você!)*"]
+   "📜 **Como criar e executar um Script `.sh` no Termux/Linux:**\n\n1. Crie o arquivo `nano rodar.sh`:\n" + BT + "bash\n#!/data/data/com.termux/files/usr/bin/bash\necho \"🚀 Iniciando tarefa...\"\ndate\npkg list-installed | head -n 10\n" + BT + "\n2. Dê permissão de execução e rode:\n" + BT + "bash\nchmod +x rodar.sh\n./rodar.sh\n" + BT + "\n*(Diga **“cria um script”** que eu gero um script painel completo pronto para você!)*"]
 ];
 
 function gerarScriptTermuxPronto() {
@@ -346,18 +346,33 @@ function handle(text, context = {}) {
     if (re.test(t)) return resp;
   }
 
-  // 2) Seguimento natural ("entendi, cria para mim?", "e so criar", "abre ai e cria")
-  if (/\b(cria|crie|criar|faz|faca|fazer|gera|gere)\b/.test(t) && t.split(" ").length <= 8 &&
-      (/\b(para mim|pra mim|e so criar|e so fazer|abre ai|abre e cria|ai)\b/.test(t) ||
-       /^(?:entendi+|ok|blz|pode|vamos|entao)?\s*(?:cria|crie|criar|faz|faze[r]?)\b/.test(t))) {
-    const ant = ultimoBotDoCtx(context);
-    if (/termux|bash|chmod|\.sh|script/i.test(ant)) {
+  // 2) Pedido para abrir o terminal do Termux aqui no chat (explica limite real do navegador)
+  const antBot = ultimoBotDoCtx(context);
+  if (/\b(abre|abrir)\b.*\b(terminal|termux|console|shell)\b/.test(t) ||
+      (/^(?:nao consegue\??|(?:voce|vc) nao consegue abrir\??|abre|abrir)$/.test(t) && /termux|terminal|sandbox|executar/i.test(antBot))) {
+    return "📱 **Sobre abrir o Terminal / Termux aqui:**\n" +
+      "Por segurança do celular e do navegador, um site não consegue abrir o aplicativo **Termux** nem um terminal real do sistema diretamente.\n\n" +
+      "• Para rodar comandos Linux/Bash: abra o app **Termux** no seu celular e cole os comandos.\n" +
+      "• Para rodar código **JavaScript ou HTML** aqui dentro mesmo: use `/executar codigo` ou `/preview <h1>Oi</h1>`!";
+  }
+
+  // 3) Referência a um painel recém-gerado
+  if (/^(?:abre\s+)?(?:o\s+)?painel$/.test(t) && /meu-painel\.html|Preview ao vivo/i.test(antBot)) {
+    return "🖼️ O painel criado apareceu no cartão **▶️ Preview ao vivo** logo acima — você já pode clicar e testar direto dentro dele ou tocar em **⛶ Tela cheia**.";
+  }
+
+  // 4) Seguimento natural para criar app/script (sem roubar pedidos de pesquisa/perguntas!)
+  const ehPesquisaOuPergunta = /\b(pesquis\w*|procur\w*|busc\w*|explic\w*|o que|como|porque|por que|qual|quais|quem)\b/.test(t);
+  if (!ehPesquisaOuPergunta && /\b(cria|crie|criar|faz|faca|fazer|gera|gere)\b/.test(t) && t.split(" ").length <= 7 &&
+      (/\b(para mim|pra mim|e so criar|e so fazer|abre ai|abre e cria|cria ai|faz ai)\b/.test(t) ||
+       /^(?:entendi+|ok|blz|pode|vamos|entao)?\s*(?:cria|crie|criar|faz|fazer)(?:\s+(?:ai|isso|um|uma))?$/.test(t))) {
+    if (/termux|bash|chmod|\.sh|script/i.test(antBot)) {
       return gerarScriptTermuxPronto();
     }
     return criarAppSobMedida("Meu Painel");
   }
 
-  // 3) Pedido explícito de criar app (/app ... ou frase natural)
+  // 5) Pedido explícito de criar app (/app ... ou frase natural)
   const m = raw.match(/^\/app(?:\s+([\s\S]+))?$/i);
   if (m) {
     if (!m[1]) {
