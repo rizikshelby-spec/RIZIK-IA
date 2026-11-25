@@ -12,6 +12,8 @@ const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u030
   .replace(/\b(rlx)\b/g, "relaxa")
   .replace(/\b(vdd)\b/g, "verdade")
   .replace(/\b(dnv)\b/g, "de novo")
+  .replace(/\b(pse)\b/g, "pois e")
+  .replace(/\b(entt)\b/g, "entao")
   .replace(/[^a-z0-9\s]/g, " ")
   .replace(/\s+/g, " ")
   .trim();
@@ -209,8 +211,8 @@ function responder(texto, ctx = {}) {
   if (/\b(senso de humor|sem humor|nao tem humor|sem graca|seja engracad[oa])\b/.test(t)) {
     return "Eu controlo meu humor pelo seu tom na conversa: quando percebo você falando sério ou frustrado, evito soltar risada ou piada fora de hora.\n\nQuando você brinca ou puxa um papo leve, eu entro no clima junto! Se quiser testar uma piada interativa agora, manda `piada`.";
   }
-  if (/\b(auto correcao|autocorrecao)\b/.test(t) && /\b(arruma|corrige|funciona|mesmo|realmente|sozinha)\b/.test(t)) {
-    return "Na conversa, eu me autocorrijo reanalisando sua pergunta anterior quando você avisa que errei, ajustando meu tom e aprendendo respostas que você me ensinar (`ensine: pergunta => resposta`).\n\nJá alterar os arquivos de código `.js` do meu sistema não acontece sozinho — isso só muda quando o criador atualiza os módulos.";
+  if (/\b(auto\s*corrig\w*|auto\s*correcao|autocorrecao|se\s+corrig\w*|se\s+arrum\w*)\b/.test(t)) {
+    return "Na conversa, eu me autocorrijo reanalisando sua pergunta anterior quando você avisa que errei, ajustando meu tom e aprendendo respostas que você me ensinar (`ensine: pergunta => resposta`).\n\nPara evoluir meus códigos com rede neural na nuvem automaticamente, estamos montando o módulo neural + treino automático no GitHub!";
   }
 
   // Pedido de N mensagens aleatórias
@@ -245,6 +247,9 @@ function responder(texto, ctx = {}) {
   }
 
   // Respostas diretas às falas comuns da conversa
+  if (/^(?:no\s+)?o\s+que\s+voce\s+sabe(?:\s+fazer)?$/.test(t) || /^(?:me\s+)?(?:fala|diz|conta)\s+o\s+que\s+voce\s+(?:entende|sabe)$/.test(t) || /^o\s+que\s+voce\s+entende$/.test(t)) {
+    return "Eu entendo e faço: **programação e Termux** (`/termux`), **criação de apps** (`/app`), **matemática e conversões**, **ortografia e sílabas** (`/revisar`, `/silabas`), **avaliação de sites** (`/site`), **tradução de idiomas**, **recomendações** (filmes, músicas, séries, animes) e **pesquisa na web**! Digite `/ajuda` para ver tudo.";
+  }
   if (/^(?:aqui|por aqui)\s+(?:ta|esta)\s+(?:tudo\s+)?(?:bem|otimo|otima|certo|bom|tranquilo|de boa)$/.test(t)) {
     return serio
       ? "Que bom" + n + ". Em que posso te ajudar agora?"
@@ -262,13 +267,23 @@ function responder(texto, ctx = {}) {
       ? "Certo, seguindo nossa conversa — o último ponto foi sobre **“" + ult + "”**. Quer continuar por aí ou mudar de assunto?"
       : "Estou acompanhando! Pode mandar o assunto que você quer conversar.";
   }
-  if (/^(?:me\s+)?(?:fala|diz|conta)\s+o\s+que\s+voce\s+entende$/.test(t) || /^o\s+que\s+voce\s+entende$/.test(t)) {
-    return "Eu entendo bem: **programação e Termux**, **criação de apps** (`/app`), **matemática e conversões**, **ortografia e sílabas** (`/revisar`, `/silabas`), **avaliação de sites** (`/site`), **tradução de idiomas**, **recomendações** (filmes, músicas, séries, animes) e **pesquisa na web**! Digite `/ajuda` para ver tudo.";
+  if (/^sentiu\s+o\s+que$/.test(t)) {
+    return "Só quis dizer que percebi sua reação na resposta anterior, mas escrevi de um jeito estranho. Pode mandar direto o que você quer agora!";
   }
   if (/^(?:combinado|beleza|fechou)\s+o\s+que$/.test(t)) {
-    return "Foi só uma forma de confirmar que estou pronta para o próximo assunto! Me diga direto o que você quer fazer agora.";
+    return "Foi só uma forma de confirmar que estou pronta para a próxima mensagem! Me diga direto o que você quer fazer agora.";
   }
-  if (/^(?:se\s+voce\s+diz(?:\s+ne)?|viu\s+entende\s+nada|nunca\s+entende\s+nada|de\s+novo\s+isso|nao\s+oush|reacao\s+ruim\s+de\s+voce|ruim\s+de\s+voce|eba\s+o\s+que)$/.test(t)) {
+  if (/^(?:nao\s+quero(?:\s+nao)?)$/.test(t)) {
+    return "Tudo bem! Quando quiser testar algum outro comando ou assunto, é só mandar.";
+  }
+  if (/^(?:so\s+foca\s+em\s+melhorar|foca\s+em\s+melhorar|melhora\s+logo)$/.test(t)) {
+    return "Combinado. Cada falha registrada aqui ajuda a ajustar meus módulos e evoluir a BACH para errar cada vez menos.";
+  }
+  if (/^(?:jogar\s+voce\s+fora|vou\s+te\s+jogar\s+fora)$/.test(t)) {
+    return "Calma" + n + "! Se alguma resposta falhou aqui, me diga qual foi o pedido que eu tento resolver direito.";
+  }
+  if (/\b(?:nao fala bosta|fala bosta|falando bosta)\b/.test(t) ||
+      /^(?:se\s+voce\s+diz(?:\s+ne)?|viu\s+entende\s+nada|nunca\s+entende\s+nada|de\s+novo\s+isso|nao\s+oush|reacao\s+ruim\s+de\s+voce|ruim\s+de\s+voce|eba\s+o\s+que)$/.test(t)) {
     return girar("ajuste-firme", [
       "Tem razão em cobrar quando eu travo numa resposta. Me diga direto em uma frase o que você quer testar ou perguntar agora.",
       "Não vou enrolar: essa parte falhou mesmo. Manda o comando ou a pergunta direta que eu sigo sem fugir do assunto."
@@ -430,9 +445,6 @@ function responder(texto, ctx = {}) {
     return leve
       ? "Obrigada! 🥰 Fico feliz que esteja gostando — vou continuar evoluindo com você!"
       : "Obrigada" + n + "! Isso ajuda muito a saber que estou no caminho certo.";
-  }
-  if (/\b(chatgpt|claude|gemini)\b/.test(t) && /\b(melhor|pior|igual|parecida|diferenca|compara)\b/.test(t)) {
-    return "Sou a BACH AI 🧠, criada especialmente por Rizik — com memória contínua no seu aparelho, leitura de arquivos e imagens, criação de apps, ferramentas locais e pesquisa na web.";
   }
   if (/\b(isso|essa resposta|sua busca|sua pesquisa|o resultado) (esta|ta|foi|saiu) errad[ao]\b/.test(t) ||
       /\berrad[ao] (a )?(sua busca|sua pesquisa|essa resposta)\b/.test(t) ||
