@@ -1,18 +1,13 @@
 /* BACH AI 5.2 — NLU NEURAL & AUTO-APRENDIZADO CONTÍNUO BLINDADO
  * Liga a RedeNeural às decisões da BACH AI, aprende automaticamente por reformulação
  * e sincroniza eventos de melhoria com o Cloudflare Worker + Banco D1 gratuito.
- * Correções 5.2: bloqueia ruído/teclas aleatórias ("kjf", "4", "Z"), eleva limiar
- * de confiança, exige contexto mínimo por intenção e nunca engole perguntas com "?".
- * Segurança: HTTPS obrigatório, anti-SSRF (bloqueia IPs locais/privados),
- * mascaramento de tokens/senhas e limite de taxa no envio à nuvem.
- */
+ * Correções 5.2: remove o fallback robótico "Estou acompanhando!", bloqueia ruído/teclas
+ * aleatórias, impede que desabafos/correções/citações disparem pesquisas falsas na internet. */
 
 import { RedeNeural, INTENCOES } from "./rede_neural.js?v=2";
 import { RizikBrain } from "./brain.js?v=20";
 
 const K_CLOUD = "bach_cloud_url_v1";
-
-// Depois que criar seu Worker gratuito na Cloudflare, cole a URL HTTPS abaixo para todos os usuários enviarem aprendizados:
 const DEFAULT_CLOUD_URL = "";
 
 let ultimaFalha = null;
@@ -98,6 +93,15 @@ function enviarParaNuvem({ tipo = "evento", entrada = "", intencao = "", motivo 
   } catch {}
 }
 
+const CURTAS_VALIDAS = new Set([
+  "oi", "ok", "ei", "ue", "ai", "hi", "eu", "tu", "vc", "pq", "oq", "qm",
+  "hj", "td", "nd", "oxe", "uai", "opa", "sim", "nao", "bom", "mal", "sol", "lua"
+]);
+const CLUSTERS_INI = new Set([
+  "bl","br","ch","cl","cr","dr","fl","fr","gl","gr","gu","kn","ph","pl","pr",
+  "ps","qu","sh","sk","sl","sm","sn","sp","st","sw","th","tr","vr","wh"
+]);
+
 function ehRuidoOuTeclaSolta(raw) {
   const limpo = String(raw || "")
     .normalize("NFD")
@@ -112,10 +116,14 @@ function ehRuidoOuTeclaSolta(raw) {
   const palavras = limpo.split(" ").filter(Boolean);
   if (palavras.length === 1) {
     const w = palavras[0].toLowerCase();
-    if (w.length <= 2 && !/^(oi|ok|ei|ue|ai|hi)$/.test(w)) return true;
+    if (CURTAS_VALIDAS.has(w)) return false;
+    if (w.length <= 2) return true;
     if (!/[aeiou]/i.test(w)) return true;
-    if (/\d/.test(w) && /[a-z]/i.test(w) && w.length <= 5) return true;
-    if (/[bcdfghjklmnpqrstvwxyz]{4,}/i.test(w)) return true;
+    if (/\d/.test(w) && /[a-z]/i.test(w) && w.length <= 7) return true;
+    if (/[bcdfghjklmnpqrstvwxyz]{3,}/i.test(w) && !/(str|scr|spr|ntr|ndr|mbr|mpr|ngr|nch)/i.test(w)) return true;
+    if (/^[bcdfghjklmnpqrstvwxyz]{2}/i.test(w) && !CLUSTERS_INI.has(w.slice(0, 2))) return true;
+    if (/[bcdfghjklmnpqrstvwxyz]{2}$/i.test(w) && !/(ns|rs|ls|st|nt|nd|rd|ld|rk|ck|ng|sh|th|ch|pt)$/i.test(w)) return true;
+    if (/[bcdfghjklmnpqrstvwxyz]$/i.test(w) && !/[lmnrsxz]$/i.test(w) && w.length <= 6) return true;
   }
   return false;
 }
@@ -141,7 +149,6 @@ function registrarSucessoAposFalha(textoAtual, intencaoCerta) {
   if (ehRuidoOuTeclaSolta(falhaTxt)) return false;
   if (falhaTxt.toLowerCase() === String(textoAtual || "").trim().toLowerCase()) return false;
 
-  // Aprende sozinha na Rede Neural que a frase anterior que falhou tem essa intenção!
   RedeNeural.reinforce(falhaTxt, intencaoCerta);
   enviarParaNuvem({
     tipo: "aprendido",
@@ -156,9 +163,22 @@ function normBasico(t) {
   return String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
+function pareceDesabafoOuConversa(tn) {
+  return /\b(estou|to|tou|fui|estava|tava|trabalh\w*|turno|mandado|mandaram|demitid\w*|odio|raiva|triste|mal|cansad\w*|queria que|era pra|falasse|dissesse|respondesse|dialogo|conversar|testar|nao quero|vc|voce|bach|meu dia|hoje eu|ontem eu|aconteceu)\b/.test(tn);
+}
+
+function parecePedidoInformacional(raw, tn) {
+  if (pareceDesabafoOuConversa(tn)) return false;
+  return /^(?:quem|o que|qual|quais|como|onde|quando|quantos|quantas|porque|por que|pesquis\w*|procur\w*|busc\w*|me fala sobre|fala sobre|explica)\b/.test(tn) ||
+    /\b(historia de|significa|origem de|distancia|formula de|quantos episodios|membros d[oa]|existem?)\b/.test(tn);
+}
+
 function decidir(texto, ctx = {}) {
   const raw = String(texto || "").trim();
   if (!raw || raw.startsWith("/") || ehRuidoOuTeclaSolta(raw)) return null;
+
+  // Se o usuário citou uma mensagem específica da conversa, não desviamos para intenção genérica ou pesquisa
+  if (ctx.alvo) return null;
 
   const tn = normBasico(raw);
   const palavras = tn.replace(/[^a-z0-9\s]/g, " ").trim().split(/\s+/).filter(Boolean);
@@ -168,7 +188,7 @@ function decidir(texto, ctx = {}) {
   const nome = ctx.nome ? ", " + ctx.nome : "";
   const serio = ctx.mood === "frustrado" || ctx.mood === "serio" || ctx.mood === "triste";
 
-  if (conf < 0.72) return null;
+  if (conf < 0.76) return null;
 
   switch (intent) {
     case "saudacao":
@@ -177,7 +197,7 @@ function decidir(texto, ctx = {}) {
         intent,
         confidence: conf,
         texto: serio
-          ? "Olá" + nome + ". Em que posso ajudar agora?"
+          ? "Olá" + nome + ". Como você está agora?"
           : "Olá" + nome + "! Como posso te ajudar hoje?"
       };
 
@@ -190,7 +210,7 @@ function decidir(texto, ctx = {}) {
       };
 
     case "pesquisa":
-      if (palavras.length >= 2) {
+      if (palavras.length >= 2 && parecePedidoInformacional(raw, tn)) {
         return { intent, confidence: conf, pesquisar: raw };
       }
       return null;
@@ -260,14 +280,6 @@ function decidir(texto, ctx = {}) {
       };
 
     case "conversa_geral":
-      if (conf >= 0.85 && palavras.length >= 2 && !/\?/.test(raw)) {
-        const ultBot = (Array.isArray(ctx.history) ? ctx.history : []).slice().reverse().find(m => m && m.type !== "user")?.text || "";
-        const resp = serio
-          ? "Certo. Pode mandar a próxima pergunta ou comando que estou acompanhando."
-          : "Estou acompanhando! Pode mandar a próxima pergunta, assunto ou comando.";
-        if (ultBot.trim() === resp.trim()) return null;
-        return { intent, confidence: conf, texto: resp };
-      }
       return null;
 
     default:
