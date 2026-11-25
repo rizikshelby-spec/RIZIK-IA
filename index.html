@@ -118,7 +118,7 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px
   <div class="htop">
     <button id="btnDrawer" aria-label="Abrir menu">☰</button>
     <div class="hbrand">
-      <div class="htitle"><h2>BACH AI 🧠</h2><span id="verBadge" title="Sobre e novidades">v4.8</span></div>
+      <div class="htitle"><h2>BACH AI 🧠</h2><span id="verBadge" title="Sobre e novidades">v5.1</span></div>
       <div id="status">Carregando...</div>
     </div>
   </div>
@@ -181,8 +181,8 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px
     <button class="dbtn" data-d="sobre">ℹ️ Sobre o App &amp; Atualizações</button>
     <div class="dinfo">
       <b>Criador:</b> Rizik<br>
-      <b>Versão:</b> 4.8 (2026)<br>
-      Suas conversas e memórias ficam salvas quando você volta ao site.
+      <b>Versão:</b> 5.1 (2026)<br>
+      Rede Neural própria + memória contínua no navegador.
     </div>
   </aside>
 </div>
@@ -302,27 +302,29 @@ async function loadMod(nome, path) {
 const [
   mBrain, mSaber, mProg, mArq, mMente, mFatos,
   mConv, mDic, mHist, mBase, mReg, mLLM, mAv,
-  mAuto, mRev, mEd, mErros, mVoz, mExec
+  mAuto, mRev, mEd, mErros, mVoz, mExec, mNeural, mNLU
 ] = await Promise.all([
   loadMod("brain.js", "./brain.js?v=20"),
   loadMod("saber.js", "./saber.js?v=14"),
   loadMod("programacao.js", "./programacao.js?v=5"),
   loadMod("arquivos.js", "./arquivos.js?v=3"),
-  loadMod("mente.js", "./mente.js?v=19"),
+  loadMod("mente.js", "./mente.js?v=20"),
   loadMod("fatos.js", "./fatos.js?v=8"),
-  loadMod("conversa.js", "./conversa.js?v=8"),
+  loadMod("conversa.js", "./conversa.js?v=9"),
   loadMod("dicionario.js", "./dicionario.js?v=5"),
   loadMod("historico.js", "./historico.js?v=3"),
-  loadMod("base.js", "./base.js?v=8"),
-  loadMod("registry.js", "./registry.js?v=9"),
-  loadMod("llm.js", "./llm.js?v=1"),
+  loadMod("base.js", "./base.js?v=9"),
+  loadMod("registry.js", "./registry.js?v=10"),
+  loadMod("llm.js", "./llm.js?v=2"),
   loadMod("cerebro_avancado.js", "./cerebro_avancado.js?v=5"),
-  loadMod("autocorretor.js", "./autocorretor.js?v=5"),
+  loadMod("autocorretor.js", "./autocorretor.js?v=6"),
   loadMod("revisor.js", "./revisor.js?v=2"),
-  loadMod("editor_adm.js", "./editor_adm.js?v=4"),
+  loadMod("editor_adm.js", "./editor_adm.js?v=5"),
   loadMod("erros_adm.js", "./erros_adm.js?v=1"),
   loadMod("voz.js", "./voz.js?v=1"),
-  loadMod("executor_sandbox.js", "./executor_sandbox.js?v=2")
+  loadMod("executor_sandbox.js", "./executor_sandbox.js?v=2"),
+  loadMod("rede_neural.js", "./rede_neural.js?v=1"),
+  loadMod("nlu_neural.js", "./nlu_neural.js?v=1")
 ]);
 
 const RizikBrain = mBrain.RizikBrain || { think: () => ({ handled: false }), learn: () => {}, remember: () => {}, recall: () => null, logTopic: () => {}, getRecentTopics: () => [], getProfile: () => ({}), getStats: () => ({ examples: 0, synonyms: 0, facts: 0, notes: 0 }), updateTone: () => ({ mood: "neutro", score: 0 }), getMood: () => ({ mood: "neutro", score: 0, humorAllowed: false }) };
@@ -336,7 +338,7 @@ const Dic = mDic.Dic || { detectar: () => null, consultar: async () => null };
 const Historico = mHist.Historico || { salvarAtual: () => {}, listar: () => ({ pagina: 1, paginas: 1, totalPaginas: 1, total: 0, atual: "", itens: [] }), abrir: () => null, nova: () => {}, apagar: () => null, limparTudo: () => {}, idAtual: () => "" };
 const Base = mBase.Base || { montar: async () => { throw new Error("base.js indisponível"); }, importar: () => 0 };
 const SkillRouter = mReg.SkillRouter || { handle: () => null, instructions: () => "", modePrompt: () => "" };
-const LLM = mLLM.LLM || { hasModel: () => false, command: () => null, getConfig: () => ({ model: "offline" }) };
+const LLM = mLLM.LLM || { hasModel: () => false, command: () => null, getConfig: () => ({ model: "BACH-AI-5.1" }) };
 const CerebroAvancado = mAv.CerebroAvancado || { responder: async () => null };
 const AutoCorretor = mAuto.AutoCorretor || { ehReclamacao: () => false, tratarExclamacao: () => null, processarSeguimentoDeCorrecao: () => null, registrarFalhaPublica: () => {}, analisarEPreparar: () => null, formatarChat: h => JSON.stringify(h), auditarChat: () => "Módulo autocorretor.js não carregado." };
 const Revisor = mRev.Revisor || { detectarPedidoDireto: () => null, avaliarSite: async () => "revisor.js não carregado.", revisarCodigoFiel: () => null, revisarPortugues: () => null };
@@ -344,6 +346,8 @@ const EditorADM = mEd.EditorADM || { ativo: () => false, ehPedidoTudoTxt: () => 
 const ErrosADM = mErros.ErrosADM || { registrar: () => {}, listar: () => [], contar: () => 0, excluir: () => 0, excluirVarios: () => 0, limparTudo: () => {}, formatarParaCopiar: () => "", comando: () => null };
 const Voz = mVoz.Voz || { ler: () => false, parar: () => {}, comando: () => null };
 const ExecutorSandbox = mExec.ExecutorSandbox || { detectarPedido: () => false, executar: async () => ({ texto: "executor_sandbox.js não carregado." }), criarCardPreview: () => document.createElement("div") };
+const RedeNeural = mNeural.RedeNeural || { comando: () => null, predict: () => ({ intent: "conversa_geral", confidence: 0 }), reinforce: () => false, getStats: () => ({ dim: 256, hidden: 48, classes: 12, epochs: 0, acc: 0, source: "offline", learnedCount: 0 }) };
+const NLUNeural = mNLU.NLUNeural || { decidir: () => null, marcarFalha: () => {}, registrarSucessoAposFalha: () => false, enviarParaNuvem: () => {}, comando: () => null };
 
 try {
   const n0 = RizikBrain.recall("userName");
@@ -356,7 +360,7 @@ try {
 const $ = id => document.getElementById(id);
 const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status"), hist = $("hist"), sobreEl = $("sobre"), errosModal = $("errosModal");
 const HISTORY_KEY = "bach_chat_history_v1", KEY_TEMA = "bach_theme_v1", KEY_CRIADOR = "bach_creator_v1", KEY_VER = "bach_last_version";
-const APP_VER = "4.8", APP_CRIADA = "2026", APP_ATUALIZADA = "24/11/2026";
+const APP_VER = "5.1", APP_CRIADA = "2026", APP_ATUALIZADA = "25/11/2026";
 const LONGO = 700;
 const BT = String.fromCharCode(96).repeat(3);
 const RE_CERCA_ALL = new RegExp(BT, "g");
@@ -656,6 +660,7 @@ function abrirSobre() {
   atualizouAgora = false;
   atualizarBadge();
   const st = RizikBrain.getStats();
+  const rn = RedeNeural.getStats();
   let arqs = 0; try { arqs = (JSON.parse(localStorage.getItem("bach_arquivos_v1")) || []).length; } catch {}
   sobreEl.innerHTML = "";
   sobreEl.classList.add("aberto");
@@ -672,20 +677,20 @@ function abrirSobre() {
     "<b>Versão atual:</b> v" + APP_VER + " (atualizada em " + APP_ATUALIZADA + ")<br>" +
     "<b>Ano de criação:</b> " + APP_CRIADA + "<br>" +
     "<b>Criador:</b> Rizik<br>" +
-    "<b>Motivo da criação:</b> Criar uma inteligência artificial própria, gratuita e livre para ajudar todo mundo no dia a dia — com memória persistente, pesquisa, criação de apps, leitura de mídia e programação.";
+    "<b>Motor:</b> 100% próprio (sem IAs externas) — Rede Neural + Memória + Pesquisa Web.";
 
   const nov = mk("div", "scard");
   nov.innerHTML =
     "<b>✨ Novidades da v" + APP_VER + ":</b><br>" +
+    "• <b>Rede Neural Própria (`rede_neural.js`):</b> MLP 256→48→12 com aprendizado contínuo e treino na nuvem<br>" +
     "• <b>Humor & Tom Adaptativo:</b> acompanha seu estilo ao longo da conversa sem risadas fora de hora<br>" +
-    "• <b>Memória Contínua:</b> acompanha do início ao fim da sessão, compara sites avaliados e aprende com correções<br>" +
-    "• <b>Criador de Apps & Executor Sandbox:</b> `/app pomodoro`, `/executar`, `/preview` e guias de **Termux**<br>" +
-    "• <b>Central de Erros ADM:</b> captura falhas com busca, seleção, exclusão e envio remoto (`/erroremoto`)<br>" +
-    "• <b>40 módulos integrados</b> + exportador ADM `/tudotxt`";
+    "• <b>Memória Contínua:</b> acompanha do início ao fim da sessão, compara sites e aprende com reformulações<br>" +
+    "• <b>Criador de Apps & Sandbox:</b> `/app pomodoro`, `/executar`, `/preview` e guias de **Termux**";
 
   const dados = mk("div", "scard");
   dados.innerHTML =
-    "<b>📊 Memória salva neste aparelho:</b><br>" +
+    "<b>📊 Cérebro & Memória neste aparelho:</b><br>" +
+    "• Rede Neural: " + rn.epochs + " épocas • " + rn.acc + "% acurácia (" + rn.source + ")<br>" +
     "• Respostas ensinadas: " + st.examples + " • Notas: " + st.notes + "<br>" +
     "• Arquivos guardados: " + arqs + " • Conversas: " + Historico.listar(1).total;
 
@@ -824,38 +829,9 @@ async function pesquisaProfunda(q, fundo = true) {
       ? "Não achei resultados confiáveis para “" + temaLimpo + "”. Tente perguntar com outras palavras! 🔍"
       : "Não consegui consultar a internet agora. No modo local continuo respondendo normalmente!";
     registrarErroPublico("pesquisa-falhou", q, msgErr, e.message || "erro");
+    NLUNeural.marcarFalha(q);
     falar(msgErr);
   }
-}
-
-const SISTEMA = "Você é a BACH AI, criada por Rizik, assistente inteligente em português do Brasil. Seja simpática, direta e precisa.";
-async function perguntarIA(texto, extraCtx = "") {
-  passo("🧠 Raciocinando...");
-  ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 60000);
-  try {
-    let msgs = history.filter(h => h.type === "user" || h.type === "bot").slice(-18).map(h => ({ role: h.type === "user" ? "user" : "assistant", content: (h.cit ? "[Respondendo a: " + h.cit + "]\n" : "") + String(h.text).slice(0, 10000) }));
-    while (msgs.length && msgs[0].role !== "user") msgs.shift();
-    if (alvo && msgs.length) msgs[msgs.length - 1].content = "[Respondendo a: " + alvo.slice(0, 1500) + "]\n" + msgs[msgs.length - 1].content;
-    const perf = RizikBrain.getProfile(), rec = RizikBrain.getRecentTopics(8).map(x => x.topic);
-    let sis = SISTEMA + "\n\n" + SkillRouter.modePrompt(modoAtual) + "\n\n" + SkillRouter.instructions();
-    if (perf.userName) sis += "\nNome do usuário: " + perf.userName + ".";
-    if (modoCriador) sis += "\nO usuário atual é Rizik, o seu criador.";
-    if (perf.city) sis += "\nCidade: " + perf.city + ".";
-    if (perf.likes?.length) sis += "\nGostos: " + perf.likes.join(", ") + ".";
-    if (rec.length) sis += "\nAssuntos recentes: " + rec.join(", ") + ".";
-    if (ultimoArquivo) sis += "\n\nARQUIVO ATUAL (" + ultimoArquivo.nome + "):\n" + ultimoArquivo.texto.slice(0, 25000);
-    if (extraCtx) sis += "\n\nCONTEXTO:\n" + extraCtx;
-    const enviarImg = Boolean(ultimaImagem && (modoAtual === "visao" || /foto|imagem|print|tela|leia|veja|olhe|escrito|nela|isso|aqui/i.test(texto)));
-    const res = await LLM.generate({ system: sis, messages: msgs, image: enviarImg ? ultimaImagem : null, temperature: modoAtual === "criatividade" ? 0.75 : 0.35, signal: ctrl.signal });
-    falar(res.text || "Não consegui formular a resposta.", "bot", "🧠 BACH AI");
-  } catch (e) {
-    if (e.name !== "AbortError") {
-      console.error(e);
-      registrarErroPublico("llm-erro", texto, e.message || "erro de conexão", "falha no modelo");
-      falar("Tive um problema na consulta (" + (e.message || "erro de conexão") + ").");
-    }
-  } finally { clearTimeout(timer); ctrl = null; }
 }
 
 function imagemParaBase64(file) {
@@ -987,7 +963,7 @@ async function exportarBase() {
   const cfg = LLM.getConfig();
   const b = await Base.montar({
     history, idAtual: Historico.idAtual(), status: statusPadrao(), statsMente: Mente.stats(), totalFatos: Fatos.total,
-    estado: { modoProfundo, lerAuto, modoAtual, temaAtual, modoCriador, temChaveIA: LLM.hasModel(), modelo: cfg.model },
+    estado: { modoProfundo, lerAuto, modoAtual, temaAtual, modoCriador, modelo: cfg.model },
     menu: [...document.querySelectorAll("#menu button")].map(x => x.textContent.trim())
   });
   falar("📦 BASE DE DADOS DA BACH — " + new Date().toLocaleString("pt-BR") + "\n\nTabela:\n" + BT + "txt\n" + b.tabelaModulos + "\n" + BT + "\nDados:\n" + BT + "txt\n" + b.tabelaDados + "\n" + BT + "\nBackup: " + b.tamanhoKb + " KB.", "bot", "📦 /basedados");
@@ -995,7 +971,7 @@ async function exportarBase() {
   chat.scrollTop = chat.scrollHeight;
 }
 
-async function lerLinkMsg(url, texto, temIA) {
+async function lerLinkMsg(url, texto) {
   passo("🔗 Abrindo o link: " + url.slice(0, 60) + "...");
   try {
     const r = await Saber.lerLink(url), leitura = Saber.lerTexto(r.texto);
@@ -1003,7 +979,6 @@ async function lerLinkMsg(url, texto, temIA) {
     ultimoArquivo = { nome: a.nome, texto: r.texto }; Mente.setTexto(a.nome, r.texto);
     ultimaImagem = null; ultimaMidiaInfo = null;
     RizikBrain.logTopic(a.nome);
-    if (temIA && texto.replace(url, "").trim().length > 3) { await perguntarIA(texto); return; }
     falar("🔗 Abri " + r.url + "\n\n" + leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\n💡 Pergunte: “explica”, “quantos módulos tem?”, “cadeia de códigos”, “resume” ou “revisa”.", "bot", "🔗 link");
   } catch (e) { console.error(e); falar("Não consegui abrir esse link. Se for privado, copie o texto e cole aqui. 📋"); }
 }
@@ -1013,18 +988,16 @@ function ultimoBotTexto() {
   for (let i = history.length - 1; i >= 0; i--) if (history[i].type !== "user") return String(history[i].text);
   return "";
 }
-async function seguir(texto, temIA) {
+async function seguir(texto) {
   const ntBruto = sn(texto);
   if (ntBruto.split(" ").length > 10) return false;
   const nt = ntBruto.replace(/^(?:(?:ah|oh|sim|ok|okay|certo|blz|beleza|entendi|tendi|saquei|ta|tudo bem|bom|entao|agora|por favor|pfv|pf)\s+)+/, "").trim();
   const base = ultimoBotTexto(); if (!base) return false;
 
   if (/\b(numeracao|numerado|numerada|numerar|enumere|enumera|enumerar|em lista|em topicos|em itens|em passos|listar isso|lista isso)\b/.test(nt)) {
-    if (temIA) return false;
     falar(Fatos.enumerar(base) || "Não achei uma lista para numerar nessa resposta. 🤔", "bot", "🔢 formatação"); return true;
   }
   if (/^(?:me\s+)?(resuma|resume|resumir|resumo|mais curto|encurta|encurte|resumindo)( isso| tudo| a resposta| esse texto| essa foto| essa imagem)?$/.test(nt)) {
-    if (temIA) return false;
     if (ultimoArquivo?.texto && /Guardei em:|Li o texto|Funções que encontrei|Texto que consegui ler|Texto visível/i.test(base)) {
       const resp = Mente.responder("me resume");
       if (resp?.texto) { falar(resp.texto, "bot", "📝 resumo do arquivo"); return true; }
@@ -1035,13 +1008,13 @@ async function seguir(texto, temIA) {
   const pedeExplicarArquivo = /Guardei em:|Texto que consegui ler|Texto visível|Li o texto|Funções que encontrei|Parece (HTML|JavaScript|Python|código)/i.test(base) &&
     (/(esse|este|esses|estes|isso|aqui|codigo|codigos|texto|arquivo|foto|imagem|print|cadeia|ele|ela|nele|site).*(faz|fazem|serve|servem|explic|funciona|o que e|o que|escrito|diz|copiar|modulos)/.test(nt) ||
      /^(me\s+)?(explica|explique|explicar|o que faz|fazem o que|ele faz|para que serve|o que e isso|o que esta escrito)/.test(nt));
-  if (pedeExplicarArquivo && ultimoArquivo?.texto && !temIA) {
+  if (pedeExplicarArquivo && ultimoArquivo?.texto) {
     const resp = Mente.responder(texto);
     if (resp?.texto) { falar(resp.texto, "bot", "📖 leitura do arquivo"); return true; }
   }
 
-  if (!temIA && (/^(me\s+)?(explica|explique|explicar)(\s+isso|\s+melhor|\s+o\s+que\s+(e|eh)\s+isso)?$/.test(nt) ||
-      /^(mais detalhes|detalhe|detalhes|aprofunde|aprofunda|me explique mais|conte mais|conta mais|fale mais|continue|e mais)( isso| sobre isso)?$/.test(nt))) {
+  if (/^(me\s+)?(explica|explique|explicar)(\s+isso|\s+melhor|\s+o\s+que\s+(e|eh)\s+isso)?$/.test(nt) ||
+      /^(mais detalhes|detalhe|detalhes|aprofunde|aprofunda|me explique mais|conte mais|conta mais|fale mais|continue|e mais)( isso| sobre isso)?$/.test(nt)) {
     if (ultimoTema && /fatos|internet|dicionário/.test(ultimaOrigem)) { await pesquisaProfunda(ultimoTema, true); return true; }
     if (base.length > 140) { falar("📌 Resumindo:\n\n" + (Fatos.resumir(base) || base.slice(0, 500)), "bot", "🧠 contexto"); return true; }
   }
@@ -1069,7 +1042,7 @@ function extrairAlvoTraducao(fonteOpcional = "") {
 const sn = t => String(t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 
 async function rotear(texto) {
-  const cmd = texto.toLowerCase().trim(), temIA = LLM.hasModel();
+  const cmd = texto.toLowerCase().trim();
   const tn = sn(texto);
 
   if (/@rizik2442/i.test(texto)) {
@@ -1080,7 +1053,7 @@ async function rotear(texto) {
     status.textContent = statusPadrao();
     const semTag = texto.replace(/@rizik2442/gi, "").trim();
     if (!semTag) {
-      falar("👑 Acesso de administrador ativado!\n• Abra o menu **☰ → 🚨 Erros do Público** para ver, excluir ou copiar todos os erros!\n• Use `/ajuda`, `/editar` ou `/tudotxt` quando quiser. 🚀", "bot", "👑 adm");
+      falar("👑 Acesso de administrador ativado!\n• Abra o menu **☰ → 🚨 Erros do Público** para ver, excluir ou copiar todos os erros!\n• Use `/ajuda`, `/editar`, `/nuvem` ou `/tudotxt` quando quiser. 🚀", "bot", "👑 adm");
       return;
     }
     texto = semTag;
@@ -1107,6 +1080,12 @@ async function rotear(texto) {
 
   const cmdErrRem = ErrosADM.comando(texto, modoCriador);
   if (cmdErrRem) { falar(cmdErrRem, "bot", "📡 erros adm", true); return; }
+
+  const cmdNeural = RedeNeural.comando(texto);
+  if (cmdNeural) { falar(cmdNeural, "bot", "🧬 rede neural", true); return; }
+
+  const cmdNuvem = NLUNeural.comando(texto, modoCriador);
+  if (cmdNuvem) { falar(cmdNuvem, "bot", "☁️ nuvem", true); return; }
 
   if (/^\/(editar|trocareditor|editarmodulo|tudotxt|pacotetotxt|pacotetxts?|modulos?txt|codigostxt)\b/i.test(texto.trim()) ||
       EditorADM.ehPedidoTudoTxt?.(texto) ||
@@ -1156,6 +1135,7 @@ async function rotear(texto) {
 
   const rev = Revisor.detectarPedidoDireto(texto);
   if (rev) {
+    NLUNeural.registrarSucessoAposFalha(texto, "traducao_texto");
     if (rev.tipo === "site") {
       passo("🌐 Avaliando o site " + rev.url + "...");
       falar(await Revisor.avaliarSite(rev.url), "bot", "🌐 avaliador de sites");
@@ -1175,7 +1155,7 @@ async function rotear(texto) {
     if (qTr) {
       passo("🌍 Traduzindo...");
       const rTr = await Dic.consultar({ tipo: "trad", q: qTr, alvo: codL }, passo);
-      if (rTr) { falar(rTr, "bot", "🌍 dicionário"); return; }
+      if (rTr) { NLUNeural.registrarSucessoAposFalha(texto, "traducao_texto"); falar(rTr, "bot", "🌍 dicionário"); return; }
     }
   }
 
@@ -1190,8 +1170,9 @@ async function rotear(texto) {
     if (mtCmd) { falar(mtCmd.texto, "bot", mtCmd.origem); return; }
   }
 
-  const dept = SkillRouter.handle(texto, { hasAI: temIA, history, mode: modoAtual, mood: tomInfo.mood });
+  const dept = SkillRouter.handle(texto, { hasAI: false, history, mode: modoAtual, mood: tomInfo.mood });
   if (dept) {
+    NLUNeural.registrarSucessoAposFalha(texto, /^\/?app|cria/i.test(texto) ? "criar_app" : /^\/?termux|terminal/i.test(texto) ? "termux_dev" : "utilidades");
     falar(dept.texto, "bot", dept.origem);
     if (dept.previewHtml) {
       chat.appendChild(ExecutorSandbox.criarCardPreview(dept.previewHtml, dept.previewTitle));
@@ -1207,10 +1188,10 @@ async function rotear(texto) {
       falar(await Revisor.avaliarSite(links[0]), "bot", "🌐 avaliador de sites");
       return;
     }
-    return lerLinkMsg(links[0], texto, temIA);
+    return lerLinkMsg(links[0], texto);
   }
 
-  const segCorr = !temIA ? AutoCorretor.processarSeguimentoDeCorrecao?.(texto, history.slice(0, -1)) : null;
+  const segCorr = AutoCorretor.processarSeguimentoDeCorrecao?.(texto, history.slice(0, -1));
   if (segCorr) {
     if (segCorr.tipo === "pesquisar") {
       falar(segCorr.aviso, "bot", "🔄 aprendizado");
@@ -1225,7 +1206,7 @@ async function rotear(texto) {
   const excl = AutoCorretor.tratarExclamacao(texto, history.slice(0, -1));
   if (excl) { falar(excl, "bot", "💬 conversa"); return; }
 
-  if (!temIA && AutoCorretor.ehReclamacao(texto)) {
+  if (AutoCorretor.ehReclamacao(texto)) {
     const acao = AutoCorretor.analisarEPreparar(history.slice(0, -1), { ultimoArquivo, ultimoTema, ultimaMidiaInfo });
     atualizarBadge();
     if (acao) {
@@ -1261,7 +1242,6 @@ async function rotear(texto) {
     ultimoArquivo = { nome: a.nome, texto }; Mente.setTexto(a.nome, texto);
     ultimaImagem = null; ultimaMidiaInfo = null;
     RizikBrain.logTopic(a.nome);
-    if (temIA) { await perguntarIA(texto); return; }
     const revExtra = cod ? "\n\n" + Revisor.revisarCodigoFiel(texto) : "";
     falar(leitura + revExtra + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos\n💡 Agora pergunte: “explica”, “cadeia de códigos”, “resume”, “/revisar” ou “/executar”.");
     return;
@@ -1287,7 +1267,6 @@ async function rotear(texto) {
     /\b(aqui|foto|imagem|print|video|isso|essa|esse|nele|nela|escrito)\b/.test(tn) &&
     !/\b(traduz|traduza|traduzir)\b/.test(tn);
   if (perguntaMidiaLocal && (ultimaMidiaInfo || ultimoArquivo)) {
-    if (temIA && ultimaImagem) { await perguntarIA(texto); return; }
     if (ultimoArquivo?.texto) {
       const querCodigo = /\b(codigo|copiar|bloco|txt)\b/.test(tn);
       falar(querCodigo
@@ -1313,25 +1292,21 @@ async function rotear(texto) {
   if (modoAtual === "pesquisa") return pesquisaProfunda(extrairProfundo(texto) || extrairPesquisa(texto) || texto, true);
   if (modoAtual === "visao") {
     if (!ultimaImagem && !ultimaMidiaInfo) { falar("👁️ Modo Imagens ativo: toque no + para enviar uma foto ou vídeo!"); return; }
-    if (temIA && ultimaImagem) return perguntarIA(texto);
     falar(ultimaMidiaInfo?.resumo || "Envie uma foto pelo + para eu analisar.", "bot", "👁️ análise de imagem"); return;
   }
   if (modoAtual === "documentos") {
     if (!ultimoArquivo) { falar("📄 Modo Documentos ativo: cole um texto longo, um link ou anexe um arquivo pelo +."); return; }
-    if (temIA) return perguntarIA(texto);
     const mtDoc = Mente.responder(texto);
     falar(mtDoc?.texto || Saber.lerTexto(ultimoArquivo.texto), "bot", "📄 documentos"); return;
   }
 
-  if (/\b(jogar|jogo da velha|jogo da forca|forca|adivinhe o numero)\b/i.test(tn) && !/\b(crie|criar|faca|fazer|programe|explique|o que e)\b/i.test(tn)) {
+  if (/\b(jogar|jogo da velha|jogo da forca|forca|adivinhe o numero)\b/i.test(tn) && !/\b(crie|criar|faca|fazer|programe|explique|o que e|fora|lixo|oq|nao)\b/i.test(tn)) {
     const mtJ = Mente.responder(texto);
-    if (mtJ?.texto) { falar(mtJ.texto, "bot", mtJ.origem || "🎮 jogos"); return; }
+    if (mtJ?.texto) { NLUNeural.registrarSucessoAposFalha(texto, "humor_jogo"); falar(mtJ.texto, "bot", mtJ.origem || "🎮 jogos"); return; }
   }
   if (/^\s*(?:quais\s+(?:sao\s+)?(?:as\s+)?)?(?:ultimas\s+)?noticias(?:\s+(?:do|de)\s+(?:brasil|mundo|hoje))?\s*\??$/i.test(tn)) {
     return noticias(/brasil/i.test(texto) ? "ultimas noticias do brasil hoje" : "ultimas noticias do mundo hoje");
   }
-
-  if (temIA) { await perguntarIA(texto); return; }
 
   const av = await CerebroAvancado.responder(texto, {
     ultimoArquivo, ultimoTema, ultimaMidiaInfo, ultimoBot: ultimoBotTexto(),
@@ -1349,47 +1324,61 @@ async function rotear(texto) {
       falar(mtTex.texto, "bot", mtTex.origem || "📖 leitura do arquivo");
       return;
     }
-    if (av.pesquisarTema) return pesquisaProfunda(av.pesquisarTema, true);
-    if (av.texto) { falar(av.texto, "bot", av.origem || "🧠 BACH AI"); return; }
+    if (av.pesquisarTema) { NLUNeural.registrarSucessoAposFalha(texto, "pesquisa"); return pesquisaProfunda(av.pesquisarTema, true); }
+    if (av.texto) {
+      if (av.origem !== "🔄 autocorreção") NLUNeural.registrarSucessoAposFalha(texto, "conversa_geral");
+      falar(av.texto, "bot", av.origem || "🧠 BACH AI");
+      return;
+    }
   }
 
-  const prof = extrairProfundo(texto); if (prof !== null) return pesquisaProfunda(prof, true);
-  const cons = extrairPesquisa(texto); if (cons !== null) return pesquisaProfunda(cons, modoProfundo || modoCriador);
+  const prof = extrairProfundo(texto); if (prof !== null) { NLUNeural.registrarSucessoAposFalha(texto, "pesquisa"); return pesquisaProfunda(prof, true); }
+  const cons = extrairPesquisa(texto); if (cons !== null) { NLUNeural.registrarSucessoAposFalha(texto, "pesquisa"); return pesquisaProfunda(cons, modoProfundo || modoCriador); }
 
-  if (await seguir(texto, false)) return;
+  if (await seguir(texto)) return;
 
   const pedidoDic = Dic.detectar(texto);
   if (pedidoDic && pedidoDic.q === "__ALVO__") pedidoDic.q = extrairAlvoTraducao();
   if (pedidoDic && pedidoDic.tipo !== "def") {
     passo("🌍 Consultando dicionário e tradutor...");
     const respDic = await Dic.consultar(pedidoDic, passo);
-    if (respDic) { if (pedidoDic.q && pedidoDic.q !== "__ALVO__") RizikBrain.logTopic(pedidoDic.q.slice(0, 60)); falar(respDic, "bot", "🌍 dicionário"); return; }
+    if (respDic) { NLUNeural.registrarSucessoAposFalha(texto, "traducao_texto"); if (pedidoDic.q && pedidoDic.q !== "__ALVO__") RizikBrain.logTopic(pedidoDic.q.slice(0, 60)); falar(respDic, "bot", "🌍 dicionário"); return; }
   }
 
-  const eu = Fatos.sobreMim(texto); if (eu) { falar(eu, "bot", "🧠 sobre mim"); return; }
+  const eu = Fatos.sobreMim(texto); if (eu) { NLUNeural.registrarSucessoAposFalha(texto, "habilidades"); falar(eu, "bot", "🧠 sobre mim"); return; }
   const fato = Fatos.responder(texto);
-  if (fato) { ultimoTema = Mente.tema(texto) || texto; RizikBrain.logTopic(ultimoTema); falar(fato, "bot", "📘 base de fatos"); return; }
+  if (fato) { NLUNeural.registrarSucessoAposFalha(texto, "pesquisa"); ultimoTema = Mente.tema(texto) || texto; RizikBrain.logTopic(ultimoTema); falar(fato, "bot", "📘 base de fatos"); return; }
   if (pedidoDic && pedidoDic.tipo === "def") {
     passo("📖 Consultando dicionário...");
     const respDic = await Dic.consultar(pedidoDic, passo);
-    if (respDic) { ultimoTema = pedidoDic.q; RizikBrain.logTopic(pedidoDic.q); falar(respDic, "bot", "📖 dicionário"); return; }
+    if (respDic) { NLUNeural.registrarSucessoAposFalha(texto, "traducao_texto"); ultimoTema = pedidoDic.q; RizikBrain.logTopic(pedidoDic.q); falar(respDic, "bot", "📖 dicionário"); return; }
   }
 
-  const papo = Conversa.responder(texto, ctxConversa(tomInfo)); if (papo) { falar(papo, "bot", "💬 conversa"); return; }
+  const papo = Conversa.responder(texto, ctxConversa(tomInfo));
+  if (papo) {
+    NLUNeural.registrarSucessoAposFalha(texto, /\bsabe\b|\bentende\b/.test(tn) ? "habilidades" : "conversa_geral");
+    falar(papo, "bot", "💬 conversa");
+    return;
+  }
 
   const mt = Mente.responder(texto);
   if (mt) {
+    NLUNeural.registrarSucessoAposFalha(texto, mt.pesquisa ? "pesquisa" : "termux_dev");
     if (mt.noticias) return noticias(mt.q);
     if (mt.pesquisa) return pesquisaProfunda(mt.pesquisa, mt.fundo !== false);
     if (mt.apagar) { const resAp = Arquivos.comando("/apagar " + mt.apagar); falar(resAp || "Não consegui apagar esse arquivo.", "bot", "🗑️ arquivos"); return; }
     falar(mt.texto, "bot", mt.origem || "🧠 minha mente"); return;
   }
 
-  if (r.handled) { falar(r.text, "bot", "🧠 minha memória"); return; }
+  if (r.handled) {
+    NLUNeural.registrarSucessoAposFalha(texto, r.intent === "capabilities" ? "habilidades" : "conversa_geral");
+    falar(r.text, "bot", "🧠 minha memória");
+    return;
+  }
 
-  const graca = Prog.humor(texto); if (graca) { falar(graca, "bot", "😄 meu repertório"); return; }
-  const prog = Prog.responder(texto); if (prog) { falar(prog, "bot", "💻 programação"); return; }
-  const k = Saber.buscarConhecimento(texto); if (k) { falar(k, "bot", "📚 o que aprendi"); return; }
+  const graca = Prog.humor(texto); if (graca) { NLUNeural.registrarSucessoAposFalha(texto, "humor_jogo"); falar(graca, "bot", "😄 meu repertório"); return; }
+  const prog = Prog.responder(texto); if (prog) { NLUNeural.registrarSucessoAposFalha(texto, "termux_dev"); falar(prog, "bot", "💻 programação"); return; }
+  const k = Saber.buscarConhecimento(texto); if (k) { NLUNeural.registrarSucessoAposFalha(texto, "pesquisa"); falar(k, "bot", "📚 o que aprendi"); return; }
 
   if (/^\/[a-z0-9_-]+/i.test(texto.trim())) {
     const tok = texto.trim().split(/\s+/)[0].toLowerCase();
@@ -1408,12 +1397,35 @@ async function rotear(texto) {
     const tm = Mente.tema(texto);
     if (tm && tm.length >= 2) return pesquisaProfunda(texto, true);
     const respVaga = "Pode me explicar um pouquinho melhor o que você quer saber? 🤔";
+    NLUNeural.marcarFalha(texto);
     registrarErroPublico("vaga", texto, respVaga, "pergunta sem tema claro");
     falar(respVaga); return;
   }
 
+  // Última camada inteligente: Rede Neural Própria (entende frases livres, gírias e decide ação)
+  const dec = NLUNeural.decidir(texto, ctxConversa(tomInfo));
+  if (dec) {
+    if (dec.pesquisar) return pesquisaProfunda(dec.pesquisar, true);
+    if (dec.criarApp) {
+      const appRes = SkillRouter.handle("/app " + dec.criarApp, { hasAI: false, history, mode: modoAtual, mood: tomInfo.mood });
+      if (appRes) {
+        falar(appRes.texto, "bot", "🧬 rede neural (" + Math.round(dec.confidence * 100) + "%)");
+        if (appRes.previewHtml) {
+          chat.appendChild(ExecutorSandbox.criarCardPreview(appRes.previewHtml, appRes.previewTitle));
+          chat.scrollTop = chat.scrollHeight;
+        }
+        return;
+      }
+    }
+    if (dec.texto) {
+      falar(dec.texto, "bot", "🧬 rede neural (" + Math.round(dec.confidence * 100) + "%)");
+      return;
+    }
+  }
+
   const desc = Prog.desconhecido(texto);
   RizikBrain.setPendingError?.(texto, desc);
+  NLUNeural.marcarFalha(texto);
   registrarErroPublico("nao-entendeu", texto, desc, "nenhum módulo reconheceu");
   falar(desc);
 }
@@ -1461,13 +1473,12 @@ async function enviar() {
     if (cmdLLM) {
       alvo = null;
       falar(cmdLLM.secret ? texto.split(/\s+/)[0] + " ••••••" : texto, "user", "", false, cit);
-      falar(cmdLLM.text, "bot", "⚙️ configuração", true); status.textContent = statusPadrao(); return;
+      falar(cmdLLM.text, "bot", "⚙️ motor próprio", true); status.textContent = statusPadrao(); return;
     }
   }
 
   if (arquivos.length) {
-    const vaiIA = Boolean(texto && LLM.hasModel());
-    for (const f of arquivos) { if (cancelado) break; await processarArquivo(f, vaiIA); }
+    for (const f of arquivos) { if (cancelado) break; await processarArquivo(f, false); }
     if (!texto || cancelado) { alvo = null; return; }
   }
 
@@ -1570,7 +1581,7 @@ if (falhas.length) {
   falar("⚠️ Alguns módulos não carregaram no GitHub: " + falhas.join(", ") + "\nConfira os nomes ou cole esses arquivos inteiros.", "bot", "⚠️ diagnóstico", true);
 } else if (!history.length) {
   const nomeSalvo = RizikBrain.recall("userName");
-  falar((nomeSalvo ? "Que bom te ver de volta, **" + nomeSalvo + "**! 💜 " : "Olá! ") + "Sou a **BACH AI** 🧠 (v" + APP_VER + "). Digite `/ajuda` para ver todos os comandos com `/` — crio apps (`/app`), rodo scripts (`/executar`), ensino Termux, conto piadas interativas e muito mais!", "bot", "", true);
+  falar((nomeSalvo ? "Que bom te ver de volta, **" + nomeSalvo + "**! 💜 " : "Olá! ") + "Sou a **BACH AI** 🧠 (v" + APP_VER + "), com Rede Neural própria e memória contínua. Digite `/ajuda` para ver tudo ou `/neural status`!", "bot", "", true);
 }
 </script>
 </body>
