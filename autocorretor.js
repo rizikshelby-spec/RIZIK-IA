@@ -1,6 +1,6 @@
-/* BACH AI 5.0 — AUTOCORRETOR REAL, TOM ADAPTATIVO & APRENDIZADO CONTÍNUO
-   1) Respeita o tom do usuário: nunca ri nem usa frases estranhas quando está sério/frustrado.
-   2) Pula reações curtas/xingamentos no histórico para achar a verdadeira pergunta que falhou.
+/* BACH AI 5.1 — AUTOCORRETOR REAL, TOM ADAPTATIVO & APRENDIZADO CONTÍNUO
+   1) Respeita o tom do usuário e usa a mensagem citada (↩ Responder) quando marcada.
+   2) Pula reações curtas/xingamentos e palavras soltas ("erro", "errou") para achar a pergunta real.
    3) Aprende com correções (*), explicações pós-erro e grava na Central ADM. */
 
 import { RizikBrain } from "./brain.js?v=20";
@@ -17,26 +17,27 @@ const girar = (k, arr) => { giro[k] = ((giro[k] ?? -1) + 1) % arr.length; return
 const norm = t => String(t || "").toLowerCase().normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "")
   .replace(/\bqm\b/g, "quem")
-  .replace(/\b(vc|vce|vv)\b/g, "voce")
+  .replace(/\b(vc|vce|vv|oc|oce)\b/g, "voce")
   .replace(/\b(oq|oqe|oque)\b/g, "o que")
-  .replace(/\b(pq|pk)\b/g, "porque")
+  .replace(/\bpq\b/g, "porque")
   .replace(/\b(pra|oara|praa)\b/g, "para")
   .replace(/\b(msm)\b/g, "mesmo")
   .replace(/\b(hj)\b/g, "hoje")
   .replace(/\b(tip)\b/g, "tipo")
   .replace(/\b(mn)\b/g, "mano")
   .replace(/\bcvs\b/g, "conversar")
-  .replace(/\b(pse)\b/g, "pois e")
-  .replace(/\b(entt)\b/g, "entao")
+  .replace(/\bpse\b/g, "pois e")
+  .replace(/\bentt\b/g, "entao")
+  .replace(/\b(ahamn|ahamm)\b/g, "aham")
   .replace(/[^a-z0-9\s]/g, " ")
   .replace(/\s+/g, " ")
   .trim();
 
 const reduzirRepetidas = t => String(t || "").replace(/([a-zA-ZÀ-ÿ])\1{2,}/g, "$1");
 
-const RE_RECLAMACAO = /\b(voce errou|vc errou|vc erro|voce erro|errou|para de errar|esses erros|nesses erros|nao foi isso|nao era isso|fugiu do assunto|saiu do assunto|mudou de assunto|nada a ver|nada aver|nada haver|nao entende|nao entendeu|nunca entende|nao capta|respondeu errado|falou errado|disse errado|ta errado|esta errado|nao mandei pesquisar|nao mandei vc falar|nao pedi isso|nem disse isso|texto do nada|isso ta errado|fazendo pesquisa|fazer pesquisa agora|para de pesquisar|so pesquisa|o que (?:voce )?nao entendeu|senha bosta|chatao|pqp bach|o droga)\b/;
+const RE_RECLAMACAO = /^(?:erro|errou)$|\b(voce errou|vc errou|vc erro|voce erro|errou|e errou ainda|para de errar|esses erros|nesses erros|nao foi isso|nao era isso|fugiu do assunto|saiu do assunto|mudou de assunto|nada a ver|nada aver|nada haver|nao entende|nao entendeu|nunca entende|nao capta|respondeu errado|falou errado|disse errado|ta errado|esta errado|nao mandei pesquisar|nao mandei vc falar|nao pedi isso|nem disse isso|texto do nada|isso ta errado|fazendo pesquisa|fazer pesquisa agora|para de pesquisar|so pesquisa|o que (?:voce )?nao entendeu|senha bosta|chatao|pqp bach|o droga)\b/;
 
-const RE_REACAO_RUIDO = /^(?:oush+|oxe+|oxente|ue+|uai+|eita+|vixi+|vish+|ave+|nossa+|caramba+|aff+|mds+|pqp|crlh|vsf|kct|porra|merda|burr[oa](?:\s+ate\s+d\+?)?|idiota|inutil|meu deus|o deus+|meu ovo|meu obo|aham|uhum|ok|okay|claro|dnv isso|de novo isso|se vc diz ne|so segue a cvs|viu entende nada|combinado oq|o que|oque|nao oush|ruim de vc|reacao ruim de vc|sentiu o que|nao quero|so foca em melhorar|pois e entao nao fala bosta)$/;
+const RE_REACAO_RUIDO = /^(?:erro|errou|exatamente|oush+|oxe+|oxente|ue+|uai+|eita+|vixi+|vish+|ave+|nossa+|caramba+|aff+|mds+|pqp|crlh|vsf|kct|porra|merda|burr[oa](?:\s+ate\s+d\+?)?|idiota|inutil|meu deus|o deus+|meu ovo|meu obo|aham|uhum|ok|okay|claro|dnv isso|de novo isso|se vc diz ne|so segue a cvs|viu entende nada|combinado oq|o que|oque|nao oush|ruim de vc|reacao ruim de vc|sentiu o que|nao quero|so foca em melhorar|pois e entao nao fala bosta|mas eu marquei a palavra|larga de ser burra)$/;
 
 function ehReclamacao(texto) {
   const t = norm(reduzirRepetidas(texto));
@@ -160,6 +161,27 @@ function registrarCorrecao(pergunta, motivo, acao) {
   });
 }
 
+function encontrarAlvoMarcado(history, textoMarcado) {
+  if (!textoMarcado || !Array.isArray(history)) return null;
+  const trecho = String(textoMarcado).trim().slice(0, 90);
+  for (let i = history.length - 1; i >= 0; i--) {
+    const m = history[i];
+    if (m && m.type !== "user" && m.text && String(m.text).includes(trecho)) {
+      for (let j = i - 1; j >= 0; j--) {
+        if (history[j] && history[j].type === "user" && history[j].text) {
+          return {
+            pergunta: String(history[j].text),
+            cit: history[j].cit || "",
+            respostaBot: String(m.text)
+          };
+        }
+      }
+      return { pergunta: "(mensagem marcada)", cit: "", respostaBot: String(m.text) };
+    }
+  }
+  return { pergunta: "(mensagem marcada)", cit: "", respostaBot: String(textoMarcado) };
+}
+
 function encontrarPerguntaAnterior(history) {
   if (!Array.isArray(history) || !history.length) return null;
 
@@ -237,7 +259,7 @@ function processarSeguimentoDeCorrecao(texto, history = []) {
 }
 
 function analisarEPreparar(history, ctx = {}) {
-  const alvoAnt = encontrarPerguntaAnterior(history);
+  const alvoAnt = (ctx.alvo ? encontrarAlvoMarcado(history, ctx.alvo) : null) || encontrarPerguntaAnterior(history);
   if (!alvoAnt) {
     registrarCorrecao("(sem pergunta anterior)", "reclamacao-sem-alvo", "pediu-clareza");
     return {
@@ -284,13 +306,13 @@ function analisarEPreparar(history, ctx = {}) {
     };
   }
 
-  if (/Sobre “|Aqui está o resumo sobre|Pesquisei “/i.test(botErr)) {
-    const pediuPesquisa = /\b(pesquis|procur|busc|quem foi|quem e|o que e|me explica|me fala)\b/.test(t);
-    if (pediuPesquisa) {
+  if (/Sobre “|Aqui está o resumo sobre|Pesquisei “|Já pesquisei isso/i.test(botErr)) {
+    const pediuPesquisa = /\b(pesquis|procur|busc|quem foi|quem e|o que e|me explica|me fala|me fale)\b/.test(t);
+    if (pediuPesquisa || ctx.alvo) {
       registrarCorrecao(orig, "pesquisa-resultado-ruim", "pediu-especificacao");
       return {
         tipo: "direto",
-        texto: "Você tem razão — você pediu para pesquisar sobre **“" + orig + "”**, mas os resultados que eu trouxe vieram fora do assunto.\n\nMe diga com palavras mais específicas o tema exato que você quer buscar (ex.: *“pesquise sobre conversa natural para IA”* ou *“quem foi Eva da Bíblia”*) que eu refaço e memorizo!"
+        texto: "Entendi que você marcou essa resposta sobre **“" + orig + "”** como errada.\n\nMe diga o que estava errado ou o que você queria saber de fato (ou ensine com `ensine: " + orig + " => resposta certa`) para eu corrigir!"
       };
     }
     registrarCorrecao(orig, "pesquisa-indevida", "pediu-acao-direta");
@@ -319,7 +341,7 @@ function analisarEPreparar(history, ctx = {}) {
   registrarCorrecao(orig, "desvio-geral", "confirmou-contexto");
   return {
     tipo: "direto",
-    texto: "Desculpa por ter fugido do assunto.\n\nSua pergunta anterior era **“" + orig + "”**. Me diga em poucas palavras o que você queria que eu fizesse nessa parte (e se quiser que eu memorize para sempre, use `ensine: " + orig + " => resposta`)."
+    texto: "Desculpa por ter fugido do assunto.\n\nSua mensagem marcada/anterior era **“" + orig + "”**. Me diga em poucas palavras o que você esperava que eu respondesse."
   };
 }
 
