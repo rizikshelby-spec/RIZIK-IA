@@ -1,34 +1,38 @@
-/* BACH AI - PROGRAMAÇÃO + HUMOR 1.1 */
+/* BACH AI 5.2 - PROGRAMAÇÃO + HUMOR 1.2
+ * Exige contexto mínimo de programação para palavras ambíguas (lista, classe, objeto, repetição),
+ * identifica teclas/números soltos sem repetir mensagens em sequência e evita respostas idênticas. */
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9+# ]+/g, " ").replace(/\s+/g, " ").trim();
 const pick = a => a[Math.floor(Math.random() * a.length)];
 
 const TOPICOS = [
-  { k: ["variavel", "variaveis", "const", "let"], t: "📦 Variável é uma caixinha com nome que guarda um valor.\n\nJavaScript:\nlet idade = 20;\nconst nome = \"Ana\";\n\nPython:\nidade = 20\nnome = \"Ana\"\n\nDica: use const quando o valor não vai mudar." },
-  { k: ["funcao", "funcoes", "function", "def"], t: "⚙️ Função é um bloco de código com nome que você pode reutilizar.\n\nJavaScript:\nfunction soma(a, b) {\n  return a + b;\n}\nsoma(2, 3); // 5\n\nPython:\ndef soma(a, b):\n    return a + b" },
-  { k: ["loop", "loops", "laco", "repeticao", "for", "while"], t: "🔁 Loop repete um código várias vezes.\n\nJavaScript:\nfor (let i = 0; i < 5; i++) {\n  console.log(i);\n}\n\nPython:\nfor i in range(5):\n    print(i)\n\nUse while quando não sabe quantas vezes vai repetir." },
-  { k: ["condicional", "condicionais", "if", "else", "se senao"], t: "🔀 Condicional decide o que fazer conforme uma condição.\n\nJavaScript:\nif (idade >= 18) {\n  console.log(\"Maior\");\n} else {\n  console.log(\"Menor\");\n}\n\nPython:\nif idade >= 18:\n    print(\"Maior\")\nelse:\n    print(\"Menor\")" },
-  { k: ["array", "arrays", "lista", "listas", "vetor"], t: "📋 Array (ou lista) guarda vários valores em ordem.\n\nJavaScript:\nconst frutas = [\"maçã\", \"uva\"];\nfrutas.push(\"pera\");\nfrutas[0]; // maçã\n\nPython:\nfrutas = [\"maçã\", \"uva\"]\nfrutas.append(\"pera\")" },
-  { k: ["objeto", "objetos", "dicionario", "dict", "json"], t: "🗂️ Objeto (JS) ou dicionário (Python) guarda dados com nome.\n\nJavaScript:\nconst pessoa = { nome: \"Ana\", idade: 20 };\npessoa.nome; // Ana\nJSON.stringify(pessoa); // vira texto\n\nPython:\npessoa = {\"nome\": \"Ana\", \"idade\": 20}" },
-  { k: ["classe", "classes", "orientacao a objetos", "poo", "oop"], t: "🏗️ Classe é um molde para criar objetos.\n\nclass Pessoa {\n  constructor(nome) { this.nome = nome; }\n  falar() { return \"Oi, sou \" + this.nome; }\n}\nnew Pessoa(\"Ana\").falar();" },
-  { k: ["javascript", "js"], t: "🟨 JavaScript é a linguagem da web: faz sites ficarem interativos e roda no navegador (e no servidor, com Node.js). A BACH AI é feita com ele! Comece por variáveis, funções, arrays e manipular a página (DOM)." },
-  { k: ["python"], t: "🐍 Python é uma linguagem simples de ler, ótima para começar, automação, dados e IA. Exemplo:\n\nnome = input(\"Seu nome: \")\nprint(\"Olá,\", nome)" },
-  { k: ["html"], t: "🧱 HTML é a estrutura da página.\n\n<!DOCTYPE html>\n<html>\n<head><title>Meu site</title></head>\n<body>\n  <h1>Olá!</h1>\n  <button id=\"b\">Clique</button>\n</body>\n</html>" },
-  { k: ["css", "estilo", "estilizar"], t: "🎨 CSS é a aparência da página (cores, tamanhos, posição).\n\nbutton {\n  background: #7864ed;\n  color: white;\n  border-radius: 12px;\n  padding: 12px 16px;\n}" },
-  { k: ["api", "apis", "fetch", "requisicao"], t: "🌐 API é um endereço que devolve dados para o seu programa.\n\nJavaScript:\nconst r = await fetch(\"https://api.exemplo.com/dados\");\nconst dados = await r.json();\n\nPython:\nimport requests\ndados = requests.get(url).json()\n\nÉ assim que a BACH busca o clima!" },
-  { k: ["git", "github", "commit"], t: "🌿 Git guarda o histórico do seu código.\n\ngit init\ngit add .\ngit commit -m \"primeira versão\"\ngit push\n\nGitHub é o site onde você guarda e publica esse código (e dá para hospedar sites no GitHub Pages)." },
-  { k: ["sql", "banco de dados", "database", "mysql"], t: "🗄️ SQL conversa com bancos de dados.\n\nSELECT nome FROM usuarios WHERE idade >= 18;\nINSERT INTO usuarios (nome, idade) VALUES ('Ana', 20);" },
-  { k: ["recursao", "recursiva"], t: "🪞 Recursão é uma função que chama a si mesma, com uma condição de parada.\n\nfunction fatorial(n) {\n  if (n <= 1) return 1;\n  return n * fatorial(n - 1);\n}\nfatorial(5); // 120" },
-  { k: ["algoritmo", "algoritmos", "logica de programacao"], t: "🧩 Algoritmo é uma receita de passos para resolver um problema. Dica: antes de codar, escreva os passos em português, depois traduza para código." },
-  { k: ["bug", "bugs", "erro no codigo", "debug", "depurar", "nao funciona"], t: "🐛 Para caçar bugs:\n1) Leia a mensagem de erro (ela diz a linha).\n2) Use console.log para ver os valores.\n3) Teste uma parte de cada vez.\n4) Copie o erro e pesquise.\n\nCole o código aqui e eu leio as funções dele!" },
-  { k: ["criar uma ia", "criar ia", "fazer uma ia", "construir uma ia", "criar inteligencia artificial", "criar um chatbot", "criar chatbot"], t: "🤖 Você já está fazendo uma — a BACH! Passos:\n1) Entrada e saída (chat).\n2) Cérebro: regras + memória que aprende.\n3) Busca de informação (pesquisa).\n4) Ler arquivos, fotos e vídeos.\n5) Evoluir: busca por contexto e raciocínio próprio.\n\nQual parte quer melhorar agora?" },
-  { k: ["aprender a programar", "como programar", "comecar a programar", "aprender programacao", "o que e programacao", "programar"], t: "💻 Programar é dar instruções para o computador.\n\nRoteiro: 1) lógica e variáveis, 2) condições e loops, 3) funções, 4) listas e objetos, 5) um projeto pequeno (como esta IA!).\n\nPergunte: \"o que é função\", \"exemplo de loop\", \"o que é API\"..." }
+  { amb: true, k: ["variavel", "variaveis", "const", "let"], t: "📦 Variável é uma caixinha com nome que guarda um valor.\n\nJavaScript:\nlet idade = 20;\nconst nome = \"Ana\";\n\nPython:\nidade = 20\nnome = \"Ana\"\n\nDica: use const quando o valor não vai mudar." },
+  { amb: true, k: ["funcao", "funcoes", "function", "def"], t: "⚙️ Função é um bloco de código com nome que você pode reutilizar.\n\nJavaScript:\nfunction soma(a, b) {\n  return a + b;\n}\nsoma(2, 3); // 5\n\nPython:\ndef soma(a, b):\n    return a + b" },
+  { amb: true, k: ["loop", "loops", "laco", "repeticao", "for", "while"], t: "🔁 Loop repete um código várias vezes.\n\nJavaScript:\nfor (let i = 0; i < 5; i++) {\n  console.log(i);\n}\n\nPython:\nfor i in range(5):\n    print(i)\n\nUse while quando não sabe quantas vezes vai repetir." },
+  { amb: true, k: ["condicional", "condicionais", "if", "else", "se senao"], t: "🔀 Condicional decide o que fazer conforme uma condição.\n\nJavaScript:\nif (idade >= 18) {\n  console.log(\"Maior\");\n} else {\n  console.log(\"Menor\");\n}\n\nPython:\nif idade >= 18:\n    print(\"Maior\")\nelse:\n    print(\"Menor\")" },
+  { amb: true, k: ["array", "arrays", "lista", "listas", "vetor"], t: "📋 Array (ou lista) guarda vários valores em ordem.\n\nJavaScript:\nconst frutas = [\"maçã\", \"uva\"];\nfrutas.push(\"pera\");\nfrutas[0]; // maçã\n\nPython:\nfrutas = [\"maçã\", \"uva\"]\nfrutas.append(\"pera\")" },
+  { amb: true, k: ["objeto", "objetos", "dicionario", "dict", "json"], t: "🗂️ Objeto (JS) ou dicionário (Python) guarda dados com nome.\n\nJavaScript:\nconst pessoa = { nome: \"Ana\", idade: 20 };\npessoa.nome; // Ana\nJSON.stringify(pessoa); // vira texto\n\nPython:\npessoa = {\"nome\": \"Ana\", \"idade\": 20}" },
+  { amb: true, k: ["classe", "classes", "orientacao a objetos", "poo", "oop"], t: "🏗️ Classe é um molde para criar objetos.\n\nclass Pessoa {\n  constructor(nome) { this.nome = nome; }\n  falar() { return \"Oi, sou \" + this.nome; }\n}\nnew Pessoa(\"Ana\").falar();" },
+  { amb: false, k: ["javascript", "js"], t: "🟨 JavaScript é a linguagem da web: faz sites ficarem interativos e roda no navegador (e no servidor, com Node.js). A BACH AI é feita com ele! Comece por variáveis, funções, arrays e manipular a página (DOM)." },
+  { amb: false, k: ["python"], t: "🐍 Python é uma linguagem simples de ler, ótima para começar, automação, dados e IA. Exemplo:\n\nnome = input(\"Seu nome: \")\nprint(\"Olá,\", nome)" },
+  { amb: false, k: ["html"], t: "🧱 HTML é a estrutura da página.\n\n<!DOCTYPE html>\n<html>\n<head><title>Meu site</title></head>\n<body>\n  <h1>Olá!</h1>\n  <button id=\"b\">Clique</button>\n</body>\n</html>" },
+  { amb: true, k: ["css", "estilo", "estilizar"], t: "🎨 CSS é a aparência da página (cores, tamanhos, posição).\n\nbutton {\n  background: #7864ed;\n  color: white;\n  border-radius: 12px;\n  padding: 12px 16px;\n}" },
+  { amb: false, k: ["api", "apis", "fetch", "requisicao"], t: "🌐 API é um endereço que devolve dados para o seu programa.\n\nJavaScript:\nconst r = await fetch(\"https://api.exemplo.com/dados\");\nconst dados = await r.json();\n\nPython:\nimport requests\ndados = requests.get(url).json()\n\nÉ assim que a BACH busca o clima!" },
+  { amb: false, k: ["git", "github", "commit"], t: "🌿 Git guarda o histórico do seu código.\n\ngit init\ngit add .\ngit commit -m \"primeira versão\"\ngit push\n\nGitHub é o site onde você guarda e publica esse código (e dá para hospedar sites no GitHub Pages)." },
+  { amb: false, k: ["sql", "banco de dados", "database", "mysql"], t: "🗄️ SQL conversa com bancos de dados.\n\nSELECT nome FROM usuarios WHERE idade >= 18;\nINSERT INTO usuarios (nome, idade) VALUES ('Ana', 20);" },
+  { amb: false, k: ["recursao", "recursiva"], t: "🪞 Recursão é uma função que chama a si mesma, com uma condição de parada.\n\nfunction fatorial(n) {\n  if (n <= 1) return 1;\n  return n * fatorial(n - 1);\n}\nfatorial(5); // 120" },
+  { amb: false, k: ["algoritmo", "algoritmos", "logica de programacao"], t: "🧩 Algoritmo é uma receita de passos para resolver um problema. Dica: antes de codar, escreva os passos em português, depois traduza para código." },
+  { amb: true, k: ["bug", "bugs", "erro no codigo", "debug", "depurar", "nao funciona"], t: "🐛 Para caçar bugs:\n1) Leia a mensagem de erro (ela diz a linha).\n2) Use console.log para ver os valores.\n3) Teste uma parte de cada vez.\n4) Copie o erro e pesquise.\n\nCole o código aqui e eu leio as funções dele!" },
+  { amb: false, k: ["criar uma ia", "criar ia", "fazer uma ia", "construir uma ia", "criar inteligencia artificial", "criar um chatbot", "criar chatbot"], t: "🤖 Você já está fazendo uma — a BACH! Passos:\n1) Entrada e saída (chat).\n2) Cérebro: regras + memória que aprende.\n3) Busca de informação (pesquisa).\n4) Ler arquivos, fotos e vídeos.\n5) Evoluir: busca por contexto e raciocínio próprio.\n\nQual parte quer melhorar agora?" },
+  { amb: false, k: ["aprender a programar", "como programar", "comecar a programar", "aprender programacao", "o que e programacao", "programar"], t: "💻 Programar é dar instruções para o computador.\n\nRoteiro: 1) lógica e variáveis, 2) condições e loops, 3) funções, 4) listas e objetos, 5) um projeto pequeno (como esta IA!).\n\nPergunte: \"o que é função\", \"exemplo de loop\", \"o que é API\"..." }
 ];
 
 function responder(texto) {
   const t = " " + norm(texto) + " ";
+  const temCtxProg = /\b(programacao|programar|codigo|codigos|codar|javascript|js|python|html|css|sql|node|react|em js|em python|exemplo de|sintaxe|o que e funcao|o que e variavel|o que e loop|o que e array|o que e objeto|o que e classe)\b/.test(t);
   let melhor = null, pontos = 0;
   for (const tp of TOPICOS) {
+    if (tp.amb && !temCtxProg) continue;
     let p = 0;
     for (const k of tp.k) if (t.includes(" " + k + " ")) p += k.length > 3 ? 2 : 1;
     if (p > pontos) { pontos = p; melhor = tp; }
@@ -60,6 +64,8 @@ const PIADAS = [
 ];
 
 let saco = [], jaContou = false;
+let ultimoIdxDesc = -1;
+let ultimoIdxRuido = -1;
 
 const embaralhar = a => {
   for (let i = a.length - 1; i > 0; i--) {
@@ -96,14 +102,42 @@ function humor(texto) {
   return null;
 }
 
+function ehTeclaOuNumeroSolto(raw) {
+  const s = String(raw || "").trim();
+  const n = norm(s).replace(/\s+/g, "");
+  if (!n) return true;
+  if (/^\d+$/.test(n)) return true;
+  if (!s.includes(" ")) {
+    if (n.length <= 2) return true;
+    if (!/[aeiou]/.test(n)) return true;
+    if (/[bcdfghjklmnpqrstvwxyz]{4,}/.test(n)) return true;
+    if (/\d/.test(n) && /[a-z]/.test(n) && n.length <= 5) return true;
+  }
+  return false;
+}
+
 function desconhecido(t = "") {
-  let h = 0; for (const c of String(t)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  const a = [
-    "Não captei bem o que você quis dizer com isso 😅. Pode perguntar de outro jeito ou digitar `ajuda` para ver tudo que eu faço!",
+  const raw = String(t || "").trim();
+  if (ehTeclaOuNumeroSolto(raw)) {
+    const amostra = raw.slice(0, 20);
+    const opcoesRuido = [
+      "Parece que você mandou só uma tecla ou número solto (`" + amostra + "`). Mande uma pergunta ou digite `/ajuda`! 😊",
+      "Recebi `" + amostra + "`, mas parece digitação solta. Quer pesquisar algo, conversar ou testar `/app pomodoro`?",
+      "Não tem contexto em `" + amostra + "` — se foi um teste de teclado, tô ligada! Mande uma pergunta completa quando quiser."
+    ];
+    ultimoIdxRuido = (ultimoIdxRuido + 1) % opcoesRuido.length;
+    return opcoesRuido[ultimoIdxRuido];
+  }
+
+  const opcoes = [
+    "Não captei bem o que você quis dizer com isso 😅. Pode perguntar de outro jeito ou digitar `/ajuda` para ver tudo que eu faço!",
     "Essa ficou meio vaga pra mim! 🤔 Me diga direto o assunto (ex.: pesquise sobre..., me recomenda..., calcula..., escreve um texto...) ou me ensine com: `ensine: pergunta => resposta`.",
     "Não entendi direito essa frase 😊. Quer pesquisar algo, trocar de tema (ex.: “tema vermelho”), conversar ou pedir uma recomendação?"
   ];
-  return a[h % a.length];
+  let idx = Math.floor(Math.random() * opcoes.length);
+  if (idx === ultimoIdxDesc) idx = (idx + 1) % opcoes.length;
+  ultimoIdxDesc = idx;
+  return opcoes[idx];
 }
 
 export const Prog = { responder, humor, desconhecido };
