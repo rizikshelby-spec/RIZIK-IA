@@ -1,6 +1,7 @@
-/* BACH AI - SABER 3.2
+/* BACH AI - SABER 3.3 (Blindado)
    Leitura de textos/código/links, pesquisa inteligente com expansão de gírias (qm -> quem),
-   tratamento de desambiguação, prioridade para português e catálogo Jikan para animes. */
+   tratamento de desambiguação, prioridade para português, catálogo Jikan para animes
+   e bloqueio contra SSRF/endereços locais ou protocolos inseguros em links. */
 
 const KB_KEY = "bach_conhecimento_v2";
 
@@ -25,6 +26,26 @@ const INTENCAO_STOP = new Set((
 ).split(" "));
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+function hostPrivadoOuLocal(hostname) {
+  const h = String(hostname || "").toLowerCase().replace(/^\[|\]$/g, "");
+  if (!h || h === "localhost" || h === "::1" || h.endsWith(".local") || h.endsWith(".internal")) return true;
+  if (/^(?:127\.|10\.|0\.|169\.254\.|192\.168\.)/.test(h)) return true;
+  const m172 = h.match(/^172\.(\d{1,3})\./);
+  if (m172 && Number(m172[1]) >= 16 && Number(m172[1]) <= 31) return true;
+  return false;
+}
+
+function urlPublicaSegura(url) {
+  try {
+    const u = new URL(String(url || "").trim());
+    if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+    if (hostPrivadoOuLocal(u.hostname)) return null;
+    return u.href;
+  } catch {
+    return null;
+  }
+}
 
 function expandirGirias(t) {
   return norm(t)
@@ -52,7 +73,7 @@ function topWords(text, n = 8) {
 }
 
 function sentences(text) {
-  const t = String(text || "").replace(/\s+/g, " ");
+  const t = String(text || "").slice(0, 100000).replace(/\s+/g, " ");
   return (t.match(/[^.!?]+[.!?]+/g) || [t]).map(s => s.trim()).filter(s => s.length >= 40 && s.length <= 420);
 }
 
@@ -77,34 +98,36 @@ function summarize(text, k = 4) {
 /* ---------- Leitura de código e texto ---------- */
 
 function isCode(text) {
-  const hasKeyword = /(\bconst\b|\bfunction\b|=>|\bimport\b|\bexport\b|\breturn\b|\bdef\s+\w+\(|\bclass\s+\w+|<\/?[a-z][^>]*>)/.test(text);
-  const symbols = (text.match(/[{};=()<>]/g) || []).length / Math.max(text.length, 1);
+  const sample = String(text || "").slice(0, 40000);
+  const hasKeyword = /(\bconst\b|\bfunction\b|=>|\bimport\b|\bexport\b|\breturn\b|\bdef\s+\w+\(|\bclass\s+\w+|<\/?[a-z][^>]*>)/.test(sample);
+  const symbols = (sample.match(/[{};=()<>]/g) || []).length / Math.max(sample.length, 1);
   return hasKeyword && symbols > 0.03;
 }
 
 function analyzeCode(text) {
+  const sample = String(text || "").slice(0, 200000);
   let lang = "código";
-  if (/^\s*<(!doctype|html|head|body|div|section|main)\b/i.test(text) || /<script\b/i.test(text)) lang = "HTML";
-  else if (/\bdef\s+\w+\([^)]*\)\s*:/.test(text)) lang = "Python";
-  else if (/\b(const|let|var|function)\b|=>/.test(text)) lang = "JavaScript";
+  if (/^\s*<(!doctype|html|head|body|div|section|main)\b/i.test(sample) || /<script\b/i.test(sample)) lang = "HTML";
+  else if (/\bdef\s+\w+\([^)]*\)\s*:/.test(sample)) lang = "Python";
+  else if (/\b(const|let|var|function)\b|=>/.test(sample)) lang = "JavaScript";
 
   const funcs = new Set();
-  for (const m of text.matchAll(/function\s+([A-Za-z_$][\w$]*)/g)) funcs.add(m[1]);
-  for (const m of text.matchAll(/(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\(?[^=;(]*\)?\s*=>/g)) funcs.add(m[1]);
-  for (const m of text.matchAll(/\bdef\s+([A-Za-z_]\w*)/g)) funcs.add(m[1]);
+  for (const m of sample.matchAll(/function\s+([A-Za-z_$][\w$]*)/g)) funcs.add(m[1]);
+  for (const m of sample.matchAll(/(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\(?[^=;(]*\)?\s*=>/g)) funcs.add(m[1]);
+  for (const m of sample.matchAll(/\bdef\s+([A-Za-z_]\w*)/g)) funcs.add(m[1]);
 
-  const urls = [...new Set(text.match(/https?:\/\/[^\s"'`)<>]+/g) || [])].slice(0, 5);
-  const comment = (text.match(/\/\*([\s\S]*?)\*\//) || [])[1];
+  const urls = [...new Set(sample.match(/https?:\/\/[^\s"'`)<>]+/g) || [])].slice(0, 5);
+  const comment = (sample.match(/\/\*([\s\S]*?)\*\//) || [])[1];
 
   const feats = [];
-  if (/localStorage/.test(text)) feats.push("guarda dados no navegador (localStorage)");
-  if (/fetch\(/.test(text)) feats.push("faz requisições na internet (fetch)");
-  if (/\bexport\b/.test(text)) feats.push("exporta um módulo para outros arquivos");
-  if (/addEventListener|onclick/.test(text)) feats.push("reage a cliques e teclas");
-  if (/JSON\.parse|JSON\.stringify/.test(text)) feats.push("converte dados em JSON");
-  if (/\.test\(|\.match\(|RegExp/.test(text)) feats.push("usa expressões regulares");
+  if (/localStorage/.test(sample)) feats.push("guarda dados no navegador (localStorage)");
+  if (/fetch\(/.test(sample)) feats.push("faz requisições na internet (fetch)");
+  if (/\bexport\b/.test(sample)) feats.push("exporta um módulo para outros arquivos");
+  if (/addEventListener|onclick/.test(sample)) feats.push("reage a cliques e teclas");
+  if (/JSON\.parse|JSON\.stringify/.test(sample)) feats.push("converte dados em JSON");
+  if (/\.test\(|\.match\(|RegExp/.test(sample)) feats.push("usa expressões regulares");
 
-  let out = "📖 Li o texto. Parece " + lang + " (" + text.split(/\s+/).length + " palavras).";
+  let out = "📖 Li o texto. Parece " + lang + " (" + sample.split(/\s+/).length + " palavras).";
   if (comment) out += "\n\nDescrição no código: " + comment.replace(/\s+/g, " ").trim().slice(0, 220);
   if (funcs.size) out += "\n\nFunções que encontrei (" + funcs.size + "): " + [...funcs].slice(0, 15).join(", ") + (funcs.size > 15 ? "..." : "");
   if (feats.length) out += "\n\nO que ele faz:\n• " + feats.join("\n• ");
@@ -113,12 +136,13 @@ function analyzeCode(text) {
 }
 
 function lerTexto(text) {
-  if (isCode(text)) return analyzeCode(text);
-  const resumo = summarize(text, 4);
-  const palavras = text.trim().split(/\s+/).length;
+  const sample = String(text || "").slice(0, 200000);
+  if (isCode(sample)) return analyzeCode(sample);
+  const resumo = summarize(sample, 4);
+  const palavras = sample.trim().split(/\s+/).length;
   let out = "📖 Li o texto: " + palavras + " palavras.";
   if (resumo.length) out += "\n\nResumo:\n• " + resumo.join("\n• ");
-  const k = topWords(text);
+  const k = topWords(sample);
   if (k.length) out += "\n\nAssuntos principais: " + k.join(", ") + ".";
   return out;
 }
@@ -281,7 +305,6 @@ async function wiki(q, qk, permiteAdulto = false, ehPessoa = false) {
 
   const filtrados = out.filter(Boolean);
   if (!filtrados.length && ehPessoa && qk.length === 1) {
-    // Tenta buscar contexto bíblico/histórico caso o nome único tenha caído em desambiguação
     try {
       const d2 = await buscar(q + " biblia OR historia OR personagem");
       const r2 = d2?.query?.search?.[0];
@@ -330,15 +353,16 @@ async function web(q) {
       const u = new URL(link);
       if (u.hostname.includes("duckduckgo.com")) link = u.searchParams.get("uddg") || link;
     } catch {}
-    if (!/^https?:\/\//i.test(link) || seen.has(link) || /duckduckgo\.com/i.test(link)) continue;
+    const linkSeguro = urlPublicaSegura(link);
+    if (!linkSeguro || seen.has(linkSeguro) || /duckduckgo\.com/i.test(linkSeguro)) continue;
     const ini = ms[i].index + ms[i][0].length;
     const fim = i + 1 < ms.length ? ms[i + 1].index : txt.length;
     const titulo = limparMd(ms[i][1]);
     let snippet = limparMd(txt.slice(ini, fim)).replace(/…+|\.{3,}\s*$/g, "").trim().slice(0, 320);
     if (snippet && !/[.!?]$/.test(snippet)) snippet += ".";
     if (titulo.length < 4) continue;
-    seen.add(link);
-    out.push({ titulo, url: link, snippet });
+    seen.add(linkSeguro);
+    out.push({ titulo, url: linkSeguro, snippet });
   }
   return out;
 }
@@ -368,7 +392,9 @@ function cleanPage(t) {
 }
 
 async function readPage(link, qs) {
-  const txt = cleanPage(await get("https://r.jina.ai/" + link.url, 10000));
+  const linkSeguro = urlPublicaSegura(link?.url);
+  if (!linkSeguro) return [];
+  const txt = cleanPage(await get("https://r.jina.ai/" + linkSeguro, 10000));
   return best(paragrafos(txt), s => {
     const n = new Set(kr(s));
     const hits = [...qs].filter(w => n.has(w)).length;
@@ -378,7 +404,9 @@ async function readPage(link, qs) {
 
 /* ---------- Ler links colados ---------- */
 
-const urlsEm = t => [...new Set(String(t || "").match(/https?:\/\/[^\s"'`)<>]+/g) || [])].map(u => u.replace(/[.,;:!?]+$/, ""));
+const urlsEm = t => [...new Set(String(t || "").match(/https?:\/\/[^\s"'`)<>]+/g) || [])]
+  .map(u => urlPublicaSegura(u.replace(/[.,;:!?]+$/, "")))
+  .filter(Boolean);
 
 function rawGithub(u) {
   const m = u.match(/^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+?)(?:[?#].*)?$/);
@@ -386,10 +414,15 @@ function rawGithub(u) {
 }
 
 async function lerLink(url) {
-  const u = rawGithub(url);
+  const entradaSegura = urlPublicaSegura(url);
+  if (!entradaSegura) throw new Error("link-bloqueado");
+
+  const u = urlPublicaSegura(rawGithub(entradaSegura));
+  if (!u) throw new Error("link-bloqueado");
+
   let nome = host(u);
   try { nome = decodeURIComponent(new URL(u).pathname.split("/").filter(Boolean).pop() || nome); } catch {}
-  const raw = /raw\.githubusercontent\.com/.test(u);
+  const raw = /^https:\/\/raw\.githubusercontent\.com\//i.test(u);
   let texto = raw ? await get(u, 15000) : String(await get("https://r.jina.ai/" + u, 15000)).replace(/!\[[^\]]*\]\([^)]*\)/g, " ");
   texto = texto.trim();
   if (texto.length < 20) throw new Error("vazio");
