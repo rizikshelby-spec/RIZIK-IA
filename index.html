@@ -333,18 +333,18 @@ const [
 ] = await Promise.all([
   loadMod("brain.js", "./brain.js?v=21"),
   loadMod("saber.js", "./saber.js?v=15"),
-  loadMod("programacao.js", "./programacao.js?v=5"),
+  loadMod("programacao.js", "./programacao.js?v=6"),
   loadMod("arquivos.js", "./arquivos.js?v=6"),
-  loadMod("mente.js", "./mente.js?v=20"),
+  loadMod("mente.js", "./mente.js?v=21"),
   loadMod("fatos.js", "./fatos.js?v=8"),
-  loadMod("conversa.js", "./conversa.js?v=10"),
+  loadMod("conversa.js", "./conversa.js?v=11"),
   loadMod("dicionario.js", "./dicionario.js?v=5"),
   loadMod("historico.js", "./historico.js?v=3"),
   loadMod("base.js", "./base.js?v=10"),
   loadMod("registry.js", "./registry.js?v=11"),
   loadMod("llm.js", "./llm.js?v=4"),
   loadMod("cerebro_avancado.js", "./cerebro_avancado.js?v=5"),
-  loadMod("autocorretor.js", "./autocorretor.js?v=7"),
+  loadMod("autocorretor.js", "./autocorretor.js?v=8"),
   loadMod("revisor.js", "./revisor.js?v=3"),
   loadMod("editor_adm.js", "./editor_adm.js?v=8"),
   loadMod("erros_adm.js", "./erros_adm.js?v=2"),
@@ -585,7 +585,8 @@ function falar(texto, tipo = "bot", origem = "", forcar = false, cit = "") {
       const semCod = String(texto).replace(RE_BLOCO_RM, "").replace(/https?:\/\/\S+/g, "").trim();
       const linhas = semCod.split(/\n+/).map(l => l.trim()).filter(Boolean);
       const perg = [...linhas].reverse().find(l => /\?/.test(l)) || "";
-      RizikBrain.updateSessionState?.({ lastBotQuestion: perg.slice(-220) });
+      const ehFallbackBot = /O que foi\?|Me diga rapidinho|Qual comando ou pergunta|quer continuar nesse assunto|não ficou claro o que você quer|O que não saiu certo\?|Percebi que algo falhou/i.test(perg);
+      RizikBrain.updateSessionState?.({ lastBotQuestion: ehFallbackBot ? "" : perg.slice(-220) });
     }
   }
   if (tipo === "bot" && (lerAuto || modoAtual === "voz")) Voz.ler(texto);
@@ -1118,12 +1119,11 @@ function extrairAlvoTraducao(fonteOpcional = "") {
 const sn = t => String(t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 
 const parecePerguntaGeral = (raw, tn) => {
-  if (/\b(voce|vc|bach|bash|seu nome|sua idade|meu nome)\b/.test(tn)) return false;
+  if (/\b(voce|vc|bach|bash|seu nome|sua idade|meu nome|esqueceu|esqueci|lembra|lembro|perguntando|pergunto|respondi|respondeu|certo|errado)\b/.test(tn)) return false;
   if (/\?\s*$/.test(String(raw)) && tn.split(" ").length >= 2) return true;
   return /^(?:qual|quais|quem|como|onde|quando|porque|por que|quanto|quantos|quantas|o que|de qual|em qual|sera que|existe|existem|para que serve)\b/.test(tn) && tn.split(" ").length >= 3;
 };
-
-async function rotear(texto) {
+  async function rotear(texto) {
   const cmd = texto.toLowerCase().trim();
   const tn = sn(texto);
 
@@ -1240,7 +1240,11 @@ async function rotear(texto) {
     if (!modoCriador) { falar("🔒 O comando `/importarbase` é exclusivo de administrador.", "bot", "🔒 adm"); return; }
     falar("📥 Escolha o arquivo .json que você baixou com /basedados."); $("seletorBase").click(); return;
   }
-  if (/^\/(auditar|erros)\b/.test(cmd) || /^(auditar|ver erros|achar erros|encontrar erros)$/i.test(tn)) { rodarAuditoria(); return; }
+  if (/^\/(auditar|erros)\b/.test(cmd) ||
+      /^(?:auditar|ver|verifica\w*|mostra\w*|analis\w*|list\w*|ach\w*|encontr\w*)(?:\s+todas?)?(?:\s+as?)?(?:\s+suas?)?\s+(?:erros|falhas|bugs)(?:\s+do\s+chat)?$/i.test(tn)) {
+    rodarAuditoria();
+    return;
+  }
   if (/^(sobre|sobre a bach|versao|quem criou|sobre o app)$/i.test(tn)) { abrirSobre(); return; }
 
   if (ExecutorSandbox.detectarPedido(texto)) {
@@ -1516,7 +1520,11 @@ async function rotear(texto) {
 
   const graca = Prog.humor(texto); if (graca) { NLUNeural.registrarSucessoAposFalha(texto, "humor_jogo"); falar(graca, "bot", "😄 meu repertório"); return; }
   const prog = Prog.responder(texto); if (prog) { NLUNeural.registrarSucessoAposFalha(texto, "termux_dev"); falar(prog, "bot", "💻 programação"); return; }
-  const k = Saber.buscarConhecimento(texto); if (k) { NLUNeural.registrarSucessoAposFalha(texto, "pesquisa"); falar(k, "bot", "📚 o que aprendi"); return; }
+
+  const podeBuscarCache = Mente.pergunta(texto) || parecePerguntaGeral(texto, tn) ||
+    /\b(pesquis|explica|resum|quem foi|o que e|historia)\b/.test(tn);
+  const k = podeBuscarCache ? Saber.buscarConhecimento(texto) : null;
+  if (k) { NLUNeural.registrarSucessoAposFalha(texto, "pesquisa"); falar(k, "bot", "📚 o que aprendi"); return; }
 
   if (/^\/[a-z0-9_-]+/i.test(texto.trim())) {
     const tok = texto.trim().split(/\s+/)[0].toLowerCase();
