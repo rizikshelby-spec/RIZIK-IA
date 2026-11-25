@@ -1,9 +1,10 @@
-/* BACH AI - ARQUIVOS 2.0
-   Organiza textos em pastas, melhora nitidez de fotos/prints para OCR (modo claro e escuro)
-   e lê vídeos sem travar no celular/iOS. */
+/* BACH AI - ARQUIVOS 2.1
+   Organiza textos em pastas, melhora nitidez de fotos/prints para OCR (modo claro e escuro),
+   lê vídeos sem travar e localiza arquivos ignorando hífens/espaços no /apagar e /excluir. */
 
 const KEY = "bach_arquivos_v1";
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const normNome = t => norm(t).replace(/[-_./]+/g, " ").replace(/\s+/g, " ").trim();
 
 const load = () => { try { const a = JSON.parse(localStorage.getItem(KEY)); return Array.isArray(a) ? a : []; } catch { return []; } };
 const save = a => { try { localStorage.setItem(KEY, JSON.stringify(a.slice(-40))); } catch (e) { console.warn(e); } };
@@ -25,8 +26,12 @@ function salvar({ nome, pasta, texto = "", resumo = "", tipo = "texto" }) {
 }
 
 function achar(termo) {
-  const t = norm(termo).trim();
-  return load().find(x => norm(x.nome) === t) || load().find(x => norm(x.nome).includes(t));
+  const t = normNome(termo);
+  if (!t) return null;
+  const lista = load();
+  return lista.find(x => normNome(x.nome) === t) ||
+    lista.find(x => normNome(x.nome).includes(t)) ||
+    lista.find(x => t.includes(normNome(x.nome)));
 }
 
 function listar() {
@@ -39,7 +44,7 @@ function listar() {
     out += "\n\n📂 " + p + " (" + itens.length + ")";
     for (const a of itens) out += "\n  • " + a.nome;
   }
-  return out + "\n\nComandos: /abrir nome • /buscar palavra • /apagar nome";
+  return out + "\n\nComandos: /abrir nome • /buscar palavra • /apagar nome (ou /excluir nome)";
 }
 
 function comando(texto) {
@@ -54,11 +59,12 @@ function comando(texto) {
     return "📄 " + a.nome + " (" + a.pasta + ")\n\n" + (a.texto ? a.texto.slice(0, 1800) + (a.texto.length > 1800 ? "\n\n[...]" : "") : a.resumo);
   }
 
-  if (/^\/apagar\s*$/i.test(t)) return "Diga o nome do arquivo depois de /apagar. Ex.: /apagar main\nVeja os nomes com /arquivos";
-  m = t.match(/^\/apagar\s+(.+)$/i);
+  if (/^\/(apagar|excluir)\s*$/i.test(t)) return "Diga o nome do arquivo depois de /apagar. Ex.: /apagar pesquisa filme porno\nVeja os nomes com /arquivos";
+  m = t.match(/^\/(?:apagar|excluir)\s+(.+)$/i);
   if (m) {
-    const a = achar(m[1]);
-    if (!a) return "Não achei esse arquivo.";
+    const q = m[1].trim();
+    const a = achar(q);
+    if (!a) return "Não achei “" + q + "”. Veja os nomes exatos com `/arquivos`.";
     save(load().filter(x => x.id !== a.id));
     return "🗑️ Apaguei: " + a.nome;
   }
@@ -125,7 +131,6 @@ function prepararParaOCR(fonte, w, h) {
   }
   const ehEscura = (somaLum / Math.max(1, totalPixels)) < 125;
 
-  // Inverte prints escuros (texto claro em fundo preto -> texto preto em fundo branco) e reforça contraste
   for (let i = 0; i < d.length; i += 4) {
     let g = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
     if (ehEscura) g = 255 - g;
