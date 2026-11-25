@@ -1,25 +1,58 @@
-/* BACH AI - ARQUIVOS 2.1
+/* BACH AI - ARQUIVOS 2.2 (Blindado)
    Organiza textos em pastas, melhora nitidez de fotos/prints para OCR (modo claro e escuro),
-   lê vídeos sem travar e localiza arquivos ignorando hífens/espaços no /apagar e /excluir. */
+   lê vídeos sem travar e localiza arquivos ignorando hífens/espaços no /apagar e /excluir.
+   Segurança: evita colisão de protótipo em pastas, trata SVG como texto seguro (sem renderização ativa),
+   sanitiza nomes/pastas e limita o tamanho máximo de leitura. */
 
 const KEY = "bach_arquivos_v1";
+const PROIBIDAS = new Set(["__proto__", "constructor", "prototype"]);
+const MAX_TEXTO_BYTES = 5 * 1024 * 1024;
+const MAX_IMAGEM_BYTES = 25 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 120 * 1024 * 1024;
+
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 const normNome = t => norm(t).replace(/[-_./]+/g, " ").replace(/\s+/g, " ").trim();
 
-const load = () => { try { const a = JSON.parse(localStorage.getItem(KEY)); return Array.isArray(a) ? a : []; } catch { return []; } };
-const save = a => { try { localStorage.setItem(KEY, JSON.stringify(a.slice(-40))); } catch (e) { console.warn(e); } };
+const load = () => {
+  try {
+    const a = JSON.parse(localStorage.getItem(KEY));
+    return Array.isArray(a) ? a : [];
+  } catch {
+    return [];
+  }
+};
+const save = a => {
+  try { localStorage.setItem(KEY, JSON.stringify(a.slice(-40))); }
+  catch (e) { console.warn(e); }
+};
+
+function limparRotulo(val, fallback, maxLen = 60) {
+  const s = String(val || "").replace(/[\x00-\x1f\r\n]/g, " ").trim().slice(0, maxLen);
+  if (!s || PROIBIDAS.has(s.toLowerCase())) return fallback;
+  return s;
+}
 
 function nomeAuto(texto) {
   const c = (String(texto).match(/\/\*([\s\S]*?)\*\//) || [])[1] || texto;
   const n = c.replace(/[^\p{L}\p{N}\s]/gu, " ").trim().split(/\s+/).slice(0, 4).join("-").toLowerCase();
-  return (n || "arquivo").slice(0, 32);
+  const limpo = (n || "arquivo").slice(0, 32);
+  return PROIBIDAS.has(limpo) ? "arquivo" : limpo;
 }
 
 function salvar({ nome, pasta, texto = "", resumo = "", tipo = "texto" }) {
   const lista = load();
-  let n = nome || nomeAuto(texto), base = n, i = 2;
+  let n = limparRotulo(nome, nomeAuto(texto), 60), base = n, i = 2;
   while (lista.some(x => norm(x.nome) === norm(n))) n = base + "-" + i++;
-  const item = { id: Date.now().toString(36), nome: n, pasta: pasta || "Textos", tipo, texto: String(texto).slice(0, 16000), resumo, em: Date.now() };
+  const pastaSegura = limparRotulo(pasta, "Textos", 60);
+  const item = {
+    id: Date.now().toString(36),
+    nome: n,
+    pasta: pastaSegura,
+    tipo: limparRotulo(tipo, "texto", 20),
+    texto: String(texto).slice(0, 16000),
+    resumo: String(resumo || "").slice(0, 400),
+    em: Date.now()
+  };
   lista.push(item);
   save(lista);
   return item;
@@ -37,10 +70,15 @@ function achar(termo) {
 function listar() {
   const lista = load();
   if (!lista.length) return "📁 Você ainda não tem arquivos. Cole um texto grande ou use o botão + para anexar.";
-  const pastas = {};
-  for (const a of lista) (pastas[a.pasta] = pastas[a.pasta] || []).push(a);
+  const pastas = Object.create(null);
+  for (const a of lista) {
+    const p = limparRotulo(a?.pasta, "Textos", 60);
+    if (!pastas[p]) pastas[p] = [];
+    pastas[p].push(a);
+  }
   let out = "📁 MEUS ARQUIVOS (" + lista.length + ")";
-  for (const [p, itens] of Object.entries(pastas)) {
+  for (const p of Object.keys(pastas)) {
+    const itens = pastas[p];
     out += "\n\n📂 " + p + " (" + itens.length + ")";
     for (const a of itens) out += "\n  • " + a.nome;
   }
@@ -48,7 +86,7 @@ function listar() {
 }
 
 function comando(texto) {
-  const t = texto.trim();
+  const t = String(texto || "").trim();
   if (/^(\/arquivos|meus arquivos)$/i.test(t)) return listar();
 
   if (/^\/abrir\s*$/i.test(t)) return "Diga o nome do arquivo depois de /abrir. Ex.: /abrir main\nVeja os nomes com /arquivos";
@@ -59,7 +97,7 @@ function comando(texto) {
     return "📄 " + a.nome + " (" + a.pasta + ")\n\n" + (a.texto ? a.texto.slice(0, 1800) + (a.texto.length > 1800 ? "\n\n[...]" : "") : a.resumo);
   }
 
-  if (/^\/(apagar|excluir)\s*$/i.test(t)) return "Diga o nome do arquivo depois de /apagar. Ex.: /apagar pesquisa filme porno\nVeja os nomes com /arquivos";
+  if (/^\/(apagar|excluir)\s*$/i.test(t)) return "Diga o nome do arquivo depois de /apagar. Ex.: /apagar pesquisa filme\nVeja os nomes com /arquivos";
   m = t.match(/^\/(?:apagar|excluir)\s+(.+)$/i);
   if (m) {
     const q = m[1].trim();
@@ -189,9 +227,17 @@ function esperar(el, ev, ms) {
 async function lerMidia(file, passo = () => {}) {
   const kb = Math.max(1, Math.round(file.size / 1024));
   const ext = (file.name.split(".").pop() || "").toLowerCase();
-  const TEXTOS = ["txt", "md", "js", "html", "css", "json", "csv", "py", "xml", "log", "ts", "java", "c", "cpp", "sql", "yml", "yaml"];
+  const TEXTOS = ["txt", "md", "js", "html", "css", "json", "csv", "py", "xml", "log", "ts", "java", "c", "cpp", "sql", "yml", "yaml", "svg"];
+
+  // SVG é tratado apenas como código/texto (sem renderização visual ativa)
+  if (file.type === "image/svg+xml" || ext === "svg") {
+    if (file.size > MAX_TEXTO_BYTES) throw new Error("Arquivo SVG grande demais (limite de 5 MB).");
+    passo("📄 Lendo SVG como código-fonte...");
+    return { tipo: "texto", texto: (await file.text()).slice(0, 200000) };
+  }
 
   if (file.type.startsWith("image/")) {
+    if (file.size > MAX_IMAGEM_BYTES) throw new Error("Imagem grande demais (limite de 25 MB).");
     passo("🖼️ Carregando e tratando a nitidez da imagem...");
     const url = URL.createObjectURL(file);
     const img = new Image(); img.src = url;
@@ -222,6 +268,7 @@ async function lerMidia(file, passo = () => {}) {
   }
 
   if (file.type.startsWith("video/")) {
+    if (file.size > MAX_VIDEO_BYTES) throw new Error("Vídeo grande demais (limite de 120 MB).");
     passo("🎬 Abrindo o vídeo...");
     const url = URL.createObjectURL(file);
     const v = document.createElement("video");
@@ -269,6 +316,7 @@ async function lerMidia(file, passo = () => {}) {
   }
 
   if (file.type.startsWith("text/") || TEXTOS.includes(ext)) {
+    if (file.size > MAX_TEXTO_BYTES) throw new Error("Arquivo de texto grande demais (limite de 5 MB).");
     passo("📄 Lendo o texto do arquivo...");
     return { tipo: "texto", texto: (await file.text()).slice(0, 200000) };
   }
