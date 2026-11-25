@@ -1,7 +1,7 @@
-/* BACH AI 4.8 — MENTE 3.0
+/* BACH AI 5.0 — MENTE 3.1
    Contexto inteligente: entende "Me resume" após fotos/textos, inspeciona módulos de sites/códigos
-   colados ("entra nele e veja quantos módulos tem"), jogos, criação de apps, pastas e vocabulário. */
-import { Saber } from "./saber.js?v=13";
+   colados, jogos (sem falsos positivos em "jogar fora" / "q forca oq"), criação de apps e pastas. */
+import { Saber } from "./saber.js?v=14";
 import { KB, ERROS } from "./conhecimento.js?v=1";
 
 const BT = "\x60\x60\x60";
@@ -11,8 +11,8 @@ const sf = a => { try { localStorage.setItem(KF, JSON.stringify(a.slice(-40))); 
 const pick = a => a[Math.floor(Math.random() * a.length)];
 
 const VOCAB = {
-  oque: "o que", oq: "o que", oqe: "o que", q: "que", ke: "que", qe: "que",
-  vc: "voce", vce: "voce", vcs: "voces", voces: "voces", nois: "nos", gnt: "gente",
+  oque: "o que", oq: "o que", oqe: "o que", q: "que", ke: "que", qe: "que", qm: "quem",
+  vc: "voce", vce: "voce", vv: "voce", vcs: "voces", voces: "voces", nois: "nos", gnt: "gente",
   pq: "porque", pk: "porque", prq: "porque",
   tb: "tambem", tbm: "tambem", tmb: "tambem",
   mt: "muito", mto: "muito", mta: "muita", mts: "muitos",
@@ -24,11 +24,11 @@ const VOCAB = {
   ta: "esta", tao: "estao", to: "estou", tava: "estava", tamo: "estamos", vamo: "vamos",
   pra: "para", oara: "para", praa: "para", pro: "para o", pras: "para as", pros: "para os",
   qro: "quero", fzer: "fazer", assitir: "assistir", asist: "assistir", recomnda: "recomenda", recomeda: "recomenda",
-  cmg: "comigo", entt: "entao", msc: "musica", sla: "sei la", rlx: "relaxa", nmrl: "na moral",
+  cmg: "comigo", entt: "entao", pse: "pois e", msc: "musica", sla: "sei la", rlx: "relaxa", nmrl: "na moral",
   ngm: "ninguem", algm: "alguem", msg: "mensagem", tip: "tipo", cvs: "conversar",
   pf: "por favor", pfv: "por favor", plis: "por favor", pls: "por favor",
   n: "nao", naum: "nao", nn: "nao", s: "sim", ss: "sim", eh: "e",
-  kd: "cade", qnd: "quando", qdo: "quando", qm: "quem", cm: "como", cmo: "como",
+  kd: "cade", qnd: "quando", qdo: "quando", cm: "como", cmo: "como",
   qto: "quanto", qtos: "quantos", qtas: "quantas", ctg: "contigo",
   add: "adicionar", app: "app", apps: "app", cel: "celular", pc: "computador", net: "internet",
   zap: "whatsapp", wpp: "whatsapp", yt: "youtube", insta: "instagram", face: "facebook",
@@ -356,10 +356,17 @@ function iniciar(p) {
 
 function jogar(p, raw) {
   const j = ctx.jogo, w = p.trim();
-  const rawClean = normSimples(raw).trim();
-  if (/^(sair|parar|desistir|chega)$/.test(rawClean) || /^(sair|parar|desistir|chega)$/.test(w)) { ctx.jogo = null; return "Jogo encerrado. Quando quiser, é só dizer: jogar ..."; }
+  const rawClean = normSimples(raw).replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+  if (/^(sair|parar|desistir|chega|nao quero|nao vou jogar|cancela|cancelar)$/.test(rawClean) ||
+      /^(sair|parar|desistir|chega|nao quero)$/.test(w)) {
+    ctx.jogo = null;
+    return "Jogo encerrado. Quando quiser, é só dizer: jogar ...";
+  }
   if (/^(?:jogar\s+)?(forca|jogo da velha|velha|adivinhe(?:\s+(?:o|um)\s+numero)?|quiz)$/.test(rawClean)) {
     return iniciar(" " + rawClean + " ");
+  }
+  if (/\b(oxe|oxente|uai|pqp|crlh|mds|meu ovo|porra|merda|burr[oa])\b/.test(rawClean)) {
+    return "Se não quiser jogar agora, digite `sair` para encerrar o jogo.";
   }
   if (rawClean.split(/\s+/).length > 2) return null;
   if (j.t === "forca") {
@@ -369,26 +376,26 @@ function jogar(p, raw) {
       j.p.includes(ch) ? j.ok.push(ch) : j.er.push(ch);
     } else if (rawClean.length > 1 && /^[a-z]+$/.test(rawClean)) {
       if (rawClean === j.p) j.ok = [...j.p]; else j.er.push(rawClean.slice(0, 6) + "…");
-    } else return "Mande uma letra.";
+    } else return "Mande uma letra (ou digite `sair`).";
     if (j.p.split("").every(c => j.ok.includes(c))) { ctx.jogo = null; return "🎉 Acertou! A palavra era “" + j.p + "”."; }
     if (j.er.length >= 6) { ctx.jogo = null; return "💀 Perdeu! A palavra era “" + j.p + "”. Diga “jogar forca” para outra."; }
     return forca(j);
   }
   if (j.t === "velha") {
     const n = parseInt(rawClean, 10) - 1;
-    if (!(n >= 0 && n < 9) || j.b[n]) return "Escolha uma casa livre de 1 a 9.\n\n" + tab(j.b);
+    if (!(n >= 0 && n < 9) || j.b[n]) return "Escolha uma casa livre de 1 a 9 (ou digite `sair`).\n\n" + tab(j.b);
     j.b[n] = "X"; let r = venc(j.b);
     if (!r) { j.b[mm(j.b, "O").i] = "O"; r = venc(j.b); }
     if (r) { ctx.jogo = null; return tab(j.b) + "\n\n" + (r === "E" ? "🤝 Empate!" : r === "X" ? "🎉 Você ganhou!" : "😎 Eu ganhei!"); }
     return tab(j.b);
   }
   if (j.t === "num") {
-    const v = parseInt(rawClean, 10); if (isNaN(v)) return "Mande um número de 1 a 100.";
+    const v = parseInt(rawClean, 10); if (isNaN(v)) return "Mande um número de 1 a 100 (ou digite `sair`).";
     j.c++; if (v === j.n) { ctx.jogo = null; return "🎉 Acertou em " + j.c + " tentativa(s)!"; }
     return v < j.n ? "⬆️ Maior!" : "⬇️ Menor!";
   }
   if (j.t === "quiz") {
-    const k = "abc".indexOf(rawClean[0]); if (k < 0 || rawClean.length > 2) return "Responda com a, b ou c.";
+    const k = "abc".indexOf(rawClean[0]); if (k < 0 || rawClean.length > 2) return "Responda com a, b ou c (ou `sair`).";
     const q = QUIZ[j.i], ok = k === q[2]; if (ok) j.pts++;
     const fb = ok ? "✅ Certo!" : "❌ Errado. Era: " + q[1][q[2]];
     if (++j.i >= QUIZ.length) { ctx.jogo = null; return fb + "\n\n🏁 Fim! Você fez " + j.pts + "/" + QUIZ.length + " pontos."; }
@@ -488,7 +495,6 @@ function responder(msg) {
 
   if (ctx.jogo) { const r = jogar(w, raw); if (r) return { texto: r, origem: "🎮 jogo" }; }
 
-  // Inspeção direta de módulos de um site/código recém-carregado
   if (ctx.texto && has(p, /\b(entra nele|entra no site|quantos modulos|quais modulos|veja os modulos|lista os modulos|modulos tem)\b/)) {
     return { texto: inspecionarModulosNoCodigo(ctx.texto, ctx.nome), origem: "📦 análise de módulos" };
   }
@@ -497,8 +503,10 @@ function responder(msg) {
   const criarV = has(p, / (cria|crie|criar|faz|faca|fazer|monta|monte|gera|gere|programa|programe|constroi) /);
   if (criarV && has(p, / (jogo|jogos|app|aplicativo|tela|site|pagina|calculadora|tarefas|lista de tarefas|landing) /)) return { texto: criar(p), origem: "🛠️ criador de apps" };
 
-  const nomeJogo = w.split(" ").length <= 5 && has(p, /\b(forca|jogo da velha|velha|adivinhe|quiz)\b/) && !criarV;
-  if ((has(p, / (jogar|joguinho|jogo|brincar) /) || nomeJogo) && !criarV) return { texto: iniciar(p), origem: "🎮 jogos" };
+  const ehRejeicaoOuDuvida = has(p, / (fora|lixo|longe|nada|nem|nao|o que|qual|como|porque) /);
+  const nomeJogo = w.split(" ").length <= 4 && has(p, /\b(forca|jogo da velha|velha|adivinhe|quiz)\b/) && !criarV && !ehRejeicaoOuDuvida;
+  const querJogar = has(p, / (jogar|joguinho|brincar) /) || /^(?:vamos|bora|quero)\s+jogo$/.test(w);
+  if ((querJogar || nomeJogo) && !criarV && !ehRejeicaoOuDuvida) return { texto: iniciar(p), origem: "🎮 jogos" };
 
   if (criarV && has(p, / (ia|inteligencia artificial|chatbot|bot) /)) return { texto: (ctx.ultimo = { t: "guia" }, persist(), GUIA), origem: "🤖 guia" };
   if (has(p, /(como|onde) (comeco|comecar|faco|fazer).*(ia|chatbot)/)) return { texto: (ctx.ultimo = { t: "guia" }, persist(), GUIA), origem: "🤖 guia" };
@@ -589,7 +597,7 @@ function responder(msg) {
   return null;
 }
 
-const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo|vamos falar sobre|falar sobre o que|nao foi isso|travou foi|sabe rir|velho do ceu|conversa comigo|opa o que|oxe o que|entende o que|eu falo de|nao mandei|como assim|porque nao|eu que pergunto|consciencia|fazendo pesquisa|nao entendeu|nao entende|acertei|que humor ruim|melhore)/;
+const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo|vamos falar sobre|falar sobre o que|nao foi isso|travou foi|sabe rir|velho do ceu|conversa comigo|opa o que|oxe o que|entende o que|eu falo de|nao mandei|como assim|porque nao|eu que pergunto|consciencia|fazendo pesquisa|nao entendeu|nao entende|acertei|que humor ruim|melhore|sentiu o que|blz o que|jogar voce fora)/;
 const pergunta = t => {
   const p = prep(t);
   if (has(p, SMALL)) return false;
