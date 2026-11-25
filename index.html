@@ -354,11 +354,11 @@ const [
   loadMod("nlu_neural.js", "./nlu_neural.js?v=2")
 ]);
 
-const RizikBrain = mBrain.RizikBrain || { think: () => ({ handled: false }), learn: () => {}, remember: () => {}, recall: () => null, logTopic: () => {}, getRecentTopics: () => [], getProfile: () => ({}), getStats: () => ({ examples: 0, synonyms: 0, facts: 0, notes: 0 }), updateTone: () => ({ mood: "neutro", score: 0 }), getMood: () => ({ mood: "neutro", score: 0, humorAllowed: false }) };
+const RizikBrain = mBrain.RizikBrain || { think: () => ({ handled: false }), learn: () => {}, remember: () => {}, recall: () => null, logTopic: () => {}, getRecentTopics: () => [], getProfile: () => ({}), getStats: () => ({ examples: 0, synonyms: 0, facts: 0, notes: 0 }), updateTone: () => ({ mood: "neutro", score: 0 }), getMood: () => ({ mood: "neutro", score: 0, humorAllowed: false }), getSessionState: () => ({}), updateSessionState: () => ({}), resetSessionState: () => {} };
 const Saber = mSaber.Saber || { urlsEm: () => [], isCode: () => false, lerTexto: t => t, buscarConhecimento: () => null, summarize: () => [], pesquisaProfunda: async () => { throw new Error("saber.js indisponível"); }, lerLink: async () => { throw new Error("saber.js indisponível"); } };
 const Prog = mProg.Prog || { humor: () => null, responder: () => null, desconhecido: () => "Não entendi isso." };
 const Arquivos = mArq.Arquivos || { comando: () => null, salvar: a => ({ nome: a.nome || "arquivo", pasta: a.pasta || "Textos" }), lerMidia: async () => { throw new Error("arquivos.js indisponível"); } };
-const Mente = mMente.Mente || { jogando: () => false, responder: () => null, setTexto: () => {}, setMidia: () => {}, pasta: p => p, pergunta: () => false, tema: () => "", lembrarTema: () => {}, stats: () => ({}) };
+const Mente = mMente.Mente || { jogando: () => false, responder: () => null, setTexto: () => {}, setMidia: () => {}, pasta: p => p, pergunta: () => false, tema: () => "", lembrarTema: () => {}, limparTema: () => {}, stats: () => ({}) };
 const Fatos = mFatos.Fatos || { responder: () => null, sobreMim: () => null, sobreVoce: () => false, enumerar: () => null, resumir: () => null, total: 0 };
 const Conversa = mConv.Conversa || { responder: () => null };
 const Dic = mDic.Dic || { detectar: () => null, consultar: async () => null };
@@ -392,6 +392,7 @@ const LONGO = 700;
 const BT = String.fromCharCode(96).repeat(3);
 const RE_CERCA_ALL = new RegExp(BT, "g");
 const RE_CERCA_SPLIT = new RegExp(BT + "([\\w+-]*)[ \\t]*\\n?([\\s\\S]*?)" + BT, "g");
+const RE_BLOCO_RM = new RegExp(BT + "[\\s\\S]*?" + BT, "g");
 
 const TEMAS = {
   roxo:     { nome: "💜 Roxo",     bg:"#0d0e1a", panel:"rgba(20,22,38,.90)", panel2:"rgba(14,16,30,.96)", border:"rgba(138,118,255,.32)", accent:"#8266ff", accent2:"#e056fd", bot:"rgba(22,25,46,.78)", user:"rgba(88,58,205,.54)", orb1:"#8c6eff", orb2:"#ff4fd8", glow:"rgba(140,110,255,.65)" },
@@ -577,7 +578,15 @@ function falar(texto, tipo = "bot", origem = "", forcar = false, cit = "") {
   if (seg !== null) chat.appendChild(mk("div", "meta", (seg < 0.3 ? "⚡ Respondi na hora" : "⏱ Pensei por " + seg.toFixed(1) + " s") + (origem ? " • " + origem : "")));
   chat.scrollTop = chat.scrollHeight;
   history.push({ text: String(texto), type: tipo, ...(cit ? { cit } : {}) }); salvarHist();
-  if (tipo === "bot") ultimaOrigem = origem;
+  if (tipo === "bot") {
+    ultimaOrigem = origem;
+    if (!/^⏹|^⚠️/.test(String(texto))) {
+      const semCod = String(texto).replace(RE_BLOCO_RM, "").replace(/https?:\/\/\S+/g, "").trim();
+      const linhas = semCod.split(/\n+/).map(l => l.trim()).filter(Boolean);
+      const perg = [...linhas].reverse().find(l => /\?/.test(l)) || "";
+      RizikBrain.updateSessionState?.({ lastBotQuestion: perg.slice(-220) });
+    }
+  }
   if (tipo === "bot" && (lerAuto || modoAtual === "voz")) Voz.ler(texto);
 }
 
@@ -596,7 +605,7 @@ function criarResultado(titulo, resumo, url) {
   if (!hrefSeguro) return;
   const c = mk("article", "result"), a = mk("a", "", "Abrir fonte ↗");
   a.href = hrefSeguro; a.target = "_blank"; a.rel = "noopener noreferrer";
-  c.append(mk("h3", "", titulo)); if (resumo) c.append(mk("div", "", resumo)); c.append(a);
+  c.append(mk("h3", "", titulo)); if (resumo) c.appendChild(mk("div", "", resumo)); c.append(a);
   chat.appendChild(c); chat.scrollTop = chat.scrollHeight;
 }
 
@@ -964,6 +973,8 @@ function novaConversa() {
   Voz.parar();
   Historico.nova(); history = []; try { localStorage.removeItem(HISTORY_KEY); } catch {}
   ultimoArquivo = null; ultimaImagem = null; ultimaMidiaInfo = null; ultimoTema = null;
+  Mente.limparTema?.();
+  RizikBrain.resetSessionState?.();
   chat.innerHTML = ""; hist.classList.remove("aberto");
   falar("Nova conversa! 🧹 A anterior ficou guardada no histórico. Tudo que eu aprendi sobre você continua salvo!", "bot", "", true);
 }
@@ -971,6 +982,7 @@ function abrirConversa(id) {
   const msgs = Historico.abrir(id); if (!msgs) return;
   history = msgs.map(m => ({ text: m.text, type: m.type, ...(m.cit ? { cit: m.cit } : {}) }));
   try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch {}
+  RizikBrain.resetSessionState?.();
   chat.innerHTML = ""; restaurar(); hist.classList.remove("aberto");
 }
 function abrirHistorico(pag = 1, termo = "") {
@@ -1011,6 +1023,7 @@ function abrirHistorico(pag = 1, termo = "") {
   tudo.onclick = () => {
     if (!confirm("Apagar TODO o histórico de conversas? A memória de aprendizado não é apagada.")) return;
     Historico.limparTudo(); history = []; try { localStorage.removeItem(HISTORY_KEY); } catch {}
+    RizikBrain.resetSessionState?.();
     chat.innerHTML = ""; hist.classList.remove("aberto");
     falar("Histórico apagado. Sua memória de aprendizado continua guardada.", "bot", "", true);
   };
@@ -1059,7 +1072,7 @@ async function seguir(texto) {
   }
   if (/^(?:me\s+)?(resuma|resume|resumir|resumo|mais curto|encurta|encurte|resumindo)( isso| tudo| a resposta| esse texto| essa foto| essa imagem)?$/.test(nt)) {
     if (ultimoArquivo?.texto && /Guardei em:|Li o texto|Funções que encontrei|Texto que consegui ler|Texto visível/i.test(base)) {
-      const resp = Mente.responder("me resume");
+      const resp = Mente.responder("me resume", { alvo });
       if (resp?.texto) { falar(resp.texto, "bot", "📝 resumo do arquivo"); return true; }
     }
     falar(Fatos.resumir(base) || "Essa resposta já é curta. 🙂", "bot", "📝 resumo"); return true;
@@ -1069,7 +1082,7 @@ async function seguir(texto) {
     (/(esse|este|esses|estes|isso|aqui|codigo|codigos|texto|arquivo|foto|imagem|print|cadeia|ele|ela|nele|site).*(faz|fazem|serve|servem|explic|funciona|o que e|o que|escrito|diz|copiar|modulos)/.test(nt) ||
      /^(me\s+)?(explica|explique|explicar|o que faz|fazem o que|ele faz|para que serve|o que e isso|o que esta escrito)/.test(nt));
   if (pedeExplicarArquivo && ultimoArquivo?.texto) {
-    const resp = Mente.responder(texto);
+    const resp = Mente.responder(texto, { alvo });
     if (resp?.texto) { falar(resp.texto, "bot", "📖 leitura do arquivo"); return true; }
   }
 
@@ -1087,7 +1100,9 @@ function ctxConversa(tomInfo = { mood: "neutro", score: 0 }) {
     nome: perf.userName, cidade: perf.city, gostos: perf.likes, projetos: perf.projects,
     hora: new Date().getHours(), aprendidas: st.examples, notas: st.notes, arquivos,
     conversas: Historico.listar(1).total, modoCriador,
-    mood: tomInfo.mood, humorScore: tomInfo.score, history, ultimoTema
+    mood: tomInfo.mood, humorScore: tomInfo.score, history, ultimoTema,
+    alvo, ultimoBot: ultimoBotTexto(),
+    session: tomInfo.session || RizikBrain.getSessionState?.()
   };
 }
 
@@ -1287,17 +1302,17 @@ async function rotear(texto) {
   }
 
   if (Mente.jogando()) {
-    const mtJogo = Mente.responder(texto);
+    const mtJogo = Mente.responder(texto, { alvo });
     if (mtJogo) { falar(mtJogo.texto, "bot", mtJogo.origem || "🎮 jogo"); return; }
   }
 
   const arq = Arquivos.comando(texto); if (arq) { falar(arq, "bot", "📁 seus arquivos"); return; }
   if (/^\/(pastas?|mover|palavras?)\b/i.test(texto)) {
-    const mtCmd = Mente.responder(texto);
+    const mtCmd = Mente.responder(texto, { alvo });
     if (mtCmd) { falar(mtCmd.texto, "bot", mtCmd.origem); return; }
   }
 
-  const dept = SkillRouter.handle(texto, { hasAI: false, history, mode: modoAtual, mood: tomInfo.mood });
+  const dept = SkillRouter.handle(texto, { hasAI: false, history, mode: modoAtual, mood: tomInfo.mood, modoCriador });
   if (dept) {
     NLUNeural.registrarSucessoAposFalha(texto, /^\/?app|cria/i.test(texto) ? "criar_app" : /^\/?termux|terminal/i.test(texto) ? "termux_dev" : "utilidades");
     falar(dept.texto, "bot", dept.origem);
@@ -1423,12 +1438,12 @@ async function rotear(texto) {
   }
   if (modoAtual === "documentos") {
     if (!ultimoArquivo) { falar("📄 Modo Documentos ativo: cole um texto longo, um link ou anexe um arquivo pelo +."); return; }
-    const mtDoc = Mente.responder(texto);
+    const mtDoc = Mente.responder(texto, { alvo });
     falar(mtDoc?.texto || Saber.lerTexto(ultimoArquivo.texto), "bot", "📄 documentos"); return;
   }
 
   if (/\b(jogar|jogo da velha|jogo da forca|forca|adivinhe o numero)\b/i.test(tn) && !/\b(crie|criar|faca|fazer|programe|explique|o que e|fora|lixo|oq|nao)\b/i.test(tn)) {
-    const mtJ = Mente.responder(texto);
+    const mtJ = Mente.responder(texto, { alvo });
     if (mtJ?.texto) { NLUNeural.registrarSucessoAposFalha(texto, "humor_jogo"); falar(mtJ.texto, "bot", mtJ.origem || "🎮 jogos"); return; }
   }
   if (/^\s*(?:quais\s+(?:sao\s+)?(?:as\s+)?)?(?:ultimas\s+)?noticias(?:\s+(?:do|de)\s+(?:brasil|mundo|hoje))?\s*\??$/i.test(tn)) {
@@ -1437,6 +1452,7 @@ async function rotear(texto) {
 
   const av = await CerebroAvancado.responder(texto, {
     ultimoArquivo, ultimoTema, ultimaMidiaInfo, ultimoBot: ultimoBotTexto(),
+    alvo, session: tomInfo.session || RizikBrain.getSessionState?.(),
     modoCriador, nome: RizikBrain.recall("userName"),
     history, mood: tomInfo.mood, humorScore: tomInfo.score
   });
@@ -1447,7 +1463,7 @@ async function rotear(texto) {
       return;
     }
     if (av.usarMenteTexto && ultimoArquivo?.texto) {
-      const mtTex = Mente.responder(texto) || { texto: Saber.lerTexto(ultimoArquivo.texto), origem: "📖 leitura do arquivo" };
+      const mtTex = Mente.responder(texto, { alvo }) || { texto: Saber.lerTexto(ultimoArquivo.texto), origem: "📖 leitura do arquivo" };
       falar(mtTex.texto, "bot", mtTex.origem || "📖 leitura do arquivo");
       return;
     }
@@ -1488,7 +1504,7 @@ async function rotear(texto) {
     return;
   }
 
-  const mt = Mente.responder(texto);
+  const mt = Mente.responder(texto, { alvo });
   if (mt) {
     NLUNeural.registrarSucessoAposFalha(texto, mt.pesquisa ? "pesquisa" : "termux_dev");
     if (mt.noticias) return noticias(mt.q);
@@ -1533,7 +1549,7 @@ async function rotear(texto) {
   if (dec) {
     if (dec.pesquisar) return pesquisaProfunda(dec.pesquisar, true, false);
     if (dec.criarApp) {
-      const appRes = SkillRouter.handle("/app " + dec.criarApp, { hasAI: false, history, mode: modoAtual, mood: tomInfo.mood });
+      const appRes = SkillRouter.handle("/app " + dec.criarApp, { hasAI: false, history, mode: modoAtual, mood: tomInfo.mood, modoCriador });
       if (appRes) {
         falar(appRes.texto, "bot", "🧬 rede neural (" + Math.round(dec.confidence * 100) + "%)");
         if (appRes.previewHtml) {
@@ -1549,7 +1565,7 @@ async function rotear(texto) {
     }
   }
 
-  const desc = Prog.desconhecido(texto);
+  const desc = Prog.desconhecido(texto, ctxConversa(tomInfo));
   RizikBrain.setPendingError?.(texto, desc);
   NLUNeural.marcarFalha(texto);
   registrarErroPublico("nao-entendeu", texto, desc, "nenhum módulo reconheceu");
