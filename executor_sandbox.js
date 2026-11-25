@@ -1,7 +1,14 @@
-/* BACH AI 4.8 — Executor Seguro de Scripts & Preview de Apps (Sandbox)
+/* BACH AI 5.1 — Executor Seguro de Scripts & Preview de Apps (Sandbox Blindado)
  * Executa código JavaScript em iframe isolado (sandbox="allow-scripts", sem acesso aos dados da BACH)
- * e renderiza aplicativos HTML/CSS/JS ao vivo dentro do chat e em tela cheia isolada.
+ * com proteção contra quebra de tag </script>, verificação de origem postMessage,
+ * limite anti-DoS de logs e CSP isolada bloqueando rede externa.
  */
+
+const MAX_CODE_CHARS = 150000;
+const MAX_LOGS = 120;
+const MAX_LOG_LEN = 1000;
+const CSP_PREVIEW = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; media-src data: blob:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none';">`;
+const CSP_JS = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; connect-src 'none'; base-uri 'none'; object-src 'none';">`;
 
 function extrairCodigoDoTexto(raw) {
   const s = String(raw || "").trim();
@@ -27,9 +34,28 @@ function pareceBashOuPython(codigo) {
   return null;
 }
 
+function prepararHtmlPreview(html) {
+  const limpo = String(html || "")
+    .slice(0, MAX_CODE_CHARS)
+    .replace(/<meta[^>]+http-equiv\s*=\s*["']?(?:Content-Security-Policy|refresh)["']?[^>]*>/gi, "");
+
+  if (/<head\b[^>]*>/i.test(limpo)) {
+    return limpo.replace(/<head\b[^>]*>/i, m => m + "\n" + CSP_PREVIEW);
+  }
+  if (/<html\b[^>]*>/i.test(limpo)) {
+    return limpo.replace(/<html\b[^>]*>/i, m => m + "\n<head>" + CSP_PREVIEW + "</head>");
+  }
+  return "<!DOCTYPE html><html><head><meta charset=\"UTF-8\">" + CSP_PREVIEW + "</head><body>" + limpo + "</body></html>";
+}
+
 function executarJS(codigo, timeoutMs = 4000) {
+  const src = String(codigo || "");
+  if (src.length > MAX_CODE_CHARS) {
+    return Promise.resolve({ ok: false, logs: [], erro: "Código grande demais (limite de 150 KB)." });
+  }
+
   return new Promise(resolve => {
-    const id = "sb_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const id = "sb_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
     const frame = document.createElement("iframe");
     frame.setAttribute("sandbox", "allow-scripts");
     frame.style.display = "none";
@@ -44,9 +70,14 @@ function executarJS(codigo, timeoutMs = 4000) {
     };
 
     const onMsg = ev => {
+      if (ev.source !== frame.contentWindow) return;
       if (!ev.data || ev.data.id !== id) return;
       if (ev.data.tipo === "log") {
-        logs.push(ev.data.txt);
+        if (logs.length < MAX_LOGS) {
+          logs.push(String(ev.data.txt || "").slice(0, MAX_LOG_LEN));
+        } else if (logs.length === MAX_LOGS) {
+          logs.push("... [limite de " + MAX_LOGS + " linhas de log atingido]");
+        }
       } else if (ev.data.tipo === "fim") {
         if (terminado) return;
         terminado = true;
@@ -69,32 +100,39 @@ function executarJS(codigo, timeoutMs = 4000) {
 
     window.addEventListener("message", onMsg);
 
-    const safeCode = JSON.stringify(String(codigo || ""));
-    frame.srcdoc = `<!DOCTYPE html><html><script>
-const ID = ${JSON.stringify(id)};
+    const safeCode = JSON.stringify(src).replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
+    const safeId = JSON.stringify(id).replace(/</g, "\\u003c");
+    frame.srcdoc = `<!DOCTYPE html><html><head>${CSP_JS}</head><body><script>
+const ID = ${safeId};
+let logCount = 0;
 const fmt = v => {
-  if (typeof v === "string") return v;
-  try { return JSON.stringify(v); } catch { return String(v); }
+  if (typeof v === "string") return v.slice(0, ${MAX_LOG_LEN});
+  try { return JSON.stringify(v).slice(0, ${MAX_LOG_LEN}); } catch { return String(v).slice(0, ${MAX_LOG_LEN}); }
 };
 const enviar = (tipo, dados) => parent.postMessage(Object.assign({ id: ID, tipo }, dados), "*");
-console.log = (...a) => enviar("log", { txt: a.map(fmt).join(" ") });
-console.warn = (...a) => enviar("log", { txt: "⚠️ " + a.map(fmt).join(" ") });
-console.error = (...a) => enviar("log", { txt: "❌ " + a.map(fmt).join(" ") });
+const emitirLog = prefixo => (...a) => {
+  if (logCount > ${MAX_LOGS}) return;
+  logCount++;
+  enviar("log", { txt: prefixo + a.map(fmt).join(" ") });
+};
+console.log = emitirLog("");
+console.warn = emitirLog("⚠️ ");
+console.error = emitirLog("❌ ");
 const t0 = performance.now();
 try {
   const fn = new Function(${safeCode});
   const res = fn();
   enviar("fim", { retorno: res === undefined ? null : fmt(res), ms: Math.round(performance.now() - t0) });
 } catch (e) {
-  enviar("erro", { erro: (e && e.name ? e.name + ": " : "") + (e && e.message ? e.message : String(e)) });
+  enviar("erro", { erro: ((e && e.name ? e.name + ": " : "") + (e && e.message ? e.message : String(e))).slice(0, 400) });
 }
-<\/script></html>`;
+<\/script></body></html>`;
 
     document.body.appendChild(frame);
   });
 }
 
-function abrirTelaCheiaSegura(html, titulo) {
+function abrirTelaCheiaSegura(htmlSeguro, titulo) {
   const back = document.createElement("div");
   back.style.cssText = "position:fixed;inset:0;z-index:99;background:rgba(8,9,18,.94);display:flex;flex-direction:column;padding:10px;gap:8px";
 
@@ -102,7 +140,7 @@ function abrirTelaCheiaSegura(html, titulo) {
   bar.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:8px;color:#fff;font-size:14px;font-weight:bold";
 
   const span = document.createElement("span");
-  span.textContent = titulo;
+  span.textContent = String(titulo || "Preview").slice(0, 80);
 
   const btnFechar = document.createElement("button");
   btnFechar.textContent = "✕ Fechar";
@@ -113,14 +151,16 @@ function abrirTelaCheiaSegura(html, titulo) {
 
   const iframe = document.createElement("iframe");
   iframe.setAttribute("sandbox", "allow-scripts allow-forms");
+  iframe.setAttribute("referrerpolicy", "no-referrer");
   iframe.style.cssText = "flex:1;width:100%;border:1px solid rgba(138,118,255,.35);border-radius:12px;background:#0e1020";
-  iframe.srcdoc = html;
+  iframe.srcdoc = htmlSeguro;
 
   back.append(bar, iframe);
   document.body.appendChild(back);
 }
 
 function criarCardPreview(html, titulo = "▶️ Preview ao vivo (Sandbox)") {
+  const htmlSeguro = prepararHtmlPreview(html);
   const wrap = document.createElement("div");
   wrap.className = "cartao";
   wrap.style.width = "100%";
@@ -128,7 +168,7 @@ function criarCardPreview(html, titulo = "▶️ Preview ao vivo (Sandbox)") {
   const top = document.createElement("div");
   top.className = "topo";
   const span = document.createElement("span");
-  span.textContent = titulo;
+  span.textContent = String(titulo || "Preview").slice(0, 80);
 
   const btnRecarregar = document.createElement("button");
   btnRecarregar.textContent = "🔄 Reiniciar";
@@ -139,15 +179,16 @@ function criarCardPreview(html, titulo = "▶️ Preview ao vivo (Sandbox)") {
 
   const iframe = document.createElement("iframe");
   iframe.setAttribute("sandbox", "allow-scripts allow-forms");
+  iframe.setAttribute("referrerpolicy", "no-referrer");
   iframe.style.width = "100%";
   iframe.style.height = "360px";
   iframe.style.border = "0";
   iframe.style.background = "#0e1020";
   iframe.style.display = "block";
-  iframe.srcdoc = html;
+  iframe.srcdoc = htmlSeguro;
 
-  btnRecarregar.onclick = () => { iframe.srcdoc = html; };
-  btnTela.onclick = () => abrirTelaCheiaSegura(html, titulo);
+  btnRecarregar.onclick = () => { iframe.srcdoc = htmlSeguro; };
+  btnTela.onclick = () => abrirTelaCheiaSegura(htmlSeguro, titulo);
 
   wrap.append(top, iframe);
   return wrap;
@@ -175,6 +216,12 @@ async function executar(raw, ctx = {}) {
         "• `/executar console.log(2 + 2)` — roda JavaScript isolado\n" +
         "• `/preview <h1>Oi!</h1>` — abre o app HTML/CSS/JS na tela\n" +
         "• Ou peça um app (ex.: `/app pomodoro`) e eu já abro funcionando!"
+    };
+  }
+
+  if (codigo.length > MAX_CODE_CHARS) {
+    return {
+      texto: "⚠️ Esse código passa do limite seguro de 150 KB para execução no sandbox."
     };
   }
 
