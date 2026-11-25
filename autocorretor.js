@@ -1,20 +1,38 @@
-/* BACH AI 5.1 — AUTOCORRETOR REAL, TOM ADAPTATIVO & APRENDIZADO CONTÍNUO
+/* BACH AI 5.1 — AUTOCORRETOR REAL BLINDADO, TOM ADAPTATIVO & APRENDIZADO CONTÍNUO
    1) Respeita o tom do usuário e usa a mensagem citada (↩ Responder) quando marcada.
    2) Pula reações curtas/xingamentos e palavras soltas ("erro", "errou") para achar a pergunta real.
-   3) Aprende com correções (*), explicações pós-erro e grava na Central ADM. */
+   3) Aprende com correções (*), explicações pós-erro e grava na Central ADM.
+   Segurança: alinha import erros_adm.js?v=2, mascara segredos/tokens no fallback e antes de salvar
+   correções, e limita entradas antes das expressões regulares. */
 
 import { RizikBrain } from "./brain.js?v=20";
 
 let errosAdmMod = null;
-import("./erros_adm.js?v=1").then(m => { errosAdmMod = m?.ErrosADM || null; }).catch(() => {});
+import("./erros_adm.js?v=2").then(m => { errosAdmMod = m?.ErrosADM || null; }).catch(() => {});
 
 const K_CORR = "bach_autocorrecoes_v1";
 const K_FAIL = "bach_failures_v1";
 
-const giro = {};
+const giro = Object.create(null);
 const girar = (k, arr) => { giro[k] = ((giro[k] ?? -1) + 1) % arr.length; return arr[giro[k]]; };
 
-const norm = t => String(t || "").toLowerCase().normalize("NFD")
+function redigirSegredos(texto) {
+  let s = String(texto || "");
+  s = s.replace(/(\/(?:adm|admsenha|ghconfig|chave)\b)[^\n]*/gi, "$1 [OCULTO]");
+  s = s.replace(/@rizik2442/gi, "[ADM]");
+  s = s.replace(/\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{12,}\b/g, "[TOKEN_GH]");
+  s = s.replace(/\bgithub_pat_[A-Za-z0-9_]{20,}\b/g, "[TOKEN_GH]");
+  s = s.replace(/\b(?:sk-[A-Za-z0-9_-]{16,}|AIza[0-9A-Za-z\-_]{20,})\b/g, "[CHAVE_API]");
+  s = s.replace(/\bBearer\s+[A-Za-z0-9._\-]{12,}/gi, "Bearer [OCULTO]");
+  return s;
+}
+
+function ehEntradaSensivel(texto) {
+  const s = String(texto || "").trim();
+  return /^\/(?:adm|admsenha|ghconfig|chave)\b/i.test(s) || /@rizik2442/i.test(s);
+}
+
+const norm = t => String(t || "").slice(0, 600).toLowerCase().normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "")
   .replace(/\bqm\b/g, "quem")
   .replace(/\b(vc|vce|vv|oc|oce)\b/g, "voce")
@@ -33,20 +51,22 @@ const norm = t => String(t || "").toLowerCase().normalize("NFD")
   .replace(/\s+/g, " ")
   .trim();
 
-const reduzirRepetidas = t => String(t || "").replace(/([a-zA-ZÀ-ÿ])\1{2,}/g, "$1");
+const reduzirRepetidas = t => String(t || "").slice(0, 600).replace(/([a-zA-ZÀ-ÿ])\1{2,}/g, "$1");
 
 const RE_RECLAMACAO = /^(?:erro|errou)$|\b(voce errou|vc errou|vc erro|voce erro|errou|e errou ainda|para de errar|esses erros|nesses erros|nao foi isso|nao era isso|fugiu do assunto|saiu do assunto|mudou de assunto|nada a ver|nada aver|nada haver|nao entende|nao entendeu|nunca entende|nao capta|respondeu errado|falou errado|disse errado|ta errado|esta errado|nao mandei pesquisar|nao mandei vc falar|nao pedi isso|nem disse isso|texto do nada|isso ta errado|fazendo pesquisa|fazer pesquisa agora|para de pesquisar|so pesquisa|o que (?:voce )?nao entendeu|senha bosta|chatao|pqp bach|o droga)\b/;
 
 const RE_REACAO_RUIDO = /^(?:erro|errou|exatamente|oush+|oxe+|oxente|ue+|uai+|eita+|vixi+|vish+|ave+|nossa+|caramba+|aff+|mds+|pqp|crlh|vsf|kct|porra|merda|burr[oa](?:\s+ate\s+d\+?)?|idiota|inutil|meu deus|o deus+|meu ovo|meu obo|aham|uhum|ok|okay|claro|dnv isso|de novo isso|se vc diz ne|so segue a cvs|viu entende nada|combinado oq|o que|oque|nao oush|ruim de vc|reacao ruim de vc|sentiu o que|nao quero|so foca em melhorar|pois e entao nao fala bosta|mas eu marquei a palavra|larga de ser burra)$/;
 
 function ehReclamacao(texto) {
-  const t = norm(reduzirRepetidas(texto));
+  const s = String(texto || "");
+  if (!s || s.length > 300) return false;
+  const t = norm(reduzirRepetidas(s));
   if (!t || t.split(" ").length > 16) return false;
   return RE_RECLAMACAO.test(t);
 }
 
 function ehRisada(t) {
-  const s = t.replace(/\s+/g, "");
+  const s = String(t || "").slice(0, 120).replace(/\s+/g, "");
   return /(?:[ai]*k{3,}[ais]*|h[aei]+h[aei]+|r+s+r+s+|(?:k+s+){2,}|(?:s+k+){2,}|(?:a+k+){2,}|(?:h+a+){2,})/i.test(s);
 }
 
@@ -69,20 +89,22 @@ function usuarioEstaIrritadoOuSerio(history = [], textoAtual = "") {
 }
 
 function registrarFalhaPublica({ tipo = "nao-entendeu", entrada = "", resposta = "", motivo = "" }) {
+  if (ehEntradaSensivel(entrada)) return;
   if (errosAdmMod?.registrar) {
     errosAdmMod.registrar({ tipo, entrada, resposta, motivo });
     return;
   }
   try {
     const K = "bach_adm_erros_v1";
-    const arr = JSON.parse(localStorage.getItem(K) || "[]");
+    const parsed = JSON.parse(localStorage.getItem(K) || "[]");
+    const arr = Array.isArray(parsed) ? parsed : [];
     arr.push({
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       at: Date.now(),
       tipo: String(tipo).slice(0, 40),
-      entrada: String(entrada || "").slice(0, 300),
-      resposta: String(resposta || "").slice(0, 240),
-      motivo: String(motivo || "").slice(0, 140)
+      entrada: redigirSegredos(entrada).slice(0, 300),
+      resposta: redigirSegredos(resposta).slice(0, 240),
+      motivo: redigirSegredos(motivo).slice(0, 140)
     });
     localStorage.setItem(K, JSON.stringify(arr.slice(-250)));
   } catch {}
@@ -90,7 +112,7 @@ function registrarFalhaPublica({ tipo = "nao-entendeu", entrada = "", resposta =
 
 function tratarExclamacao(texto, history = []) {
   const raw = String(texto || "").trim();
-  if (!raw) return null;
+  if (!raw || raw.length > 260) return null;
 
   const serioOuBravo = usuarioEstaIrritadoOuSerio(history, raw);
 
@@ -144,26 +166,32 @@ function tratarExclamacao(texto, history = []) {
 }
 
 function registrarCorrecao(pergunta, motivo, acao) {
+  if (ehEntradaSensivel(pergunta)) return;
+  const pergSegura = redigirSegredos(pergunta).slice(0, 120);
+  const motSeguro = redigirSegredos(motivo).slice(0, 80);
+  const acaoSegura = redigirSegredos(acao).slice(0, 80);
   try {
-    const lista = JSON.parse(localStorage.getItem(K_CORR) || "[]");
+    const parsed = JSON.parse(localStorage.getItem(K_CORR) || "[]");
+    const lista = Array.isArray(parsed) ? parsed : [];
     lista.push({
       at: Date.now(),
-      pergunta: String(pergunta || "").slice(0, 120),
-      motivo: String(motivo || "").slice(0, 80),
-      acao: String(acao || "").slice(0, 80)
+      pergunta: pergSegura,
+      motivo: motSeguro,
+      acao: acaoSegura
     });
     localStorage.setItem(K_CORR, JSON.stringify(lista.slice(-30)));
   } catch {}
   registrarFalhaPublica({
     tipo: "autocorrecao",
-    entrada: pergunta,
-    motivo: motivo + " → " + acao
+    entrada: pergSegura,
+    motivo: motSeguro + " → " + acaoSegura
   });
 }
 
 function encontrarAlvoMarcado(history, textoMarcado) {
   if (!textoMarcado || !Array.isArray(history)) return null;
   const trecho = String(textoMarcado).trim().slice(0, 90);
+  if (!trecho) return null;
   for (let i = history.length - 1; i >= 0; i--) {
     const m = history[i];
     if (m && m.type !== "user" && m.text && String(m.text).includes(trecho)) {
@@ -211,7 +239,7 @@ function encontrarPerguntaAnterior(history) {
 
 function processarSeguimentoDeCorrecao(texto, history = []) {
   const raw = String(texto || "").trim();
-  if (!raw) return null;
+  if (!raw || ehEntradaSensivel(raw)) return null;
 
   if (/\*$/.test(raw) && raw.length <= 60) {
     const limpoAst = raw.replace(/\*+$/, "").trim();
