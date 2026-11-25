@@ -1,0 +1,370 @@
+[
+  [
+    "oi",
+    "saudacao"
+  ],
+  [
+    "ola",
+    "saudacao"
+  ],
+  [
+    "bom dia",
+    "saudacao"
+  ],
+  [
+    "boa tarde",
+    "saudacao"
+  ],
+  [
+    "boa noite",
+    "saudacao"
+  ],
+  [
+    "e ai tudo bem",
+    "saudacao"
+  ],
+  [
+    "aqui ta tudo bem",
+    "saudacao"
+  ],
+  [
+    "to bem e vc",
+    "saudacao"
+  ],
+  [
+    "como voce esta",
+    "saudacao"
+  ],
+  [
+    "oie bach",
+    "saudacao"
+  ],
+  [
+    "o que voce sabe fazer",
+    "habilidades"
+  ],
+  [
+    "no oq vc sabe",
+    "habilidades"
+  ],
+  [
+    "no oq vc sabe fazer",
+    "habilidades"
+  ],
+  [
+    "me fala oq vc entende",
+    "habilidades"
+  ],
+  [
+    "do que voce entende",
+    "habilidades"
+  ],
+  [
+    "para que voce serve",
+    "habilidades"
+  ],
+  [
+    "quais sao suas funcoes",
+    "habilidades"
+  ],
+  [
+    "vc auto corrige",
+    "habilidades"
+  ],
+  [
+    "como funciona sua autocorrecao",
+    "habilidades"
+  ],
+  [
+    "pesquise sobre buraco negro",
+    "pesquisa"
+  ],
+  [
+    "pesquisa como melhorar uma ia sozinha",
+    "pesquisa"
+  ],
+  [
+    "quem foi adao e eva",
+    "pesquisa"
+  ],
+  [
+    "qm foi eva",
+    "pesquisa"
+  ],
+  [
+    "qm foi adam",
+    "pesquisa"
+  ],
+  [
+    "o que e fotossintese",
+    "pesquisa"
+  ],
+  [
+    "me fala do sol",
+    "pesquisa"
+  ],
+  [
+    "qual a distancia da terra ate marte",
+    "pesquisa"
+  ],
+  [
+    "historia da segunda guerra",
+    "pesquisa"
+  ],
+  [
+    "quem inventou o aviao",
+    "pesquisa"
+  ],
+  [
+    "oq eu queria era para vc pesquisar",
+    "pesquisa"
+  ],
+  [
+    "cria um app de pomodoro",
+    "criar_app"
+  ],
+  [
+    "faz um aplicativo de notas",
+    "criar_app"
+  ],
+  [
+    "crie um jogo da cobrinha",
+    "criar_app"
+  ],
+  [
+    "cria uma calculadora html",
+    "criar_app"
+  ],
+  [
+    "abre meu painel de gastos",
+    "criar_app"
+  ],
+  [
+    "quero criar um app",
+    "criar_app"
+  ],
+  [
+    "como usar termux",
+    "termux_dev"
+  ],
+  [
+    "instalar python no termux",
+    "termux_dev"
+  ],
+  [
+    "abre terminal do termux aqui",
+    "termux_dev"
+  ],
+  [
+    "abre o terminal",
+    "termux_dev"
+  ],
+  [
+    "como criar script sh",
+    "termux_dev"
+  ],
+  [
+    "o que e uma funcao em javascript",
+    "termux_dev"
+  ],
+  [
+    "me ajuda a programar em python",
+    "termux_dev"
+  ],
+  [
+    "revisar esse codigo js",
+    "termux_dev"
+  ],
+  [
+    "voce errou",
+    "reclamacao"
+  ],
+  [
+    "respondeu errado",
+    "reclamacao"
+  ],
+  [
+    "nada a ver isso",
+    "reclamacao"
+  ],
+  [
+    "voce nao entende nada",
+    "reclamacao"
+  ],
+  [
+    "nunca entende nada",
+    "reclamacao"
+  ],
+  [
+    "vc e burro",
+    "reclamacao"
+  ],
+  [
+    "para de errar",
+    "reclamacao"
+  ],
+  [
+    "pse entt nao fala bosta",
+    "reclamacao"
+  ],
+  [
+    "pqp que erro",
+    "reclamacao"
+  ],
+  [
+    "so foca em melhorar",
+    "reclamacao"
+  ],
+  [
+    "conta uma piada",
+    "humor_jogo"
+  ],
+  [
+    "vamos jogar forca",
+    "humor_jogo"
+  ],
+  [
+    "jogar jogo da velha",
+    "humor_jogo"
+  ],
+  [
+    "quero jogar quiz",
+    "humor_jogo"
+  ],
+  [
+    "me manda uma charada",
+    "humor_jogo"
+  ],
+  [
+    "me faz rir",
+    "humor_jogo"
+  ],
+  [
+    "gera uma senha forte",
+    "utilidades"
+  ],
+  [
+    "manda um cpf aleatorio de teste",
+    "utilidades"
+  ],
+  [
+    "joga um dado d20",
+    "utilidades"
+  ],
+  [
+    "cara ou coroa",
+    "utilidades"
+  ],
+  [
+    "quanto e 15 por cento de 200",
+    "utilidades"
+  ],
+  [
+    "converter 10 km para metros",
+    "utilidades"
+  ],
+  [
+    "como esta o clima hoje",
+    "utilidades"
+  ],
+  [
+    "previsao do tempo em sao paulo",
+    "utilidades"
+  ],
+  [
+    "traduz isso para portugues",
+    "traducao_texto"
+  ],
+  [
+    "como se diz obrigado em japones",
+    "traducao_texto"
+  ],
+  [
+    "o que significa efemero",
+    "traducao_texto"
+  ],
+  [
+    "sinonimo de feliz",
+    "traducao_texto"
+  ],
+  [
+    "revisa esse texto de portugues",
+    "traducao_texto"
+  ],
+  [
+    "separe as silabas de computador",
+    "traducao_texto"
+  ],
+  [
+    "me recomenda filmes de acao",
+    "recomendacao"
+  ],
+  [
+    "indica animes bons",
+    "recomendacao"
+  ],
+  [
+    "recomenda musicas de sertanejo",
+    "recomendacao"
+  ],
+  [
+    "quais series boas para assistir",
+    "recomendacao"
+  ],
+  [
+    "meu nome e rizik",
+    "memoria_eu"
+  ],
+  [
+    "qual e meu nome",
+    "memoria_eu"
+  ],
+  [
+    "o que voce lembra de mim",
+    "memoria_eu"
+  ],
+  [
+    "do que nos falamos desde o inicio",
+    "memoria_eu"
+  ],
+  [
+    "eu gosto de programacao",
+    "memoria_eu"
+  ],
+  [
+    "lembra do comeco da conversa",
+    "memoria_eu"
+  ],
+  [
+    "muito obrigado pela ajuda",
+    "conversa_geral"
+  ],
+  [
+    "tchau ate mais",
+    "conversa_geral"
+  ],
+  [
+    "eu so te respondi",
+    "conversa_geral"
+  ],
+  [
+    "so segue a conversa",
+    "conversa_geral"
+  ],
+  [
+    "nao quero jogar agora",
+    "conversa_geral"
+  ],
+  [
+    "me conta uma curiosidade",
+    "conversa_geral"
+  ],
+  [
+    "entre essas duas qual e a melhor",
+    "conversa_geral"
+  ],
+  [
+    "pode parar o timer",
+    "conversa_geral"
+  ]
+]
