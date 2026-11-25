@@ -1,7 +1,6 @@
 /* BACH AI 5.2 - CÉREBRO AVANÇADO BLINDADO (Com Consciência de Citações e Meta-Diálogo)
-   NLU natural, tratamento direto de mensagens citadas (ctx.alvo), meta-diálogo humano
-   (sem empurrar comandos quando o usuário quer só conversar), comparação de sites,
-   controle de apps criados, tom adaptativo, temas, senhas, recomendações e escrita. */
+   NLU natural, tratamento direto de mensagens citadas (ctx.alvo), meta-diálogo humano,
+   comparação de sites, controle de apps criados, tom adaptativo, temas, senhas, recomendações e escrita. */
 import { AutoGuard } from "./autoguard.js?v=2";
 
 const norm = t => String(t || "").slice(0, 1200).toLowerCase().normalize("NFD")
@@ -35,7 +34,7 @@ const girar = (k, arr) => { giro[k] = ((giro[k] ?? -1) + 1) % arr.length; return
 function semRepetir(k, arr, ctx = {}) {
   const ultimasBot = (Array.isArray(ctx.history) ? ctx.history : [])
     .filter(m => m && m.type !== "user" && m.text)
-    .slice(-4)
+    .slice(-14)
     .map(m => String(m.text).trim());
   for (let i = 0; i < arr.length; i++) {
     const cand = girar(k, arr);
@@ -392,7 +391,6 @@ function detectarGeneroMusica(t) {
   if (/eletronica|dj|edm/.test(t)) return ["eletronica", "Eletrônica"];
   return null;
 }
-
 function responderSobreCitacao(t, raw, ctx) {
   const alvo = String(ctx.alvo || "").trim();
   if (!alvo) return null;
@@ -414,23 +412,26 @@ function responderSobreCitacao(t, raw, ctx) {
     }
   }
 
-  if (/^(?:e |mas )?(?:isso|isto|ele|ela)\s+(?:e|eh|ta|esta)?\s*(?:bom|boa|ruim|verdade|serio|certo|normal)\s*$/.test(t) ||
-      /^(?:serio|jura|mesmo|como assim|por que|porque|nao entendi|gostei|legal|daora|interessante)$/.test(t)) {
-    const trecho = alvo.replace(/\s+/g, " ").slice(0, 110);
-    if (/\b(bom|boa|legal|gostei|daora|interessante)\b/.test(t)) {
+  const trecho = alvo.replace(/\s+/g, " ").slice(0, 110);
+  const retic = alvo.length > 110 ? "..." : "";
+
+  if (/^(?:e |mas )?(?:isso|isto|ele|ela)\s+(?:e|eh|ta|esta)?\s*(?:bom|boa|ruim|verdade|serio|certo|normal)$/.test(t) ||
+      /^(?:serio|jura|mesmo|como assim|por que|porque|nao entendi|gostei|legal|daora|interessante|nao concordo|explica|discordo|verdade)$/.test(t) ||
+      (/\b(isso|disso|nisso|essa parte|esse trecho)\b/.test(t) && t.split(" ").length <= 7)) {
+    if (/\b(bom|boa|legal|gostei|daora|interessante|verdade)\b/.test(t)) {
       return {
-        texto: "Sobre **“" + trecho + (alvo.length > 110 ? "..." : "") + "”** — sim! O intuito é facilitar mesmo. Quer que eu explique alguma parte melhor ou prefere falar de outra coisa?",
+        texto: "Sobre **“" + trecho + retic + "”** — sim! O intuito é facilitar mesmo. Quer que eu aprofunde alguma parte ou seguimos pra outro assunto?",
         origem: "💬 sobre a resposta citada"
       };
     }
-    if (/\b(ruim|errado|nao entendi|como assim|por que|porque)\b/.test(t)) {
+    if (/\b(ruim|errado|nao entendi|como assim|por que|porque|discordo|nao concordo)\b/.test(t)) {
       return {
-        texto: "Sobre **“" + trecho + (alvo.length > 110 ? "..." : "") + "”** — o que ficou confuso ou errado ali? Me diz que eu explico direito!",
+        texto: "Sobre **“" + trecho + retic + "”** — o que ficou estranho ou você discordou ali? Me diz que eu explico direito!",
         origem: "💬 sobre a resposta citada"
       };
     }
     return {
-      texto: "Sim! Foi exatamente sobre **“" + trecho + (alvo.length > 110 ? "..." : "") + "”** que eu tava falando. Quer saber mais sobre isso?",
+      texto: "Sobre **“" + trecho + retic + "”** — sim, eu me referia exatamente a isso! O que você quer saber ou acrescentar sobre esse ponto?",
       origem: "💬 sobre a resposta citada"
     };
   }
@@ -445,6 +446,7 @@ async function responder(raw, ctx = {}) {
   if (!t) return null;
   const nomeUser = ctx.nome ? ", " + ctx.nome : "";
   const serio = ctx.mood === "frustrado" || ctx.mood === "serio" || ctx.mood === "triste" || (ctx.humorScore ?? 0) <= -0.6;
+  const temPerguntaPendente = Boolean(ctx.session?.lastBotQuestion);
 
   // -1) Resposta direta quando o usuário cita (↩ Responder) uma mensagem específica
   if (ctx.alvo) {
@@ -469,7 +471,7 @@ async function responder(raw, ctx = {}) {
     };
   }
 
-  // 0.1) Meta-diálogo: quando o usuário reclama que quer conversar de verdade sem testes/comandos
+  // 0.1) Meta-diálogo
   if (/\b(so queria (?:ter )?um dialogo|queria (?:ter )?um dialogo|dialogo bom|conversar direito|conversa normal|sem testar|nao quero testar|nao quero comando|para de mandar comando|para de perguntar)\b/.test(t) ||
       /^(?:que|q)\s+pergunta\s+(?:cara|e essa|nada a ver|bosta)$/.test(t)) {
     if (/nao quero testar/.test(t)) {
@@ -561,10 +563,10 @@ async function responder(raw, ctx = {}) {
     };
   }
 
-  // 3) Pedidos de idioma da conversa e falas soltas
+  // 3) Pedidos de idioma e falas soltas (só se NÃO houver pergunta pendente da BACH)
   if (/^(?:me\s+)?(?:respond[ae]|fal[ae]|escrev[ae]|convers[ae])\s+(?:so\s+)?em\s+portugues$/.test(t)) {
     return {
-      texto: "Já estou falando em português com você" + nomeUser + ". Se você quiser traduzir algum texto em inglês de uma foto ou mensagem, toque em **↩ Responder** nele e mande **“só traduz”**.",
+      texto: "Já estou falando em português com você" + nomeUser + ". Se quiser traduzir algum texto de foto ou mensagem, toque em **↩ Responder** nele e mande **“só traduz”**.",
       origem: "💬 conversa"
     };
   }
@@ -592,15 +594,17 @@ async function responder(raw, ctx = {}) {
       origem: "💬 conversa"
     };
   }
-  if (/^(?:claro|assim|entendii?|fala mais|uai pesquisa)$/.test(t)) {
+  if (!temPerguntaPendente && /^(?:claro|assim|entendii?|fala mais|uai pesquisa)$/.test(t)) {
     if (t === "uai pesquisa") return { texto: "Me diga qual assunto você quer que eu pesquise (ex.: *pesquise sobre Marte*).", origem: "💬 conversa" };
     if (t === "fala mais" && ctx.ultimoTema) return { pesquisarTema: ctx.ultimoTema + " curiosidades detalhes" };
     return {
       texto: serio
-        ? "Tô aqui te ouvindo. Pode continuar."
+        ? "Tô aqui te ouvindo" + nomeUser + ". Pode continuar."
         : semRepetir("soltas", [
             "Tô aqui! Pode mandar o próximo assunto.",
-            "Estou te ouvindo — pode continuar."
+            "Estou te ouvindo — pode continuar.",
+            "Manda aí" + nomeUser + ", tô acompanhando.",
+            "Pode seguir! Sobre o que quer falar agora?"
           ], ctx),
       origem: "💬 conversa"
     };
@@ -616,13 +620,14 @@ async function responder(raw, ctx = {}) {
     return {
       texto: semRepetir("fb-err", [
         "Você tem razão" + nomeUser + " — errei essa resposta. Me diga em uma frase direta o que você queria saber ou falar agora que eu foco nisso.",
-        "Desculpa por essa falha" + nomeUser + ". Anotei para melhorar; pode falar direto comigo ou usar **↩ Responder** na mensagem certa."
+        "Desculpa por essa falha" + nomeUser + ". Pode falar direto comigo ou usar **↩ Responder** na mensagem certa.",
+        "Foi mal por essa" + nomeUser + ". O que exatamente você esperava que eu respondesse?"
       ], ctx),
       origem: "🔄 autocorreção"
     };
   }
 
-  // 5) Respostas curtas de acompanhamento
+  // 5) Respostas curtas de acompanhamento (só se NÃO houver pergunta pendente da BACH!)
   if (/^(porque nao|porque nao pode|como assim|perguntar o que|oque perguntar|ah ta claro)$/.test(t)) {
     if (ctx.ultimoBot && /calendário|lançamentos futuros/i.test(ctx.ultimoBot)) {
       return {
@@ -633,13 +638,15 @@ async function responder(raw, ctx = {}) {
     return { texto: "Pode falar do jeito que preferir — sobre o seu dia, trabalho, algum assunto aleatório ou qualquer dúvida.", origem: "💬 conversa" };
   }
 
-  if (/^(?:aham|ahan|uhum|ok|okay|ta\s*bom|tabom|blz|beleza|ata|entendi|tendi|saquei|fechou|suave|de boa|firmeza|show|top|pode crer)(?:\s+(?:tabom|ta\s*bom|entao|ne|blz|ok|po))*$/.test(t)) {
+  if (!temPerguntaPendente && /^(?:aham|ahan|uhum|ok|okay|ta\s*bom|tabom|blz|beleza|ata|entendi|tendi|saquei|fechou|suave|de boa|firmeza|show|top|pode crer)(?:\s+(?:tabom|ta\s*bom|entao|ne|blz|ok|po))*$/.test(t)) {
     return {
       texto: serio
         ? "Certo" + nomeUser + ". Se quiser continuar conversando ou desabafar mais, tô por aqui."
         : semRepetir("ok-nat", [
-            "Beleza! Tô por aqui — pode mandar quando quiser.",
-            "Combinado! Qualquer coisa é só falar."
+            "Beleza" + nomeUser + "! Qual o próximo assunto?",
+            "Fechado! Se quiser conversar ou pedir algo, só mandar.",
+            "Show" + nomeUser + "! O que você tá pensando em fazer agora?",
+            "Tranquilo! Tô por aqui se precisar."
           ], ctx),
       origem: "💬 conversa"
     };
@@ -666,8 +673,10 @@ async function responder(raw, ctx = {}) {
   if (/^(conversa comigo|vamos conversar|bora conversar|fala comigo|fale comigo)$/.test(t)) {
     return {
       texto: semRepetir("conv-solta", [
-        "Bora" + nomeUser + "! Como tá o seu dia hoje? Quer conversar sobre algo que aconteceu, filmes, música, programação ou qualquer assunto?",
-        "Tô aqui" + nomeUser + "! Sobre o que você quer trocar ideia agora?"
+        "Bora" + nomeUser + "! Como tá o seu dia hoje?",
+        "Tô aqui" + nomeUser + "! Sobre o que você quer trocar ideia agora?",
+        "Vamos sim" + nomeUser + "! Tá trabalhando, estudando ou descansando agora?",
+        "Bora! Quer falar do seu dia, curiosidades, filmes ou algum projeto seu?"
       ], ctx),
       origem: "💬 conversa"
     };
@@ -682,7 +691,11 @@ async function responder(raw, ctx = {}) {
     return {
       texto: serio
         ? "Ué, estranhou alguma coisa que eu disse? Pode falar direto."
-        : semRepetir("giria-ok", ["Opa! Que foi? Pode mandar o que você tava pensando.", "Ué, o que houve? Tô acompanhando aqui!"], ctx),
+        : semRepetir("giria-ok", [
+            "Opa! Que foi? Pode mandar o que você tava pensando.",
+            "Ué, o que houve? Tô acompanhando aqui!",
+            "Eita, aconteceu alguma coisa?"
+          ], ctx),
       origem: "💬 conversa"
     };
   }
