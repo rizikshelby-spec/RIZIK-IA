@@ -1,4 +1,4 @@
-/* BACH AI 5.2 - PROGRAMAÇÃO + HUMOR + FALLBACK CONTEXTUAL INTELIGENTE */
+/* BACH AI 5.4 - PROGRAMAÇÃO + HUMOR + FALLBACK CONTEXTUAL INTELIGENTE */
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9+# ]+/g, " ").replace(/\s+/g, " ").trim();
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -135,7 +135,8 @@ function ehTeclaOuNumeroSolto(raw) {
 }
 
 const STOP_TEMA = new Set(
-  ("a o as os um uma uns umas de do da dos das em no na nos nas por para pra com sem que e eh se ao aos mais menos como mas foi ser ou ja tambem seu sua seus suas isso isto este esta esse essa sao tem meu minha eu vc voce hoje ontem amanha agora muito pouco tudo nada porque pq qm oq").split(" ")
+  ("a o as os um uma uns umas de do da dos das em no na nos nas por para pra com sem que e eh se ao aos mais menos como mas foi ser ou ja tambem seu sua seus suas isso isto este esta esse essa sao tem meu minha eu vc voce hoje ontem amanha agora muito pouco tudo nada porque pq qm oq " +
+   "mds oxe uai aiai erro erra erros errado errada falha falhas todo toda todas todos certo certa seja respondi respondeu esqueceu esqueci lembra lembro verifica verificar").split(" ")
 );
 
 function extrairNucleo(t) {
@@ -177,13 +178,22 @@ function desconhecido(t = "", ctx = {}) {
   const n = norm(raw);
   const nucleo = extrairNucleo(raw);
 
-  // 1) Se havia uma pergunta pendente da BACH e a resposta foi curta
-  const qBot = ctx?.session?.lastBotQuestion;
-  if (qBot && raw.split(/\s+/).length <= 10) {
-    return "Entendi (“" + raw.slice(0, 60) + "”)! Sobre isso que estávamos falando — quer continuar nesse assunto ou falar de outra coisa?";
+  // Se o usuário estiver frustrado/criticando, não finge que entendeu nem transforma em assunto
+  if (ctx?.mood === "frustrado" || /\b(erra\w*|falh\w*|bug\w*|burr\w*|mds|seja certo|respondeu|nao entendeu)\b/.test(n)) {
+    return escolherInedita([
+      "Não peguei bem o que você quis dizer com “" + raw.slice(0, 50) + "”" + nome + ". Me manda em uma frase direta o que você espera que eu faça agora.",
+      "Essa fugiu do meu alcance" + nome + " — se eu tiver errado antes, pode usar `/auditar` ou me dizer direto qual assunto quer puxar!"
+    ], ctx);
   }
 
-  // 2) Relato positivo / acontecimento
+  // Só usa gancho de pergunta anterior se ela NÃO for uma pergunta genérica de fallback
+  const qBot = String(ctx?.session?.lastBotQuestion || "");
+  const qBotGenerica = !qBot || /quer continuar nesse assunto|não ficou claro|O que foi\?|Me diga rapidinho|Qual comando ou pergunta/i.test(qBot);
+  if (!qBotGenerica && raw.split(/\s+/).length <= 8 && !/[?!]/.test(raw) && !/\b(mds|oxe|falha|erro|verifica|certo)\b/.test(n)) {
+    return "Anotei (“" + raw.slice(0, 60) + "”)! Quer continuar nesse ponto ou puxar outro assunto?";
+  }
+
+  // Relato positivo / acontecimento
   if (/\b(comprei|ganhei|consegui|passei|fui|assisti|joguei|terminei|comecei|fiz|aprendi|encontrei)\b/.test(n)) {
     const foco = nucleo ? " sobre **" + nucleo + "**" : "";
     return escolherInedita([
@@ -192,16 +202,16 @@ function desconhecido(t = "", ctx = {}) {
     ], ctx);
   }
 
-  // 3) Relato negativo / perrengue
+  // Relato negativo / perrengue
   if (/\b(perdi|quebrou|estragou|briguei|briga|falhou|dificil|complicado|puxado|corrido|problema|preocupad|medo|estress|chato|triste|ruim)\b/.test(n)) {
     const foco = nucleo ? " com **" + nucleo + "**" : "";
     return escolherInedita([
       "Poxa" + nome + ", chato passar por isso" + foco + ". Como você tá lidando com essa situação agora?",
-      "Sinto muito por esse perrengue" + foco + "" + nome + ". Quer desabafar ou pensar em uma saída?"
+      "Sinto muito por esse perrengue" + foco + nome + ". Quer desabafar ou pensar em uma saída?"
     ], ctx);
   }
 
-  // 4) Estado triste do usuário
+  // Estado triste do usuário
   if (ctx?.mood === "triste" || ctx?.emotion === "triste") {
     return escolherInedita([
       "Tô te ouvindo" + nome + ". Pode explicar com calma o que tá acontecendo agora que eu acompanho.",
@@ -209,8 +219,8 @@ function desconhecido(t = "", ctx = {}) {
     ], ctx);
   }
 
-  // 5) Frase com tema identificável
-  if (nucleo) {
+  // Frase com tema real identificável
+  if (nucleo && nucleo.length >= 3) {
     return escolherInedita([
       "Vi que você citou **" + nucleo + "**, mas não ficou claro o que você quer fazer com isso. Quer conversar sobre o assunto, que eu pesquise na web ou te ajude em algo específico?",
       "Sobre **" + nucleo + "**: você quer uma explicação, minha opinião ou só tá comentando mesmo?"
