@@ -1,4 +1,4 @@
-/* BACH AI - CÉREBRO 1.1 (Blindado)
+/* BACH AI 5.2 - CÉREBRO 1.2 (Blindado)
    Conversa, memória automática do usuário do início ao fim da sessão,
    perfil adaptativo de humor/tom, aprendizado contínuo com correções e backup.
    Segurança: uso de Object.hasOwn em dicionários dinâmicos, proteção contra
@@ -159,11 +159,12 @@ function vocab() {
 function fixTypos(text) {
   const v = vocab();
   return normalize(text).split(" ").map(w => {
-    if (w.length < 4 || v.has(w) || (Object.hasOwn(data.synonyms, w))) return w;
-    const max = w.length >= 7 ? 2 : 1;
+    // Só corrige palavras >= 5 letras para não trocar palavras válidas curtas (ex.: "olha" -> "ola")
+    if (w.length < 5 || v.has(w) || Object.hasOwn(data.synonyms, w)) return w;
+    const max = w.length >= 8 ? 2 : 1;
     let best = w, bd = max + 1;
     for (const c of v) {
-      if (Math.abs(c.length - w.length) > max) continue;
+      if (c.length < 4 || c[0] !== w[0] || Math.abs(c.length - w.length) > max) continue;
       const d = lev(w, c);
       if (d < bd) { bd = d; best = c; }
     }
@@ -257,7 +258,7 @@ function detectTone(raw) {
   const n = normalize(s);
   const rindo = /😂|🤣|😄|😆|😜|🤪|\b(k{3,}|ha{2,}h?a?|rsrs+|hehe+|hue+)\b/i.test(s);
   const brincadeira = /\b(piada|charada|brincar|diverte|engracado|zoeira|humor)\b/.test(n);
-  const frustrado = /\b(burro|burra|idiota|inutil|lixo|errou|errado|errada|nada a ver|nada haver|nao entende|nao entendeu|nunca entende|pqp|crlh|merda|porra|chato|chata|ruim|horrivel|droga|para de errar|muitos erros)\b/.test(n);
+  const frustrado = /\b(burro|burra|idiota|inutil|lixo|errou|errado|errada|nada a ver|nada haver|nao entende|nao entendeu|nunca entende|pqp|crlh|merda|porra|chato|chata|ruim|horrivel|droga|para de errar|muitos erros|esperava melhoras|tudo errado)\b/.test(n);
   const triste = /\b(triste|mal|ansioso|ansiosa|chorando|deprimido|cansado|cansada|desanimado|morrer|suicid)\b/.test(n);
   const serio = /\b(codigo|erro|bug|problema|configuracao|trabalho|curriculo|revisar|contrato|golpe|imc|medico|resumo|estudar)\b/.test(n);
 
@@ -340,7 +341,7 @@ function captureUserMemory(original) {
   if (!raw || raw.includes("?") || raw.length > 140) return null;
 
   let m = raw.match(/^(?:eu\s+)?(?:gosto muito de|gosto de|adoro|curto|amo)\s+(.+)$/i);
-  if (m && !/^(que|quando|como|se|saber|ver|perguntar)\b/i.test(m[1])) {
+  if (m && !/^(te|voce|vc|ele|ela|que|quando|como|se|saber|ver|perguntar)\b/i.test(m[1])) {
     const item = m[1].trim().replace(/[.!]+$/, "");
     if (pushUnique(data.profile.likes, item)) {
       return `Legal! Vou lembrar que você gosta de ${item}. 💜`;
@@ -355,7 +356,7 @@ function captureUserMemory(original) {
     }
   }
 
-  const naoCidade = /^(boa|paz|maior|menor|ferro|aco|verdade|mentira|familia|casa|longe|perto|volta|acordo|novo)$/i;
+  const naoCidade = /^(boa|paz|maior|menor|ferro|aco|verdade|mentira|familia|casa|longe|perto|volta|acordo|novo|confianca|palavra|respeito)$/i;
   m = raw.match(/^(?:eu\s+)?(?:moro em|moro no|moro na|sou de|sou do|sou da|vivo em)\s+(.+)$/i);
   if (m && m[1].split(/\s+/).length <= 5 && !naoCidade.test(normalize(m[1]))) {
     data.profile.city = m[1].trim().replace(/[.!]+$/, "").slice(0, 45);
@@ -394,6 +395,7 @@ function captureUserMemory(original) {
 
 function bestExample(text) {
   const key = applySyn(fixTypos(text));
+  if (key.length < 3) return { item: null, score: 0 };
   let best = null, score = 0;
   for (const ex of data.examples) {
     const s = similarity(key, applySyn(ex.question));
@@ -406,6 +408,7 @@ function classify(message) {
   const t = fixTypos(message);
   const c = t.replace(/\s/g, "");
 
+  if (/(?:que dia|quando|em que ano)\s+(?:voce|a bach|bach)\s+foi\s+criad[oa]/.test(t)) return "created";
   if (/quem criou voce|quem fez voce|quem desenvolveu voce|quem criou bach|quem criou a bach|quem e voce/.test(t) ||
     /quemcriouvoce|quemfezvoce|quemcrioubach/.test(c)) return "identity";
   if (/o que voce faz|oque voce faz|que voce sabe fazer|faz de bom|suas capacidades|suas funcoes/.test(t) ||
@@ -417,8 +420,8 @@ function classify(message) {
   if (/^(tudo bem|como vai|como voce esta|bem e voce|bem e vc|to bem e voce|estou bem e voce|e voce|e vc|tudo certo)$/.test(t)) return "wellbeing";
   if (/^(obrigado|obrigada|valeu|agradecido|agradecida|thanks|gracias|merci|danke)$/.test(t)) return "thanks";
   if (/^(tchau|ate mais|falou|fui|ate logo|bye|adios)$/.test(t)) return "goodbye";
-  if (/que horas|hora agora/.test(t)) return "time";
-  if (/que dia|data de hoje/.test(t)) return "date";
+  if (/^(?:que horas sao|que horas e|que hora e|qual (?:e )?(?:a )?hora(?: agora)?|hora agora|me diz as horas|diz as horas)$/.test(t)) return "time";
+  if (/^(?:que dia (?:e )?hoje|hoje e que dia|qual (?:e )?(?:a )?data(?: de hoje)?|data de hoje|que data e hoje)$/.test(t)) return "date";
   if (/^(qual (e )?(o )?|como (se )?chama (o )?)?meu nome$/.test(t) || /^quem sou eu$/.test(t)) return "name";
   if (/^(onde (eu )?moro|qual (e )?(a )?minha cidade)$/.test(t)) return "city";
   if (/^(quantos anos (eu )?tenho|qual (e )?(a )?minha idade)$/.test(t)) return "age";
@@ -632,17 +635,20 @@ function think(message) {
 
   const intent = classify(original);
 
+  if (intent === "created") {
+    return R("Fui criada por Rizik em **2026** e sigo recebendo atualizações constantes! 🚀", "identity");
+  }
   if (intent === "identity") {
     return R("Sou a BACH AI! 🧠 Fui criada por Rizik para ajudar todo mundo de graça — com memória contínua, leitura de fotos/vídeos/códigos, temas e pesquisa na internet.", intent);
   }
 
   const { item, score } = bestExample(original);
-  if (item && score >= 0.8) {
+  if (item && score >= 0.82) {
     item.uses = (item.uses || 0) + 1;
     save();
     return R(item.answer, "learned");
   }
-  if (item && score >= 0.55) {
+  if (item && score >= 0.6) {
     pending = { original, answer: item.answer };
     return R(`Você quis dizer “${item.question}”? (sim/não)`, "confirm");
   }
@@ -660,7 +666,11 @@ function think(message) {
     case "positive":
       return R(mood === "descontraido" ? "Show! 🙌" : "Ótimo!", intent);
     case "wellbeing":
-      return R(mood === "descontraido" ? "Estou ótima e pronta pra ajudar! 😄 E você?" : "Estou bem, obrigada. Como posso ajudar?", intent);
+      return R(pick(
+        mood === "descontraido"
+          ? ["Estou ótima e pronta pra ajudar! 😄 E você?", "Tudo certo por aqui! E com você?"]
+          : ["Estou bem, obrigada. Como posso ajudar?", "Tudo bem por aqui! O que você gostaria de fazer agora?"]
+      ), intent);
     case "thanks":
       return R("Por nada! Sempre que precisar, estou aqui.", intent);
     case "goodbye":
