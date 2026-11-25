@@ -1,9 +1,11 @@
-/* BACH AI 5.0 - CÉREBRO AVANÇADO
+/* BACH AI 5.1 - CÉREBRO AVANÇADO BLINDADO
    NLU natural, comparação de sites avaliados no histórico, controle contextual de apps criados,
-   tom adaptativo (zero risada fora de hora), temas, senhas, recomendações e escrita. */
-import { AutoGuard } from "./autoguard.js?v=1";
+   tom adaptativo (zero risada fora de hora), temas, senhas, recomendações e escrita.
+   Segurança: import alinhado com autoguard.js?v=2, Object.create(null) em giro,
+   limite de entrada anti-travamento e proteção de comandos restritos. */
+import { AutoGuard } from "./autoguard.js?v=2";
 
-const norm = t => String(t || "").toLowerCase().normalize("NFD")
+const norm = t => String(t || "").slice(0, 1200).toLowerCase().normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "")
   .replace(/\bqm\b/g, "quem")
   .replace(/\b(vc|vce|vv)\b/g, "voce")
@@ -27,8 +29,13 @@ const norm = t => String(t || "").toLowerCase().normalize("NFD")
   .replace(/\s+/g, " ")
   .trim();
 
-const giro = {};
+const giro = Object.create(null);
 const girar = (k, arr) => { giro[k] = ((giro[k] ?? -1) + 1) % arr.length; return arr[giro[k]]; };
+
+function ehEntradaSensivel(texto) {
+  const s = String(texto || "").trim();
+  return /^\/(?:adm|admsenha|ghconfig|chave)\b/i.test(s) || /@rizik2442/i.test(s);
+}
 
 function senhaRapida(n = 14) {
   const tam = Math.min(64, Math.max(8, Number(n) || 14));
@@ -320,10 +327,11 @@ function detectarTemaPedido(t) {
 }
 
 function gerarEscrita(t, raw) {
-  const mEmail = raw.match(/(?:escrev[ae]|faz|faca|crie|cria|monte|monta|redija)\s+(?:um\s+|uma\s+)?(e-?mail|mensagem|carta|aviso|convite|texto|redacao|historia|conto|legenda|bio|poema|roteiro)\s*(?:sobre|de|para|com o tema)?\s*(.+)?/i);
+  const s = String(raw || "").slice(0, 800);
+  const mEmail = s.match(/(?:escrev[ae]|faz|faca|crie|cria|monte|monta|redija)\s+(?:um\s+|uma\s+)?(e-?mail|mensagem|carta|aviso|convite|texto|redacao|historia|conto|legenda|bio|poema|roteiro)\s*(?:sobre|de|para|com o tema)?\s*(.+)?/i);
   if (!mEmail) return null;
   const tipo = norm(mEmail[1]);
-  const assunto = (mEmail[2] || "o assunto pedido").replace(/[?!.]+$/, "").trim();
+  const assunto = (mEmail[2] || "o assunto pedido").replace(/[?!.]+$/, "").trim().slice(0, 120);
 
   if (/email|carta/.test(tipo)) {
     return "✉️ **Rascunho de E-mail sobre “" + assunto + "”:**\n\n" +
@@ -374,7 +382,9 @@ function detectarGeneroMusica(t) {
 }
 
 async function responder(raw, ctx = {}) {
-  const t = norm(raw);
+  const s = String(raw || "");
+  if (!s || s.length > 1200) return null;
+  const t = norm(s);
   if (!t) return null;
   const nomeUser = ctx.nome ? ", " + ctx.nome : "";
   const serio = ctx.mood === "frustrado" || ctx.mood === "serio" || ctx.mood === "triste" || (ctx.humorScore ?? 0) <= -0.6;
@@ -384,6 +394,9 @@ async function responder(raw, ctx = {}) {
     return { texto: AutoGuard.diagnose(), origem: "🛡️ autoguard" };
   }
   if (/^\/?rollback$/i.test(t)) {
+    if (ctx.modoCriador === false) {
+      return { texto: "🔒 O comando `/rollback` é exclusivo do modo administrador.", origem: "🔒 adm" };
+    }
     const rb = AutoGuard.rollback();
     return {
       texto: rb.ok
@@ -416,8 +429,8 @@ async function responder(raw, ctx = {}) {
 
   // 0.5) Pedido rápido de senha ("vamos de senha", "senha", "/senha")
   if (/^(?:vamos\s+(?:de|se)\s+senha|senha|gera\w*\s+senha|manda\s+uma\s+senha|me\s+da\s+uma\s+senha|quero\s+uma\s+senha)$/.test(t) ||
-      /^\/senha(?:\s+(\d{1,2}))?$/i.test(raw.trim())) {
-    const tam = (raw.match(/\d{1,2}/) || [])[0] || 14;
+      /^\/senha(?:\s+(\d{1,2}))?$/i.test(s.trim())) {
+    const tam = (s.match(/\d{1,2}/) || [])[0] || 14;
     return { texto: senhaRapida(tam), origem: "🔐 utilidades" };
   }
 
@@ -513,7 +526,9 @@ async function responder(raw, ctx = {}) {
   if (/\b(nao foi|nao era|falou errado|disse errado|respondeu errado|entendeu errado|errando|ta errado|esta errado|vc ainda erra|voce ainda erra|so erra|voce e burro|burro|burra|nada a ver|nada aver|nada haver|erros atrais|erros atras|da erro|dando erro|para de dizer que travou|travou foi|pergutar mais|chutar o que|chutar oq|nao mandei pesquisar|nao pedi pesquisa|nao pedi pra pesquisar|nao era pra pesquisar|para de pesquisar|nao entende|nao entendeu|nunca entende)\b/.test(t) ||
       /^(te |quero |vou |vamos te |irei te )?(corrigir|arrumar|consertar|ensinar)( ta)?$/.test(t) ||
       /\b(arrumo tudo|arrumo voce|irei te consertar|para que fui criala)\b/.test(t)) {
-    AutoGuard.recordFailure({ module: "conversa", type: "user-feedback", input: raw, detail: ctx.ultimoBot ? ctx.ultimoBot.slice(0, 100) : "insatisfação" });
+    if (!ehEntradaSensivel(s)) {
+      AutoGuard.recordFailure({ module: "conversa", type: "user-feedback", input: s, detail: ctx.ultimoBot ? ctx.ultimoBot.slice(0, 100) : "insatisfação" });
+    }
     return {
       texto: girar("fb-err", [
         "Você tem razão" + nomeUser + " — errei essa resposta. Me diga em uma frase direta o que você quer saber ou fazer agora que eu foco nisso.",
@@ -640,14 +655,14 @@ async function responder(raw, ctx = {}) {
 
   const mPlano = t.match(/^(?:cria|crie|faz|faca|monta|monte|me ajuda a)?\s*(?:um\s+)?(?:plano de estudos|roteiro de estudos|como aprender|passo a passo para aprender)\s+(?:de\s+|para\s+)?(.+)$/);
   if (mPlano) {
-    const temaEstudo = mPlano[1].trim();
+    const temaEstudo = mPlano[1].trim().slice(0, 120);
     return {
       texto: "🗺️ **Plano prático para aprender " + temaEstudo + ":**\n\n1. **Base:** conceitos essenciais de " + temaEstudo + ".\n2. **Prática diária:** 30 min com exercícios reais.\n3. **Projeto:** construa algo pequeno aplicando o que aprendeu.\n4. **Revisão:** explique o tema com suas palavras.",
       origem: "🗺️ planejamento"
     };
   }
 
-  const escrita = gerarEscrita(t, raw);
+  const escrita = gerarEscrita(t, s);
   if (escrita) return { texto: escrita, origem: "✍️ escrita criativa" };
 
   return null;
