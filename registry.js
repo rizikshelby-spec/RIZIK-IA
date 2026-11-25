@@ -1,4 +1,4 @@
-/* BACH AI 4.8 — registro central dos departamentos, Watchdog AutoGuard e roteador de habilidades. */
+/* BACH AI 5.1 — registro central dos departamentos, Watchdog AutoGuard e roteador de habilidades. */
 
 import { AutoGuard } from "./autoguard.js?v=1";
 import { Intelligence } from "./intelligence.js?v=2";
@@ -21,28 +21,28 @@ let progTermuxHandle = null;
 let saberesProHandle = null;
 
 await Promise.allSettled([
-  import("./utilidades.js?v=1").then(m => { if (m?.Utilidades?.handle) utilHandle = m.Utilidades.handle; }),
+  import("./utilidades.js?v=2").then(m => { if (m?.Utilidades?.handle) utilHandle = m.Utilidades.handle; }),
   import("./conversor_texto.js?v=1").then(m => { if (m?.ConversorTexto?.handle) convTextoHandle = m.ConversorTexto.handle; }),
   import("./saude_bemestar.js?v=1").then(m => { if (m?.SaudeBemEstar?.handle) saudeHandle = m.SaudeBemEstar.handle; }),
   import("./estudos.js?v=1").then(m => { if (m?.Estudos?.handle) estudosHandle = m.Estudos.handle; }),
   import("./dev_ferramentas.js?v=1").then(m => { if (m?.DevFerramentas?.handle) devHandle = m.DevFerramentas.handle; }),
-  import("./programacao_termux.js?v=2").then(m => { if (m?.ProgramacaoTermux?.handle) progTermuxHandle = m.ProgramacaoTermux.handle; }),
+  import("./programacao_termux.js?v=3").then(m => { if (m?.ProgramacaoTermux?.handle) progTermuxHandle = m.ProgramacaoTermux.handle; }),
   import("./saberes_pro.js?v=1").then(m => { if (m?.SaberesPro?.handle) saberesProHandle = m.SaberesPro.handle; })
 ]);
 
 const SETTINGS_KEY = "bach_modules_v1";
 
 const DEPARTMENTS = [
-  { id: "inteligencia", name: "1. Inteligência e raciocínio", status: "LOCAL + IA", control: true, skills: "Raciocínio lógico, resolução de problemas, cálculo seguro e análise de situações." },
-  { id: "personalidade", name: "2. Personalidade e piadas interativas", status: "LOCAL + IA", control: true, skills: "Piadas interativas que esperam sua resposta, humor e estilo próprio da BACH." },
-  { id: "memoria", name: "3. Memória e aprendizado", status: "ATIVO", control: false, skills: "Memória de longo prazo, contexto curto, ensinamentos, correções e histórico." },
+  { id: "inteligencia", name: "1. Inteligência e raciocínio", status: "LOCAL", control: true, skills: "Raciocínio lógico, resolução de problemas, cálculo seguro e análise de situações." },
+  { id: "personalidade", name: "2. Personalidade e piadas interativas", status: "LOCAL", control: true, skills: "Piadas interativas que esperam sua resposta, humor adaptativo e estilo próprio da BACH." },
+  { id: "memoria", name: "3. Memória e aprendizado", status: "ATIVO", control: false, skills: "Memória de longo prazo, contexto do início ao fim, ensinamentos, correções e histórico." },
   { id: "pesquisa", name: "4. Conhecimento e pesquisa", status: "ONLINE", control: false, skills: "Pesquisa na internet, notícias, Wikipédia e comparação de fontes." },
-  { id: "ciencias", name: "5. Ciências e matemática", status: "LOCAL + IA", control: true, skills: "Matemática, fórmulas físicas, química, biologia e lógica." },
-  { id: "criatividade", name: "6. Criatividade", status: "LOCAL + IA", control: true, skills: "Histórias, personagens, ideias, roteiros e textos originais." },
-  { id: "tecnologia", name: "7. Programação e tecnologia", status: "ATIVO + IA", control: false, skills: "JavaScript, HTML, CSS, Python, SQL, criação de apps e revisão de código." },
+  { id: "ciencias", name: "5. Ciências e matemática", status: "LOCAL", control: true, skills: "Matemática, fórmulas físicas, química, biologia e lógica." },
+  { id: "criatividade", name: "6. Criatividade", status: "LOCAL", control: true, skills: "Histórias, personagens, ideias, roteiros e textos originais." },
+  { id: "tecnologia", name: "7. Programação e tecnologia", status: "ATIVO", control: false, skills: "JavaScript, HTML, CSS, Python, SQL, criação de apps e revisão de código." },
   { id: "mundo", name: "8. Mundo e cotidiano", status: "ATIVO", control: true, skills: "Clima online, geografia, história, tradução e conversão de unidades." },
-  { id: "comunicacao", name: "9. Comunicação", status: "ATIVO + IA", control: false, skills: "Interpretação de intenções, explicações claras e adaptação ao usuário." },
-  { id: "estrategia", name: "10. Estratégia e planejamento", status: "LOCAL + IA", control: true, skills: "Organização de tarefas, planejamento por etapas e comparação de alternativas." },
+  { id: "comunicacao", name: "9. Comunicação", status: "ATIVO", control: false, skills: "Interpretação de intenções, explicações claras e adaptação ao usuário." },
+  { id: "estrategia", name: "10. Estratégia e planejamento", status: "LOCAL", control: true, skills: "Organização de tarefas, planejamento por etapas e comparação de alternativas." },
   { id: "seguranca", name: "11. Segurança e confiabilidade", status: "AUTOGUARD", control: true, skills: "Triagem de golpes, Watchdog, Failure Memory, Rollback e proteção de dados." },
   { id: "evolucao", name: "12. Evolução da BACH", status: "CATÁLOGO", control: false, skills: "Diagnóstico, monitoramento de desempenho, backup /basedados e controle de módulos." },
   { id: "games", name: "13. Games", status: "ATIVO", control: false, skills: "Jogos no chat (forca, velha, quiz, adivinhação) e scripts de criação." },
@@ -50,9 +50,9 @@ const DEPARTMENTS = [
   { id: "musica", name: "15. Música", status: "ATIVO", control: false, skills: "Recomendações por gênero brasileiro e internacional." },
   { id: "redes", name: "16. Redes sociais", status: "ATIVO", control: false, skills: "Boas práticas, legendas, bios e segurança digital." },
   { id: "saude", name: "17. Saúde", status: "EDUCACIONAL", control: false, skills: "Educação em saúde sem substituir diagnóstico profissional." },
-  { id: "financas", name: "18. Finanças", status: "LOCAL + IA", control: true, skills: "Juros simples e compostos, método 50-30-20 e noções financeiras." },
+  { id: "financas", name: "18. Finanças", status: "LOCAL", control: true, skills: "Juros simples e compostos, método 50-30-20 e noções financeiras." },
   { id: "direito", name: "19. Direito", status: "LOCAL + PESQUISA", control: false, skills: "Direitos básicos do consumidor, LGPD e explicações gerais." },
-  { id: "educacao", name: "20. Educação", status: "LOCAL + IA", control: true, skills: "Quiz educativo, planos de estudo e redação." },
+  { id: "educacao", name: "20. Educação", status: "LOCAL", control: true, skills: "Quiz educativo, planos de estudo e redação." },
   { id: "documentos", name: "21. Pesquisa documental", status: "ATIVO", control: false, skills: "Leitura, resumo e revisão de textos, arquivos, fotos e vídeos." },
   { id: "jogos-mentais", name: "22. Jogos mentais", status: "ATIVO", control: false, skills: "Charadas, lógica e desafios no chat." },
   { id: "debate", name: "23. Debate", status: "ATIVO", control: false, skills: "Comparações estruturadas e prós e contras." },
@@ -66,7 +66,9 @@ const DEPARTMENTS = [
   { id: "saberes-pro", name: "31. Sabedoria geral avançada", status: "LOCAL", control: true, skills: "Segurança web, Docker, JWT, RAG, LGPD, economia, astronomia, termodinâmica e filosofia." },
   { id: "executor-sandbox", name: "32. Executor seguro (Sandbox)", status: "ATIVO", control: false, skills: "Executa scripts JS e abre preview ao vivo de apps HTML/CSS/JS direto no chat." },
   { id: "voz-tts", name: "33. Voz natural (TTS)", status: "ATIVO", control: false, skills: "Leitura em português dividida em trechos (compatível com iPhone, Android e PC)." },
-  { id: "erros-adm", name: "34. Central de erros ADM", status: "ATIVO", control: false, skills: "Captura automática de falhas do público com busca, seleção, exclusão e cópia no ADM." }
+  { id: "erros-adm", name: "34. Central de erros ADM", status: "ATIVO", control: false, skills: "Captura automática de falhas do público com busca, seleção, exclusão e cópia no ADM." },
+  { id: "rede-neural", name: "35. Rede Neural Própria", status: "NEURAL", control: false, skills: "MLP 256->48->12 com backpropagation, n-gramas e pesos treinados na nuvem." },
+  { id: "nlu-nuvem", name: "36. NLU Neural & Nuvem D1", status: "NUVEM + LOCAL", control: false, skills: "Entendimento livre, autoaprendizado por reformulação e coleta na Cloudflare D1." }
 ];
 
 const AJUDA_FERRAMENTAS = {
@@ -79,7 +81,7 @@ const AJUDA_FERRAMENTAS = {
   "/senha": "🔐 Use `/senha 16` ou peça `gera uma senha forte`.",
   "/dado": "🎲 Use `/dado 20`, `d20` ou `joga um dado`.",
   "/sortear": "🎯 Use `/sortear pizza, lanche, sushi` ou `sorteia de 1 a 100`.",
-  "/cpf": "✅ Use `/cpf 000.000.000-00` para validar os dígitos matemáticos.",
+  "/cpf": "✅ Use `/cpf 000.000.000-00` para validar os dígitos matemáticos ou peça `manda um cpf de teste`.",
   "/contar": "📊 Use `/contar seu texto aqui` para contar palavras, caracteres e tempo de leitura."
 };
 
@@ -101,7 +103,7 @@ function enabled(id) {
 }
 
 function listModules() {
-  return "🧠 BACH AI 4.8 — DEPARTAMENTOS (" + DEPARTMENTS.length + ")\n\n" +
+  return "🧠 BACH AI 5.1 — DEPARTAMENTOS (" + DEPARTMENTS.length + ")\n\n" +
     DEPARTMENTS.map(d => {
       const flag = d.control ? (enabled(d.id) ? "🟢" : "⚪") : "🔹";
       return flag + " " + d.name + "\n   ID: " + d.id + " • " + d.status + "\n   " + d.skills;
