@@ -1,8 +1,8 @@
-/* BACH AI 5.2 — MENTE 3.5 (Revisada, Sem Vazamento de Tema & Blindada)
+/* BACH AI 5.4 — MENTE 3.6 (Sem Vazamento de Sessão, Tópicos Limpos & Blindada)
    Contexto inteligente: entende "Me resume" após fotos/textos, inspeciona módulos de sites/códigos
    colados, jogos (sem falsos positivos), criação de apps e pastas.
-   Correções 3.5: adiciona limparTema(), respeita mensagem citada (alvo) sem misturar com
-   tema antigo ("cor pinguim") e impede que perguntas conversacionais com "?" disparem pesquisas. */
+   Correções 3.6: limpa sessão/assuntos em limparTema(), salva nome completo do tópico sem cortar
+   palavras no meio e bloqueia perguntas conversacionais curtas ("Esqueceu foi?") de virarem pesquisa. */
 import { Saber } from "./saber.js?v=15";
 import { KB, ERROS } from "./conhecimento.js?v=1";
 
@@ -70,7 +70,7 @@ const BASE_LEX = (
   "imagem video foto audio som voz tela teclado mouse camera microfone arquivo pasta pastas documento " +
   "praia montanha rio mar oceano lago ilha deserto neve vento tempestade raio trovao fogo gelo pedra areia " +
   "javascript python html css sql java php csharp ruby rust go kotlin swift react node linux windows android ios github " +
-  "turno noite dialogo"
+  "turno noite dialogo zoeira verifica falhas"
 ).split(" ");
 
 let LEXS = null;
@@ -86,21 +86,21 @@ const lexico = () => {
 
 function lev(a, b) {
   const m = a.length, n = b.length;
-  let pr = Array.from({ length: n + 1 }, (_, j) => j);
+  let prev = Array.from({ length: n + 1 }, (_, j) => j);
   for (let i = 1; i <= m; i++) {
     const c = [i];
     for (let j = 1; j <= n; j++) {
-      c[j] = Math.min(pr[j] + 1, c[j - 1] + 1, pr[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      c[j] = Math.min(prev[j] + 1, c[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
     }
-    pr = c;
+    prev = c;
   }
-  return pr[n];
+  return prev[n];
 }
 
 function corrigir(w) {
   if (w.length < 5 || /\d|\s/.test(w)) return w;
   if (/(?:ando|endo|indo|mente|inho|inha|coes|sao)$/.test(w)) return w;
-  if (/^(passe|passa|passar|passou|arroz|manda|mande|pede|pedir|quero|prece|pesse|lancou|lanca|lancar|estreou|saiu|presta|recomenda|indica|bugado|bugada|fazem|travou|arrumo|consertar|entende|entendeu|mandei|responde|pergunto|consciencia|sobreviver|melhore|melhora|repetindo|repetir|dormi|dormir|acordar|gravidez|natal|sereia|sereias|formula|criado|criada|fruta|membros|episodios|trabalhava|mandado|dialogo|falasse|queria)$/.test(w)) return w;
+  if (/^(passe|passa|passar|passou|arroz|manda|mande|pede|pedir|quero|prece|pesse|lancou|lanca|lancar|estreou|saiu|presta|recomenda|indica|bugado|bugada|fazem|travou|arrumo|consertar|entende|entendeu|mandei|responde|respondeu|pergunto|perguntando|consciencia|sobreviver|melhore|melhora|repetindo|repetir|dormi|dormir|acordar|gravidez|natal|sereia|sereias|formula|criado|criada|fruta|membros|episodios|trabalhava|mandado|dialogo|falasse|queria|esqueceu|esqueci|lembra|lembro|verifica|falhas|zoeira|certo)$/.test(w)) return w;
   const L = lexico();
   if (L.has(w)) return w;
   const max = 1;
@@ -127,7 +127,10 @@ function lembrarTema(q) {
 
 function limparTema() {
   ctx.tema = null;
-  if (ctx.ultimo?.t === "tema") ctx.ultimo = null;
+  ctx.texto = null;
+  ctx.nome = "";
+  ctx.assuntos = [];
+  if (ctx.ultimo?.t === "tema" || ctx.ultimo?.t === "texto") ctx.ultimo = null;
   persist();
 }
 
@@ -158,7 +161,7 @@ function tema(t) {
   for (let k = 0; k < 4; k++) {
     x = x.replace(CMD, "").replace(PERG, "").replace(ART, "").replace(SUF, "").trim();
   }
-  if (/^(isso|aquilo|ele|ela|eles|elas|esse|essa|este|esta|falar|falasse|queria|perguntei|aqui|travou|rir|audio|opa|oxe|ue|entende|digo|disse|falo|falei|mandei|pergunto|tipo|bom|boa|cara|mano|odio|testar|dialogo)$/.test(x)) return "";
+  if (/^(isso|aquilo|ele|ela|eles|elas|esse|essa|este|esta|falar|falasse|queria|perguntei|aqui|travou|rir|audio|opa|oxe|ue|entende|digo|disse|falo|falei|mandei|pergunto|perguntando|tipo|bom|boa|cara|mano|odio|testar|dialogo|esqueceu|esqueci|lembra|lembro|foi|certo|errado|zoeira|falhas|verifica)$/.test(x)) return "";
   return x;
 }
 
@@ -175,13 +178,16 @@ try {
         if (!PROIBIDAS.has(k) && typeof o.vocab[k] === "string") vocabLimpo[k] = o.vocab[k].slice(0, 80);
       }
     }
+    const assuntosLimpos = Array.isArray(o.assuntos)
+      ? o.assuntos.filter(a => typeof a === "string" && !/\b(?:do|da|de|e|o|a|que)$/i.test(a.trim()))
+      : [];
     Object.assign(ctx, {
       texto: typeof o.texto === "string" ? o.texto : null,
       nome: typeof o.nome === "string" ? o.nome : "",
       pasta: typeof o.pasta === "string" && !PROIBIDAS.has(o.pasta.toLowerCase()) ? o.pasta : null,
       ultimo: o.ultimo && typeof o.ultimo === "object" ? o.ultimo : null,
       ultimoMidia: o.ultimoMidia && typeof o.ultimoMidia === "object" ? o.ultimoMidia : null,
-      assuntos: Array.isArray(o.assuntos) ? o.assuntos : [],
+      assuntos: assuntosLimpos,
       vocab: vocabLimpo,
       tema: typeof o.tema === "string" ? o.tema : null,
       lex: Array.isArray(o.lex) ? o.lex : []
@@ -369,7 +375,6 @@ function sobreTexto(p) {
   if (cod && has(p, /explic|o que faz|faz o que|fazem o que|o que fazem|para que serve|pra que serve|entend|como funciona|o que e/)) return explicarCodigoLocal(t);
   return "📄 " + ctx.nome + "\n" + Saber.lerTexto(t) + "\n\nPosso também: explicar em detalhes, montar uma cadeia de uso, resumir ou revisar o código.";
 }
-
 /* ---------- jogos no chat ---------- */
 const PAL = "computador programacao javascript internet teclado algoritmo navegador variavel funcao servidor python aplicativo memoria pesquisa inteligencia arquivo biblioteca notebook".split(" ");
 const QUIZ = [
@@ -501,7 +506,8 @@ const ACAO_TELA = /\b(cliquei|clique|cliquem|clicar|clica|cliquei nisso|toquei|t
 function topico(i, p) {
   const [, b, ex, av] = KB[i], fundo = has(p, /avancad|profund|detalhad|completo/);
   ctx.ultimo = { t: "prog", i };
-  const assunto = b.slice(3, 28);
+  const tituloBruto = KB[i][0].split("|")[0];
+  const assunto = tituloBruto.charAt(0).toUpperCase() + tituloBruto.slice(1);
   ctx.assuntos = (ctx.assuntos || []).filter(a => a !== assunto);
   ctx.assuntos.push(assunto);
   ctx.assuntos = ctx.assuntos.slice(-10);
@@ -602,7 +608,6 @@ function responder(msg, opts = {}) {
     return { texto: "O que você quer que eu explique ou resuma? Cole o texto/código aqui, envie uma foto pelo + ou me diga o assunto. 🤔", origem: "🧠 contexto" };
   }
 
-  // Só expande tema anterior se NÃO houver citação (alvo) de outro assunto e se houver palavras novas reais (não só "bom/ruim/legal")
   if (!opts?.alvo && ctx.tema && ctx.ultimo?.t === "tema" && (outroAssunto || has(p, / (essa|essas|esse|esses|isso|isto|disso|dele|dela|deles|delas|nisso|aquilo|ele|ela|eles|elas) /)) && (pergunta(raw) || has(p, / (faz|fazem|serve|servem|significa|come|sobrevive|vive|mora) /))) {
     const PR = new Set("essa essas esse esses isso isto disso dele dela deles delas nisso aquilo ele ela eles elas faz fazem fazer serve servem o que e sao por para qual quais como me explica bom boa ruim legal presta melhor pior serio verdade certo errado".split(" "));
     const seen = new Set(prep(ctx.tema).split(" ")), novo = p.trim().split(" ").filter(x => !PR.has(x) && !seen.has(x) && x.length > 2);
@@ -611,8 +616,14 @@ function responder(msg, opts = {}) {
     }
   }
 
-  if (has(p, /(o que (a gente |nos |voce )?(falou|falamos|conversou|conversamos|vimos)|voce lembra|lembra do que|do que falamos)/))
-    return { texto: ctx.assuntos.length ? "🧠 Lembro que falamos de:\n• " + ctx.assuntos.join("\n• ") + (ctx.texto ? "\n\nE guardei o texto “" + ctx.nome + "”." : "") : "Ainda não conversamos sobre nada que eu tenha guardado. 😊", origem: "🧠 memória" };
+  if (has(p, /(o que (a gente |nos |voce )?(falou|falamos|conversou|conversamos|vimos)|do que falamos)/)) {
+    if (!ctx.assuntos.length && !ctx.texto) return null;
+    return {
+      texto: (ctx.assuntos.length ? "🧠 Lembro que falamos neste chat de:\n• " + ctx.assuntos.join("\n• ") : "Ainda não falamos sobre código neste chat.") +
+        (ctx.texto ? "\n\nE guardei o texto “" + ctx.nome + "”." : ""),
+      origem: "🧠 memória"
+    };
+  }
 
   for (const [k, r] of ERROS) if (new RegExp(k, "i").test(raw)) return { texto: "🛠️ " + r + "\n\nSe quiser, cole o código e eu reviso.", origem: "🐛 erros comuns" };
 
@@ -638,7 +649,7 @@ function responder(msg, opts = {}) {
     if (tmCap.length >= 2 && pergunta(raw)) { lembrarTema(tmCap); return { pesquisa: tmCap, fundo: true }; }
   }
 
-  if (pergunta(raw) && !has(p, / (voce|horas|hora|dia|data|bach|meu nome|seu nome|digo|disse|falei|mandei|entende|entendeu|pergunto) /)) {
+  if (pergunta(raw) && !has(p, / (voce|horas|hora|dia|data|bach|meu nome|seu nome|digo|disse|falei|mandei|entende|entendeu|pergunto|perguntando|esqueceu|esqueci|lembra|lembro|certo|errado|respondeu|zoeira|falhas|verifica) /)) {
     const tm = tema(raw);
     if (tm.length >= 2) {
       lembrarTema(tm);
@@ -650,16 +661,16 @@ function responder(msg, opts = {}) {
   return null;
 }
 
-const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo|vamos falar sobre|falar sobre o que|nao foi isso|travou foi|sabe rir|velho do ceu|conversa comigo|opa o que|oxe o que|entende o que|eu falo de|nao mandei|como assim|porque nao|eu que pergunto|consciencia|fazendo pesquisa|nao entendeu|nao entende|acertei|que humor ruim|melhore|sentiu o que|blz o que|jogar voce fora|vai ficar repetindo|dormi bem|e isso e bom|isso e bom|e bom|serio mesmo|ta bem|ta bravo|ta brava|aconteceu algo|que pergunta|q pergunta|e agora|nao e|ne)/;
+const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo|vamos falar sobre|falar sobre o que|nao foi isso|travou foi|sabe rir|velho do ceu|conversa comigo|opa o que|oxe o que|entende o que|eu falo de|nao mandei|como assim|porque nao|eu que pergunto|to te perguntando|consciencia|fazendo pesquisa|nao entendeu|nao entende|acertei|que humor ruim|melhore|sentiu o que|blz o que|jogar voce fora|vai ficar repetindo|dormi bem|e isso e bom|isso e bom|e bom|serio mesmo|ta bem|ta bravo|ta brava|aconteceu algo|que pergunta|q pergunta|e agora|nao e|ne|esqueceu foi|seja certo|vc lembra|voce lembra|ta erra)/;
 
 const PALAVRAS_CONVERSA_SEM_TEMA = new Set(
-  "a o as os um uma e eh de do da em no na por para com sem que se isso isto aquilo ele ela eles elas esse essa este esta bom boa ruim legal serio verdade certo errado agora sim nao tudo nada aqui ali ne oxe uai ue cara mano vei po vc voce eu meu minha seu sua".split(" ")
+  "a o as os um uma e eh de do da em no na por para com sem que se isso isto aquilo ele ela eles elas esse essa este esta bom boa ruim legal serio verdade certo errado agora sim nao tudo nada aqui ali ne oxe uai ue cara mano vei po vc voce eu meu minha seu sua foi era sou esqueceu esqueci lembra lembro sabia disse falou respondeu perguntando pergunto seja verifica falhas zoeira".split(" ")
 );
 
 const pergunta = t => {
   const p = prep(t);
   if (has(p, SMALL)) return false;
-  if (has(p, /\b(eu|voce|pergunto|digo|disse|falei|mandei|entende|entendeu|pesquisando|fazendo pesquisa|queria|falasse|dialogo|testar)\b/)) return false;
+  if (has(p, /\b(eu|voce|pergunto|perguntando|digo|disse|falei|mandei|entende|entendeu|pesquisando|fazendo pesquisa|queria|falasse|dialogo|testar|esqueceu|esqueci|lembra|lembro|respondeu)\b/)) return false;
   if (has(p, /^ ?(o que e|o que sao|o que foi|o que significa|quem e|quem foi|quem sao|quais sao|quais os|quais as|qual e|qual a|qual o|qual foi|de qual|em qual|com qual|quantos|quantas|quanto|onde fica|onde esta|quando foi|quando aconteceu|como funciona|como fazer|como faco|como posso|como surgiu|por que|porque|para que|me explica|explique|explica|fale sobre|fala sobre|historia de|historia do|historia da) /)) {
     const termosReais = p.trim().split(" ").filter(w => w.length >= 2 && !PALAVRAS_CONVERSA_SEM_TEMA.has(w) && !/^(o|que|e|sao|foi|significa|quem|quais|qual|de|em|com|quantos|quantas|quanto|onde|fica|esta|quando|aconteceu|como|funciona|fazer|faco|posso|surgiu|por|porque|para|me|explica|explique|fale|fala|sobre|historia|da|do)$/.test(w));
     return termosReais.length >= 1;
