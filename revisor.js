@@ -1,13 +1,34 @@
-/* BACH AI 4.8 — REVISOR FIEL (Ortografia, Sílabas, Código e Avaliação de Sites)
-   Permite revisar textos, sílabas, códigos e analisar sites direto no chat. */
+/* BACH AI 5.1 — REVISOR FIEL BLINDADO (Ortografia, Sílabas, Código e Avaliação de Sites)
+   Permite revisar textos, sílabas, códigos e analisar sites direto no chat,
+   com proteção contra SSRF/endereços internos em /site e limite anti-travamento. */
 
 const VOGAIS = "aáàâãeéêiíoóôõuúüy";
 const V_RE = new RegExp("[" + VOGAIS + "]", "i");
 const INSEPARAVEIS = new Set(["bl","br","cl","cr","dr","fl","fr","gl","gr","pl","pr","tl","tr","vr","ch","lh","nh"]);
 const DIG_SEP = new Set(["rr","ss","sc","sç","xc","xs"]);
 
+function hostPrivadoOuLocal(hostname) {
+  const h = String(hostname || "").toLowerCase().replace(/^\[|\]$/g, "");
+  if (!h || h === "localhost" || h === "::1" || h.endsWith(".local") || h.endsWith(".internal")) return true;
+  if (/^(?:127\.|10\.|0\.|169\.254\.|192\.168\.)/.test(h)) return true;
+  const m172 = h.match(/^172\.(\d{1,3})\./);
+  if (m172 && Number(m172[1]) >= 16 && Number(m172[1]) <= 31) return true;
+  return false;
+}
+
+function urlPublicaSegura(url) {
+  try {
+    const u = new URL(String(url || "").trim());
+    if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+    if (hostPrivadoOuLocal(u.hostname)) return null;
+    return u.href;
+  } catch {
+    return null;
+  }
+}
+
 function separarSilabaPalavra(raw) {
-  const w = String(raw || "").trim().toLowerCase().replace(/[^a-záàâãéêíóôõúüç-]/gi, "");
+  const w = String(raw || "").trim().slice(0, 60).toLowerCase().replace(/[^a-záàâãéêíóôõúüç-]/gi, "");
   if (!w) return "";
   if (w.includes("-")) return w.split("-").map(separarSilabaPalavra).join("-");
 
@@ -103,7 +124,7 @@ function classificarSilabas(n) {
 }
 
 function analisarSilabas(frase) {
-  const palavras = String(frase || "").trim().split(/\s+/).filter(Boolean).slice(0, 12);
+  const palavras = String(frase || "").trim().slice(0, 400).split(/\s+/).filter(Boolean).slice(0, 12);
   if (!palavras.length) return "🔤 Envie uma ou mais palavras depois de `/silabas`. Ex.: `/silabas computador programacao`";
   const linhas = palavras.map(p => {
     const sep = separarSilabaPalavra(p);
@@ -140,7 +161,7 @@ const REGRAS_PT = [
 ];
 
 function revisarPortugues(texto) {
-  const orig = String(texto || "").trim();
+  const orig = String(texto || "").trim().slice(0, 20000);
   if (!orig) return "📝 Cole o texto depois de `/revisar` para eu revisar cada erro!";
 
   const erros = [];
@@ -193,7 +214,8 @@ function revisarPortugues(texto) {
 }
 
 function revisarCodigoFiel(codigo) {
-  const linhas = String(codigo || "").split("\n");
+  const src = String(codigo || "").slice(0, 60000);
+  const linhas = src.split("\n");
   const erros = [];
 
   linhas.forEach((l, idx) => {
@@ -206,19 +228,19 @@ function revisarCodigoFiel(codigo) {
     if (/TODO|FIXME/i.test(l)) erros.push("• Linha " + n + ": pendência `TODO/FIXME` aberta.");
   });
 
-  const abreCh = (codigo.match(/\{/g) || []).length, fechaCh = (codigo.match(/\}/g) || []).length;
+  const abreCh = (src.match(/\{/g) || []).length, fechaCh = (src.match(/\}/g) || []).length;
   if (abreCh !== fechaCh) erros.push("• Estrutura: chaves `{}` desbalanceadas (" + abreCh + " abrem, " + fechaCh + " fecham).");
 
-  const abrePar = (codigo.match(/\(/g) || []).length, fechaPar = (codigo.match(/\)/g) || []).length;
+  const abrePar = (src.match(/\(/g) || []).length, fechaPar = (src.match(/\)/g) || []).length;
   if (abrePar !== fechaPar) erros.push("• Estrutura: parênteses `()` desbalanceados (" + abrePar + " abrem, " + fechaPar + " fecham).");
 
-  if (/<html/i.test(codigo) && !/name=["']viewport["']/i.test(codigo)) {
+  if (/<html/i.test(src) && !/name=["']viewport["']/i.test(src)) {
     erros.push("• HTML: falta `<meta name=\"viewport\" ...>` para funcionar bem no celular.");
   }
-  if (/localStorage\./.test(codigo) && !/try\s*\{/.test(codigo)) {
+  if (/localStorage\./.test(src) && !/try\s*\{/.test(src)) {
     erros.push("• Armazenamento: usa `localStorage` sem `try/catch` (pode quebrar em aba anônima).");
   }
-  if (/fetch\(/.test(codigo) && !/catch/.test(codigo)) {
+  if (/fetch\(/.test(src) && !/catch/.test(src)) {
     erros.push("• Rede: usa `fetch()` sem tratar erro com `catch`.");
   }
 
@@ -228,8 +250,15 @@ function revisarCodigoFiel(codigo) {
 }
 
 async function avaliarSite(url) {
-  const u = String(url || "").trim();
-  if (!/^https?:\/\//i.test(u)) return "🌐 Envie um link completo começando com `http://` ou `https://`. Ex.: `/site https://google.com`";
+  const rawUrl = String(url || "").trim();
+  if (!/^https?:\/\//i.test(rawUrl)) {
+    return "🌐 Envie um link completo começando com `http://` ou `https://`. Ex.: `/site https://google.com`";
+  }
+
+  const u = urlPublicaSegura(rawUrl);
+  if (!u) {
+    return "🔒 Endereço bloqueado por segurança (não avalio links locais, privados ou inválidos).";
+  }
 
   const pontos = [];
   const problemas = [];
