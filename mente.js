@@ -1,8 +1,8 @@
-/* BACH AI 5.2 — MENTE 3.4 (Revisada & Blindada)
+/* BACH AI 5.2 — MENTE 3.5 (Revisada, Sem Vazamento de Tema & Blindada)
    Contexto inteligente: entende "Me resume" após fotos/textos, inspeciona módulos de sites/códigos
-   colados, jogos (sem falsos positivos em "jogar fora" e sem prender comandos /), criação de apps e pastas.
-   Correções 3.4: impede que palavras comuns virem termos técnicos ("repetindo" -> "repeticao"),
-   exige contexto mínimo para aulas de código e amplia pergunta() para "qual a/o", "de qual", "como faço" e "?". */
+   colados, jogos (sem falsos positivos), criação de apps e pastas.
+   Correções 3.5: adiciona limparTema(), respeita mensagem citada (alvo) sem misturar com
+   tema antigo ("cor pinguim") e impede que perguntas conversacionais com "?" disparem pesquisas. */
 import { Saber } from "./saber.js?v=15";
 import { KB, ERROS } from "./conhecimento.js?v=1";
 
@@ -69,7 +69,8 @@ const BASE_LEX = (
   "presidente governo eleicao lei guerra paz energia eletricidade bateria motor robo inteligencia artificial termux linux bash " +
   "imagem video foto audio som voz tela teclado mouse camera microfone arquivo pasta pastas documento " +
   "praia montanha rio mar oceano lago ilha deserto neve vento tempestade raio trovao fogo gelo pedra areia " +
-  "javascript python html css sql java php csharp ruby rust go kotlin swift react node linux windows android ios github"
+  "javascript python html css sql java php csharp ruby rust go kotlin swift react node linux windows android ios github " +
+  "turno noite dialogo"
 ).split(" ");
 
 let LEXS = null;
@@ -99,7 +100,7 @@ function lev(a, b) {
 function corrigir(w) {
   if (w.length < 5 || /\d|\s/.test(w)) return w;
   if (/(?:ando|endo|indo|mente|inho|inha|coes|sao)$/.test(w)) return w;
-  if (/^(passe|passa|passar|passou|arroz|manda|mande|pede|pedir|quero|prece|pesse|lancou|lanca|lancar|estreou|saiu|presta|recomenda|indica|bugado|bugada|fazem|travou|arrumo|consertar|entende|entendeu|mandei|responde|pergunto|consciencia|sobreviver|melhore|melhora|repetindo|repetir|dormi|dormir|acordar|gravidez|natal|sereia|sereias|formula|criado|criada|fruta|membros|episodios)$/.test(w)) return w;
+  if (/^(passe|passa|passar|passou|arroz|manda|mande|pede|pedir|quero|prece|pesse|lancou|lanca|lancar|estreou|saiu|presta|recomenda|indica|bugado|bugada|fazem|travou|arrumo|consertar|entende|entendeu|mandei|responde|pergunto|consciencia|sobreviver|melhore|melhora|repetindo|repetir|dormi|dormir|acordar|gravidez|natal|sereia|sereias|formula|criado|criada|fruta|membros|episodios|trabalhava|mandado|dialogo|falasse|queria)$/.test(w)) return w;
   const L = lexico();
   if (L.has(w)) return w;
   const max = 1;
@@ -121,6 +122,12 @@ function lembrarTema(q) {
   prep(t).split(" ").forEach(w => w.length > 3 && !ctx.lex.includes(w) && ctx.lex.push(w));
   ctx.lex = ctx.lex.slice(-300);
   LEXS = null;
+  persist();
+}
+
+function limparTema() {
+  ctx.tema = null;
+  if (ctx.ultimo?.t === "tema") ctx.ultimo = null;
   persist();
 }
 
@@ -151,7 +158,7 @@ function tema(t) {
   for (let k = 0; k < 4; k++) {
     x = x.replace(CMD, "").replace(PERG, "").replace(ART, "").replace(SUF, "").trim();
   }
-  if (/^(isso|aquilo|ele|ela|eles|elas|esse|essa|este|esta|falar|perguntei|aqui|travou|rir|audio|opa|oxe|ue|entende|digo|disse|falo|falei|mandei|pergunto|tipo)$/.test(x)) return "";
+  if (/^(isso|aquilo|ele|ela|eles|elas|esse|essa|este|esta|falar|falasse|queria|perguntei|aqui|travou|rir|audio|opa|oxe|ue|entende|digo|disse|falo|falei|mandei|pergunto|tipo|bom|boa|cara|mano|odio|testar|dialogo)$/.test(x)) return "";
   return x;
 }
 
@@ -520,7 +527,7 @@ function ajudaProg() {
 }
 
 /* ---------- principal ---------- */
-function responder(msg) {
+function responder(msg, opts = {}) {
   const raw = String(msg || "").trim();
   const cp = comandoPasta(raw); if (cp) return { texto: cp, origem: "📂 pastas" };
   const mv = raw.match(/^\/palavra\s+(\S+)\s*=\s*(.+)$/i);
@@ -591,15 +598,17 @@ function responder(msg) {
   if (!outroAssunto && (PEDIDO_TEXTO_BARE.test(p) || (has(p, REF_ARQUIVO) && has(p, ACAO_ARQUIVO))) && (pedeExplicitoArq || ctx.ultimo?.t === "texto")) {
     if (ctx.texto) return { texto: sobreTexto(p), origem: "📖 leitura do seu arquivo" };
     if (ctx.ultimoMidia) return { texto: "Na última mídia (“" + ctx.ultimoMidia.nome + "”) não encontrei texto legível para explicar. 🖼️", origem: "🧠 contexto" };
-    if (ctx.tema) return { pesquisarTema: ctx.tema, fundo: true };
+    if (ctx.tema && !opts?.alvo) return { pesquisarTema: ctx.tema, fundo: true };
     return { texto: "O que você quer que eu explique ou resuma? Cole o texto/código aqui, envie uma foto pelo + ou me diga o assunto. 🤔", origem: "🧠 contexto" };
   }
 
-  if (ctx.tema && (outroAssunto || has(p, / (essa|essas|esse|esses|isso|isto|disso|dele|dela|deles|delas|nisso|aquilo|ele|ela|eles|elas) /)) && (pergunta(raw) || has(p, / (faz|fazem|serve|servem|significa|come|sobrevive|vive|mora) /))) {
-    const PR = new Set("essa essas esse esses isso isto disso dele dela deles delas nisso aquilo ele ela eles elas faz fazem fazer serve servem o que e sao por para qual quais como me explica".split(" "));
+  // Só expande tema anterior se NÃO houver citação (alvo) de outro assunto e se houver palavras novas reais (não só "bom/ruim/legal")
+  if (!opts?.alvo && ctx.tema && ctx.ultimo?.t === "tema" && (outroAssunto || has(p, / (essa|essas|esse|esses|isso|isto|disso|dele|dela|deles|delas|nisso|aquilo|ele|ela|eles|elas) /)) && (pergunta(raw) || has(p, / (faz|fazem|serve|servem|significa|come|sobrevive|vive|mora) /))) {
+    const PR = new Set("essa essas esse esses isso isto disso dele dela deles delas nisso aquilo ele ela eles elas faz fazem fazer serve servem o que e sao por para qual quais como me explica bom boa ruim legal presta melhor pior serio verdade certo errado".split(" "));
     const seen = new Set(prep(ctx.tema).split(" ")), novo = p.trim().split(" ").filter(x => !PR.has(x) && !seen.has(x) && x.length > 2);
-    if (!novo.length) return { texto: "Estamos falando de “" + ctx.tema + "”. O que você quer saber sobre isso? Por exemplo: significado, origem, como funciona ou para que serve. 🤔", origem: "🧠 lembrei do assunto" };
-    return { pesquisa: ctx.tema + " " + novo.join(" "), fundo: true };
+    if (novo.length) {
+      return { pesquisa: ctx.tema + " " + novo.join(" "), fundo: true };
+    }
   }
 
   if (has(p, /(o que (a gente |nos |voce )?(falou|falamos|conversou|conversamos|vimos)|voce lembra|lembra do que|do que falamos)/))
@@ -641,16 +650,27 @@ function responder(msg) {
   return null;
 }
 
-const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo|vamos falar sobre|falar sobre o que|nao foi isso|travou foi|sabe rir|velho do ceu|conversa comigo|opa o que|oxe o que|entende o que|eu falo de|nao mandei|como assim|porque nao|eu que pergunto|consciencia|fazendo pesquisa|nao entendeu|nao entende|acertei|que humor ruim|melhore|sentiu o que|blz o que|jogar voce fora|vai ficar repetindo|dormi bem)/;
+const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo|vamos falar sobre|falar sobre o que|nao foi isso|travou foi|sabe rir|velho do ceu|conversa comigo|opa o que|oxe o que|entende o que|eu falo de|nao mandei|como assim|porque nao|eu que pergunto|consciencia|fazendo pesquisa|nao entendeu|nao entende|acertei|que humor ruim|melhore|sentiu o que|blz o que|jogar voce fora|vai ficar repetindo|dormi bem|e isso e bom|isso e bom|e bom|serio mesmo|ta bem|ta bravo|ta brava|aconteceu algo|que pergunta|q pergunta|e agora|nao e|ne)/;
+
+const PALAVRAS_CONVERSA_SEM_TEMA = new Set(
+  "a o as os um uma e eh de do da em no na por para com sem que se isso isto aquilo ele ela eles elas esse essa este esta bom boa ruim legal serio verdade certo errado agora sim nao tudo nada aqui ali ne oxe uai ue cara mano vei po vc voce eu meu minha seu sua".split(" ")
+);
+
 const pergunta = t => {
   const p = prep(t);
   if (has(p, SMALL)) return false;
-  if (has(p, /\b(eu|voce|pergunto|digo|disse|falei|mandei|entende|entendeu|pesquisando|fazendo pesquisa)\b/)) return false;
-  if (has(p, /^ ?(o que e|o que sao|o que foi|o que significa|quem e|quem foi|quem sao|quais sao|quais os|quais as|qual e|qual a|qual o|qual foi|de qual|em qual|com qual|quantos|quantas|quanto|onde fica|onde esta|quando foi|quando aconteceu|como funciona|como fazer|como faco|como posso|como surgiu|por que|porque|para que|me explica|explique|explica|fale sobre|fala sobre|historia de|historia do|historia da) /)) return true;
-  if (/\?\s*$/.test(String(t)) && p.trim().split(" ").length >= 2) return true;
+  if (has(p, /\b(eu|voce|pergunto|digo|disse|falei|mandei|entende|entendeu|pesquisando|fazendo pesquisa|queria|falasse|dialogo|testar)\b/)) return false;
+  if (has(p, /^ ?(o que e|o que sao|o que foi|o que significa|quem e|quem foi|quem sao|quais sao|quais os|quais as|qual e|qual a|qual o|qual foi|de qual|em qual|com qual|quantos|quantas|quanto|onde fica|onde esta|quando foi|quando aconteceu|como funciona|como fazer|como faco|como posso|como surgiu|por que|porque|para que|me explica|explique|explica|fale sobre|fala sobre|historia de|historia do|historia da) /)) {
+    const termosReais = p.trim().split(" ").filter(w => w.length >= 2 && !PALAVRAS_CONVERSA_SEM_TEMA.has(w) && !/^(o|que|e|sao|foi|significa|quem|quais|qual|de|em|com|quantos|quantas|quanto|onde|fica|esta|quando|aconteceu|como|funciona|fazer|faco|posso|surgiu|por|porque|para|me|explica|explique|fale|fala|sobre|historia|da|do)$/.test(w));
+    return termosReais.length >= 1;
+  }
+  if (/\?\s*$/.test(String(t))) {
+    const termosReais = p.trim().split(" ").filter(w => w.length >= 3 && !PALAVRAS_CONVERSA_SEM_TEMA.has(w));
+    return termosReais.length >= 1 && p.trim().split(" ").length >= 2;
+  }
   return false;
 };
 
 const stats = () => ({ girias: Object.keys(VOCAB).length, lexBase: BASE_LEX.length, kbProg: KB.length, erros: ERROS.length, jogos: 4, modelosApps: Object.keys(TEMPLATES).length, pasta: ctx.pasta, tema: ctx.tema });
 const jogando = () => !!ctx.jogo;
-export const Mente = { jogando, responder, setTexto, setMidia, pasta, pergunta, tema, lembrarTema, stats };
+export const Mente = { jogando, responder, setTexto, setMidia, pasta, pergunta, tema, lembrarTema, limparTema, stats };
