@@ -1,6 +1,6 @@
-/* BACH AI 5.1 — registro central dos departamentos, Watchdog AutoGuard e roteador de habilidades. */
+/* BACH AI 5.1 — registro central dos departamentos, Watchdog AutoGuard e roteador de habilidades (Blindado). */
 
-import { AutoGuard } from "./autoguard.js?v=1";
+import { AutoGuard } from "./autoguard.js?v=2";
 import { Intelligence } from "./intelligence.js?v=2";
 import { Personality } from "./personality.js?v=2";
 import { Creativity } from "./creativity.js?v=1";
@@ -26,11 +26,12 @@ await Promise.allSettled([
   import("./saude_bemestar.js?v=1").then(m => { if (m?.SaudeBemEstar?.handle) saudeHandle = m.SaudeBemEstar.handle; }),
   import("./estudos.js?v=1").then(m => { if (m?.Estudos?.handle) estudosHandle = m.Estudos.handle; }),
   import("./dev_ferramentas.js?v=1").then(m => { if (m?.DevFerramentas?.handle) devHandle = m.DevFerramentas.handle; }),
-  import("./programacao_termux.js?v=3").then(m => { if (m?.ProgramacaoTermux?.handle) progTermuxHandle = m.ProgramacaoTermux.handle; }),
+  import("./programacao_termux.js?v=4").then(m => { if (m?.ProgramacaoTermux?.handle) progTermuxHandle = m.ProgramacaoTermux.handle; }),
   import("./saberes_pro.js?v=1").then(m => { if (m?.SaberesPro?.handle) saberesProHandle = m.SaberesPro.handle; })
 ]);
 
 const SETTINGS_KEY = "bach_modules_v1";
+const PROIBIDAS = new Set(["__proto__", "constructor", "prototype"]);
 
 const DEPARTMENTS = [
   { id: "inteligencia", name: "1. Inteligência e raciocínio", status: "LOCAL", control: true, skills: "Raciocínio lógico, resolução de problemas, cálculo seguro e análise de situações." },
@@ -88,7 +89,13 @@ const AJUDA_FERRAMENTAS = {
 function loadSettings() {
   try {
     const value = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
-    return value && typeof value === "object" ? value : {};
+    const out = {};
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      for (const k of Object.keys(value)) {
+        if (!PROIBIDAS.has(k) && typeof value[k] === "boolean") out[k] = value[k];
+      }
+    }
+    return out;
   } catch {
     return {};
   }
@@ -99,7 +106,9 @@ function saveSettings(value) {
 }
 
 function enabled(id) {
-  return loadSettings()[id] !== false;
+  if (!id || PROIBIDAS.has(id)) return false;
+  const s = loadSettings();
+  return Object.hasOwn(s, id) ? s[id] !== false : true;
 }
 
 function listModules() {
@@ -111,7 +120,7 @@ function listModules() {
     "\n\nComandos ADM: /statusmodulos • /modulo ID on • /modulo ID off • /diagnostico • /rollback • /tudotxt";
 }
 
-function moduleCommand(text) {
+function moduleCommand(text, context = {}) {
   const raw = String(text || "").trim();
   if (/^\/modulo(?:\s+\S+)?$/i.test(raw) && !/^\/modulo\s+[a-z0-9-]+\s+(on|off|ligar|desligar)$/i.test(raw)) {
     return "⚙️ Use: `/modulo ID on` ou `/modulo ID off` (ex.: `/modulo personalidade off`).\nDigite `/modulos` para ver todos os IDs!";
@@ -120,7 +129,12 @@ function moduleCommand(text) {
   const m = raw.match(/^\/modulo\s+([a-z0-9-]+)\s+(on|off|ligar|desligar)$/i);
   if (!m) return null;
 
+  if (context.modoCriador === false) {
+    return "🔒 O comando `/modulo` é exclusivo do modo administrador.";
+  }
+
   const id = m[1].toLowerCase();
+  if (PROIBIDAS.has(id)) return "ID inválido.";
   const department = DEPARTMENTS.find(d => d.id === id);
   if (!department) return "Não reconheci esse ID (`" + id + "`). Digite `/modulos` para ver a lista.";
   if (!department.control) {
@@ -158,7 +172,7 @@ function handle(text, context = {}) {
   const raw = String(text || "").trim();
   const low = raw.toLowerCase();
 
-  if (AJUDA_FERRAMENTAS[low]) {
+  if (Object.hasOwn(AJUDA_FERRAMENTAS, low)) {
     return { texto: AJUDA_FERRAMENTAS[low], origem: "🛠️ ajuda da ferramenta" };
   }
 
@@ -171,6 +185,9 @@ function handle(text, context = {}) {
   }
 
   if (/^\/rollback$/i.test(raw)) {
+    if (context.modoCriador === false) {
+      return { texto: "🔒 O comando `/rollback` é exclusivo do modo administrador.", origem: "🔒 adm" };
+    }
     const rb = AutoGuard.rollback();
     return {
       texto: rb.ok
@@ -180,7 +197,7 @@ function handle(text, context = {}) {
     };
   }
 
-  const setting = moduleCommand(raw);
+  const setting = moduleCommand(raw, context);
   if (setting) return { texto: setting, origem: "⚙️ gerenciamento de módulos" };
 
   for (const [id, fn, origin] of HANDLERS) {
@@ -215,7 +232,7 @@ function modePrompt(mode = "auto") {
     criatividade: "MODO CRIATIVIDADE: explore ideias originais, narrativas envolventes e soluções fora do comum.",
     documentos: "MODO DOCUMENTOS: resuma, estruture em pontos-chave e revise o conteúdo do arquivo/texto enviado."
   };
-  return map[mode] || map.auto;
+  return Object.hasOwn(map, mode) ? map[mode] : map.auto;
 }
 
 function instructions() {
