@@ -154,3 +154,143 @@ function registrarSucessoAposFalha(textoAtual, intencaoCerta) {
   });
   return true;
 }
+function normBasico(t) {
+  return String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function pareceDesabafoOuConversa(tn) {
+  return /\b(estou|to|tou|fui|estava|tava|trabalh\w*|turno|mandado|mandaram|demitid\w*|odio|raiva|triste|mal|cansad\w*|queria que|era pra|falasse|dissesse|respondesse|dialogo|conversar|testar|nao quero|vc|voce|bach|meu dia|hoje eu|ontem eu|aconteceu|comprei|briguei|amig[oa]|namorad[oa]|familia|escola|prova|dinheiro|celular)\b/.test(tn);
+}
+
+function parecePedidoInformacional(raw, tn) {
+  if (pareceDesabafoOuConversa(tn)) return false;
+  return /^(?:quem|o que|qual|quais|como|onde|quando|quantos|quantas|porque|por que|pesquis\w*|procur\w*|busc\w*|me fala sobre|fala sobre|explica)\b/.test(tn) ||
+    /\b(historia de|significa|origem de|distancia|formula de|quantos episodios|membros d[oa]|existem?)\b/.test(tn);
+}
+
+function decidir(texto, ctx = {}) {
+  const raw = String(texto || "").trim();
+  if (!raw || raw.startsWith("/") || ehRuidoOuTeclaSolta(raw) || ctx.alvo) return null;
+
+  const tn = normBasico(raw);
+  const palavras = tn.replace(/[^a-z0-9\s]/g, " ").trim().split(/\s+/).filter(Boolean);
+  const pred = RedeNeural.predict(raw);
+  const conf = pred.confidence;
+  const intent = pred.intent;
+  const nome = ctx.nome ? ", " + ctx.nome : "";
+  const serio = ctx.mood === "frustrado" || ctx.mood === "serio" || ctx.mood === "triste";
+
+  if (conf < 0.84) return null;
+
+  switch (intent) {
+    case "saudacao":
+      if (palavras.length > 4 || /\?/.test(raw)) return null;
+      return {
+        intent,
+        confidence: conf,
+        texto: serio
+          ? "Olá" + nome + ". Como você está agora?"
+          : "Oi" + nome + "! Tudo certo por aí?"
+      };
+
+    case "habilidades":
+      if (!/\b(sabe|faz|entende|serve|func|consegue|capacidad)\b/.test(tn) || !/\b(vc|voce|bach)\b/.test(tn)) return null;
+      return {
+        intent,
+        confidence: conf,
+        texto: "Eu converso mantendo o contexto, crio apps (`/app`), rodo JS (`/executar`), reviso textos e códigos (`/revisar`), traduzo idiomas, analiso fotos e pesquiso na web. Digite `/ajuda` para ver a lista!"
+      };
+
+    case "pesquisa":
+      if (palavras.length >= 2 && parecePedidoInformacional(raw, tn)) {
+        return { intent, confidence: conf, pesquisar: raw };
+      }
+      return null;
+
+    case "criar_app":
+      if (!/\b(app|aplicativo|painel|site|tela|jogo|calculadora|pomodoro|cobrinha)\b/.test(tn) ||
+          !/\b(cria|crie|criar|monta|monte|gera|faz|faca|quero)\b/.test(tn)) return null;
+      return { intent, confidence: conf, criarApp: raw };
+
+    case "termux_dev":
+      if (!/\b(termux|terminal|bash|script|pkg|apt|chmod)\b/.test(tn)) return null;
+      return {
+        intent,
+        confidence: conf,
+        texto: "💻 Para Termux/Bash, use `/termux` para abrir o guia completo ou cole o comando/erro que está dando aí!"
+      };
+
+    case "humor_jogo":
+      if (!/\b(piada|forca|velha|quiz|charada|jogar)\b/.test(tn)) return null;
+      return {
+        intent,
+        confidence: conf,
+        texto: "🎮 Quer jogar **forca**, **velha**, **adivinhe** ou **quiz**? É só mandar o nome do jogo (ou `piada`!)."
+      };
+
+    case "utilidades":
+      if (!/\b(senha|cpf|dado|moeda|sorte|clima|previsao|tempo)\b/.test(tn) || palavras.length > 6) return null;
+      return {
+        intent,
+        confidence: conf,
+        texto: "🧰 Ferramentas rápidas: `/senha 16`, `/cpf`, `/dado 20`, `/moeda`, `/sortear A, B` ou `clima em Cidade`."
+      };
+
+    case "recomendacao":
+      if (!/\b(filme|serie|anime|musica)\b/.test(tn) || !/\b(recomend|indic|suger|bom|boas|assistir|ouvir)\b/.test(tn)) return null;
+      return {
+        intent,
+        confidence: conf,
+        texto: "🎬🎵 Posso recomendar **filmes**, **séries**, **animes** ou **músicas**. Qual estilo você prefere agora?"
+      };
+
+    case "memoria_eu":
+      if (!/\b(meu nome|lembra de mim|sobre mim|de mim)\b/.test(tn)) return null;
+      return {
+        intent,
+        confidence: conf,
+        texto: RizikBrain.think("o que voce lembra de mim")?.text || "Ainda estou guardando nossas informações — me conte seu nome ou o que você gosta!"
+      };
+
+    default:
+      return null;
+  }
+}
+
+function comando(raw, isAdm) {
+  const s = String(raw || "").trim();
+  const m = s.match(/^\/nuvem(?:\s+([\s\S]+))?$/i);
+  if (!m) return null;
+
+  const arg = (m[1] || "").trim();
+  if (!arg || /^status$/i.test(arg)) {
+    const u = getCloudUrl();
+    return "☁️ **NUVEM DE APRENDIZADO BACH AI (Cloudflare D1):**\n" +
+      (u ? "• Status: 🟢 Conectada (`" + u + "`)\n" : "• Status: ⚪ Ainda não configurada neste aparelho.\n") +
+      "\nPara ativar (no modo ADM): `/nuvem https://seu-worker.workers.dev`";
+  }
+
+  if (!isAdm) return "🔒 Apenas o administrador pode configurar a URL da nuvem.";
+
+  if (/^(off|desligar)$/i.test(arg)) {
+    setCloudUrl("");
+    return "🔌 Conexão com a nuvem desligada neste aparelho.";
+  }
+
+  const segura = urlNuvemSegura(arg);
+  if (!segura) {
+    return "Envie uma URL **HTTPS** válida e pública (não pode ser `http://` nem endereço local). Ex.: `/nuvem https://bach-nuvem.seuuser.workers.dev`";
+  }
+
+  setCloudUrl(segura);
+  return "✅ Nuvem conectada (`" + getCloudUrl() + "`)! Para funcionar no celular de todos os visitantes, cole essa mesma URL em `DEFAULT_CLOUD_URL` dentro de `nlu_neural.js`.";
+}
+
+export const NLUNeural = {
+  decidir,
+  marcarFalha,
+  registrarSucessoAposFalha,
+  enviarParaNuvem,
+  comando,
+  getCloudUrl
+};
