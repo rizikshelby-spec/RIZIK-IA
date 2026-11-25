@@ -1,10 +1,7 @@
-/* BACH AI 5.2 - CÉREBRO AVANÇADO BLINDADO
-   NLU natural, comparação de sites avaliados no histórico, controle contextual de apps criados,
-   tom adaptativo (zero risada fora de hora), temas, senhas, recomendações e escrita.
-   Correções 5.2: trava falsos positivos em "trabalho", "troca", "garantia", "enem" e "foco",
-   e evita respostas repetidas em sequência usando o histórico.
-   Segurança: import alinhado com autoguard.js?v=2, Object.create(null) em giro,
-   limite de entrada anti-travamento e proteção de comandos restritos. */
+/* BACH AI 5.2 - CÉREBRO AVANÇADO BLINDADO (Com Consciência de Citações e Meta-Diálogo)
+   NLU natural, tratamento direto de mensagens citadas (ctx.alvo), meta-diálogo humano
+   (sem empurrar comandos quando o usuário quer só conversar), comparação de sites,
+   controle de apps criados, tom adaptativo, temas, senhas, recomendações e escrita. */
 import { AutoGuard } from "./autoguard.js?v=2";
 
 const norm = t => String(t || "").slice(0, 1200).toLowerCase().normalize("NFD")
@@ -21,7 +18,8 @@ const norm = t => String(t || "").slice(0, 1200).toLowerCase().normalize("NFD")
   .replace(/\b(rlx)\b/g, "relaxa")
   .replace(/\b(nmrl)\b/g, "na moral")
   .replace(/\b(jaja)\b/g, "ja ja")
-  .replace(/\b(nd)\b/g, "nada")
+  .replace(/\bnd\b/g, "nada")
+  .replace(/\bq\b/g, "que")
   .replace(/\b(tlvz)\b/g, "talvez")
   .replace(/\b(tbm|tb|tmb)\b/g, "tambem")
   .replace(/\b(msm)\b/g, "mesmo")
@@ -395,6 +393,51 @@ function detectarGeneroMusica(t) {
   return null;
 }
 
+function responderSobreCitacao(t, raw, ctx) {
+  const alvo = String(ctx.alvo || "").trim();
+  if (!alvo) return null;
+  const alvoNorm = norm(alvo);
+  const nomeUser = ctx.nome ? ", " + ctx.nome : "";
+
+  if (/\b(bach ai|criada por rizik|ajudar todo mundo de graca|memoria continua)\b/.test(alvoNorm)) {
+    if (/\b(e isso e bom|isso e bom|e bom|presta|vale a pena|legal|top|massa)\b/.test(t)) {
+      return {
+        texto: "Eu acho bem legal sim" + nomeUser + " 😄 — o objetivo é justamente você ter uma assistente própria gratuita, que guarda sua memória, entende o papo e ainda lê fotos, códigos e pesquisa na web. E você, o que tá achando até aqui?",
+        origem: "💬 sobre a resposta citada"
+      };
+    }
+    if (/\b(nao|ruim|fraco|falta|melhorar)\b/.test(t)) {
+      return {
+        texto: "Faz parte — tô sempre em evolução! Se tiver algo específico que você acha que falta ou quer melhorar na BACH, me fala!",
+        origem: "💬 sobre a resposta citada"
+      };
+    }
+  }
+
+  if (/^(?:e |mas )?(?:isso|isto|ele|ela)\s+(?:e|eh|ta|esta)?\s*(?:bom|boa|ruim|verdade|serio|certo|normal)\s*$/.test(t) ||
+      /^(?:serio|jura|mesmo|como assim|por que|porque|nao entendi|gostei|legal|daora|interessante)$/.test(t)) {
+    const trecho = alvo.replace(/\s+/g, " ").slice(0, 110);
+    if (/\b(bom|boa|legal|gostei|daora|interessante)\b/.test(t)) {
+      return {
+        texto: "Sobre **“" + trecho + (alvo.length > 110 ? "..." : "") + "”** — sim! O intuito é facilitar mesmo. Quer que eu explique alguma parte melhor ou prefere falar de outra coisa?",
+        origem: "💬 sobre a resposta citada"
+      };
+    }
+    if (/\b(ruim|errado|nao entendi|como assim|por que|porque)\b/.test(t)) {
+      return {
+        texto: "Sobre **“" + trecho + (alvo.length > 110 ? "..." : "") + "”** — o que ficou confuso ou errado ali? Me diz que eu explico direito!",
+        origem: "💬 sobre a resposta citada"
+      };
+    }
+    return {
+      texto: "Sim! Foi exatamente sobre **“" + trecho + (alvo.length > 110 ? "..." : "") + "”** que eu tava falando. Quer saber mais sobre isso?",
+      origem: "💬 sobre a resposta citada"
+    };
+  }
+
+  return null;
+}
+
 async function responder(raw, ctx = {}) {
   const s = String(raw || "");
   if (!s || s.length > 1200) return null;
@@ -402,6 +445,12 @@ async function responder(raw, ctx = {}) {
   if (!t) return null;
   const nomeUser = ctx.nome ? ", " + ctx.nome : "";
   const serio = ctx.mood === "frustrado" || ctx.mood === "serio" || ctx.mood === "triste" || (ctx.humorScore ?? 0) <= -0.6;
+
+  // -1) Resposta direta quando o usuário cita (↩ Responder) uma mensagem específica
+  if (ctx.alvo) {
+    const respCit = responderSobreCitacao(t, s, ctx);
+    if (respCit) return respCit;
+  }
 
   // 0) Diagnóstico e Rollback do AutoGuard
   if (/^\/?(diagnostico|saude|relatorio de erros|autoavaliacao|monitoramento)$/i.test(t)) {
@@ -417,6 +466,27 @@ async function responder(raw, ctx = {}) {
         ? "♻️ Rollback concluído! Restaurei a memória limpa de " + new Date(rb.at).toLocaleString("pt-BR") + "."
         : "Não foi possível fazer rollback: " + rb.msg,
       origem: "🛡️ rollback"
+    };
+  }
+
+  // 0.1) Meta-diálogo: quando o usuário reclama que quer conversar de verdade sem testes/comandos
+  if (/\b(so queria (?:ter )?um dialogo|queria (?:ter )?um dialogo|dialogo bom|conversar direito|conversa normal|sem testar|nao quero testar|nao quero comando|para de mandar comando|para de perguntar)\b/.test(t) ||
+      /^(?:que|q)\s+pergunta\s+(?:cara|e essa|nada a ver|bosta)$/.test(t)) {
+    if (/nao quero testar/.test(t)) {
+      return {
+        texto: "Fechado" + nomeUser + ", nada de teste nem comando! Vamos só trocar ideia normal mesmo. Como tá sendo seu dia por aí?",
+        origem: "💬 diálogo"
+      };
+    }
+    if (/pergunta/.test(t)) {
+      return {
+        texto: "Foi mal — acabei soltando uma frase automática nada a ver com o que você tava falando. Pode continuar normal que eu tô prestando atenção!",
+        origem: "💬 diálogo"
+      };
+    }
+    return {
+      texto: "Você tem razão" + nomeUser + " — eu tava respondendo travada em vez de só conversar com você de verdade. Desculpa por isso. Tô aqui pra trocar ideia na boa, sem te empurrar comando. O que tá passando pela sua cabeça?",
+      origem: "💬 diálogo"
     };
   }
 
@@ -466,7 +536,7 @@ async function responder(raw, ctx = {}) {
   // 2) Perguntas sobre a própria BACH / Criador / Autocorreção
   if (/\b(voce|bach)\b/.test(t) && /\b(serve|servir|presta|funciona|utilidade|objetivo|capacidade)\b/.test(t)) {
     return {
-      texto: "Eu sou a **BACH AI** 🧠, criada por Rizik! Sirvo para:\n• Conversar acompanhando o seu estilo, mudar de tema e lembrar de você do início ao fim.\n• Ler fotos, prints escuros, vídeos e revisar/encadear códigos.\n• Criar apps (`/app`), rodar scripts (`/executar`) e avaliar sites (`/site`).\n• Recomendar filmes por gênero, séries, animes e músicas.\n• Pesquisar na internet, traduzir idiomas, calcular e gerar senhas.",
+      texto: "Eu sou a **BACH AI** 🧠, criada por Rizik! Sirvo para:\n• Conversar acompanhando seu contexto e humor, mudar de tema e lembrar de você.\n• Ler fotos, prints escuros, vídeos e revisar/encadear códigos.\n• Criar apps (`/app`), rodar scripts (`/executar`) e avaliar sites (`/site`).\n• Recomendar filmes por gênero, séries, animes e músicas.\n• Pesquisar na internet, traduzir idiomas, calcular e gerar senhas.",
       origem: "🧠 sobre a BACH"
     };
   }
@@ -527,10 +597,10 @@ async function responder(raw, ctx = {}) {
     if (t === "fala mais" && ctx.ultimoTema) return { pesquisarTema: ctx.ultimoTema + " curiosidades detalhes" };
     return {
       texto: serio
-        ? "Certo. Pode mandar o próximo assunto ou pergunta."
+        ? "Tô aqui te ouvindo. Pode continuar."
         : semRepetir("soltas", [
-            "Beleza! Manda o próximo assunto ou pergunta.",
-            "Estou ouvindo! Quer pesquisar algo, criar um app ou testar outra função?"
+            "Tô aqui! Pode mandar o próximo assunto.",
+            "Estou te ouvindo — pode continuar."
           ], ctx),
       origem: "💬 conversa"
     };
@@ -545,8 +615,8 @@ async function responder(raw, ctx = {}) {
     }
     return {
       texto: semRepetir("fb-err", [
-        "Você tem razão" + nomeUser + " — errei essa resposta. Me diga em uma frase direta o que você quer saber ou fazer agora que eu foco nisso.",
-        "Desculpa por essa falha" + nomeUser + ". Anotei para melhorar; pode mandar direto o assunto ou usar **↩ Responder** na mensagem certa."
+        "Você tem razão" + nomeUser + " — errei essa resposta. Me diga em uma frase direta o que você queria saber ou falar agora que eu foco nisso.",
+        "Desculpa por essa falha" + nomeUser + ". Anotei para melhorar; pode falar direto comigo ou usar **↩ Responder** na mensagem certa."
       ], ctx),
       origem: "🔄 autocorreção"
     };
@@ -560,25 +630,34 @@ async function responder(raw, ctx = {}) {
         origem: "🧠 contexto"
       };
     }
-    return { texto: "Me diga qual assunto ou dúvida você quer resolver agora: código, filme, música, conta, tradução ou qualquer curiosidade.", origem: "💬 conversa" };
+    return { texto: "Pode falar do jeito que preferir — sobre o seu dia, trabalho, algum assunto aleatório ou qualquer dúvida.", origem: "💬 conversa" };
   }
 
   if (/^(?:aham|ahan|uhum|ok|okay|ta\s*bom|tabom|blz|beleza|ata|entendi|tendi|saquei|fechou|suave|de boa|firmeza|show|top|pode crer)(?:\s+(?:tabom|ta\s*bom|entao|ne|blz|ok|po))*$/.test(t)) {
     return {
       texto: serio
-        ? "Certo. Quando quiser mandar a próxima coisa, estou por aqui."
+        ? "Certo" + nomeUser + ". Se quiser continuar conversando ou desabafar mais, tô por aqui."
         : semRepetir("ok-nat", [
-            "Beleza! Tô por aqui — quando quiser, manda a próxima.",
-            "Combinado! Se precisar de pesquisa, tema, senha, cálculo ou traduzir algo, é só falar.",
-            "Fechou! Qualquer coisa estou pronta aqui."
+            "Beleza! Tô por aqui — pode mandar quando quiser.",
+            "Combinado! Qualquer coisa é só falar."
           ], ctx),
       origem: "💬 conversa"
     };
   }
 
   if (/\b(ta feio|ta osso|ta dificil|ta complicado|que coisa)\b/.test(t) && t.split(" ").length <= 7) {
+    const sit = ctx.session?.situation?.resumo;
+    if (/dialogo|conversar|travado|pergunta|entendeu/.test(String(ctx.ultimoBot || "").toLowerCase()) ||
+        (ctx.history || []).slice(-4).some(m => m && /dialogo/.test(norm(m.text)))) {
+      return {
+        texto: "Eu sei" + nomeUser + ", desculpa por ter deixado o papo travado antes. Pode falar normal comigo — sobre seu turno, o trabalho ou qualquer outra coisa.",
+        origem: "💬 diálogo"
+      };
+    }
     return {
-      texto: "Entendo. Se quiser tentar outra pergunta ou testar uma função específica, estou aqui.",
+      texto: sit
+        ? "Imagino que esteja pesado mesmo com isso (" + sit + "). Quer conversar sobre como tá sendo ou prefere mudar de assunto pra espairecer?"
+        : "Entendo que esteja pesado. Se quiser desabafar o que tá pegando, tô aqui ouvindo.",
       origem: "💬 conversa"
     };
   }
@@ -587,17 +666,23 @@ async function responder(raw, ctx = {}) {
   if (/^(conversa comigo|vamos conversar|bora conversar|fala comigo|fale comigo)$/.test(t)) {
     return {
       texto: semRepetir("conv-solta", [
-        "Bora" + nomeUser + "! Sobre o que você quer trocar ideia hoje: filmes, música, programação, Termux, curiosidades ou algum projeto seu?",
-        "Estou aqui" + nomeUser + "! Quer uma curiosidade, uma recomendação de filme/música ou ajuda em alguma coisa?"
+        "Bora" + nomeUser + "! Como tá o seu dia hoje? Quer conversar sobre algo que aconteceu, filmes, música, programação ou qualquer assunto?",
+        "Tô aqui" + nomeUser + "! Sobre o que você quer trocar ideia agora?"
       ], ctx),
       origem: "💬 conversa"
     };
   }
   if (/^(ae+|uai+|vixi+|vish+|eita+|oxe+|oxente|vey.*|uhum.*|ta mas pera.*|para+|wtf|so voce tem problemas)$/.test(t)) {
+    if (ctx.session?.emotion === "triste" || ctx.session?.emotion === "frustrado") {
+      return {
+        texto: "Ué, falei alguma coisa estranha? Me fala se entendi errado o que você tava sentindo.",
+        origem: "💬 conversa"
+      };
+    }
     return {
       texto: serio
-        ? "Estou acompanhando. Pode mandar direto o que você precisa agora."
-        : semRepetir("giria-ok", ["Estou por aqui! Manda o que você precisa agora.", "Opa! Pode mandar sua pergunta, foto ou assunto."], ctx),
+        ? "Ué, estranhou alguma coisa que eu disse? Pode falar direto."
+        : semRepetir("giria-ok", ["Opa! Que foi? Pode mandar o que você tava pensando.", "Ué, o que houve? Tô acompanhando aqui!"], ctx),
       origem: "💬 conversa"
     };
   }
