@@ -1,10 +1,11 @@
-/* BACH AI 5.1 — EDITOR ADM BLINDADO, PACOTE .TXT (/tudotxt) & CENTRAL /ajuda
-   Permite trocar/criar módulos direto pelo chat, exportar todos os 42 módulos
-   alinhados com extensão .txt no final (/tudotxt) e listar todos os comandos (/ajuda).
-   Segurança: token em sessionStorage por padrão, validação estrita de repo/branch/caminho
-   (anti-path traversal) e limite de tamanho no envio ao GitHub. */
+/* BACH AI 5.4 — EDITOR ADM BLINDADO, VALIDAÇÃO PRÉ-COMMIT, ROLLBACK & PACOTE .TXT
+ * - Valida sintaxe estrutural JS/HTML e bloqueia segredos antes de enviar ao GitHub.
+ * - Salva a versão anterior do arquivo para reversão rápida com /desfazer_edicao.
+ * - Exporta todos os 42 módulos alinhados em .txt (/tudotxt) e lista /ajuda.
+ */
 
 const K_GH = "gh_adm_token_v1";
+const K_GH_BACKUP = "gh_adm_last_backup_v1";
 const BT = "\x60\x60\x60";
 const RE_BLOCO = new RegExp("^\\x60\\x60\\x60[\\w+-]*\\r?\\n([\\s\\S]*?)\\x60\\x60\\x60$");
 const RE_REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
@@ -117,6 +118,115 @@ function sanitizarCaminhoRepo(path) {
   return limpo;
 }
 
+/* ---------- Validação Léxica JS/JSON/HTML antes de publicar ---------- */
+
+function validarChavesJS(src) {
+  const pilha = [];
+  const par = { "{": "}", "(": ")", "[": "]" };
+  const fechaParaAbre = { "}": "{", ")": "(", "]": "[" };
+  let estado = "normal"; // normal | sq | dq | tpl | line | block | regex | regex_class
+  let linha = 1;
+  let prevTokenChar = "";
+
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i];
+    const nxt = src[i + 1] || "";
+    if (c === "\n") linha++;
+
+    if (estado === "line") {
+      if (c === "\n") estado = "normal";
+      continue;
+    }
+    if (estado === "block") {
+      if (c === "*" && nxt === "/") { estado = "normal"; i++; }
+      continue;
+    }
+    if (estado === "sq" || estado === "dq") {
+      if (c === "\\") { i++; continue; }
+      if ((estado === "sq" && c === "'") || (estado === "dq" && c === '"')) estado = "normal";
+      else if (c === "\n") return "String aberta sem fechamento na linha " + linha + ".";
+      continue;
+    }
+    if (estado === "tpl") {
+      if (c === "\\") { i++; continue; }
+      if (c === "`") estado = "normal";
+      continue;
+    }
+    if (estado === "regex" || estado === "regex_class") {
+      if (c === "\\") { i++; continue; }
+      if (estado === "regex_class") {
+        if (c === "]") estado = "regex";
+      } else {
+        if (c === "[") estado = "regex_class";
+        else if (c === "/") estado = "normal";
+        else if (c === "\n") estado = "normal";
+      }
+      continue;
+    }
+
+    if (c === "/" && nxt === "/") { estado = "line"; i++; continue; }
+    if (c === "/" && nxt === "*") { estado = "block"; i++; continue; }
+    if (c === "'") { estado = "sq"; continue; }
+    if (c === '"') { estado = "dq"; continue; }
+    if (c === "`") { estado = "tpl"; continue; }
+
+    if (c === "/") {
+      const podeRegex = !prevTokenChar || /[=({[,;:!&|?+\-*~^%<>]/.test(prevTokenChar);
+      if (podeRegex) { estado = "regex"; continue; }
+    }
+
+    if (par[c]) {
+      pilha.push({ ch: c, linha });
+    } else if (fechaParaAbre[c]) {
+      const topo = pilha.pop();
+      if (!topo || topo.ch !== fechaParaAbre[c]) {
+        return "Símbolo `" + c + "` inesperado ou sem abertura na linha " + linha + ".";
+      }
+    }
+
+    if (!/\s/.test(c)) prevTokenChar = c;
+  }
+
+  if (estado === "sq" || estado === "dq" || estado === "tpl") {
+    return "Existe uma string ou template literal (`) aberta e não fechada no arquivo.";
+  }
+  if (pilha.length) {
+    const ult = pilha[pilha.length - 1];
+    return "Bloco `" + ult.ch + "` aberto na linha " + ult.linha + " não foi fechado.";
+  }
+  return null;
+}
+
+function validarCodigoAntesDePublicar(arquivo, codigo) {
+  const src = String(codigo || "");
+  if (/\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{12,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{18,}|AIza[0-9A-Za-z\-_]{20,}\b/.test(src)) {
+    return "Detectei uma possível chave ou token secreto dentro do código! Remova antes de publicar.";
+  }
+
+  if (/\.json$/i.test(arquivo)) {
+    try { JSON.parse(src); }
+    catch (e) { return "JSON inválido: " + (e?.message || "erro de sintaxe"); }
+    return null;
+  }
+
+  if (/\.js$/i.test(arquivo)) {
+    return validarChavesJS(src);
+  }
+
+  if (/\.html?$/i.test(arquivo)) {
+    if (!/<html/i.test(src) || !/<\/html>/i.test(src)) {
+      return "HTML incompleto: falta tag `<html>` ou `</html>`.";
+    }
+    const abres = (src.match(/<script\b/gi) || []).length;
+    const fechas = (src.match(/<\/script>/gi) || []).length;
+    if (abres !== fechas) {
+      return "Tags `<script>` desbalanceadas (" + abres + " abrem, " + fechas + " fecham).";
+    }
+  }
+
+  return null;
+}
+
 const ativo = isAdm => Boolean(isAdm && sessao);
 const paraTxt = nome => String(nome || "").replace(/\.(js|html)$/i, "") + ".txt";
 const pad = (v, n) => String(v).padEnd(n);
@@ -171,7 +281,7 @@ async function gerarPacoteTxt(passo = () => {}) {
 
   const header =
     "====================================================================================\n" +
-    "BACH AI 5.1 — TODOS OS MÓDULOS E CÓDIGOS ALINHADOS EM .TXT (MODO ADM)\n" +
+    "BACH AI 5.4 — TODOS OS MÓDULOS E CÓDIGOS ALINHADOS EM .TXT (MODO ADM)\n" +
     "Gerado em: " + new Date().toLocaleString("pt-BR") + "\n" +
     "Módulos lidos: " + lidos + " de " + MODULOS_SITE.length + "\n" +
     "====================================================================================\n\n" +
@@ -197,7 +307,7 @@ async function gerarPacoteTxt(passo = () => {}) {
 function menuLista() {
   const gh = getGH();
   return "🛠️ **EDITOR DE MÓDULOS (MODO ADM)**\n" +
-    (gh ? "🟢 GitHub conectado: `" + gh.repo + "` (" + gh.branch + (gh.fixo ? " • salvo fixo" : " • sessão") + ")\n\n" : "🟡 GitHub ainda não conectado (use `/ghconfig usuario/repo TOKEN` para publicar automático; sem isso, gero o arquivo pronto para baixar).\n\n") +
+    (gh ? "🟢 GitHub conectado: `" + gh.repo + "` (branch `" + gh.branch + "`" + (gh.fixo ? " • salvo fixo" : " • sessão") + ")\n\n" : "🟡 GitHub ainda não conectado (use `/ghconfig usuario/repo TOKEN` para publicar automático; sem isso, gero o arquivo pronto para baixar).\n\n") +
     "Escolha o número do arquivo que quer trocar ou `0` para criar um novo:\n\n" +
     "**0.** ➕ Criar um novo módulo/arquivo\n" +
     MODULOS_SITE.map((m, i) => "**" + (i + 1) + ".** `" + m + "`").join("\n") +
@@ -211,7 +321,14 @@ function toBase64Utf8(str) {
   return btoa(bin);
 }
 
-async function publicarGitHub(path, conteudo, mensagem = "Atualização via BACH AI ADM") {
+function fromBase64Utf8(b64) {
+  const bin = atob(String(b64).replace(/\s+/g, ""));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+async function publicarGitHub(path, conteudo, mensagem = "Atualização via BACH AI ADM", salvarBackup = true) {
   const cfg = getGH();
   if (!cfg) return { ok: false, motivo: "sem-config" };
 
@@ -235,6 +352,18 @@ async function publicarGitHub(path, conteudo, mensagem = "Atualização via BACH
     if (g.ok) {
       const info = await g.json();
       sha = info.sha || null;
+      if (salvarBackup && info.content) {
+        try {
+          const antigo = fromBase64Utf8(info.content);
+          sessionStorage.setItem(K_GH_BACKUP, JSON.stringify({
+            repo: cfg.repo,
+            branch: cfg.branch,
+            path: cleanPath,
+            content: antigo,
+            at: Date.now()
+          }));
+        } catch {}
+      }
     }
   } catch {}
 
@@ -254,7 +383,7 @@ async function publicarGitHub(path, conteudo, mensagem = "Atualização via BACH
   if (!r.ok) {
     return { ok: false, motivo: res?.message || ("HTTP " + r.status) };
   }
-  return { ok: true, repo: cfg.repo, path: cleanPath };
+  return { ok: true, repo: cfg.repo, branch: cfg.branch, path: cleanPath };
 }
 
 function comandoConfig(raw, isAdm) {
@@ -276,7 +405,7 @@ function comandoConfig(raw, isAdm) {
         texto: "⚙️ **Configurar publicação direta no GitHub (ADM):**\n" +
           (atual ? "• Atual: `" + atual.repo + "` (branch `" + atual.branch + "`" + (atual.fixo ? ", salvo fixo" : ", só nesta sessão") + ")\n" : "• Ainda não configurado.\n") +
           "Use: `/ghconfig usuario/repositorio SEU_TOKEN`\n" +
-          "*(Por segurança, o token fica só na sessão até fechar a aba; se quiser fixar no aparelho, adicione `main fixo` no final.)*\n" +
+          "*(Opcional: passe outra branch antes de publicar em produção: `/ghconfig usuario/repo TOKEN teste`.)*\n" +
           "Para remover: `/ghsair`"
       };
     }
@@ -288,7 +417,7 @@ function comandoConfig(raw, isAdm) {
     return {
       handled: true,
       secret: true,
-      texto: "✅ GitHub conectado (`" + repo + "` • branch `" + branch + "` • " + (fixo ? "salvo fixo" : "sessão segura") + ")!\nAgora quando usar `/editar`, eu já publico direto no repositório."
+      texto: "✅ GitHub conectado (`" + repo + "` • branch `" + branch + "` • " + (fixo ? "salvo fixo" : "sessão segura") + ")!\nAgora quando usar `/editar`, eu valido a sintaxe e salvo backup para `/desfazer_edicao`."
     };
   }
   return null;
@@ -304,6 +433,22 @@ function ehPedidoTudoTxt(raw) {
 
 async function processar(raw, isAdm, passo = () => {}) {
   const t = String(raw || "").trim();
+
+  if (/^\/desfazer_edicao\b/i.test(t)) {
+    if (!isAdm) return { texto: "🔒 Comando exclusivo de administrador." };
+    let bkp = null;
+    try { bkp = JSON.parse(sessionStorage.getItem(K_GH_BACKUP) || "null"); } catch {}
+    if (!bkp || !bkp.path || !bkp.content) {
+      return { texto: "ℹ️ Não há nenhuma edição recente na sessão para desfazer." };
+    }
+    passo("♻️ Revertendo `" + bkp.path + "` no GitHub...");
+    const res = await publicarGitHub(bkp.path, bkp.content, "Reverte " + bkp.path + " via BACH AI ADM", false);
+    if (!res.ok) return { texto: "⚠️ Não foi possível reverter no GitHub (" + res.motivo + ")." };
+    try { sessionStorage.removeItem(K_GH_BACKUP); } catch {}
+    return {
+      texto: "♻️ **Edição desfeita no GitHub!**\n• Arquivo restaurado: `" + res.path + "` (branch `" + res.branch + "`)\n⏳ Aguarde ~1 minuto para atualizar."
+    };
+  }
 
   if (ehPedidoTudoTxt(t)) {
     if (!isAdm) return { texto: "🔒 O comando `/tudotxt` é exclusivo do modo administrador." };
@@ -385,30 +530,38 @@ async function processar(raw, isAdm, passo = () => {}) {
       return { texto: "⚠️ O código passou do limite de 500 KB por arquivo." };
     }
 
+    const erroSintaxe = validarCodigoAntesDePublicar(sessao.arquivo, codigoLimpo);
+    if (erroSintaxe) {
+      return {
+        texto: "🛑 **Publicação bloqueada na pré-checagem de segurança/sintaxe (`" + sessao.arquivo + "`):**\n• " +
+          erroSintaxe + "\n\nCorrija o código e cole novamente (ou digite `/cancelar`)."
+      };
+    }
+
     const arquivoAlvo = sessao.arquivo;
     const moduloAlvo = sessao.modulo;
     resetar();
 
     const gh = getGH();
     if (gh) {
-      passo("🚀 Publicando `" + arquivoAlvo + "` no GitHub...");
-      const res = await publicarGitHub(arquivoAlvo, codigoLimpo, "Atualiza " + arquivoAlvo + " (" + moduloAlvo + ") via BACH AI");
+      passo("🚀 Validado! Publicando `" + arquivoAlvo + "` no GitHub...");
+      const res = await publicarGitHub(arquivoAlvo, codigoLimpo, "Atualiza " + arquivoAlvo + " (" + moduloAlvo + ") via BACH AI", true);
       if (res.ok) {
         return {
-          texto: "✅ **Publicado direto no GitHub!**\n• Repositório: `" + res.repo + "`\n• Arquivo: `" + res.path + "`\n• Tamanho: " + codigoLimpo.length + " caracteres\n\n⏳ Aguarde ~1 minuto para o GitHub Pages publicar e recarregue a página.",
+          texto: "✅ **Publicado direto no GitHub (sintaxe verificada)!**\n• Repositório: `" + res.repo + "` (branch `" + res.branch + "`)\n• Arquivo: `" + res.path + "`\n• Tamanho: " + codigoLimpo.length + " caracteres\n\n♻️ Se precisar voltar atrás: `/desfazer_edicao`.\n⏳ Aguarde ~1 minuto para o GitHub Pages publicar e recarregue a página.",
           arquivo: arquivoAlvo,
           codigo: codigoLimpo
         };
       }
       return {
-        texto: "⚠️ Não consegui enviar direto para o GitHub (" + res.motivo + ").\nGerei o arquivo abaixo para você baixar ou copiar manualmente!",
+        texto: "⚠️ Não consegui enviar direto para o GitHub (" + res.motivo + ").\nGerei o arquivo validado abaixo para você baixar ou copiar manualmente!",
         arquivo: arquivoAlvo,
         codigo: codigoLimpo
       };
     }
 
     return {
-      texto: "📦 Código de **`" + arquivoAlvo + "`** recebido (" + codigoLimpo.split("\n").length + " linhas)!\n\n" +
+      texto: "📦 Código de **`" + arquivoAlvo + "`** validado (" + codigoLimpo.split("\n").length + " linhas)!\n\n" +
         "💡 Para publicar **direto no GitHub sem sair do chat**, configure uma vez com:\n`/ghconfig usuario/repositorio SEU_TOKEN`\n\nPor enquanto, você pode baixar ou copiar no cartão abaixo:",
       arquivo: arquivoAlvo,
       codigo: codigoLimpo
@@ -420,19 +573,22 @@ async function processar(raw, isAdm, passo = () => {}) {
 
 function ajudaComandos(isAdm) {
   let out = "⌨️ **TODOS OS COMANDOS COM `/` DA BACH AI**\n\n" +
-    "🧬 **Rede Neural Própria:**\n" +
+    "🧬 **Rede Neural & Motor Próprio:**\n" +
     "• `/neural status` • `/neural testar frase` • `/neural treinar`\n" +
-    "• `/neural ensinar frase => intencao`\n\n" +
+    "• `/neural ensinar frase => intencao` • `/neural exportar`\n" +
+    "• `/ia status` • `/ia rapido` • `/ia normal` • `/ia profundo`\n\n" +
     "🛠️ **Apps, Scripts & Termux:**\n" +
     "• `/app pomodoro` (ou `notas`, `gastos`, `cobrinha`, ou qualquer tema) — cria app completo + preview!\n" +
     "• `/executar console.log(2+2)` — executa script JS em sandbox seguro\n" +
     "• `/preview <h1>Oi</h1>` — abre app HTML/CSS/JS ao vivo no chat\n" +
+    "• `/cadeia 10+5 ; converter 10 km para m` — executa passos em sequência\n" +
     "• `/termux` — guia completo de Termux e scripts `.sh`\n\n" +
+    "📚 **Arquivos, IndexedDB & RAG Local:**\n" +
+    "• `/arquivos` • `/abrir nome` • `/buscar palavra` • `/rag pergunta`\n" +
+    "• `/apagar nome` (ou `/excluir nome`) • `/pasta Nome` • `/pastas` • `/mover arquivo para Pasta`\n\n" +
     "🔢 **Cálculos, Física, Finanças & Unidades:**\n" +
-    "• `/calc (2+3)*4` — calculadora segura\n" +
-    "• `/converter 10 km para m` — converte medidas, peso, volume e °C/°F\n" +
-    "• `/juros simples 1000 2 12` (ou `compostos`) — calcula juros\n" +
-    "• `/fisica velocidade 100 2` — velocidade, força, densidade, energia\n\n" +
+    "• `/calc (2+3)*4` • `/converter 10 km para m`\n" +
+    "• `/juros simples 1000 2 12` • `/fisica velocidade 100 2`\n\n" +
     "🧰 **Utilidades & Segurança:**\n" +
     "• `/senha 16` • `/dado 20` • `/moeda` • `/sortear A, B, C`\n" +
     "• `/cpf 000.000.000-00` • `/contar texto` • `/golpe mensagem`\n\n" +
@@ -440,21 +596,15 @@ function ajudaComandos(isAdm) {
     "• `/linkzap 11999999999 oi` • `/slug titulo` • `/base64 texto` • `/debase64 codigo`\n" +
     "• `/maiusculo texto` • `/minusculo texto` • `/semacento texto` • `/inverter texto`\n\n" +
     "🩺 **Saúde & Bem-Estar (Educacional):**\n" +
-    "• `/imc 70 1.75` • `/agua 70` • `/calorias 70 1.75 25 m leve`\n" +
-    "• `/respiracao` (guia 4-7-8) • `/pausa` (alongamento rápido)\n\n" +
+    "• `/imc 70 1.75` • `/agua 70` • `/calorias 70 1.75 25 m leve` • `/respiracao` • `/pausa`\n\n" +
     "🎓 **Estudos Avançados & Quiz:**\n" +
-    "• `/flashcard [materia]` • `/virar` • `/simulado [materia]` • `/alt A`\n" +
-    "• `/tecnica` • `/quiz` • `/resposta A`\n\n" +
-    "💻 **Ferramentas Dev Web:**\n" +
-    "• `/cor #8266ff` • `/vidro` • `/meta Titulo | Descricao` • `/paleta oceano`\n\n" +
-    "📝 **Revisão Fiel, Voz & Sites:**\n" +
+    "• `/flashcard [materia]` • `/virar` • `/simulado [materia]` • `/alt A` • `/tecnica` • `/quiz` • `/resposta A`\n\n" +
+    "💻 **Ferramentas Dev Web, Revisão & Voz:**\n" +
+    "• `/cor #8266ff` • `/vidro` • `/meta Titulo | Descricao` • `/paleta oceano`\n" +
     "• `/revisar texto` • `/silabas palavra` • `/site https://...`\n" +
-    "• `/voz normal` (`rapida`, `lenta`, `teste`) — ajusta a leitura em voz alta\n\n" +
-    "🎨 **Piadas, Criatividade, Arquivos & Chat:**\n" +
-    "• `/humor` (piada interativa!) • `/ideia tema` • `/historia tema` • `/personagem tema`\n" +
-    "• `/plano objetivo` • `/automacao tarefa`\n" +
-    "• `/arquivos` • `/abrir nome` • `/buscar palavra` • `/apagar nome` (ou `/excluir nome`)\n" +
-    "• `/pasta Nome` • `/pastas` • `/mover arquivo para Pasta`\n" +
+    "• `/voz normal` (`rapida`, `lenta`, `teste`)\n\n" +
+    "🎨 **Piadas, Criatividade & Chat:**\n" +
+    "• `/humor` • `/ideia tema` • `/historia tema` • `/personagem tema` • `/plano objetivo` • `/automacao tarefa`\n" +
     "• `/palavra giria = significado` • `/palavras` • `/profundo assunto`\n" +
     "• `/historico` • `/nova` • `/clear` • `/copiar` • `/auditar` • `/exportar`";
 
@@ -463,14 +613,12 @@ function ajudaComandos(isAdm) {
       "• **Menu ☰ → 🚨 Erros do Público** — ver, buscar, selecionar, excluir ou copiar todos os erros\n" +
       "• `/admsenha SENHA` e `/adm SENHA` — senha ADM com hash SHA-256 (`sai do adm` para sair)\n" +
       "• `/nuvem status` • `/nuvem https://seu-worker.workers.dev` — nuvem gratuita Cloudflare D1\n" +
-      "• `/erroremoto https://ntfy.sh/canal` — receber erros de outros aparelhos em tempo real\n" +
-      "• `/tudotxt` — gera todos os 42 módulos alinhados com final `.txt` para copiar/baixar\n" +
-      "• `/editar` — trocar ou criar módulo/arquivo direto pelo chat\n" +
-      "• `/ghconfig usuario/repo TOKEN` • `/ghsair` — publicação direta no GitHub\n" +
-      "• `/basedados` • `/importarbase` — backup completo do sistema\n" +
-      "• `/diagnostico` • `/rollback` — saúde do sistema e restauração\n" +
-      "• `/modulos` • `/modulo ID on|off` — ligar/desligar departamentos\n" +
-      "• `/ia status` — status do motor próprio da BACH AI";
+      "• `/erroremoto https://ntfy.sh/canal` — receber erros de outros aparelhos\n" +
+      "• `/tudotxt` — gera todos os 42 módulos alinhados em `.txt`\n" +
+      "• `/editar` e `/desfazer_edicao` — editar módulos com validação prévia e reversão no GitHub\n" +
+      "• `/ghconfig usuario/repo TOKEN [branch]` • `/ghsair`\n" +
+      "• `/basedados` • `/importarbase` • `/diagnostico` • `/rollback`\n" +
+      "• `/modulos` • `/modulo ID on|off`";
   }
 
   return out;
