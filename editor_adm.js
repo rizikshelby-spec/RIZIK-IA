@@ -1,5 +1,5 @@
-/* BACH AI 4.8 — EDITOR ADM, PACOTE .TXT (/tudotxt) & CENTRAL /ajuda
-   Permite trocar/criar módulos direto pelo chat, exportar todos os 40 módulos
+/* BACH AI 5.1 — EDITOR ADM, PACOTE .TXT (/tudotxt) & CENTRAL /ajuda
+   Permite trocar/criar módulos direto pelo chat, exportar todos os 42 módulos
    alinhados com extensão .txt no final (/tudotxt) e listar todos os comandos (/ajuda). */
 
 const K_GH = "gh_adm_token_v1";
@@ -11,6 +11,8 @@ export const MODULOS_SITE = [
   "brain.js",
   "mente.js",
   "cerebro_avancado.js",
+  "rede_neural.js",
+  "nlu_neural.js",
   "autocorretor.js",
   "erros_adm.js",
   "voz.js",
@@ -126,7 +128,7 @@ async function gerarPacoteTxt(passo = () => {}) {
 
   const header =
     "====================================================================================\n" +
-    "BACH AI 4.8 — TODOS OS MÓDULOS E CÓDIGOS ALINHADOS EM .TXT (MODO ADM)\n" +
+    "BACH AI 5.1 — TODOS OS MÓDULOS E CÓDIGOS ALINHADOS EM .TXT (MODO ADM)\n" +
     "Gerado em: " + new Date().toLocaleString("pt-BR") + "\n" +
     "Módulos lidos: " + lidos + " de " + MODULOS_SITE.length + "\n" +
     "====================================================================================\n\n" +
@@ -360,10 +362,14 @@ async function processar(raw, isAdm, passo = () => {}) {
 
 function ajudaComandos(isAdm) {
   let out = "⌨️ **TODOS OS COMANDOS COM `/` DA BACH AI**\n\n" +
+    "🧬 **Rede Neural Própria:**\n" +
+    "• `/neural status` • `/neural testar frase` • `/neural treinar`\n" +
+    "• `/neural ensinar frase => intencao`\n\n" +
     "🛠️ **Apps, Scripts & Termux:**\n" +
     "• `/app pomodoro` (ou `notas`, `gastos`, `cobrinha`, ou qualquer tema) — cria app completo + preview!\n" +
     "• `/executar console.log(2+2)` — executa script JS em sandbox seguro\n" +
-    "• `/preview <h1>Oi</h1>` — abre app HTML/CSS/JS ao vivo no chat\n\n" +
+    "• `/preview <h1>Oi</h1>` — abre app HTML/CSS/JS ao vivo no chat\n" +
+    "• `/termux` — guia completo de Termux e scripts `.sh`\n\n" +
     "🔢 **Cálculos, Física, Finanças & Unidades:**\n" +
     "• `/calc (2+3)*4` — calculadora segura\n" +
     "• `/converter 10 km para m` — converte medidas, peso, volume e °C/°F\n" +
@@ -397,14 +403,15 @@ function ajudaComandos(isAdm) {
   if (isAdm) {
     out += "\n\n👑 **COMANDOS DE ADMINISTRADOR:**\n" +
       "• **Menu ☰ → 🚨 Erros do Público** — ver, buscar, selecionar, excluir ou copiar todos os erros\n" +
+      "• `/nuvem status` • `/nuvem https://seu-worker.workers.dev` — nuvem gratuita Cloudflare D1\n" +
       "• `/erroremoto https://ntfy.sh/canal` — receber erros de outros aparelhos em tempo real\n" +
-      "• `/tudotxt` — gera todos os 40 módulos alinhados com final `.txt` para copiar/baixar\n" +
+      "• `/tudotxt` — gera todos os 42 módulos alinhados com final `.txt` para copiar/baixar\n" +
       "• `/editar` — trocar ou criar módulo/arquivo direto pelo chat\n" +
       "• `/ghconfig usuario/repo TOKEN` • `/ghsair` — publicação direta no GitHub\n" +
       "• `/basedados` • `/importarbase` — backup completo do sistema\n" +
       "• `/diagnostico` • `/rollback` — saúde do sistema e restauração\n" +
       "• `/modulos` • `/modulo ID on|off` — ligar/desligar departamentos\n" +
-      "• `/ia status` • `/chave ...` • `/modelo ...` — motor externo opcional";
+      "• `/ia status` — status do motor próprio da BACH AI";
   }
 
   return out;
