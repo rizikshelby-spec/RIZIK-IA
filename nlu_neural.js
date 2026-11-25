@@ -1,5 +1,5 @@
-/* BACH AI 5.2 — NLU NEURAL & AUTO-APRENDIZADO CONTÍNUO BLINDADO
- * Ajustado para não disparar menus aleatórios em conversa cotidiana. */
+/* BACH AI 5.3 — NLU NEURAL & AUTO-APRENDIZADO CONTÍNUO BLINDADO
+ * Ajustado para não disparar menus aleatórios nem pesquisas em falas de conversa cotidiana. */
 
 import { RedeNeural, INTENCOES } from "./rede_neural.js?v=2";
 import { RizikBrain } from "./brain.js?v=20";
@@ -91,7 +91,7 @@ function enviarParaNuvem({ tipo = "evento", entrada = "", intencao = "", motivo 
 
 const CURTAS_VALIDAS = new Set([
   "oi", "ok", "ei", "ue", "ai", "hi", "eu", "tu", "vc", "pq", "oq", "qm",
-  "hj", "td", "nd", "oxe", "uai", "opa", "sim", "nao", "bom", "mal", "sol", "lua"
+  "hj", "td", "nd", "oxe", "uai", "opa", "sim", "nao", "bom", "mal", "sol", "lua", "ss"
 ]);
 const CLUSTERS_INI = new Set([
   "bl","br","ch","cl","cr","dr","fl","fr","gl","gr","gu","kn","ph","pl","pr",
@@ -154,17 +154,18 @@ function registrarSucessoAposFalha(textoAtual, intencaoCerta) {
   });
   return true;
 }
+
 function normBasico(t) {
   return String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
 function pareceDesabafoOuConversa(tn) {
-  return /\b(estou|to|tou|fui|estava|tava|trabalh\w*|turno|mandado|mandaram|demitid\w*|odio|raiva|triste|mal|cansad\w*|queria que|era pra|falasse|dissesse|respondesse|dialogo|conversar|testar|nao quero|vc|voce|bach|meu dia|hoje eu|ontem eu|aconteceu|comprei|briguei|amig[oa]|namorad[oa]|familia|escola|prova|dinheiro|celular)\b/.test(tn);
+  return /\b(estou|to|tou|fui|estava|tava|trabalh\w*|turno|mandado|mandaram|demitid\w*|odio|raiva|triste|mal|cansad\w*|queria que|era pra|falasse|dissesse|respondesse|dialogo|conversar|testar|nao quero|vc|voce|bach|meu dia|hoje eu|ontem eu|aconteceu|comprei|briguei|amig[oa]|namorad[oa]|familia|escola|prova|dinheiro|celular|eu|digo|disse|falei|respondi|resposta|pergunta|referente|sua|seu|e ai|ss)\b/.test(tn);
 }
 
 function parecePedidoInformacional(raw, tn) {
   if (pareceDesabafoOuConversa(tn)) return false;
-  return /^(?:quem|o que|qual|quais|como|onde|quando|quantos|quantas|porque|por que|pesquis\w*|procur\w*|busc\w*|me fala sobre|fala sobre|explica)\b/.test(tn) ||
+  return /^(?:quem|o que|qual|quais|como|onde|quantos|quantas|porque|por que|pesquis\w*|procur\w*|busc\w*|me fala sobre|fala sobre|explica|(?:quando)\s+(?:foi|sera|aconteceu|comecou|terminou|surgiu|nasceu|morreu|estreia|lanca|e|eh))\b/.test(tn) ||
     /\b(historia de|significa|origem de|distancia|formula de|quantos episodios|membros d[oa]|existem?)\b/.test(tn);
 }
 
