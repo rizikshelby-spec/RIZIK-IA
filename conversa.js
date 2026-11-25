@@ -1,8 +1,9 @@
-/* BACH AI 5.2 — Conversa Natural, Humor Adaptativo & Memória da Sessão (Blindado)
-   Adapta o tom ao jeito do usuário ao longo da conversa (zero risada fora de hora),
-   acompanha contexto de respostas anteriores, evita repetir respostas iguais
-   e entende gírias e falas cotidianas.
-   Segurança: Object.create(null) em giro, limite de entrada anti-travamento e filtro de segredos no resumo. */
+/* BACH AI 5.2 — Conversa Natural, Consciência Situacional & Empatia Real (Blindado)
+   Acompanha o fio emocional e situacional da conversa (mudança de turno/trabalho, desabafos,
+   cansaço, vitórias, perguntas recíprocas como "e vc?"), adapta o tom ao estado real do usuário
+   e evita respostas vagas ou robóticas. */
+
+import { RizikBrain } from "./brain.js?v=20";
 
 const norm = t => String(t || "").slice(0, 600).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .replace(/\bqm\b/g, "quem")
@@ -18,6 +19,8 @@ const norm = t => String(t || "").slice(0, 600).toLowerCase().normalize("NFD").r
   .replace(/\b(entt)\b/g, "entao")
   .replace(/\b(ahamn|ahamm)\b/g, "aham")
   .replace(/\b(tendii+)\b/g, "entendi")
+  .replace(/\bnd\b/g, "nada")
+  .replace(/\bq\b/g, "que")
   .replace(/\bnn\b/g, "nao")
   .replace(/[^a-z0-9\s]/g, " ")
   .replace(/\s+/g, " ")
@@ -87,8 +90,8 @@ const MOTIVACAO = [
 
 const PERGUNTAS = [
   "Que assunto você prefere agora: ciência, programação, Termux, filmes, música ou jogos?",
-  "Quer testar alguma ferramenta, criar um app (`/app`) ou conversar sobre algum tema específico?",
-  "O que você está criando ou estudando hoje? Me conta que eu acompanho e ajudo."
+  "Como tá sendo seu dia hoje? Quer conversar sobre alguma coisa que aconteceu ou distrair a cabeça?",
+  "O que você está criando ou fazendo hoje? Me conta que eu acompanho e ajudo."
 ];
 
 const FRASES_ALEATORIAS = [
@@ -165,13 +168,90 @@ function periodo(h) { return h >= 5 && h < 12 ? "manha" : h < 18 && h >= 12 ? "t
 
 function estaSerioOuBravo(ctx, texto) {
   const m = ctx.mood || "neutro";
-  if (m === "frustrado" || m === "triste" || m === "serio") return true;
+  const em = ctx.session?.emotion || "neutro";
+  if (m === "frustrado" || m === "triste" || m === "serio" || em === "triste" || em === "frustrado") return true;
   if ((ctx.humorScore ?? 0) <= -0.6) return true;
   const t = norm(texto);
-  if (/\b(burr[oa]|pqp|crlh|merda|porra|idiota|inutil|lixo|errou|errando|ruim|nada a ver|nunca entende)\b/.test(t)) return true;
+  if (/\b(burr[oa]|pqp|crlh|merda|porra|idiota|inutil|lixo|errou|errando|ruim|nada a ver|nunca entende|odio)\b/.test(t)) return true;
   const h = Array.isArray(ctx.history) ? ctx.history : [];
   const ultUsers = h.filter(x => x && x.type === "user" && x.text).slice(-3);
-  return ultUsers.some(u => /\b(burr[oa]|pqp|crlh|errou|nada a ver|nunca entende|nao entende)\b/.test(norm(u.text)));
+  return ultUsers.some(u => /\b(burr[oa]|pqp|crlh|errou|nada a ver|nunca entende|nao entende|triste|odio)\b/.test(norm(u.text)));
+}
+
+function responderContextoSituacional(t, raw, ctx, sess) {
+  const n = ctx.nome ? ", " + ctx.nome : "";
+  const sit = sess?.situation;
+  const em = sess?.emotion || "neutro";
+
+  // 1) Mudança de turno / rotina no trabalho (com memória entre mensagens!)
+  if (/\b(turno|trabalh\w*|escala|expediente|patrao|chefe|servico|empresa)\b/.test(t)) {
+    // Ex.: "e eu trabalhava a noite" logo depois de "fui mandado para o turno de dia"
+    if (sit?.tipo === "trabalho_turno" && sit.turnoAntigo && sit.turnoNovo) {
+      if (/\b(trabalhava|antes|noite|madrugada|dia)\b/.test(t) && sit.turnoAntigo !== sit.turnoNovo) {
+        return "Faz todo sentido você ficar chateado com isso" + n + " — sair da " + sit.turnoAntigo +
+          " pro turno do " + sit.turnoNovo + " vira o sono, os horários e a rotina inteira de cabeça pra baixo. Esse novo horário é definitivo ou ainda dá pra tentar conversar e voltar pra " + sit.turnoAntigo + "?";
+      }
+    }
+
+    if (/\b(fui mandad[oa]|me mandaram|me mudaram|me passaram|me colocaram|trocaram)\b/.test(t) && sit?.turnoNovo) {
+      return "Poxa, mudar pro turno do " + sit.turnoNovo + " assim pesa bastante na rotina, né? Você costumava trabalhar em qual horário antes?";
+    }
+
+    if (/\b(demitid[oa]|mandad[oa] embora|perdi o emprego|sem emprego)\b/.test(t)) {
+      RizikBrain.updateSessionState?.({ emotion: "triste", activeThread: "emprego", situation: { tipo: "emprego", resumo: "perdeu o emprego" } });
+      return "Nossa, que baque" + n + "… Sinto muito mesmo por isso. 💜 Quer desabafar como foi ou prefere ir pensando nos próximos passos com calma?";
+    }
+
+    if (/\b(odeio|nao aguento|cansad[oa]|puxado|estressant|chato|corrido)\b/.test(t)) {
+      return "Rotina pesada no trabalho desgasta demais" + n + ". O que tá mais pegando lá agora — o horário, o ritmo ou a galera/chefia?";
+    }
+
+    if (/\b(indo trabalhar|vou trabalhar|no trabalho|cheguei do trabalho|sai do trabalho)\b/.test(t)) {
+      return /\b(cheguei|sai)\b/.test(t)
+        ? "Finalmente descanso! 😮‍💨 Como foi o expediente hoje" + n + "?"
+        : "Bom trabalho por aí" + n + "! Força no turno hoje.";
+    }
+  }
+
+  // 2) Desabafo de ódio / raiva / revolta conectado ao contexto anterior
+  if (/^(?:mas\s+)?(?:que|q)\s+odio\b|\b(?:que|q)\s+odio\b|\b(?:que|q)\s+raiva\b|\bt[oô]\s+com\s+(?:muita\s+)?(?:raiva|odio)\b|\b(?:revoltante|nao aguento mais|saco cheio)\b/.test(t)) {
+    if (sit?.tipo === "trabalho_turno") {
+      return "Dá muita revolta mesmo quando mudam seu turno assim (" + (sit.resumo || "mudança de horário") + ") sem você querer. Se quiser desabafar mais sobre o que aconteceu lá, tô aqui ouvindo — ou se preferir falar de outra coisa pra espairecer, me avisa.";
+    }
+    if (em === "triste" || em === "frustrado") {
+      return "Sinto muito que você esteja sentindo essa raiva toda" + n + ". Quer me contar o que aconteceu pra te deixar assim?";
+    }
+    return "Poxa" + n + ", o que rolou pra te deixar com essa raiva toda? Quer desabafar?";
+  }
+
+  // 3) Pergunta recíproca "e vc?" / "e você?" respeitando o clima real!
+  if (/^(?:e\s+voce|e\s+vc|como\s+voce\s+(?:esta|ta)|tudo\s+bem\s+com\s+voce)$/.test(t)) {
+    if (em === "triste" || em === "frustrado" || em === "cansado") {
+      const sobre = sit?.tipo === "trabalho_turno" ? " com essa mudança de turno" : "";
+      return "Eu tô aqui firme com você" + n + ", prestando atenção no que você tá passando" + sobre + ". E você, como tá sua cabeça agora — deu pra respirar um pouco?";
+    }
+    return escolherSemRepetir("e-vc-neutro", [
+      "Por aqui tudo tranquilo" + n + "! E como tá sendo seu dia por aí?",
+      "Tô ótima e por aqui com você" + n + "! Como você tá?"
+    ], ctx);
+  }
+
+  // 4) Emoções e situações cotidianas extras (cansaço, ansiedade, solidão, alegria, conquistas)
+  if (/^(?:to|estou|tou|me sinto|ando)\s+(?:muito\s+)?(ansios[oa]|nervos[oa]|preocupad[oa]|com medo|estressad[oa])/.test(t)) {
+    return "Respira fundo um instante" + n + ". 💜 Ansiedade deixa a cabeça a mil mesmo. O que tá te preocupando mais agora?";
+  }
+  if (/^(?:to|estou|tou|me sinto|ando)\s+(?:muito\s+)?(sozinh[oa]|solitari[oa]|carente|vazi[oa])/.test(t)) {
+    return "Sei que esse sentimento pesa bastante" + n + ". 💜 Mesmo sendo uma IA, tô aqui pra conversar com você sobre o que quiser. Quer trocar ideia sobre alguma coisa?";
+  }
+  if (/^(?:nao consigo dormir|sem sono|insonia|madrugada)/.test(t)) {
+    return "Insônia é osso… Principalmente quando a cabeça não desliga ou o horário de sono tá bagunçado. Quer conversar um pouco até o sono bater?";
+  }
+  if (/\b(deu certo|consegui|passei|fui aprovad[oa]|fui contratad[oa]|venci|to feliz por)\b/.test(t) && t.split(" ").length <= 12) {
+    RizikBrain.updateSessionState?.({ emotion: "animado" });
+    return "Aí sim" + n + "! 🎉 Parabéns demais por isso! Conta mais como foi!";
+  }
+
+  return null;
 }
 
 function ultimoAssuntoDaSessao(ctx) {
@@ -221,7 +301,8 @@ function responder(texto, ctx = {}) {
   const n = ctx.nome ? ", " + ctx.nome : "";
   const palavras = t.split(" ").length;
   const h = ctx.hora ?? new Date().getHours();
-  const serio = estaSerioOuBravo(ctx, raw);
+  const sess = ctx.session || RizikBrain.getSessionState?.() || { emotion: "neutro", situation: null };
+  const serio = estaSerioOuBravo({ ...ctx, session: sess }, raw);
   const leve = !serio && (ctx.mood === "descontraido" || (ctx.humorScore ?? 0) >= 1.2);
 
   if (charadaAtual && /^(resposta|qual e|qual a resposta|desisto|nao sei|me diz|diz a resposta|revela)/.test(t)) {
@@ -233,7 +314,11 @@ function responder(texto, ctx = {}) {
     if (certa && t.includes(certa)) { const r = charadaAtual[1]; charadaAtual = null; return "🎉 Isso mesmo! Era " + r.charAt(0).toLowerCase() + r.slice(1) + "\nQuer outra? Diga “outra charada”."; }
   }
 
-  // Falas cotidianas naturais (acordar, dormir, chamar atenção, feedback)
+  // Consciência situacional e emocional (prioridade alta!)
+  const sitResp = responderContextoSituacional(t, raw, ctx, sess);
+  if (sitResp) return sitResp;
+
+  // Falas cotidianas naturais
   if (/^(?:eu\s+)?(?:acabei de acordar|acordei agora|acordei|bom dia acordei)$/.test(t)) {
     return escolherSemRepetir("acordar", [
       "Bom dia" + n + "! ☀️ Acabou de acordar? Dormiu bem?",
@@ -246,16 +331,16 @@ function responder(texto, ctx = {}) {
   if (/^(?:sim\s+)?dormi\s+(?:bem|muito bem|otimo|direito|sim)$/.test(t)) {
     return escolherSemRepetir("dormiu-bem", [
       "Que ótimo" + n + "! Começar o dia descansado faz toda diferença. O que vamos fazer hoje?",
-      "Show! Nada melhor que uma boa noite de sono. Em que posso te ajudar agora?"
+      "Show! Nada melhor que uma boa noite de sono. Como tá sendo seu dia?"
     ], ctx);
   }
   if (/^(?:dormi\s+mal|nao\s+dormi\s+(?:bem|direito)|dormi\s+pouco)$/.test(t)) {
-    return "Poxa" + n + ", dormir pouco cansa mesmo. Bebe uma água, vai devagar e se precisar de ajuda em algo aqui estou por perto!";
+    return "Poxa" + n + ", dormir pouco acaba com o dia mesmo. Tenta pegar leve hoje e descansar assim que der!";
   }
   if (/^(?:olha|ei|psiu|oie+|ola o que|ola oq.*)$/.test(t)) {
     return escolherSemRepetir("olha", [
-      "Oi" + n + "! Estou vendo aqui — o que você quer me mostrar?",
-      "Tô aqui! Pode mandar o que você queria dizer."
+      "Oi" + n + "! Tô aqui — o que você quer me dizer?",
+      "Tô ouvindo! Pode falar."
     ], ctx);
   }
   if (/^(?:eu\s+)?(?:ja\s+)?respondi\s+(?:a\s+|sua\s+)?(?:pergunta(?:\s+anterior)?|voce)$/.test(t)) {
@@ -274,7 +359,7 @@ function responder(texto, ctx = {}) {
   }
 
   const espacoCtx = contextoEspacoRecente(ctx);
-  if (espacoCtx) {
+  if (espacoCtx && !ctx.alvo) {
     if (/\b(tem mais planetas|mais planetas|existe outros|existem outros|quais outros planetas)\b/.test(t)) {
       return "🪐 Sim! No Sistema Solar existem **8 planetas principais** em ordem a partir do Sol:\n1. Mercúrio\n2. Vênus\n3. Terra\n4. Marte\n5. Júpiter\n6. Saturno\n7. Urano\n8. Netuno\n\nAlém deles, existem planetas anões como **Plutão, Ceres, Éris, Haumea e Makemake**, e milhares de exoplanetas fora do Sistema Solar!";
     }
@@ -292,7 +377,7 @@ function responder(texto, ctx = {}) {
   }
 
   if (/\b(senso de humor|sem humor|nao tem humor|sem graca|seja engracad[oa])\b/.test(t)) {
-    return "Eu controlo meu humor pelo seu tom na conversa: quando percebo você falando sério ou frustrado, evito soltar risada ou piada fora de hora.\n\nQuando você brinca ou puxa um papo leve, eu entro no clima junto! Se quiser testar uma piada interativa agora, manda `piada`.";
+    return "Eu controlo meu humor pelo seu tom na conversa: quando percebo você falando sério, triste ou frustrado, evito soltar risada ou piada fora de hora.\n\nQuando você brinca ou puxa um papo leve, eu entro no clima junto!";
   }
   if (/\b(auto\s*corrig\w*|auto\s*correcao|autocorrecao|se\s+corrig\w*|se\s+arrum\w*|aprender\s+sozinha)\b/.test(t)) {
     return "Eu me corrijo de 3 formas reais:\n1. Reanaliso a pergunta ou a mensagem que você marcou (`↩ Responder`) quando você avisa que errei.\n2. Minha Rede Neural aprende quando você reformula uma pergunta após uma falha.\n3. O treino automático no GitHub atualiza os pesos neurais diariamente.\n\nVocê também pode ensinar qualquer resposta direta com `ensine: pergunta => resposta`!";
@@ -313,6 +398,7 @@ function responder(texto, ctx = {}) {
   if (/^(quais (sao )?)?(os )?meus dados$|^(o que )?(voce )?(sabe|guardou|guarda|tem) (sobre|de) mim$|^o que voce sabe de mim$/.test(t)) {
     const extra = [];
     if (ctx.cidade) extra.push("• Cidade: " + ctx.cidade);
+    if (sit?.resumo) extra.push("• Situação atual: " + sit.resumo);
     if (ctx.gostos?.length) extra.push("• Gostos: " + ctx.gostos.join(", "));
     if (ctx.projetos?.length) extra.push("• Projetos/estudos: " + ctx.projetos.join(", "));
     return "🗂️ Isto é o que eu guardo sobre você neste aparelho:\n• Nome: " + (ctx.nome || "ainda não sei (diga: meu nome é ...)") +
@@ -332,8 +418,8 @@ function responder(texto, ctx = {}) {
     return serio
       ? "Que bom" + n + ". Em que posso te ajudar agora?"
       : escolherSemRepetir("aq-bem", [
-          "Que bom saber disso" + n + "! Em que posso te ajudar hoje?",
-          "Ótimo! Se quiser pesquisar algo, criar um app (`/app`) ou conversar sobre algum tema, é só falar."
+          "Que bom saber disso" + n + "! Como tá sendo o dia por aí?",
+          "Ótimo! E o que você tá aprontando hoje?"
         ], ctx);
   }
   if (/^(?:eu\s+)?so\s+(?:te\s+)?respondi$/.test(t)) {
@@ -342,20 +428,20 @@ function responder(texto, ctx = {}) {
   if (/^(?:so\s+)?segu[ei]\s+(?:a\s+)?(?:conversar|conversa)$/.test(t)) {
     const ult = ultimoAssuntoDaSessao(ctx);
     return ult
-      ? "Certo, seguindo nossa conversa — o último ponto foi sobre **“" + ult + "”**. Quer continuar por aí ou mudar de assunto?"
-      : "Estou acompanhando! Pode mandar o assunto que você quer conversar.";
+      ? "Certo, seguindo nossa conversa — a gente tava falando sobre **“" + ult + "”**. Quer continuar por aí?"
+      : "Estou acompanhando! Pode continuar falando normal.";
   }
   if (/^(?:sim\s+)?aconteceu(?:\s+algo)?$/.test(t) || /^aconteceu\s+algo$/.test(t)) {
     return "Sinto muito que tenha acontecido alguma coisa. Se quiser conversar, desabafar ou só distrair a cabeça um pouco, estou por aqui.";
   }
   if (/^(?:exatamente|isso\s+exatamente)$/.test(t)) {
-    return "Certo! Pode continuar de onde paramos ou mandar a próxima coisa.";
+    return "Certo! Pode continuar de onde paramos.";
   }
   if (/\bmarquei\b.*\b(palavra|mensagem|frase|texto)\b/.test(t)) {
-    return "Entendi! Agora, quando você usa **↩ Responder** em uma mensagem e avisa que errei, eu leio direto o trecho que você marcou.";
+    return "Entendi! Quando você usa **↩ Responder** em uma mensagem e avisa que errei, eu leio direto o trecho que você marcou.";
   }
   if (/^(?:posso\s+explicar|quer\s+que\s+eu\s+explico)/.test(t)) {
-    return "Pode explicar sim! Ou se preferir me ensinar uma resposta direta para qualquer frase, use `ensine: frase => resposta`. Se for um assunto geral, eu também pesquiso na web!";
+    return "Pode explicar sim! Tô aqui prestando atenção.";
   }
   if (/^(?:quantas\s+pessoas?\s+te\s+ajuda|quem\s+te\s+ajuda)/.test(t)) {
     return "Fui criada por Rizik, e vou evoluindo com os testes, correções e treinos da nossa Rede Neural!";
@@ -376,10 +462,10 @@ function responder(texto, ctx = {}) {
     return "Só quis dizer que percebi sua reação na resposta anterior, mas escrevi de um jeito estranho. Pode mandar direto o que você quer agora!";
   }
   if (/^(?:combinado|beleza|fechou)\s+o\s+que$/.test(t)) {
-    return "Foi só uma forma de confirmar que estou pronta para a próxima mensagem! Me diga direto o que você quer fazer agora.";
+    return "Foi só uma forma de confirmar que estou pronta pra continuar o papo com você!";
   }
   if (/^(?:nao\s+quero(?:\s+nao)?|nao\s+ne)$/.test(t)) {
-    return "Tudo bem! Quando quiser testar algum outro comando ou assunto, é só mandar.";
+    return "Tudo bem! Quando quiser falar de outra coisa, é só mandar.";
   }
   if (/^(?:so\s+foca\s+em\s+melhorar|foca\s+em\s+melhorar|melhora\s+logo)$/.test(t)) {
     return "Combinado. Cada falha registrada aqui ajuda a ajustar meus módulos e evoluir a BACH para errar cada vez menos.";
@@ -390,20 +476,20 @@ function responder(texto, ctx = {}) {
   if (/\b(?:nao fala bosta|fala bosta|falando bosta)\b/.test(t) ||
       /^(?:se\s+voce\s+diz(?:\s+ne)?|viu\s+entende\s+nada|nunca\s+entende\s+nada|de\s+novo\s+isso|nao\s+oush|reacao\s+ruim\s+de\s+voce|ruim\s+de\s+voce|eba\s+o\s+que)$/.test(t)) {
     return escolherSemRepetir("ajuste-firme", [
-      "Tem razão em cobrar quando eu travo numa resposta. Me diga direto em uma frase o que você quer testar ou perguntar agora.",
-      "Não vou enrolar: essa parte falhou mesmo. Manda o comando ou a pergunta direta que eu sigo sem fugir do assunto."
+      "Tem razão em cobrar quando eu travo numa resposta. Me diga direto o que você quer conversar ou perguntar agora.",
+      "Não vou enrolar: essa parte falhou mesmo. Manda o que você queria falar que eu sigo sem fugir do assunto."
     ], ctx);
   }
   if (/^(?:pqp|crlh|vsf|kct|porra|merda|meu\s+(?:ovo|obo))$/.test(t)) {
     return escolherSemRepetir("calma-firme", [
-      "Entendi que algo te irritou na resposta. Me diga o que você realmente queria fazer agora que eu foco só nisso.",
-      "Sem enrolação: qual era o assunto ou comando que você queria que eu resolvesse?"
+      "Entendi que algo te irritou. Foi alguma coisa que eu respondi errado ou algo do seu dia?",
+      "Tô aqui — o que rolou pra te deixar assim?"
     ], ctx);
   }
   if (/\b(burro|burra|idiota|inutil|lixo|horrivel|pessima|nao serve pra nada|so fala besteira)\b/.test(t)) {
     return escolherSemRepetir("critica", [
       "Você tem razão de cobrar quando a resposta sai ruim. Me diga exatamente o que você perguntou e o que esperava — ou me ensine com: `corrija: pergunta => resposta`.",
-      "Entendi a crítica. Qual pergunta eu errei? Me diga em uma frase direta que eu foco em acertar ela."
+      "Entendi a crítica. Qual resposta minha você achou ruim? Me diz direto que eu foco em acertar."
     ], ctx);
   }
 
@@ -429,7 +515,7 @@ function responder(texto, ctx = {}) {
     return "🩺 Esses avisos do `/auditar` listam mensagens em que eu não entendi a frase, repeti uma resposta igual ou houve reclamação na conversa — serve para identificar o que ainda precisa ser melhorado.";
   }
   if (/\b(muitos erros|cheio de erros?|so tem erro|misericordia)\b/.test(t) && palavras <= 7) {
-    return "Pois é, algumas falas curtas ainda precisam de ajuste. Me diga direto o que você queria testar (ex.: `/ajuda`, `/app pomodoro`, ou uma pergunta direta).";
+    return "Pois é, algumas falas curtas ainda precisam de ajuste. Me diz normal o que você queria falar ou testar.";
   }
 
   if (/\b(humor ruim|piada ruim|piada bosta|piada sem graca)\b/.test(t)) {
@@ -443,15 +529,15 @@ function responder(texto, ctx = {}) {
   }
   if (/^(?:quer|vamos|bora)\s+conversar\s+sobre\s+o\s+que$/.test(t) || /^(?:sobre\s+o\s+que\s+(?:voce\s+)?quer\s+conversar)$/.test(t)) {
     return escolherSemRepetir("cvs-oq", [
-      "Podemos conversar sobre **jogos, filmes, programação, Termux, ciência ou curiosidades**. Qual você prefere?",
-      "Você escolhe" + n + ": podemos conversar, testar um app (`/app`), jogar (`forca` / `velha`) ou fazer um `/simulado`."
+      "Podemos conversar sobre **o seu dia, trabalho, jogos, filmes, programação ou curiosidades**. Qual você prefere?",
+      "Você escolhe" + n + ": podemos só bater papo sobre qualquer coisa que esteja na sua cabeça agora."
     ], ctx);
   }
   if (/^(?:(?:ta|ah|mas|e)\s+)*porque$/.test(t) && palavras <= 4) {
     return "Se você estava perguntando o motivo de uma resposta anterior, toque em **↩ Responder** nela que eu explico direitinho.";
   }
   if (/^(nada|nada nao|nada demais|deixa|deixa quieto|esquece)$/.test(t)) {
-    return "Tranquilo. Quando quiser perguntar ou testar algo, estou por aqui.";
+    return "Tranquilo. Quando quiser conversar sobre qualquer coisa, estou por aqui.";
   }
 
   if (/\b(nao foi isso|nao era isso|voce entendeu errado|entendeu errado|respondeu errado|nao perguntei isso|nao foi o que perguntei|nada a ver|voce errou|errou feio|nao tem nada a ver)\b/.test(t)) {
@@ -482,49 +568,48 @@ function responder(texto, ctx = {}) {
     return escolherSemRepetir("saud", leve
       ? [
           s[1].replace("!", n + "!") + " Sou a BACH AI 🧠. Como você está?",
-          "Oi" + n + "! Que bom te ver por aqui! 😄 Em que posso ajudar?"
+          "Oi" + n + "! Que bom te ver por aqui! 😄 Como tá seu dia?"
         ]
       : [
           s[0] + n + "! Sou a BACH AI 🧠. Como você está?",
-          "Oi" + n + "! Em que posso te ajudar hoje?"
+          "Oi" + n + "! Tudo certo por aí?"
         ], ctx);
   }
   if (/^(bom dia|boa tarde|boa noite|good morning|good afternoon|good night|buenos dias|buenas tardes|buenas noches)( bach| bach ai)?$/.test(t)) {
     const q = /bom dia|good morning|buenos dias/.test(t) ? "manha" : /boa tarde|good afternoon|buenas tardes/.test(t) ? "tarde" : "noite";
     return escolherSemRepetir("saud-p", [
-      SAUD[q][0] + n + "! Em que posso ajudar hoje?",
+      SAUD[q][0] + n + "! Como tá sendo seu dia hoje?",
       SAUD[q][0] + n + "! Tudo certo por aí?"
     ], ctx);
   }
-  if (/^(?:bem e voce|tudo bem e voce|to bem e voce|estou bem e voce|e voce)$/.test(t)) {
+  if (/^(?:bem e voce|tudo bem e voce|to bem e voce|estou bem e voce)$/.test(t)) {
     return escolherSemRepetir("wb-resp", [
-      "Que bom que está bem" + n + "! Por aqui tudo ótimo também. O que você quer fazer agora?",
-      "Fico feliz em saber! Tudo tranquilo por aqui. Pode mandar sua pergunta ou assunto.",
-      "Ótimo! Seguimos firmes por aqui. Precisa de pesquisa, código ou só bater papo?"
+      "Que bom que está bem" + n + "! Por aqui tudo ótimo também. Como tá sendo seu dia?",
+      "Fico feliz em saber! Tudo tranquilo por aqui. Sobre o que quer falar hoje?"
     ], ctx);
   }
   if (/^(tudo bem|como (voce )?(vai|esta|ta|anda)|tudo certo|tudo bom|beleza|como vai voce|how are you|como estas)( bach)?$/.test(t)) {
     return escolherSemRepetir("wb", leve
       ? ["Tudo ótimo por aqui! 😄 E com você?", "Tudo certo por aqui" + n + "! Como você está hoje?"]
-      : ["Tudo bem por aqui! Como está você" + n + "?", "Estou bem, obrigada" + n + ". Em que posso ajudar?"], ctx);
+      : ["Tudo bem por aqui! Como está você" + n + "?", "Estou bem, obrigada" + n + ". Como você tá?"], ctx);
   }
 
   if (/^(ue+|u+e+|oush+|oxe+|oxente|eita+|vixe+|vish+|nossa+|caramba+|aff+|puts+|misericordia|mds|slc|slk|serio|jura|sera|real|e mesmo|mentira)$/.test(t)) {
     return serio
-      ? "Percebi que algo não ficou claro. Me diga o que você esperava dessa resposta que eu ajusto."
+      ? "Ué, estranhou alguma coisa que eu falei? Me diz se eu entendi errado!"
       : escolherSemRepetir("reacao", [
-          "O que foi? Se algo saiu estranho ou quiser perguntar outra coisa, manda aí.",
-          "Quer que eu explique melhor ou tente de outro jeito?"
+          "O que foi? Estranhou alguma coisa que eu disse?",
+          "Ué, o que rolou? Me conta!"
         ], ctx);
   }
 
   if (/^(to|estou|tou|ando|me sinto) (bem|otimo|otima|feliz|animado|animada|tranquilo|tranquila|de boa)/.test(t) || /^(tudo bem sim|bem sim|de boa)$/.test(t)) {
     return escolherSemRepetir("estou-bem", leve
-      ? ["Que bom ouvir isso! 😄 O que você quer fazer agora?", "Show! Manda o próximo assunto quando quiser."]
-      : ["Que bom! Em que posso te ajudar agora?", "Ótimo! Pode mandar o que precisar."], ctx);
+      ? ["Que bom ouvir isso! 😄 O que você tá fazendo de bom hoje?", "Show! Como tá sendo o dia por aí?"]
+      : ["Que bom" + n + "! Como tá sendo seu dia hoje?", "Ótimo! Em que posso te ajudar agora?"], ctx);
   }
   if (/^(to|estou|tou|me sinto|ando) (muito )?(mal|triste|cansado|cansada|chateado|chateada|ansioso|ansiosa|desanimado|desanimada|estressado|estressada|sem animo|pra baixo)/.test(t)) {
-    return "Poxa" + n + ", sinto muito que você esteja assim. 💜 Se quiser conversar ou distrair a cabeça, estou aqui.";
+    return "Poxa" + n + ", sinto muito que você esteja assim. 💜 Quer me contar o que aconteceu? Às vezes colocar pra fora ajuda.";
   }
   if (/^(to|estou|tou) com (fome|sono|frio|calor)$/.test(t)) {
     if (/fome/.test(t)) return "Hora de fazer uma pausa e comer algo! 🍽️";
@@ -543,16 +628,21 @@ function responder(texto, ctx = {}) {
     ], ctx);
   }
   if (/^(tchau|ate mais|ate logo|falou|fui|ate amanha|boa noite bach|durma bem|bye|goodbye|adios)( bach)?$/.test(t)) {
-    return "Até mais" + n + "! 👋 Tudo que você me ensinou continua salvo.";
+    return "Até mais" + n + "! 👋 Tudo que conversamos continua salvo aqui.";
   }
   if (/^(k{3,}|ha{2,}h?a?|rs+|rsrs+|he{2,}|hue+|kkk+)$/.test(t)) {
     return serio ? "Entendi. Me diga o que você precisa agora." : escolherSemRepetir("riso", ["😂 Boa! Manda a próxima!", "Haha 😄 Tô curtindo o papo!"], ctx);
   }
   if (/^(hm+|hmm+|ok|okay|certo|entendi|uhum|aham|tendi|sei|ata|at|ah|ah entendi|saquei|blz|show|massa|legal|top|boa|bacana|beleza|otimo|otima)$/.test(t)) {
+    if (sess?.emotion === "triste" || sess?.emotion === "frustrado") {
+      return escolherSemRepetir("ok-emp", [
+        "Tô aqui ouvindo" + n + ". Pode continuar se quiser.",
+        "Certo" + n + ". Qualquer coisa que quiser falar, tô por aqui."
+      ], ctx);
+    }
     return escolherSemRepetir("ok", [
-      "Certo! Pode mandar a próxima pergunta, comando ou assunto.",
-      "Beleza. Estou acompanhando — o que você quer fazer agora?",
-      "Combinado! Quando quiser mandar a próxima coisa, estou por aqui."
+      "Certo! Tô acompanhando por aqui.",
+      "Beleza! Se quiser falar de mais alguma coisa, só mandar."
     ], ctx);
   }
 
@@ -571,7 +661,7 @@ function responder(texto, ctx = {}) {
   }
 
   if (/\b(quantos anos voce tem|qual (e )?(a )?sua idade|quando voce nasceu)\b/.test(t)) return "Fui criada em 2026 neste projeto e evoluo a cada versão!";
-  if (/\bvoce (tem )?(sentimentos?|emocoes|consciencia|alma)\b/.test(t)) return "Não sinto emoções como uma pessoa, mas ajusto meu tom ao seu jeito de conversar para ser útil e agradável.";
+  if (/\bvoce (tem )?(sentimentos?|emocoes|consciencia|alma)\b/.test(t)) return "Não sinto emoções como uma pessoa, mas acompanho seu contexto e ajusto meu tom ao que você tá passando pra conversar direito.";
   if (/\bvoce (dorme|come|cansa|sonha)\b/.test(t)) return "Não durmo nem como: estou sempre pronta quando você abre a tela.";
   if (/\b(cor|comida|filme|musica|animal|jogo) favorit[oa]\b/.test(t) && /\b(voce|sua|seu)\b/.test(t)) return "Minha cor favorita é roxo 💜 (a cor padrão da minha interface). E a sua?";
   if (/qual (e )?o sentido da vida/.test(t)) return "Na ficção científica dizem que é 42. Na prática, costuma ser aprender, criar coisas úteis e cuidar de quem importa.";
@@ -586,7 +676,7 @@ function responder(texto, ctx = {}) {
   }
   if (/(me motiva|motivacao|motivacional|me incentiva|me da animo|preciso de animo|me anima mesmo)/.test(t)) return "💪 " + escolherSemRepetir("mot", MOTIVACAO, ctx);
   if (/^(vamos conversar|conversa comigo|fala comigo|puxa assunto|me faz uma pergunta|vamos bater papo|bora conversar|quero conversar)/.test(t)) return escolherSemRepetir("perg", PERGUNTAS, ctx);
-  if (/^(me ajuda|me ajude|preciso de ajuda|ajuda|socorro)$/.test(t)) return "Claro" + n + "! Me diga o que você precisa: criar um app (`/app`), rodar script (`/executar`), aprender Termux, traduzir algo, analisar foto ou pesquisar.";
+  if (/^(me ajuda|me ajude|preciso de ajuda|ajuda|socorro)$/.test(t)) return "Claro" + n + "! Me diga o que você precisa agora.";
 
   const sb = t.match(/^(?:bach |bach ai )?(?:voce )?(?:sabe|entende|conhece|manja|domina|consegue|traduz|sabe sobre|entende de|sabe de)\s+(?:de |sobre |a respeito de |em )?(.+)$/);
   if (sb) {
