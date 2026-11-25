@@ -24,71 +24,59 @@ export const INTENCOES = [
 ];
 
 const BASE_TREINO = [
-  // saudacao
   ["oi", "saudacao"], ["ola", "saudacao"], ["bom dia", "saudacao"], ["boa tarde", "saudacao"],
   ["boa noite", "saudacao"], ["e ai tudo bem", "saudacao"], ["aqui ta tudo bem", "saudacao"],
   ["to bem e vc", "saudacao"], ["como voce esta", "saudacao"], ["oie bach", "saudacao"],
 
-  // habilidades
   ["o que voce sabe fazer", "habilidades"], ["no oq vc sabe", "habilidades"],
   ["no oq vc sabe fazer", "habilidades"], ["me fala oq vc entende", "habilidades"],
   ["do que voce entende", "habilidades"], ["para que voce serve", "habilidades"],
   ["quais sao suas funcoes", "habilidades"], ["o que voce consegue fazer", "habilidades"],
   ["vc auto corrige", "habilidades"], ["como funciona sua autocorrecao", "habilidades"],
 
-  // pesquisa
   ["pesquise sobre buraco negro", "pesquisa"], ["pesquisa como melhorar uma ia sozinha", "pesquisa"],
   ["quem foi adao e eva", "pesquisa"], ["qm foi eva", "pesquisa"], ["qm foi adam", "pesquisa"],
   ["o que e fotossintese", "pesquisa"], ["me fala do sol", "pesquisa"],
   ["qual a distancia da terra ate marte", "pesquisa"], ["historia da segunda guerra", "pesquisa"],
   ["quem inventou o aviao", "pesquisa"], ["oq eu queria era para vc pesquisar", "pesquisa"],
 
-  // criar_app
   ["cria um app de pomodoro", "criar_app"], ["faz um aplicativo de notas", "criar_app"],
   ["crie um jogo da cobrinha", "criar_app"], ["cria uma calculadora html", "criar_app"],
   ["abre meu painel de gastos", "criar_app"], ["quero criar um app", "criar_app"],
   ["monte uma tela de tarefas", "criar_app"],
 
-  // termux_dev
   ["como usar termux", "termux_dev"], ["instalar python no termux", "termux_dev"],
   ["abre terminal do termux aqui", "termux_dev"], ["abre o terminal", "termux_dev"],
   ["como criar script sh", "termux_dev"], ["o que e uma funcao em javascript", "termux_dev"],
   ["me ajuda a programar em python", "termux_dev"], ["revisar esse codigo js", "termux_dev"],
 
-  // reclamacao
   ["voce errou", "reclamacao"], ["respondeu errado", "reclamacao"], ["nada a ver isso", "reclamacao"],
   ["voce nao entende nada", "reclamacao"], ["nunca entende nada", "reclamacao"],
   ["vc e burro", "reclamacao"], ["para de errar", "reclamacao"],
   ["pse entt nao fala bosta", "reclamacao"], ["pqp que erro", "reclamacao"],
   ["so foca em melhorar", "reclamacao"],
 
-  // humor_jogo
   ["conta uma piada", "humor_jogo"], ["vamos jogar forca", "humor_jogo"],
   ["jogar jogo da velha", "humor_jogo"], ["quero jogar quiz", "humor_jogo"],
   ["me manda uma charada", "humor_jogo"], ["me faz rir", "humor_jogo"],
 
-  // utilidades
   ["gera uma senha forte", "utilidades"], ["manda um cpf aleatorio de teste", "utilidades"],
   ["joga um dado d20", "utilidades"], ["cara ou coroa", "utilidades"],
   ["quanto e 15 por cento de 200", "utilidades"], ["converter 10 km para metros", "utilidades"],
   ["como esta o clima hoje", "utilidades"], ["previsao do tempo em sao paulo", "utilidades"],
 
-  // traducao_texto
   ["traduz isso para portugues", "traducao_texto"], ["como se diz obrigado em japones", "traducao_texto"],
   ["o que significa efemero", "traducao_texto"], ["sinonimo de feliz", "traducao_texto"],
   ["revisa esse texto de portugues", "traducao_texto"], ["separe as silabas de computador", "traducao_texto"],
 
-  // recomendacao
   ["me recomenda filmes de acao", "recomendacao"], ["indica animes bons", "recomendacao"],
   ["recomenda musicas de sertanejo", "recomendacao"], ["quais series boas para assistir", "recomendacao"],
   ["me indica um filme de terror", "recomendacao"],
 
-  // memoria_eu
   ["meu nome e rizik", "memoria_eu"], ["qual e meu nome", "memoria_eu"],
   ["o que voce lembra de mim", "memoria_eu"], ["do que nos falamos desde o inicio", "memoria_eu"],
   ["eu gosto de programacao", "memoria_eu"], ["lembra do comeco da conversa", "memoria_eu"],
 
-  // conversa_geral
   ["muito obrigado pela ajuda", "conversa_geral"], ["tchau ate mais", "conversa_geral"],
   ["eu so te respondi", "conversa_geral"], ["so segue a conversa", "conversa_geral"],
   ["nao quero jogar agora", "conversa_geral"], ["me conta uma curiosidade", "conversa_geral"],
@@ -99,7 +87,7 @@ function norm(t) {
   return String(t || "").toLowerCase().normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/\bqm\b/g, "quem")
-    .replace(/\b(vc|vce|vv)\b/g, "voce")
+    .replace(/\b(vc|vce|vv|oc|oce)\b/g, "voce")
     .replace(/\b(oq|oqe|oque)\b/g, "o que")
     .replace(/\bpq\b/g, "porque")
     .replace(/\b(tb|tbm)\b/g, "tambem")
@@ -177,9 +165,8 @@ function forward(x) {
   const h = new Float32Array(HIDDEN);
   for (let j = 0; j < HIDDEN; j++) {
     let sum = net.b1[j];
-    const off = j;
     for (let i = 0; i < DIM; i++) {
-      if (x[i] !== 0) sum += x[i] * net.W1[i * HIDDEN + off];
+      if (x[i] !== 0) sum += x[i] * net.W1[i * HIDDEN + j];
     }
     h[j] = Math.tanh(sum);
   }
@@ -299,7 +286,6 @@ async function init() {
   if (pronto) return;
   pronto = true;
 
-  // 1) Tenta carregar pesos treinados na nuvem (GitHub Actions -> pesos_neurais.json)
   let carregouNuvem = false;
   try {
     const r = await fetch("./pesos_neurais.json?v=" + Date.now());
@@ -309,7 +295,6 @@ async function init() {
     }
   } catch {}
 
-  // 2) Mescla aprendizados locais se existirem (ou usa pesos locais se não houver nuvem)
   try {
     const local = JSON.parse(localStorage.getItem(K_NEURAL) || "null");
     if (local) {
@@ -322,7 +307,6 @@ async function init() {
     }
   } catch {}
 
-  // 3) Se ainda nunca foi treinada, roda bootstrap rápido local (~15ms)
   if (net.epochs === 0) {
     treinarLote(BASE_TREINO, 40, 0.09);
   }
@@ -366,7 +350,7 @@ function comando(raw) {
       "Comandos:\n" +
       "• `/neural testar sua frase aqui`\n" +
       "• `/neural treinar` (re-treina no aparelho)\n" +
-      "• `/neural ensinar frase => intencao`";
+      "• `/neural ensinar Roii tudo bem? => saudacao`";
   }
 
   let m = arg.match(/^testar\s+([\s\S]+)$/i);
@@ -384,11 +368,17 @@ function comando(raw) {
   m = arg.match(/^ensinar\s+(.+?)\s*=>\s*([a-z_]+)$/i);
   if (m) {
     const ok = reinforce(m[1], m[2].toLowerCase());
-    if (!ok) return "Intenção inválida. Use uma destas: " + INTENCOES.map(x => "`" + x + "`").join(", ");
+    if (!ok) return "Categoria inválida. Use uma destas:\n" + INTENCOES.map(x => "`" + x + "`").join(", ");
     return "✅ Rede neural treinada! Agora `" + m[1] + "` aponta para **`" + m[2].toLowerCase() + "`** (" + (predict(m[1]).confidence * 100).toFixed(1) + "% de confiança).";
   }
 
-  return "Use `/neural status`, `/neural testar frase`, `/neural treinar` ou `/neural ensinar frase => intencao`.";
+  if (/^ensinar\b/i.test(arg)) {
+    return "🧠 Para ensinar a Rede Neural, coloque **`=>` e a categoria** no final!\n\n" +
+      "Exemplo certo:\n`/neural ensinar Roii tudo bem? => saudacao`\n\n" +
+      "Categorias válidas: " + INTENCOES.map(x => "`" + x + "`").join(", ");
+  }
+
+  return "Use `/neural status`, `/neural testar frase`, `/neural treinar` ou `/neural ensinar Roii tudo bem? => saudacao`.";
 }
 
 function getStats() {
