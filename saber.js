@@ -1,6 +1,7 @@
-/* BACH AI - SABER 3.3 (Blindado)
+/* BACH AI 5.2 - SABER 3.4 (Blindado & Mais Preciso)
    Leitura de textos/código/links, pesquisa inteligente com expansão de gírias (qm -> quem),
-   tratamento de desambiguação, prioridade para português, catálogo Jikan para animes
+   separação entre entidade principal (Wikipédia) e pergunta completa (Web),
+   preservação de dados úteis entre parênteses, prioridade para português, catálogo Jikan
    e bloqueio contra SSRF/endereços locais ou protocolos inseguros em links. */
 
 const KB_KEY = "bach_conhecimento_v2";
@@ -16,13 +17,15 @@ const STOP = new Set((
   "net internet web google online pra pro pros pras ai ta to ne la ca oq oqe oque aqui escrito escrita " +
   "nisso nisto disso mes meses ano anos semana semanas dia dias hoje amanha ontem falar perguntei perguntar pergutar " +
   "serve servem servir servisse presta errando errado errada corrigir arrumar falou disse respondeu travou rir chutar " +
-  "fica ficam tipo tip coisa coisas tudo querer escrever escrevi saber sabe sabia precisa precisam"
+  "fica ficam tipo tip coisa coisas tudo querer escrever escrevi saber sabe sabia precisa precisam forma maneira jeito"
 ).split(" "));
 
 const INTENCAO_STOP = new Set((
   "bom boa bons boas legal legais ruim melhor melhores pior piores presta vale pena " +
-  "lancou lanca lancar lancamento lancamentos estreou estreia estrear saiu sair sai " +
-  "recomenda recomende indica indique assistir assisto ver saber proximo proxima proximos proximas vem vim vir chegar"
+  "lancou lanca lancar lancamento lancamentos estreou estreia estrear saiu sair sai lancado lancados " +
+  "recomenda recomende indica indique assistir assisto ver saber proximo proxima proximos proximas vem vim vir chegar " +
+  "existe existem existiu existir nome nomes membro membros integrante integrantes " +
+  "formula formulas feito feita feitos feitas fruta frutas episodio episodios temporada temporadas"
 ).split(" "));
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -54,7 +57,10 @@ function expandirGirias(t) {
     .replace(/\b(oq|oqe|oque)\b/g, "o que")
     .replace(/\b(pq|pk)\b/g, "porque")
     .replace(/\b(tb|tbm|tmb)\b/g, "tambem")
-    .replace(/\bpra\b/g, "para");
+    .replace(/\bpra\b/g, "para")
+    .replace(/\b(para|pra|como)\s+dormi\b/g, "$1 dormir")
+    .replace(/\bepisodios\b/g, "episodios")
+    .replace(/\bpisodios\b/g, "episodios");
 }
 
 const tokens = t => expandirGirias(t).split(/[^a-z0-9]+/).filter(Boolean);
@@ -162,7 +168,7 @@ async function get(url, ms = 14000, json = false) {
 const radical = w => {
   w = w.replace(/(coes|oes|aes)$/, "ao");
   if (w.length > 4) w = w.replace(/s$/, "");
-  return w.length > 6 ? w.slice(0, 6) : w;
+  return w.length > 5 ? w.slice(0, 5) : w;
 };
 const kr = t => kwAssunto(t).map(radical);
 
@@ -207,20 +213,24 @@ async function buscarAnimesJikan(qn, assunto, progresso) {
 
 function limparConsulta(q) {
   const n = expandirGirias(q)
-    .replace(/^(?:me\s+)?(?:explica|explique|pesquisa|pesquise|procure|procura|busca|busque|fale|fala)\s+(?:na\s+(?:net|internet|web)|no\s+google)?\s*(?:sobre\s+)?/i, "")
-    .replace(/^(?:quem\s+(?:foi|e|eh|era|sao)|o\s+que\s+(?:e|eh|sao|foi|significa))\s+/i, "")
+    .replace(/^(?:me\s+)?(?:explica|explique|pesquisa|pesquise|procure|procura|busca|busque|fale|fala)\s+(?:uma\s+pesquisa\s+)?(?:na\s+(?:net|internet|web)|no\s+google)?\s*(?:sobre\s+|se\s+)?/i, "")
+    .replace(/^(?:quem\s+(?:foi|e|eh|era|sao)|o\s+que\s+(?:e|eh|sao|foi|significa)|de\s+qual|qual\s+(?:e|a|o)\s+)\s*/i, "")
     .replace(/[?!.]+$/g, "")
     .trim();
-  const termos = kwAssunto(n);
+  const termosAssunto = kwAssunto(n);
+  const termosTodos = kw(n);
   const temAno = /\b(19|20)\d{2}\b/.test(n);
+  const termosLimpos = termosAssunto.filter(w => !/^\d+$/.test(w));
   return {
-    assunto: termos.length ? termos.join(" ") : kw(n).join(" "),
+    assunto: (termosAssunto.length ? termosAssunto : termosTodos).join(" "),
+    entidade: (termosLimpos.length ? termosLimpos : termosAssunto.length ? termosAssunto : termosTodos).join(" "),
+    webQuery: n,
     ehPessoa: /\bquem\s+(?:foi|e|eh|era)\b/.test(expandirGirias(q)),
     ehLancamento: /\b(lancou|lanca|lancar|lancamento|estreia|estreou|saiu|quando sai|mes que vem|proximo mes)\b/.test(n),
     ehOpiniao: /\b(e bom|e boa|vale a pena|presta|critica|nota|legal|legais|recomenda)\b/.test(n),
     ehAtualidade: !temAno && /\b(eleic|ganhou|venceu|campeao|resultado|placar|atual|atualmente|presidente|governador|prefeito)\b/.test(n),
     permiteAdulto: CONTEUDO_ADULTO.test(n),
-    termos: termos.length ? termos : kw(n)
+    termos: termosAssunto.length ? termosAssunto : termosTodos
   };
 }
 
@@ -229,7 +239,7 @@ function paragrafos(texto) {
   const out = [];
   for (const p of corte.split(/\n+/)) {
     const t = p.replace(/\s+/g, " ").trim();
-    if (t.length < 45) continue;
+    if (t.length < 40) continue;
     const marcado = t.replace(/([.!?])\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9"“])/g, "$1\n");
     for (const s of marcado.split("\n")) {
       const limpoS = s.trim();
@@ -269,9 +279,10 @@ async function wiki(q, qk, permiteAdulto = false, ehPessoa = false) {
     const tkSnippet = new Set(kr(r.title + " " + stripHtml(r.snippet)));
     const cobTitulo = alvo.size ? [...alvo].filter(w => tkTitulo.has(w)).length / alvo.size : 0;
     const cobSnippet = alvo.size ? [...alvo].filter(w => tkSnippet.has(w)).length / alvo.size : 0;
-    const cob = Math.max(cobTitulo, cobSnippet * 0.9);
+    const cob = Math.max(cobTitulo, cobSnippet * 0.85);
     const extra = [...tkTitulo].filter(w => !alvo.has(w)).length;
-    return { titulo: r.title, rank: i, cob, cobTitulo, extra, v: cob + (i === 0 ? 0.15 : 0) - 0.12 * extra - i * 0.02 };
+    const exatoBonus = (cobTitulo >= 0.95 && extra === 0) ? 0.6 : 0;
+    return { titulo: r.title, rank: i, cob, cobTitulo, extra, v: cob + exatoBonus + (i === 0 ? 0.12 : 0) - 0.14 * extra - i * 0.02 };
   }).filter(c => c.cob >= 0.45 || (c.rank === 0 && c.cob > 0)).sort((a, b) => b.v - a.v);
 
   let escolhidos = cand.slice(0, 2);
@@ -371,15 +382,18 @@ const pareceIngles = t => /\b(the|was|were|is|are|with|from|which|that|developed
   !/[ãõçáéíóúâêô]/i.test(t);
 
 function filtrar(links, qs, permiteAdulto = false, anoAtual = "") {
-  return links.filter(l => permiteAdulto || !CONTEUDO_ADULTO.test(l.titulo + " " + l.snippet + " " + l.url)).map(l => {
+  const ranq = links.filter(l => permiteAdulto || !CONTEUDO_ADULTO.test(l.titulo + " " + l.snippet + " " + l.url)).map(l => {
     const texto = l.titulo + " " + l.snippet;
     const k = new Set(kr(texto));
     const hits = [...qs].filter(w => k.has(w)).length;
-    const bonusPT = /pt\.wikipedia|\.br\/|brasilescola|todamateria|significados|mundoeducacao|bbc\.|g1\.globo|uol/i.test(l.url) ? 3 : 0;
+    const bonusPT = /pt\.wikipedia|\.br\/|brasilescola|todamateria|significados|mundoeducacao|bbc\.|g1\.globo|uol|tuasaude|minhavida/i.test(l.url) ? 3 : 0;
     const penEn = (/en\.wikipedia/i.test(l.url) || pareceIngles(texto)) ? -2 : 0;
     const bonusAno = anoAtual && texto.includes(anoAtual) ? 3 : 0;
     return { ...l, hits, v: hits * 2 + bonusPT + penEn + bonusAno };
-  }).filter(l => l.hits > 0 && (qs.size < 3 || l.hits >= 2)).sort((x, y) => y.v - x.v).slice(0, 7);
+  });
+  const fortes = ranq.filter(l => l.hits > 0 && (qs.size < 3 || l.hits >= 2)).sort((x, y) => y.v - x.v);
+  if (fortes.length) return fortes.slice(0, 7);
+  return ranq.filter(l => l.hits >= 1).sort((x, y) => y.v - x.v).slice(0, 5);
 }
 
 function cleanPage(t) {
@@ -398,7 +412,7 @@ async function readPage(link, qs) {
   return best(paragrafos(txt), s => {
     const n = new Set(kr(s));
     const hits = [...qs].filter(w => n.has(w)).length;
-    return hits ? hits * 3 + (s.length > 70 && s.length < 300 ? 1 : 0) : 0;
+    return hits ? hits * 3 + (s.length > 70 && s.length < 350 ? 1 : 0) : 0;
   }, 10);
 }
 
@@ -454,7 +468,7 @@ function buscarConhecimento(texto) {
     const s = inter / Math.max(qk.size, ek.size);
     if (s > score) { score = s; top = e; }
   }
-  if (!top || score < 0.75) return null;
+  if (!top || score < 0.78) return null;
   const dias = Math.floor((Date.now() - (top.at || 0)) / 86400000);
   return "📚 Já pesquisei isso (“" + top.q + "”, " + new Date(top.at).toLocaleDateString("pt-BR") + "):\n\n" + String(top.resumo).slice(0, 1500) +
     (dias > 30 ? "\n\n⚠️ Essa pesquisa tem mais de 30 dias e pode estar desatualizada." : "") +
@@ -469,7 +483,12 @@ function hash(s) { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCod
 const pickFixo = (a, chave) => a[hash(chave) % a.length];
 
 function limparFrase(s) {
-  return String(s).replace(/\[\d+\]/g, "").replace(/\s*\([^)]{0,80}\)/g, "").replace(/\s+/g, " ").replace(/^[-•*\d.)\s]+/, "").trim();
+  return String(s)
+    .replace(/\[\d+\]/g, "")
+    .replace(/\s*\((?:do grego|em inglês|pronúncia|ouça|AFI:|IPA:)[^)]{0,90}\)/gi, "")
+    .replace(/\s+/g, " ")
+    .replace(/^[-•*\d.)\s]+/, "")
+    .trim();
 }
 
 function jac(a, b) {
@@ -483,7 +502,7 @@ function candidatas(fontes, qs, permiteAdulto = false, anoAtual = "") {
   fontes.forEach((f, fi) => {
     f.frases.forEach((raw, pos) => {
       const s = limparFrase(raw);
-      if (s.length < 45 || s.length > 320 || LIXO.test(s) || !/[.!]$/.test(s) || /^(R|P|Q|A):\s/.test(s)) return;
+      if (s.length < 40 || s.length > 420 || LIXO.test(s) || !/[.!][)"'”»]?$/.test(s) || /^(R|P|Q|A):\s/.test(s)) return;
       if (!permiteAdulto && CONTEUDO_ADULTO.test(s)) return;
       if (/^[,;:)\]]/.test(s) || !/^[A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9"“]/.test(s)) return;
       const k = new Set(kr(s));
@@ -493,7 +512,7 @@ function candidatas(fontes, qs, permiteAdulto = false, anoAtual = "") {
       if (f.primario && f.tituloStems) {
         const nao = [...qs].filter(w => !f.tituloStems.has(w));
         const achou = nao.filter(w => k.has(w)).length;
-        if (nao.length ? !achou && !lead : pos >= 5) return;
+        if (nao.length ? !achou && !lead : pos >= 6) return;
         hits = qs.size - nao.length + achou;
         cob = qs.size ? hits / qs.size : 0;
       } else if (!hits && !lead) return;
@@ -512,7 +531,7 @@ function escolher(c, qs, pedeLista, n = 4, ehAtual = false) {
   const avg = c.reduce((a, x) => a + x.len, 0) / N || 1;
   const idf = w => Math.log(1 + (N - (df[w] || 0) + 0.5) / ((df[w] || 0) + 0.5));
   const k1 = 1.2, b = 0.75;
-  const minCob = qs.size <= 1 ? 1 : 0.45;
+  const minCob = qs.size <= 1 ? 1 : 0.4;
 
   c.forEach(x => {
     let bm = 0;
@@ -538,10 +557,10 @@ function escolher(c, qs, pedeLista, n = 4, ehAtual = false) {
 function compor(q, fontes, n = 4, permiteAdulto = false, ehAtual = false, anoAtual = "") {
   const qk = kwAssunto(q);
   const qs = new Set((qk.length ? qk : kw(q)).map(radical));
-  const pedeLista = /^\s*(quais|quantos|quantas|cite|liste|tipos|exemplos)\b|\b(cores|tipos|exemplos|lista)\b/i.test(norm(q));
+  const pedeLista = /^\s*(quais|quantos|quantas|cite|liste|tipos|exemplos)\b|\b(cores|tipos|exemplos|lista|membros|integrantes)\b/i.test(norm(q));
   const { sel: escolhidas, total } = escolher(candidatas(fontes, qs, permiteAdulto, anoAtual), qs, pedeLista, n, ehAtual);
   if (!escolhidas.length) return null;
-  if (qs.size >= 2 && !escolhidas.some(x => x.lead || x.cob >= 0.5)) return null;
+  if (qs.size >= 2 && !escolhidas.some(x => x.lead || x.cob >= 0.45)) return null;
 
   const sel = [...escolhidas].sort((a, b) => (b.temAnoAtual - a.temAnoAtual) || (b.lead - a.lead) || (a.fi - b.fi) || (a.pos - b.pos));
   const usados = [...new Set(sel.map(x => x.fi))].sort((a, b) => a - b);
@@ -553,7 +572,7 @@ function compor(q, fontes, n = 4, permiteAdulto = false, ehAtual = false, anoAtu
 
   const principal = fontes.some(f => f.primario);
   const apoio = Math.max(...sel.map(x => x.apoio));
-  const forte = sel.filter(x => x.cob >= 0.65).length;
+  const forte = sel.filter(x => x.cob >= 0.6).length;
   const conf = principal && (apoio >= 1 || forte >= 2) ? "alta" : principal || apoio >= 1 || usados.length >= 2 && forte >= 2 ? "média" : "baixa";
 
   let t = "🧠 " + pickFixo([
@@ -575,6 +594,7 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true, opts = {}
 
   const info = limparConsulta(q);
   const assunto = info.assunto || q;
+  const entidade = info.entidade || assunto;
   const qk = info.termos;
   if (!qk.length || (qk.length === 1 && /^(serve|fazer|falar|dizer|ver|ter|ir|vir|dar|saber|poder|querer|achar|ficar|melhorar|posso|audio|rir|travou|arrumar)$/.test(qk[0]))) {
     throw new Error("irrelevante");
@@ -614,7 +634,7 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true, opts = {}
   if (!info.ehAtualidade) {
     progresso("📚 Consultando a Wikipédia (pt.wikipedia.org)...");
     try {
-      const resWiki = await wiki(assunto, qk, info.permiteAdulto, info.ehPessoa);
+      const resWiki = await wiki(entidade, kwAssunto(entidade).length ? kwAssunto(entidade) : qk, info.permiteAdulto, info.ehPessoa);
       desambigInfo = resWiki.desambigInfo;
       resWiki.artigos.forEach((p, i) => fontes.push({
         nome: "Wikipédia: " + p.titulo, url: p.url, frases: paragrafos(p.texto).slice(0, 400), wiki: true,
@@ -633,11 +653,11 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true, opts = {}
 
   progresso("🌐 Buscando na internet" + (info.ehAtualidade ? " (" + anoAtual + ")" : "") + "...");
   let links = [];
-  const consultaWeb = info.ehAtualidade ? assunto + " " + anoAtual
-    : info.ehLancamento ? assunto + " data de lancamento"
-    : info.ehOpiniao ? assunto + " recomendacao critica"
+  const consultaWeb = info.ehAtualidade ? (info.webQuery || assunto) + " " + anoAtual
+    : info.ehLancamento ? (info.webQuery || assunto) + " data de lancamento"
+    : info.ehOpiniao ? (info.webQuery || assunto) + " recomendacao critica"
     : info.ehPessoa ? "quem foi " + assunto
-    : assunto;
+    : (info.webQuery.length >= assunto.length ? info.webQuery : assunto);
   try { links = await web(consultaWeb); } catch (e) { console.warn("web", e); }
   if ((fundo || opts.semLimite) && links.length < 3) {
     try {
