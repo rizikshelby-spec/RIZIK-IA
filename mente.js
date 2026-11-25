@@ -1,12 +1,15 @@
-/* BACH AI 5.0 — MENTE 3.1
+/* BACH AI 5.1 — MENTE 3.3 (Revisada & Blindada)
    Contexto inteligente: entende "Me resume" após fotos/textos, inspeciona módulos de sites/códigos
-   colados, jogos (sem falsos positivos em "jogar fora" / "q forca oq"), criação de apps e pastas. */
-import { Saber } from "./saber.js?v=14";
+   colados, jogos (sem falsos positivos em "jogar fora" e sem prender comandos /), criação de apps e pastas.
+   Segurança: leitura segura com Object.hasOwn/Object.create(null) evitando colisão com
+   palavras reservadas (constructor, toString, __proto__) e import alinhado com saber.js?v=15. */
+import { Saber } from "./saber.js?v=15";
 import { KB, ERROS } from "./conhecimento.js?v=1";
 
 const BT = "\x60\x60\x60";
 const KF = "bach_arquivos_v1";
-const lf = () => { try { return JSON.parse(localStorage.getItem(KF)) || []; } catch { return []; } };
+const PROIBIDAS = new Set(["__proto__", "constructor", "prototype"]);
+const lf = () => { try { const a = JSON.parse(localStorage.getItem(KF)); return Array.isArray(a) ? a : []; } catch { return []; } };
 const sf = a => { try { localStorage.setItem(KF, JSON.stringify(a.slice(-40))); } catch (e) { console.warn(e); } };
 const pick = a => a[Math.floor(Math.random() * a.length)];
 
@@ -94,7 +97,7 @@ function lev(a, b) {
 }
 
 function corrigir(w) {
-  if (w.length < 5 || /\d/.test(w)) return w;
+  if (w.length < 5 || /\d|\s/.test(w)) return w;
   if (/^(passe|passa|passar|passou|arroz|manda|mande|pede|pedir|quero|prece|pesse|lancou|lanca|lancar|estreou|saiu|presta|recomenda|indica|bugado|bugada|fazem|travou|arrumo|consertar|entende|entendeu|mandei|responde|pergunto|consciencia|sobreviver|melhore|melhora)$/.test(w)) return w;
   const L = lexico();
   if (L.has(w)) return w;
@@ -122,12 +125,19 @@ function lembrarTema(q) {
 
 const normSimples = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
+function mapearVocab(w) {
+  if (!w || PROIBIDAS.has(w)) return w;
+  if (ctx.vocab && Object.hasOwn(ctx.vocab, w)) return ctx.vocab[w];
+  if (Object.hasOwn(VOCAB, w)) return VOCAB[w];
+  return w;
+}
+
 const prep = t => " " + normSimples(t)
   .replace(/([a-z])-([a-z])/g, "$1 $2")
   .replace(/[^a-z0-9+\-*/().,\s]/g, " ")
   .replace(/[.,]+(?=\s|$)/g, " ")
   .split(/\s+/).filter(Boolean)
-  .map(w => (ctx.vocab && ctx.vocab[w]) || VOCAB[w] || w)
+  .map(mapearVocab)
   .map(corrigir).join(" ") + " ";
 
 function tema(t) {
@@ -150,11 +160,25 @@ const KC = "bach_mente_v1";
 const ctx = { texto: null, nome: "", pasta: null, jogo: null, ultimo: null, ultimoMidia: null, assuntos: [], esperando: null, vocab: {}, tema: null, lex: [] };
 try {
   const o = JSON.parse(localStorage.getItem(KC));
-  if (o) Object.assign(ctx, {
-    texto: o.texto, nome: o.nome || "", pasta: o.pasta, ultimo: o.ultimo,
-    ultimoMidia: o.ultimoMidia || null, assuntos: o.assuntos || [],
-    vocab: o.vocab || {}, tema: o.tema || null, lex: o.lex || []
-  });
+  if (o && typeof o === "object" && !Array.isArray(o)) {
+    const vocabLimpo = {};
+    if (o.vocab && typeof o.vocab === "object" && !Array.isArray(o.vocab)) {
+      for (const k of Object.keys(o.vocab)) {
+        if (!PROIBIDAS.has(k) && typeof o.vocab[k] === "string") vocabLimpo[k] = o.vocab[k].slice(0, 80);
+      }
+    }
+    Object.assign(ctx, {
+      texto: typeof o.texto === "string" ? o.texto : null,
+      nome: typeof o.nome === "string" ? o.nome : "",
+      pasta: typeof o.pasta === "string" && !PROIBIDAS.has(o.pasta.toLowerCase()) ? o.pasta : null,
+      ultimo: o.ultimo && typeof o.ultimo === "object" ? o.ultimo : null,
+      ultimoMidia: o.ultimoMidia && typeof o.ultimoMidia === "object" ? o.ultimoMidia : null,
+      assuntos: Array.isArray(o.assuntos) ? o.assuntos : [],
+      vocab: vocabLimpo,
+      tema: typeof o.tema === "string" ? o.tema : null,
+      lex: Array.isArray(o.lex) ? o.lex : []
+    });
+  }
 } catch {}
 
 function persist() {
@@ -168,18 +192,18 @@ function persist() {
 }
 
 const setTexto = (nome, texto) => {
-  ctx.nome = nome;
-  ctx.texto = texto;
+  ctx.nome = String(nome || "").slice(0, 80);
+  ctx.texto = String(texto || "");
   ctx.tema = null;
   ctx.ultimo = { t: "texto" };
   persist();
 };
 
 const setMidia = (nome, tipo, textoExtraido = "") => {
-  ctx.ultimoMidia = { nome, tipo };
+  ctx.ultimoMidia = { nome: String(nome || "").slice(0, 80), tipo };
   ctx.tema = null;
   if (textoExtraido && textoExtraido.trim().length > 10) {
-    ctx.nome = nome;
+    ctx.nome = String(nome || "").slice(0, 80);
     ctx.texto = textoExtraido;
     ctx.ultimo = { t: "texto" };
   } else {
@@ -191,24 +215,39 @@ const setMidia = (nome, tipo, textoExtraido = "") => {
 const pasta = def => ctx.pasta || def;
 
 /* ---------- pastas ---------- */
+function limparNomePasta(raw) {
+  const p = String(raw || "").trim().replace(/[\x00-\x1f\r\n]/g, "").replace(/\s*\/\s*/g, "/").slice(0, 60);
+  if (!p || PROIBIDAS.has(p.toLowerCase()) || p.includes("..")) return null;
+  return p;
+}
+
 function comandoPasta(t) {
   let m = t.match(/^\/pasta(?:\s+(.+))?$/i);
   if (m) {
     if (!m[1]) return ctx.pasta ? "📂 Pasta atual: " + ctx.pasta + "\nPara sair: /pasta sair" : "Nenhuma pasta escolhida. Use: /pasta Estudos/IA (pode criar pastas dentro de pastas com /).";
     if (/^sair$/i.test(m[1].trim())) { ctx.pasta = null; persist(); return "Voltei para as pastas automáticas."; }
-    ctx.pasta = m[1].trim().replace(/\s*\/\s*/g, "/").slice(0, 60); persist();
+    const pLimpa = limparNomePasta(m[1]);
+    if (!pLimpa) return "Nome de pasta inválido.";
+    ctx.pasta = pLimpa; persist();
     return "📂 Pasta atual: " + ctx.pasta + "\nTudo que eu guardar agora (textos, pesquisas, arquivos) vai para ela.";
   }
   if (/^\/pastas$/i.test(t)) {
-    const c = {}; lf().forEach(a => c[a.pasta] = (c[a.pasta] || 0) + 1);
+    const c = Object.create(null);
+    lf().forEach(a => {
+      const p = String(a?.pasta || "Textos");
+      c[p] = (c[p] || 0) + 1;
+    });
     const k = Object.keys(c).sort();
     return k.length ? "📂 Suas pastas:\n" + k.map(x => "• " + x + " (" + c[x] + ")").join("\n") : "Ainda não há pastas. Use /pasta Nome.";
   }
   m = t.match(/^\/mover\s+(.+?)\s+para\s+(.+)$/i);
   if (m) {
-    const L = lf(), n = m[1].trim().toLowerCase(), a = L.find(x => x.nome.toLowerCase() === n) || L.find(x => x.nome.toLowerCase().includes(n));
+    const L = lf(), n = m[1].trim().toLowerCase();
+    const a = L.find(x => String(x?.nome || "").toLowerCase() === n) || L.find(x => String(x?.nome || "").toLowerCase().includes(n));
     if (!a) return "Não achei esse arquivo. Veja com /arquivos";
-    a.pasta = m[2].trim().replace(/\s*\/\s*/g, "/"); sf(L);
+    const dest = limparNomePasta(m[2]);
+    if (!dest) return "Nome de pasta de destino inválido.";
+    a.pasta = dest; sf(L);
     return "📦 Movi “" + a.nome + "” para " + a.pasta;
   }
   return null;
@@ -355,6 +394,7 @@ function iniciar(p) {
 }
 
 function jogar(p, raw) {
+  if (/^\/(?!sair\b)/i.test(String(raw || "").trim())) return null;
   const j = ctx.jogo, w = p.trim();
   const rawClean = normSimples(raw).replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
   if (/^(sair|parar|desistir|chega|nao quero|nao vou jogar|cancela|cancelar)$/.test(rawClean) ||
@@ -483,7 +523,8 @@ function responder(msg) {
   const mv = raw.match(/^\/palavra\s+(\S+)\s*=\s*(.+)$/i);
   if (mv) {
     const k = normSimples(mv[1]);
-    ctx.vocab[k] = prep(mv[2]).trim();
+    if (!k || PROIBIDAS.has(k)) return { texto: "Palavra inválida para vocabulário.", origem: "📚 vocabulário" };
+    ctx.vocab[k] = prep(mv[2]).trim().slice(0, 80);
     persist();
     return { texto: "📚 Aprendi: “" + k + "” = “" + ctx.vocab[k] + "”.\nAgora entendo isso em qualquer frase.", origem: "📚 vocabulário" };
   }
@@ -597,7 +638,7 @@ function responder(msg) {
   return null;
 }
 
-const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo|vamos falar sobre|falar sobre o que|nao foi isso|travou foi|sabe rir|velho do ceu|conversa comigo|opa o que|oxe o que|entende o que|eu falo de|nao mandei|como assim|porque nao|eu que pergunto|consciencia|fazendo pesquisa|nao entendeu|nao entende|acertei|que humor ruim|melhore|sentiu o que|blz o que|jogar voce fora)/;
+const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo|vamos falar sobre|falar sobre o que|nao foi isso|travou foi|sabe rir|velho do ceu|conversa comigo|opa o que|oxe o que|entende o que|eu falo de|nao mandei|como assim|porque nao|eu que pergunto|consciencia|fazendo pesquisa|nao entendeu|nao entendeu|nao entende|acertei|que humor ruim|melhore|sentiu o que|blz o que|jogar voce fora)/;
 const pergunta = t => {
   const p = prep(t);
   if (has(p, SMALL)) return false;
