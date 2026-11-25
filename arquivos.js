@@ -1,35 +1,178 @@
-/* BACH AI - ARQUIVOS 2.2 (Blindado)
-   Organiza textos em pastas, melhora nitidez de fotos/prints para OCR (modo claro e escuro),
-   lê vídeos sem travar e localiza arquivos ignorando hífens/espaços no /apagar e /excluir.
-   Segurança: evita colisão de protótipo em pastas, trata SVG como texto seguro (sem renderização ativa),
-   sanitiza nomes/pastas e limita o tamanho máximo de leitura. */
+/* BACH AI 5.4 — ARQUIVOS 3.0 (IndexedDB Ilimitado + RAG BM25 Local + OCR Blindado)
+ * - Guarda textos/códigos completos (até 500 KB por arquivo, 200 arquivos) no IndexedDB.
+ * - Mantém espelho compatível no localStorage para /pastas, /mover e /basedados.
+ * - Inclui busca semântica por trechos (/rag pergunta) 100% própria em JS.
+ * - Preserva proteção contra SVG ativo, limites de mídia e Prototype Pollution.
+ */
 
 const KEY = "bach_arquivos_v1";
+const DB_NAME = "bach_rag_db_v1";
+const STORE_NAME = "arquivos";
 const PROIBIDAS = new Set(["__proto__", "constructor", "prototype"]);
+
 const MAX_TEXTO_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGEM_BYTES = 25 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 120 * 1024 * 1024;
+const MAX_ARQUIVO_CHARS = 500000;
+const MAX_ITENS_IDB = 200;
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 const normNome = t => norm(t).replace(/[-_./]+/g, " ").replace(/\s+/g, " ").trim();
 
-const load = () => {
+const STOP_RAG = new Set(
+  ("a o as os um uma uns umas de do da dos das em no na nos nas por para pra com sem que e eh se ao aos mais menos como mas foi ser ou ja tambem seu sua seus suas isso isto este esta esse essa sao tem meu minha eu vc voce qual quais quem onde quando porque pq oq").split(" ")
+);
+
+const stemPt = w => {
+  if (w.length <= 4) return w;
+  return w.replace(/(coes|oes|aes)$/, "ao").replace(/(ando|endo|indo|mente)$/, "").replace(/s$/, "");
+};
+
+const tokensRag = t => norm(t)
+  .split(/[^a-z0-9]+/)
+  .filter(w => (w.length >= 2 || /^\d+$/.test(w)) && !STOP_RAG.has(w))
+  .map(stemPt);
+
+function limparRotulo(val, fallback, maxLen = 60) {
+  const s = String(val || "").replace(/[\x00-\x1f\r\n]/g, " ").trim().slice(0, maxLen);
+  if (!s || PROIBIDAS.has(s.toLowerCase())) return fallback;
+  return s;
+}
+
+function loadLS() {
   try {
     const a = JSON.parse(localStorage.getItem(KEY));
     return Array.isArray(a) ? a : [];
   } catch {
     return [];
   }
-};
-const save = a => {
-  try { localStorage.setItem(KEY, JSON.stringify(a.slice(-40))); }
-  catch (e) { console.warn(e); }
-};
+}
 
-function limparRotulo(val, fallback, maxLen = 60) {
-  const s = String(val || "").replace(/[\x00-\x1f\r\n]/g, " ").trim().slice(0, maxLen);
-  if (!s || PROIBIDAS.has(s.toLowerCase())) return fallback;
-  return s;
+function saveLS(lista) {
+  try {
+    // Espelho compacto no localStorage (últimos 40 arquivos com prévia de até 4 KB)
+    const compacto = lista.slice(-40).map(x => ({
+      id: x.id,
+      nome: x.nome,
+      pasta: x.pasta,
+      tipo: x.tipo,
+      texto: String(x.texto || "").slice(0, 4000),
+      resumo: String(x.resumo || "").slice(0, 400),
+      tamanho: x.tamanho || String(x.texto || "").length,
+      em: x.em
+    }));
+    localStorage.setItem(KEY, JSON.stringify(compacto));
+  } catch (e) {
+    console.warn("LS arquivos:", e);
+  }
+}
+
+let cacheMemoria = loadLS();
+let idbDisponivel = false;
+let dbPromise = null;
+
+function abrirDB() {
+  if (dbPromise) return dbPromise;
+  if (typeof indexedDB === "undefined") {
+    dbPromise = Promise.resolve(null);
+    return dbPromise;
+  }
+  dbPromise = new Promise(resolve => {
+    try {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME, { keyPath: "id" });
+        }
+      };
+      req.onsuccess = () => {
+        idbDisponivel = true;
+        resolve(req.result);
+      };
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+  return dbPromise;
+}
+
+async function idbPut(item) {
+  const db = await abrirDB();
+  if (!db) return;
+  return new Promise(resolve => {
+    try {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      tx.objectStore(STORE_NAME).put(item);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+    } catch {
+      resolve(false);
+    }
+  });
+}
+
+async function idbDelete(id) {
+  const db = await abrirDB();
+  if (!db) return;
+  return new Promise(resolve => {
+    try {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      tx.objectStore(STORE_NAME).delete(id);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+    } catch {
+      resolve(false);
+    }
+  });
+}
+
+async function sincronizarCacheInicial() {
+  const db = await abrirDB();
+  if (!db) return;
+  try {
+    const itensIdb = await new Promise(resolve => {
+      const tx = db.transaction(STORE_NAME, "readonly");
+      const req = tx.objectStore(STORE_NAME).getAll();
+      req.onsuccess = () => resolve(Array.isArray(req.result) ? req.result : []);
+      req.onerror = () => resolve([]);
+    });
+
+    const mapa = new Map();
+    for (const x of loadLS()) if (x?.id) mapa.set(x.id, x);
+    for (const x of itensIdb) if (x?.id) mapa.set(x.id, x);
+
+    const mesclado = [...mapa.values()]
+      .sort((a, b) => (a.em || 0) - (b.em || 0))
+      .slice(-MAX_ITENS_IDB);
+
+    cacheMemoria = mesclado;
+    saveLS(mesclado);
+
+    // Migra itens que só estavam no localStorage para o IndexedDB
+    const idsIdb = new Set(itensIdb.map(x => x.id));
+    for (const item of mesclado) {
+      if (!idsIdb.has(item.id)) idbPut(item);
+    }
+  } catch (e) {
+    console.warn("IDB sync:", e);
+  }
+}
+
+sincronizarCacheInicial();
+
+function obterTodos() {
+  // Sincroniza eventuais alterações externas de pasta feitas por mente.js no localStorage
+  const ls = loadLS();
+  if (ls.length) {
+    const mapaLs = new Map(ls.map(x => [x.id, x]));
+    cacheMemoria = cacheMemoria.map(item => {
+      const l = mapaLs.get(item.id);
+      return l && l.pasta !== item.pasta ? { ...item, pasta: l.pasta } : item;
+    });
+  }
+  return cacheMemoria;
 }
 
 function nomeAuto(texto) {
@@ -40,35 +183,46 @@ function nomeAuto(texto) {
 }
 
 function salvar({ nome, pasta, texto = "", resumo = "", tipo = "texto" }) {
-  const lista = load();
+  const lista = [...obterTodos()];
   let n = limparRotulo(nome, nomeAuto(texto), 60), base = n, i = 2;
   while (lista.some(x => norm(x.nome) === norm(n))) n = base + "-" + i++;
   const pastaSegura = limparRotulo(pasta, "Textos", 60);
+  const textoCheio = String(texto || "").slice(0, MAX_ARQUIVO_CHARS);
+
   const item = {
-    id: Date.now().toString(36),
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
     nome: n,
     pasta: pastaSegura,
     tipo: limparRotulo(tipo, "texto", 20),
-    texto: String(texto).slice(0, 16000),
-    resumo: String(resumo || "").slice(0, 400),
+    texto: textoCheio,
+    resumo: String(resumo || "").slice(0, 500),
+    tamanho: textoCheio.length,
     em: Date.now()
   };
+
   lista.push(item);
-  save(lista);
+  while (lista.length > MAX_ITENS_IDB) {
+    const rem = lista.shift();
+    if (rem?.id) idbDelete(rem.id);
+  }
+
+  cacheMemoria = lista;
+  saveLS(lista);
+  idbPut(item);
   return item;
 }
 
 function achar(termo) {
   const t = normNome(termo);
   if (!t) return null;
-  const lista = load();
+  const lista = obterTodos();
   return lista.find(x => normNome(x.nome) === t) ||
     lista.find(x => normNome(x.nome).includes(t)) ||
     lista.find(x => t.includes(normNome(x.nome)));
 }
 
 function listar() {
-  const lista = load();
+  const lista = obterTodos();
   if (!lista.length) return "📁 Você ainda não tem arquivos. Cole um texto grande ou use o botão + para anexar.";
   const pastas = Object.create(null);
   for (const a of lista) {
@@ -76,13 +230,109 @@ function listar() {
     if (!pastas[p]) pastas[p] = [];
     pastas[p].push(a);
   }
-  let out = "📁 MEUS ARQUIVOS (" + lista.length + ")";
+  let out = "📁 MEUS ARQUIVOS (" + lista.length + (idbDisponivel ? " • IndexedDB ativo" : "") + ")";
   for (const p of Object.keys(pastas)) {
     const itens = pastas[p];
     out += "\n\n📂 " + p + " (" + itens.length + ")";
-    for (const a of itens) out += "\n  • " + a.nome;
+    for (const a of itens) {
+      const kb = a.tamanho ? " (" + Math.max(1, Math.round(a.tamanho / 1024)) + " KB)" : "";
+      out += "\n  • " + a.nome + kb;
+    }
   }
-  return out + "\n\nComandos: /abrir nome • /buscar palavra • /apagar nome (ou /excluir nome)";
+  return out + "\n\nComandos: /abrir nome • /buscar palavra • /rag pergunta • /apagar nome";
+}
+
+/* ---------- Motor RAG Local (BM25 por trechos) ---------- */
+
+function quebrarEmTrechos(texto, tam = 520, overlap = 100) {
+  const s = String(texto || "").trim();
+  if (!s) return [];
+  if (s.length <= tam) return [s];
+
+  const blocos = [];
+  let pos = 0;
+  while (pos < s.length && blocos.length < 180) {
+    let fim = Math.min(s.length, pos + tam);
+    if (fim < s.length) {
+      const quebra = Math.max(s.lastIndexOf("\n", fim), s.lastIndexOf(". ", fim));
+      if (quebra > pos + 180) fim = quebra + 1;
+    }
+    const trecho = s.slice(pos, fim).trim();
+    if (trecho) blocos.push(trecho);
+    if (fim >= s.length) break;
+    pos = Math.max(pos + 120, fim - overlap);
+  }
+  return blocos;
+}
+
+function buscarRAG(pergunta, limite = 3) {
+  const qTokens = tokensRag(pergunta);
+  if (!qTokens.length) return [];
+
+  const qSet = new Set(qTokens);
+  const lista = obterTodos();
+  const docs = [];
+
+  for (const arq of lista) {
+    const fonte = String(arq.texto || arq.resumo || "");
+    if (!fonte.trim()) continue;
+    const trechos = quebrarEmTrechos(fonte);
+    const nomeToks = new Set(tokensRag(arq.nome));
+
+    trechos.forEach((trecho, idx) => {
+      const toks = tokensRag(trecho);
+      if (!toks.length) return;
+      const tf = Object.create(null);
+      for (const w of toks) tf[w] = (tf[w] || 0) + 1;
+      docs.push({
+        arquivo: arq.nome,
+        pasta: arq.pasta,
+        trecho,
+        idx,
+        toks,
+        len: toks.length,
+        tf,
+        nomeToks
+      });
+    });
+  }
+
+  if (!docs.length) return [];
+
+  const N = docs.length;
+  const avgLen = docs.reduce((a, d) => a + d.len, 0) / N || 1;
+  const df = Object.create(null);
+  for (const w of qSet) {
+    let c = 0;
+    for (const d of docs) if (d.tf[w] || d.nomeToks.has(w)) c++;
+    df[w] = c;
+  }
+
+  const k1 = 1.4, b = 0.75;
+  const ranqueado = [];
+
+  for (const d of docs) {
+    let score = 0;
+    let acertos = 0;
+    for (const w of qSet) {
+      const f = (d.tf[w] || 0) + (d.nomeToks.has(w) ? 1.5 : 0);
+      if (!f) continue;
+      acertos++;
+      const idf = Math.log(1 + (N - df[w] + 0.5) / (df[w] + 0.5));
+      score += idf * ((f * (k1 + 1)) / (f + k1 * (1 - b + b * (d.len / avgLen))));
+    }
+    if (score > 0 && (qSet.size === 1 || acertos >= Math.min(2, qSet.size))) {
+      ranqueado.push({
+        arquivo: d.arquivo,
+        pasta: d.pasta,
+        trecho: d.trecho,
+        score: Number(score.toFixed(2)),
+        acertos
+      });
+    }
+  }
+
+  return ranqueado.sort((a, b2) => b2.score - a.score).slice(0, limite);
 }
 
 function comando(texto) {
@@ -94,7 +344,8 @@ function comando(texto) {
   if (m) {
     const a = achar(m[1]);
     if (!a) return "Não achei esse arquivo. Veja os nomes com /arquivos";
-    return "📄 " + a.nome + " (" + a.pasta + ")\n\n" + (a.texto ? a.texto.slice(0, 1800) + (a.texto.length > 1800 ? "\n\n[...]" : "") : a.resumo);
+    return "📄 " + a.nome + " (" + a.pasta + " • " + (a.texto?.length || 0) + " chars)\n\n" +
+      (a.texto ? a.texto.slice(0, 3200) + (a.texto.length > 3200 ? "\n\n[... use /rag pergunta para consultar partes específicas]" : "") : a.resumo);
   }
 
   if (/^\/(apagar|excluir)\s*$/i.test(t)) return "Diga o nome do arquivo depois de /apagar. Ex.: /apagar pesquisa filme\nVeja os nomes com /arquivos";
@@ -103,7 +354,9 @@ function comando(texto) {
     const q = m[1].trim();
     const a = achar(q);
     if (!a) return "Não achei “" + q + "”. Veja os nomes exatos com `/arquivos`.";
-    save(load().filter(x => x.id !== a.id));
+    cacheMemoria = obterTodos().filter(x => x.id !== a.id);
+    saveLS(cacheMemoria);
+    idbDelete(a.id);
     return "🗑️ Apaguei: " + a.nome;
   }
 
@@ -111,9 +364,19 @@ function comando(texto) {
   m = t.match(/^\/buscar\s+(.+)$/i);
   if (m) {
     const q = norm(m[1]);
-    const r = load().filter(x => norm(x.nome + " " + x.texto + " " + x.resumo).includes(q));
+    const r = obterTodos().filter(x => norm(x.nome + " " + x.texto + " " + x.resumo).includes(q));
     return r.length ? "🔎 Achei em " + r.length + " arquivo(s):\n• " + r.map(x => x.pasta + "/" + x.nome).join("\n• ") : "Não achei “" + m[1] + "” nos seus arquivos.";
   }
+
+  if (/^\/rag\s*$/i.test(t)) return "🔎 Use `/rag sua pergunta` para pesquisar por significado dentro de todos os documentos salvos.";
+  m = t.match(/^\/rag\s+([\s\S]+)$/i);
+  if (m) {
+    const hits = buscarRAG(m[1], 3);
+    if (!hits.length) return "🔎 Não encontrei trechos relacionados a “" + m[1].trim() + "” nos seus arquivos guardados.";
+    return "📚 **Trechos mais relevantes nos seus arquivos (RAG local):**\n\n" +
+      hits.map((h, i) => (i + 1) + ". **" + h.pasta + "/" + h.arquivo + "** (relevância " + h.score + ")\n“" + h.trecho.slice(0, 480) + "”").join("\n\n");
+  }
+
   return null;
 }
 
@@ -229,11 +492,10 @@ async function lerMidia(file, passo = () => {}) {
   const ext = (file.name.split(".").pop() || "").toLowerCase();
   const TEXTOS = ["txt", "md", "js", "html", "css", "json", "csv", "py", "xml", "log", "ts", "java", "c", "cpp", "sql", "yml", "yaml", "svg"];
 
-  // SVG é tratado apenas como código/texto (sem renderização visual ativa)
   if (file.type === "image/svg+xml" || ext === "svg") {
     if (file.size > MAX_TEXTO_BYTES) throw new Error("Arquivo SVG grande demais (limite de 5 MB).");
     passo("📄 Lendo SVG como código-fonte...");
-    return { tipo: "texto", texto: (await file.text()).slice(0, 200000) };
+    return { tipo: "texto", texto: (await file.text()).slice(0, MAX_ARQUIVO_CHARS) };
   }
 
   if (file.type.startsWith("image/")) {
@@ -318,10 +580,17 @@ async function lerMidia(file, passo = () => {}) {
   if (file.type.startsWith("text/") || TEXTOS.includes(ext)) {
     if (file.size > MAX_TEXTO_BYTES) throw new Error("Arquivo de texto grande demais (limite de 5 MB).");
     passo("📄 Lendo o texto do arquivo...");
-    return { tipo: "texto", texto: (await file.text()).slice(0, 200000) };
+    return { tipo: "texto", texto: (await file.text()).slice(0, MAX_ARQUIVO_CHARS) };
   }
 
   throw new Error("Esse formato (" + (ext || file.type || "desconhecido") + ") eu ainda não leio. Aceito fotos, vídeos e arquivos de texto/código.");
 }
 
-export const Arquivos = { salvar, comando, listar, lerMidia };
+export const Arquivos = {
+  salvar,
+  comando,
+  listar,
+  lerMidia,
+  buscarRAG,
+  total: () => obterTodos().length
+};
