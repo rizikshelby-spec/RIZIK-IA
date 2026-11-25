@@ -1,7 +1,4 @@
-/* BACH AI 5.2 - PROGRAMAÇÃO + HUMOR 1.3
- * Exige contexto mínimo de programação para palavras ambíguas,
- * detecta com precisão teclas soltas / digitação aleatória (sem falsos positivos em palavras reais)
- * e evita respostas robóticas repetidas respeitando o humor atual do usuário. */
+/* BACH AI 5.2 - PROGRAMAÇÃO + HUMOR + FALLBACK CONTEXTUAL INTELIGENTE */
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9+# ]+/g, " ").replace(/\s+/g, " ").trim();
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -18,7 +15,7 @@ const TOPICOS = [
   { amb: false, k: ["python"], t: "🐍 Python é uma linguagem simples de ler, ótima para começar, automação, dados e IA. Exemplo:\n\nnome = input(\"Seu nome: \")\nprint(\"Olá,\", nome)" },
   { amb: false, k: ["html"], t: "🧱 HTML é a estrutura da página.\n\n<!DOCTYPE html>\n<html>\n<head><title>Meu site</title></head>\n<body>\n  <h1>Olá!</h1>\n  <button id=\"b\">Clique</button>\n</body>\n</html>" },
   { amb: true, k: ["css", "estilo", "estilizar"], t: "🎨 CSS é a aparência da página (cores, tamanhos, posição).\n\nbutton {\n  background: #7864ed;\n  color: white;\n  border-radius: 12px;\n  padding: 12px 16px;\n}" },
-  { amb: false, k: ["api", "apis", "fetch", "requisicao"], t: "🌐 API é um endereço que devolve dados para o seu programa.\n\nJavaScript:\nconst r = await fetch(\"https://api.exemplo.com/dados\");\nconst dados = await r.json();\n\nPython:\nimport requests\ndados = requests.get(url).json()\n\nÉ assim que a BACH busca o clima!" },
+  { amb: false, k: ["api", "apis", "fetch", "requisicao"], t: "🌐 API é um endereço que devolve dados para o seu programa.\n\nJavaScript:\nconst r = await fetch(\"https://api.github.com\");\nconst dados = await r.json();\n\nPython:\nimport requests\ndados = requests.get(url).json()\n\nÉ assim que a BACH busca o clima!" },
   { amb: false, k: ["git", "github", "commit"], t: "🌿 Git guarda o histórico do seu código.\n\ngit init\ngit add .\ngit commit -m \"primeira versão\"\ngit push\n\nGitHub é o site onde você guarda e publica esse código (e dá para hospedar sites no GitHub Pages)." },
   { amb: false, k: ["sql", "banco de dados", "database", "mysql"], t: "🗄️ SQL conversa com bancos de dados.\n\nSELECT nome FROM usuarios WHERE idade >= 18;\nINSERT INTO usuarios (nome, idade) VALUES ('Ana', 20);" },
   { amb: false, k: ["recursao", "recursiva"], t: "🪞 Recursão é uma função que chama a si mesma, com uma condição de parada.\n\nfunction fatorial(n) {\n  if (n <= 1) return 1;\n  return n * fatorial(n - 1);\n}\nfatorial(5); // 120" },
@@ -65,8 +62,6 @@ const PIADAS = [
 ];
 
 let saco = [], jaContou = false;
-let ultimoIdxDesc = -1;
-let ultimoIdxRuido = -1;
 let ruidosSeguidos = 0;
 
 const embaralhar = a => {
@@ -139,50 +134,93 @@ function ehTeclaOuNumeroSolto(raw) {
   return false;
 }
 
+const STOP_TEMA = new Set(
+  ("a o as os um uma uns umas de do da dos das em no na nos nas por para pra com sem que e eh se ao aos mais menos como mas foi ser ou ja tambem seu sua seus suas isso isto este esta esse essa sao tem meu minha eu vc voce hoje ontem amanha agora muito pouco tudo nada porque pq qm oq").split(" ")
+);
+
+function extrairNucleo(t) {
+  return norm(t).split(" ").filter(w => w.length >= 3 && !STOP_TEMA.has(w)).slice(0, 4).join(" ");
+}
+
+function escolherInedita(opcoes, ctx = {}) {
+  const ultimas = new Set(
+    (Array.isArray(ctx?.history) ? ctx.history : [])
+      .filter(m => m && m.type !== "user" && m.text)
+      .slice(-12)
+      .map(m => String(m.text).trim())
+  );
+  const livre = opcoes.find(o => !ultimas.has(o.trim()));
+  return livre || pick(opcoes);
+}
+
 function desconhecido(t = "", ctx = {}) {
   const raw = String(t || "").trim();
+  const nome = ctx?.nome ? ", " + ctx.nome : "";
+
   if (ehTeclaOuNumeroSolto(raw)) {
     ruidosSeguidos++;
     const amostra = raw.slice(0, 20);
     if (ruidosSeguidos >= 3) {
-      return pick([
-        "Tá só testando ou batendo no teclado, né? 😄 Quando quiser conversar de verdade é só mandar!",
+      return escolherInedita([
+        "Tá só testando ou batendo no teclado, né" + nome + "? 😄 Quando quiser conversar de verdade é só mandar!",
         "Tô vendo que você tá só apertando teclas soltas (`" + amostra + "`) — fico por aqui te esperando!",
         "Beleza, tô ligada aqui! Quando quiser falar de algum assunto ou pedir algo, manda a frase completa."
-      ]);
+      ], ctx);
     }
-    const opcoesRuido = [
-      "Parece que você mandou só tecla ou número solto (`" + amostra + "`). Se foi sem querer, tranquilo — manda o que você queria dizer!",
-      "Recebi `" + amostra + "`, mas não forma nenhuma palavra ou comando. Quer conversar sobre algo?"
-    ];
-    ultimoIdxRuido = (ultimoIdxRuido + 1) % opcoesRuido.length;
-    return opcoesRuido[ultimoIdxRuido];
+    return escolherInedita([
+      "Chegou só `" + amostra + "` aqui — não forma uma palavra ou comando. O que você queria dizer?",
+      "Recebi `" + amostra + "`, mas parece tecla solta. Se foi sem querer, manda a frase completa!"
+    ], ctx);
   }
 
   ruidosSeguidos = 0;
+  const n = norm(raw);
+  const nucleo = extrairNucleo(raw);
 
+  // 1) Se havia uma pergunta pendente da BACH e a resposta foi curta
+  const qBot = ctx?.session?.lastBotQuestion;
+  if (qBot && raw.split(/\s+/).length <= 10) {
+    return "Entendi (“" + raw.slice(0, 60) + "”)! Sobre isso que estávamos falando — quer continuar nesse assunto ou falar de outra coisa?";
+  }
+
+  // 2) Relato positivo / acontecimento
+  if (/\b(comprei|ganhei|consegui|passei|fui|assisti|joguei|terminei|comecei|fiz|aprendi|encontrei)\b/.test(n)) {
+    const foco = nucleo ? " sobre **" + nucleo + "**" : "";
+    return escolherInedita([
+      "Que massa" + nome + "! Como foi essa experiência" + foco + "?",
+      "Sério" + nome + "? Conta mais detalhes" + foco + " — curtiu?"
+    ], ctx);
+  }
+
+  // 3) Relato negativo / perrengue
+  if (/\b(perdi|quebrou|estragou|briguei|briga|falhou|dificil|complicado|puxado|corrido|problema|preocupad|medo|estress|chato|triste|ruim)\b/.test(n)) {
+    const foco = nucleo ? " com **" + nucleo + "**" : "";
+    return escolherInedita([
+      "Poxa" + nome + ", chato passar por isso" + foco + ". Como você tá lidando com essa situação agora?",
+      "Sinto muito por esse perrengue" + foco + "" + nome + ". Quer desabafar ou pensar em uma saída?"
+    ], ctx);
+  }
+
+  // 4) Estado triste do usuário
   if (ctx?.mood === "triste" || ctx?.emotion === "triste") {
-    return pick([
-      "Tô te ouvindo, " + (ctx.nome || "por aqui") + ". Pode falar do seu jeito o que tá te incomodando que a gente conversa.",
-      "Não sei se captei tudo da sua frase, mas continuo aqui com você. Quer me explicar melhor o que aconteceu?"
-    ]);
-  }
-  if (ctx?.mood === "frustrado" || ctx?.emotion === "frustrado" || ctx?.emotion === "irritado") {
-    return pick([
-      "Desculpa, essa eu realmente não entendi direito. Me diz em poucas palavras o que você queria que eu respondesse!",
-      "Não quero chutar resposta nada a ver — me explica rapidinho o que você quis dizer com isso?"
-    ]);
+    return escolherInedita([
+      "Tô te ouvindo" + nome + ". Pode explicar com calma o que tá acontecendo agora que eu acompanho.",
+      "Não sei se captei cada detalhe disso, mas continuo aqui com você — quer me contar um pouco mais?"
+    ], ctx);
   }
 
-  const opcoes = [
-    "Não peguei bem o que você quis dizer com “" + raw.slice(0, 45) + "” 🤔. Me explica com outras palavras?",
-    "Fiquei na dúvida sobre o que você quis dizer aqui. Você quer conversar sobre isso, pesquisar ou pedir alguma coisa específica?",
-    "Essa eu não entendi direito 😅. Se for algo que você quer que eu aprenda a responder, pode me ensinar ou explicar de outro jeito!"
-  ];
-  let idx = Math.floor(Math.random() * opcoes.length);
-  if (idx === ultimoIdxDesc) idx = (idx + 1) % opcoes.length;
-  ultimoIdxDesc = idx;
-  return opcoes[idx];
+  // 5) Frase com tema identificável
+  if (nucleo) {
+    return escolherInedita([
+      "Vi que você citou **" + nucleo + "**, mas não ficou claro o que você quer fazer com isso. Quer conversar sobre o assunto, que eu pesquise na web ou te ajude em algo específico?",
+      "Sobre **" + nucleo + "**: você quer uma explicação, minha opinião ou só tá comentando mesmo?"
+    ], ctx);
+  }
+
+  return escolherInedita([
+    "Não entendi bem o contexto dessa frase" + nome + ". Pode me dizer em poucas palavras o que você quis dizer?",
+    "Fiquei na dúvida sobre o que você quer agora — quer bater papo sobre algum tema ou fazer uma pergunta específica?"
+  ], ctx);
 }
 
 export const Prog = { responder, humor, desconhecido, ehTeclaOuNumeroSolto };
