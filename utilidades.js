@@ -1,5 +1,6 @@
-/* BACH AI 4.6 — Utilidades práticas locais
-   Gerador de senhas seguras, sorteios, dado, moeda, datas/dias, contador de texto e validador/gerador de CPF de teste. */
+/* BACH AI 5.2 — Utilidades práticas locais
+   Gerador de senhas seguras, sorteios, dado, moeda, datas/dias (com feriados e datas
+   comemorativas pelo nome), contador de texto e validador/gerador de CPF de teste. */
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "")
@@ -10,6 +11,28 @@ const DIAS_SEMANA = [
   "domingo", "segunda-feira", "terça-feira", "quarta-feira",
   "quinta-feira", "sexta-feira", "sábado"
 ];
+
+const DATAS_NOMEADAS = {
+  "ano novo": [1, 1, "Ano Novo"],
+  "reveillon": [31, 12, "Réveillon"],
+  "virada do ano": [31, 12, "Virada do Ano"],
+  "tiradentes": [21, 4, "Tiradentes"],
+  "dia do trabalho": [1, 5, "Dia do Trabalho"],
+  "dia do trabalhador": [1, 5, "Dia do Trabalhador"],
+  "dia dos namorados": [12, 6, "Dia dos Namorados"],
+  "sao joao": [24, 6, "São João"],
+  "independencia": [7, 9, "Independência do Brasil"],
+  "independencia do brasil": [7, 9, "Independência do Brasil"],
+  "dia das criancas": [12, 10, "Dia das Crianças"],
+  "nossa senhora aparecida": [12, 10, "Nossa Senhora Aparecida"],
+  "halloween": [31, 10, "Halloween"],
+  "dia das bruxas": [31, 10, "Dia das Bruxas"],
+  "finados": [2, 11, "Finados"],
+  "proclamacao da republica": [15, 11, "Proclamação da República"],
+  "consciencia negra": [20, 11, "Dia da Consciência Negra"],
+  "vespera de natal": [24, 12, "Véspera de Natal"],
+  "natal": [25, 12, "Natal"]
+};
 
 function aleatorio(max) {
   if (typeof crypto !== "undefined" && crypto.getRandomValues) {
@@ -74,6 +97,23 @@ function parseData(str) {
   return d;
 }
 
+function resolverDataNomeada(str) {
+  const chave = norm(str)
+    .replace(/^(?:o|a|os|as)\s+/, "")
+    .replace(/\s+de\s+(\d{4})$/, "")
+    .replace(/[?!.]+$/, "")
+    .trim();
+  if (!chave || !Object.hasOwn(DATAS_NOMEADAS, chave)) return null;
+  const [dia, mes, rotulo] = DATAS_NOMEADAS[chave];
+  const mAno = String(str || "").match(/\b(20\d{2}|19\d{2})\b/);
+  const hoje = new Date();
+  const h0 = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  let ano = mAno ? Number(mAno[1]) : hoje.getFullYear();
+  let d = new Date(ano, mes - 1, dia);
+  if (!mAno && d < h0) d = new Date(ano + 1, mes - 1, dia);
+  return { d, rotulo, temAno: Boolean(mAno) };
+}
+
 function analisarTexto(txt) {
   const s = String(txt || "").trim();
   if (!s) return "Envie o texto depois de `/contar` para eu analisar.";
@@ -126,26 +166,45 @@ function handle(text) {
     }
   }
 
-  // 5) Datas e contagem de dias
-  m = t.match(/^quantos dias (?:faltam|tem|da|ate) (?:para|pra|pro|ate)?\s*(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)\??$/);
+  // 5) Datas e contagem de dias (numéricas ou datas comemorativas pelo nome)
+  m = t.match(/^quantos dias (?:faltam|tem|da|ate) (?:para|pra|pro|ate)?\s*(.+?)\??$/);
   if (m) {
-    let d = parseData(m[1]);
-    if (!d) return "Não reconheci essa data. Use o formato DD/MM/AAAA (ex.: 25/12/2026).";
+    const alvoTxt = m[1].trim();
     const hoje = new Date();
     const h0 = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-    if (!/\d{4}/.test(m[1]) && d < h0) d = new Date(hoje.getFullYear() + 1, d.getMonth(), d.getDate());
-    const diff = Math.round((d - h0) / 86400000);
-    const fmt = d.toLocaleDateString("pt-BR") + " (" + DIAS_SEMANA[d.getDay()] + ")";
-    if (diff === 0) return "📅 **" + fmt + "** é **hoje**! 🎉";
-    if (diff > 0) return "📅 Faltam **" + diff + " dia(s)** para " + fmt + ".";
-    return "📅 " + fmt + " já passou há **" + Math.abs(diff) + " dia(s)**.";
+
+    const nom = resolverDataNomeada(alvoTxt);
+    if (nom) {
+      const diff = Math.round((nom.d - h0) / 86400000);
+      const fmt = nom.d.toLocaleDateString("pt-BR") + " (" + DIAS_SEMANA[nom.d.getDay()] + ")";
+      if (diff === 0) return "📅 **" + nom.rotulo + "** (" + fmt + ") é **hoje**! 🎉";
+      if (diff > 0) return "📅 Faltam **" + diff + " dia(s)** para o **" + nom.rotulo + "** — " + fmt + ".";
+      return "📅 O **" + nom.rotulo + "** (" + fmt + ") já passou há **" + Math.abs(diff) + " dia(s)**.";
+    }
+
+    if (/^\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?$/.test(alvoTxt)) {
+      let d = parseData(alvoTxt);
+      if (!d) return "Não reconheci essa data. Use o formato DD/MM/AAAA (ex.: 25/12/2026).";
+      if (!/\d{4}/.test(alvoTxt) && d < h0) d = new Date(hoje.getFullYear() + 1, d.getMonth(), d.getDate());
+      const diff = Math.round((d - h0) / 86400000);
+      const fmt = d.toLocaleDateString("pt-BR") + " (" + DIAS_SEMANA[d.getDay()] + ")";
+      if (diff === 0) return "📅 **" + fmt + "** é **hoje**! 🎉";
+      if (diff > 0) return "📅 Faltam **" + diff + " dia(s)** para " + fmt + ".";
+      return "📅 " + fmt + " já passou há **" + Math.abs(diff) + " dia(s)**.";
+    }
   }
 
-  m = t.match(/^que dia (?:da semana )?(?:e|foi|sera|cai) (\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\??$/);
+  m = t.match(/^(?:que dia (?:da semana )?(?:e|foi|sera|cai)|quando (?:e|cai))\s+(?:o |a )?(.+?)\??$/);
   if (m) {
-    const d = parseData(m[1]);
-    if (!d) return "Data inválida. Use DD/MM/AAAA.";
-    return "📅 O dia **" + d.toLocaleDateString("pt-BR") + "** cai em uma **" + DIAS_SEMANA[d.getDay()] + "**.";
+    const alvoTxt = m[1].trim();
+    const nom = resolverDataNomeada(alvoTxt);
+    if (nom) {
+      return "📅 O **" + nom.rotulo + "** é comemorado em **" + nom.d.toLocaleDateString("pt-BR") + "** (cai em uma **" + DIAS_SEMANA[nom.d.getDay()] + "**).";
+    }
+    const d = parseData(alvoTxt);
+    if (d) {
+      return "📅 O dia **" + d.toLocaleDateString("pt-BR") + "** cai em uma **" + DIAS_SEMANA[d.getDay()] + "**.";
+    }
   }
 
   // 6) Validador e gerador fictício de CPF de teste
