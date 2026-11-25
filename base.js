@@ -1,6 +1,7 @@
-/* BACH AI 5.1 — base de dados, backup completo e exportador .txt alinhado (ADM).
+/* BACH AI 5.1 — base de dados, backup completo e exportador .txt alinhado (ADM Blindado).
  * Exporta memórias, conversas, arquivos e o código de todos os 42 módulos.
- * Chaves secretas nunca são incluídas no backup.
+ * Segurança: chaves secretas, hashes ADM e configurações sensíveis nunca são exportadas
+ * nem podem ser sobrescritas na importação; proteção contra Prototype Pollution.
  */
 
 export const ARQUIVOS = [
@@ -66,6 +67,7 @@ export const COMANDOS = [
   "/plano objetivo", "/automacao tarefa", "/humor",
   "/auditar", "/copiar", "/diagnostico", "/rollback",
   "/modulos", "/modulo ID on|off", "/editar", "/tudotxt", "/erroremoto URL",
+  "/admsenha SENHA", "/adm SENHA",
   "/ia status", "/historico", "/nova", "/arquivos",
   "/abrir nome", "/buscar palavra", "/apagar nome",
   "/pasta Nome/Sub", "/pastas", "/mover nome para Pasta",
@@ -76,10 +78,14 @@ export const COMANDOS = [
 const CHAVES_OCULTAS = new Set([
   "bach_gemini_key",
   "bach_creator_v1",
+  "bach_adm_hash_v1",
   "gh_adm_token_v1",
   "bach_adm_erro_remote_v1",
+  "bach_adm_erros_v1",
   "bach_cloud_url_v1"
 ]);
+
+const CHAVES_PROIBIDAS = new Set(["__proto__", "constructor", "prototype"]);
 
 const CONHECIDAS = {
   rizik_brain_v1: "memoria",
@@ -91,6 +97,27 @@ const CONHECIDAS = {
   bach_chat_history_v1: "conversaAberta",
   bach_neural_local_v1: "redeNeural"
 };
+
+const ehChaveSegura = key => {
+  const k = String(key || "");
+  if (!k || CHAVES_PROIBIDAS.has(k) || CHAVES_OCULTAS.has(k)) return false;
+  if (/^(?:bach_adm_|bach_creator|gh_adm)/i.test(k)) return false;
+  return /^(bach|rizik)_[a-z0-9_]+$/i.test(k);
+};
+
+const ehObjetoSimples = v => Boolean(v && typeof v === "object" && !Array.isArray(v));
+
+function limparObjeto(val, profundidade = 0) {
+  if (profundidade > 5) return null;
+  if (Array.isArray(val)) return val.map(item => limparObjeto(item, profundidade + 1));
+  if (!val || typeof val !== "object") return val;
+  const out = {};
+  for (const k of Object.keys(val)) {
+    if (CHAVES_PROIBIDAS.has(k)) continue;
+    out[k] = limparObjeto(val[k], profundidade + 1);
+  }
+  return out;
+}
 
 const analisar = value => {
   try { return JSON.parse(value); }
@@ -108,11 +135,12 @@ function lerArmazenamento() {
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (!key || CHAVES_OCULTAS.has(key)) continue;
+      if (!key || CHAVES_OCULTAS.has(key) || CHAVES_PROIBIDAS.has(key)) continue;
+      if (/^(?:bach_adm_|bach_creator|gh_adm)/i.test(key)) continue;
 
       const value = analisar(localStorage.getItem(key));
-      if (CONHECIDAS[key]) dados[CONHECIDAS[key]] = value;
-      else if (/^(bach|rizik)_/i.test(key)) outros[key] = value;
+      if (Object.hasOwn(CONHECIDAS, key)) dados[CONHECIDAS[key]] = value;
+      else if (ehChaveSegura(key)) outros[key] = value;
     }
   } catch (error) {
     console.warn("Não foi possível ler todo o armazenamento:", error);
@@ -303,7 +331,7 @@ async function montar(context = {}) {
     mente,
     outrosDados: outros,
     codigo: fontes,
-    aviso: "Chaves secretas foram excluídas deste backup por segurança."
+    aviso: "Chaves secretas, hashes ADM e logs internos foram excluídos deste backup por segurança."
   };
 
   const json = JSON.stringify(backup, null, 1);
@@ -320,40 +348,53 @@ async function montar(context = {}) {
 }
 
 function importar(obj) {
-  if (!obj || typeof obj !== "object" || !obj.bach) {
-    throw new Error("Esse arquivo não é um backup da BACH.");
+  if (!ehObjetoSimples(obj) || !ehObjetoSimples(obj.bach)) {
+    throw new Error("Esse arquivo não é um backup válido da BACH.");
   }
 
-  const mapa = {
-    memoria: "rizik_brain_v1",
-    arquivos: "bach_arquivos_v1",
-    pesquisas: "bach_conhecimento_v2",
-    mente: "bach_mente_v1"
-  };
+  const mapa = [
+    ["memoria", "rizik_brain_v1", ehObjetoSimples],
+    ["arquivos", "bach_arquivos_v1", Array.isArray],
+    ["pesquisas", "bach_conhecimento_v2", Array.isArray],
+    ["mente", "bach_mente_v1", ehObjetoSimples]
+  ];
 
   let feitos = 0;
 
-  for (const [campo, key] of Object.entries(mapa)) {
-    if (obj[campo] != null) {
-      localStorage.setItem(key, JSON.stringify(obj[campo]));
-      feitos++;
+  for (const [campo, key, validar] of mapa) {
+    if (obj[campo] != null && validar(obj[campo])) {
+      const serial = JSON.stringify(limparObjeto(obj[campo]));
+      if (serial.length <= 1500000) {
+        localStorage.setItem(key, serial);
+        feitos++;
+      }
     }
   }
 
   if (Array.isArray(obj.conversas?.historico)) {
-    localStorage.setItem("bach_sessoes_v1", JSON.stringify(obj.conversas.historico));
-    feitos++;
+    const serial = JSON.stringify(limparObjeto(obj.conversas.historico.slice(0, 100)));
+    if (serial.length <= 1500000) {
+      localStorage.setItem("bach_sessoes_v1", serial);
+      feitos++;
+    }
   }
 
   if (Array.isArray(obj.conversas?.aberta)) {
-    localStorage.setItem("bach_chat_history_v1", JSON.stringify(obj.conversas.aberta));
-    feitos++;
+    const serial = JSON.stringify(limparObjeto(obj.conversas.aberta.slice(-100)));
+    if (serial.length <= 800000) {
+      localStorage.setItem("bach_chat_history_v1", serial);
+      feitos++;
+    }
   }
 
-  for (const [key, value] of Object.entries(obj.outrosDados || {})) {
-    if (/^(bach|rizik)_/i.test(key) && !CHAVES_OCULTAS.has(key)) {
-      localStorage.setItem(key, JSON.stringify(value));
-      feitos++;
+  if (ehObjetoSimples(obj.outrosDados)) {
+    for (const key of Object.keys(obj.outrosDados)) {
+      if (!ehChaveSegura(key)) continue;
+      const serial = JSON.stringify(limparObjeto(obj.outrosDados[key]));
+      if (serial && serial.length <= 512000) {
+        localStorage.setItem(key, serial);
+        feitos++;
+      }
     }
   }
 
