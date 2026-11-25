@@ -306,26 +306,26 @@ const [
   mAuto, mRev, mEd, mErros, mVoz, mExec, mNeural, mNLU
 ] = await Promise.all([
   loadMod("brain.js", "./brain.js?v=20"),
-  loadMod("saber.js", "./saber.js?v=14"),
+  loadMod("saber.js", "./saber.js?v=15"),
   loadMod("programacao.js", "./programacao.js?v=5"),
-  loadMod("arquivos.js", "./arquivos.js?v=4"),
+  loadMod("arquivos.js", "./arquivos.js?v=5"),
   loadMod("mente.js", "./mente.js?v=20"),
   loadMod("fatos.js", "./fatos.js?v=8"),
   loadMod("conversa.js", "./conversa.js?v=10"),
   loadMod("dicionario.js", "./dicionario.js?v=5"),
   loadMod("historico.js", "./historico.js?v=3"),
-  loadMod("base.js", "./base.js?v=9"),
+  loadMod("base.js", "./base.js?v=10"),
   loadMod("registry.js", "./registry.js?v=10"),
   loadMod("llm.js", "./llm.js?v=3"),
   loadMod("cerebro_avancado.js", "./cerebro_avancado.js?v=5"),
   loadMod("autocorretor.js", "./autocorretor.js?v=7"),
-  loadMod("revisor.js", "./revisor.js?v=2"),
-  loadMod("editor_adm.js", "./editor_adm.js?v=6"),
-  loadMod("erros_adm.js", "./erros_adm.js?v=1"),
+  loadMod("revisor.js", "./revisor.js?v=3"),
+  loadMod("editor_adm.js", "./editor_adm.js?v=7"),
+  loadMod("erros_adm.js", "./erros_adm.js?v=2"),
   loadMod("voz.js", "./voz.js?v=1"),
-  loadMod("executor_sandbox.js", "./executor_sandbox.js?v=2"),
+  loadMod("executor_sandbox.js", "./executor_sandbox.js?v=3"),
   loadMod("rede_neural.js", "./rede_neural.js?v=2"),
-  loadMod("nlu_neural.js", "./nlu_neural.js?v=1")
+  loadMod("nlu_neural.js", "./nlu_neural.js?v=2")
 ]);
 
 const RizikBrain = mBrain.RizikBrain || { think: () => ({ handled: false }), learn: () => {}, remember: () => {}, recall: () => null, logTopic: () => {}, getRecentTopics: () => [], getProfile: () => ({}), getStats: () => ({ examples: 0, synonyms: 0, facts: 0, notes: 0 }), updateTone: () => ({ mood: "neutro", score: 0 }), getMood: () => ({ mood: "neutro", score: 0, humorAllowed: false }) };
