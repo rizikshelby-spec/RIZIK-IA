@@ -1,6 +1,6 @@
-/* BACH AI 4.8 — Motor de Voz Natural (TTS)
- * Corrige travamentos do iOS/Safari, divide textos longos em frases curtas,
- * limpa markdown/emojis e escolhe automaticamente a melhor voz em português do Brasil.
+/* BACH AI 5.2 — Motor de Voz Natural (TTS)
+ * Corrige travamentos do iOS/Safari, inclui desbloquear() para leitura automática mobile,
+ * divide textos longos em frases curtas, limpa markdown/emojis e escolhe voz pt-BR.
  */
 
 const K_RATE = "bach_voz_rate_v1";
@@ -10,6 +10,7 @@ let btnAtual = null;
 let fila = [];
 let sessaoId = 0;
 let vozEscolhida = null;
+let desbloqueado = false;
 
 function limparParaFala(texto) {
   return String(texto || "")
@@ -23,7 +24,7 @@ function limparParaFala(texto) {
 }
 
 function escolherVoz() {
-  if (!("speechSynthesis" in window)) return null;
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
   const vozes = speechSynthesis.getVoices() || [];
   if (!vozes.length) return null;
 
@@ -41,6 +42,20 @@ if (typeof window !== "undefined" && "speechSynthesis" in window) {
   escolherVoz();
   try {
     speechSynthesis.addEventListener?.("voiceschanged", escolherVoz);
+  } catch {}
+}
+
+function desbloquear() {
+  if (desbloqueado || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  try {
+    escolherVoz();
+    const u = new SpeechSynthesisUtterance(" ");
+    u.volume = 0;
+    u.rate = 1;
+    u.lang = "pt-BR";
+    speechSynthesis.resume?.();
+    speechSynthesis.speak(u);
+    desbloqueado = true;
   } catch {}
 }
 
@@ -104,7 +119,7 @@ function parar() {
   falando = false;
   fila = [];
   restaurarBotao();
-  if ("speechSynthesis" in window) {
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
     try { speechSynthesis.cancel(); } catch {}
   }
 }
@@ -150,9 +165,8 @@ function falarProximo(id) {
 }
 
 function ler(texto, btn = null) {
-  if (!("speechSynthesis" in window)) return false;
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return false;
 
-  // Se clicou no mesmo botão que já está falando, apenas para
   if (falando && btn && btn === btnAtual) {
     parar();
     return false;
@@ -168,7 +182,6 @@ function ler(texto, btn = null) {
 
   fila = trechos;
   const id = sessaoId;
-  // Dispara o primeiro trecho sincronamente dentro do clique (essencial no iPhone/iOS!)
   falarProximo(id);
   return true;
 }
@@ -188,10 +201,11 @@ function comando(raw) {
     return "🔊 Velocidade da voz ajustada para **rápida** (1.2x).";
   }
   if (/^\/voz\s+teste$/i.test(t)) {
+    desbloquear();
     ler("Olá! Eu sou a BACH AI. Minha voz está funcionando perfeitamente agora!");
     return "🔊 Testando a voz da BACH AI em português!";
   }
   return null;
 }
 
-export const Voz = { ler, parar, comando, getRate };
+export const Voz = { ler, parar, desbloquear, comando, getRate };
