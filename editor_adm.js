@@ -1,10 +1,16 @@
-/* BACH AI 5.1 — EDITOR ADM, PACOTE .TXT (/tudotxt) & CENTRAL /ajuda
+/* BACH AI 5.1 — EDITOR ADM BLINDADO, PACOTE .TXT (/tudotxt) & CENTRAL /ajuda
    Permite trocar/criar módulos direto pelo chat, exportar todos os 42 módulos
-   alinhados com extensão .txt no final (/tudotxt) e listar todos os comandos (/ajuda). */
+   alinhados com extensão .txt no final (/tudotxt) e listar todos os comandos (/ajuda).
+   Segurança: token em sessionStorage por padrão, validação estrita de repo/branch/caminho
+   (anti-path traversal) e limite de tamanho no envio ao GitHub. */
 
 const K_GH = "gh_adm_token_v1";
 const BT = "\x60\x60\x60";
-const RE_BLOCO = new RegExp("^\\x60\\x60\\x60[\\w+-]*\\n([\\s\\S]*?)\\x60\\x60\\x60$");
+const RE_BLOCO = new RegExp("^\\x60\\x60\\x60[\\w+-]*\\r?\\n([\\s\\S]*?)\\x60\\x60\\x60$");
+const RE_REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+const RE_BRANCH = /^[A-Za-z0-9._\/-]+$/;
+const EXT_PERMITIDAS = /\.(js|html|css|json|txt|md)$/i;
+const MAX_ARQUIVO_CHARS = 500000;
 
 export const MODULOS_SITE = [
   "index.html",
@@ -53,25 +59,62 @@ export const MODULOS_SITE = [
 
 let sessao = null;
 
+function validarCfgGH(o) {
+  if (!o || typeof o !== "object") return null;
+  const repo = String(o.repo || "").trim();
+  const token = String(o.token || "").trim();
+  const branch = String(o.branch || "main").trim();
+  if (!RE_REPO.test(repo) || repo.includes("..")) return null;
+  if (!RE_BRANCH.test(branch) || branch.includes("..")) return null;
+  if (token.length < 10 || /\s/.test(token)) return null;
+  return { repo, token, branch, fixo: Boolean(o.fixo) };
+}
+
 function getGH() {
   try {
-    const o = JSON.parse(localStorage.getItem(K_GH) || "null");
-    return o && o.repo && o.token ? o : null;
+    const ss = JSON.parse(sessionStorage.getItem(K_GH) || "null");
+    const validSS = validarCfgGH(ss);
+    if (validSS) return validSS;
+  } catch {}
+  try {
+    const ls = JSON.parse(localStorage.getItem(K_GH) || "null");
+    return validarCfgGH(ls);
   } catch {
     return null;
   }
 }
 
-function setGH(repo, token, branch = "main") {
-  localStorage.setItem(K_GH, JSON.stringify({ repo, token, branch }));
+function setGH(repo, token, branch = "main", fixo = false) {
+  const payload = JSON.stringify({ repo, token, branch, fixo: Boolean(fixo) });
+  try { sessionStorage.setItem(K_GH, payload); } catch {}
+  if (fixo) {
+    try { localStorage.setItem(K_GH, payload); } catch {}
+  } else {
+    try { localStorage.removeItem(K_GH); } catch {}
+  }
 }
 
 function clearGH() {
+  try { sessionStorage.removeItem(K_GH); } catch {}
   try { localStorage.removeItem(K_GH); } catch {}
 }
 
 function resetar() {
   sessao = null;
+}
+
+function sanitizarCaminhoRepo(path) {
+  const p = String(path || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (!p || p.length > 140 || p.includes("..") || p.includes("?") || p.includes("#") || /[\x00-\x1f]/.test(p)) {
+    return null;
+  }
+  const segs = p.split("/").filter(Boolean);
+  if (!segs.length || segs.some(s => s === "." || s === ".." || s.startsWith(".git"))) {
+    return null;
+  }
+  const limpo = segs.join("/");
+  if (!EXT_PERMITIDAS.test(limpo)) return null;
+  return limpo;
 }
 
 const ativo = isAdm => Boolean(isAdm && sessao);
@@ -154,7 +197,7 @@ async function gerarPacoteTxt(passo = () => {}) {
 function menuLista() {
   const gh = getGH();
   return "🛠️ **EDITOR DE MÓDULOS (MODO ADM)**\n" +
-    (gh ? "🟢 GitHub conectado: `" + gh.repo + "` (" + gh.branch + ")\n\n" : "🟡 GitHub ainda não conectado (use `/ghconfig usuario/repo TOKEN` para publicar automático; sem isso, gero o arquivo pronto para baixar).\n\n") +
+    (gh ? "🟢 GitHub conectado: `" + gh.repo + "` (" + gh.branch + (gh.fixo ? " • salvo fixo" : " • sessão") + ")\n\n" : "🟡 GitHub ainda não conectado (use `/ghconfig usuario/repo TOKEN` para publicar automático; sem isso, gero o arquivo pronto para baixar).\n\n") +
     "Escolha o número do arquivo que quer trocar ou `0` para criar um novo:\n\n" +
     "**0.** ➕ Criar um novo módulo/arquivo\n" +
     MODULOS_SITE.map((m, i) => "**" + (i + 1) + ".** `" + m + "`").join("\n") +
@@ -172,8 +215,14 @@ async function publicarGitHub(path, conteudo, mensagem = "Atualização via BACH
   const cfg = getGH();
   if (!cfg) return { ok: false, motivo: "sem-config" };
 
-  const cleanPath = String(path).replace(/^\/+/, "");
-  const url = "https://api.github.com/repos/" + cfg.repo + "/contents/" + cleanPath;
+  const cleanPath = sanitizarCaminhoRepo(path);
+  if (!cleanPath) return { ok: false, motivo: "caminho-invalido" };
+  if (String(conteudo || "").length > MAX_ARQUIVO_CHARS) {
+    return { ok: false, motivo: "arquivo-muito-grande" };
+  }
+
+  const encodedPath = cleanPath.split("/").map(encodeURIComponent).join("/");
+  const url = "https://api.github.com/repos/" + cfg.repo + "/contents/" + encodedPath;
   const headers = {
     "Accept": "application/vnd.github+json",
     "Authorization": "Bearer " + cfg.token,
@@ -190,7 +239,7 @@ async function publicarGitHub(path, conteudo, mensagem = "Atualização via BACH
   } catch {}
 
   const body = {
-    message: mensagem,
+    message: String(mensagem || "Atualização via BACH AI ADM").slice(0, 120),
     content: toBase64Utf8(conteudo),
     branch: cfg.branch
   };
@@ -217,7 +266,7 @@ function comandoConfig(raw, isAdm) {
     return { handled: true, texto: "🔌 Conexão com o GitHub removida deste aparelho." };
   }
 
-  const m = t.match(/^\/ghconfig(?:\s+(\S+)\s+(\S+)(?:\s+(\S+))?)?$/i);
+  const m = t.match(/^\/ghconfig(?:\s+(\S+)\s+(\S+)(?:\s+(\S+))?(?:\s+(fixo))?)?$/i);
   if (m) {
     if (!isAdm) return { handled: true, secret: Boolean(m[2]), texto: "🔒 Comando exclusivo de administrador." };
     if (!m[1] || !m[2]) {
@@ -225,20 +274,21 @@ function comandoConfig(raw, isAdm) {
       return {
         handled: true,
         texto: "⚙️ **Configurar publicação direta no GitHub (ADM):**\n" +
-          (atual ? "• Atual: `" + atual.repo + "` (branch `" + atual.branch + "`)\n" : "• Ainda não configurado.\n") +
+          (atual ? "• Atual: `" + atual.repo + "` (branch `" + atual.branch + "`" + (atual.fixo ? ", salvo fixo" : ", só nesta sessão") + ")\n" : "• Ainda não configurado.\n") +
           "Use: `/ghconfig usuario/repositorio SEU_TOKEN`\n" +
+          "*(Por segurança, o token fica só na sessão até fechar a aba; se quiser fixar no aparelho, adicione `main fixo` no final.)*\n" +
           "Para remover: `/ghsair`"
       };
     }
-    const repo = m[1].trim(), token = m[2].trim(), branch = (m[3] || "main").trim();
-    if (!repo.includes("/") || token.length < 10) {
+    const repo = m[1].trim(), token = m[2].trim(), branch = (m[3] || "main").trim(), fixo = Boolean(m[4]);
+    if (!RE_REPO.test(repo) || repo.includes("..") || !RE_BRANCH.test(branch) || branch.includes("..") || token.length < 10) {
       return { handled: true, secret: true, texto: "Confira o formato: `/ghconfig usuario/repositorio SEU_TOKEN`" };
     }
-    setGH(repo, token, branch);
+    setGH(repo, token, branch, fixo);
     return {
       handled: true,
       secret: true,
-      texto: "✅ GitHub conectado (`" + repo + "` • branch `" + branch + "`)!\nAgora quando usar `/editar`, eu já publico direto no repositório."
+      texto: "✅ GitHub conectado (`" + repo + "` • branch `" + branch + "` • " + (fixo ? "salvo fixo" : "sessão segura") + ")!\nAgora quando usar `/editar`, eu já publico direto no repositório."
     };
   }
   return null;
@@ -308,18 +358,21 @@ async function processar(raw, isAdm, passo = () => {}) {
     sessao.modulo = nomeMod;
     sessao.passo = "nome_arquivo";
     return {
-      texto: "📄 Módulo **" + nomeMod + "** anotado!\nAgora digite o **nome do arquivo** (pode incluir pasta, ex.: `agenda.js` ou `modulos/agenda.js`):"
+      texto: "📄 Módulo **" + nomeMod + "** anotado!\nAgora digite o **nome do arquivo** (extensões aceitas: `.js`, `.html`, `.css`, `.json`, `.txt`, `.md`; ex.: `agenda.js`):"
     };
   }
 
   if (sessao.passo === "nome_arquivo") {
-    let arq = t.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9._\/-]/g, "").replace(/^\/+/, "");
-    if (!arq || arq.length < 3) return { texto: "Digite um nome de arquivo válido, ex.: `meu_modulo.js`." };
+    let arq = t.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9._\/-]/g, "");
     if (!/\.[a-z0-9]+$/i.test(arq)) arq += ".js";
-    sessao.arquivo = arq;
+    const limpo = sanitizarCaminhoRepo(arq);
+    if (!limpo || limpo.length < 4) {
+      return { texto: "Nome de arquivo inválido ou extensão não permitida. Use `.js`, `.html`, `.css`, `.json`, `.txt` ou `.md` sem `..`." };
+    }
+    sessao.arquivo = limpo;
     sessao.passo = "codigo";
     return {
-      texto: "📁 Arquivo definido: **`" + arq + "`** (módulo **" + sessao.modulo + "**).\n\nAgora cole o **código 100% inteiro** desse arquivo aqui no chat!"
+      texto: "📁 Arquivo definido: **`" + limpo + "`** (módulo **" + sessao.modulo + "**).\n\nAgora cole o **código 100% inteiro** desse arquivo aqui no chat!"
     };
   }
 
@@ -328,6 +381,9 @@ async function processar(raw, isAdm, passo = () => {}) {
     let codigoLimpo = t;
     const bloco = t.match(RE_BLOCO);
     if (bloco) codigoLimpo = bloco[1];
+    if (codigoLimpo.length > MAX_ARQUIVO_CHARS) {
+      return { texto: "⚠️ O código passou do limite de 500 KB por arquivo." };
+    }
 
     const arquivoAlvo = sessao.arquivo;
     const moduloAlvo = sessao.modulo;
@@ -405,6 +461,7 @@ function ajudaComandos(isAdm) {
   if (isAdm) {
     out += "\n\n👑 **COMANDOS DE ADMINISTRADOR:**\n" +
       "• **Menu ☰ → 🚨 Erros do Público** — ver, buscar, selecionar, excluir ou copiar todos os erros\n" +
+      "• `/admsenha SENHA` e `/adm SENHA` — senha ADM com hash SHA-256 (`sai do adm` para sair)\n" +
       "• `/nuvem status` • `/nuvem https://seu-worker.workers.dev` — nuvem gratuita Cloudflare D1\n" +
       "• `/erroremoto https://ntfy.sh/canal` — receber erros de outros aparelhos em tempo real\n" +
       "• `/tudotxt` — gera todos os 42 módulos alinhados com final `.txt` para copiar/baixar\n" +
