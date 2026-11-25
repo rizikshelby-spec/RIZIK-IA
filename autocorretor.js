@@ -1,9 +1,8 @@
-/* BACH AI 5.1 — AUTOCORRETOR REAL BLINDADO, TOM ADAPTATIVO & APRENDIZADO CONTÍNUO
-   1) Respeita o tom do usuário e usa a mensagem citada (↩ Responder) quando marcada.
-   2) Pula reações curtas/xingamentos e palavras soltas ("erro", "errou") para achar a pergunta real.
-   3) Aprende com correções (*), explicações pós-erro e grava na Central ADM.
-   Segurança: alinha import erros_adm.js?v=2, mascara segredos/tokens no fallback e antes de salvar
-   correções, e limita entradas antes das expressões regulares. */
+/* BACH AI 5.2 — AUTOCORRETOR REAL BLINDADO, TOM ADAPTATIVO & APRENDIZADO CONTÍNUO
+   1) Captura seguimentos pós-erro como "queria que vc falasse ah ta", "era pra falar..." etc.
+   2) Respeita o tom do usuário e usa a mensagem citada (↩ Responder) quando marcada.
+   3) Pula reações curtas/xingamentos e palavras soltas ("erro", "errou") para achar a pergunta real.
+   4) Grava falhas na Central ADM mascarando segredos. */
 
 import { RizikBrain } from "./brain.js?v=20";
 
@@ -149,11 +148,11 @@ function tratarExclamacao(texto, history = []) {
   }
 
   if (/\b(tem|possui|existe|voce tem)\b/.test(limpo) && /\b(consciencia|sentimentos|emocoes|alma)\b/.test(limpo) && limpo.split(" ").length <= 10) {
-    return "Não tenho consciência nem sentimentos humanos — sou feita de código e memória, mas vou ajustando meu jeito de conversar e memorizando o que você ensina e prefere ao longo do papo.";
+    return "Não tenho consciência humana, mas acompanho o contexto da conversa, o que você tá sentindo e tudo que já falamos para conversar de forma natural.";
   }
 
   if (/^(?:eu que pergunto|tipo o que|o que voce quer fazer|fazer o que agora)/.test(limpo) && limpo.split(" ").length <= 8) {
-    return "Você escolhe: podemos conversar sobre algum assunto, pesquisar algo na internet, revisar um texto/código ou testar uma ferramenta (`/ajuda`).";
+    return "Você escolhe: podemos só bater papo sobre qualquer coisa, falar do seu dia ou pesquisar algo se você quiser.";
   }
   if (/^(?:desde quando (?:voce )?entende|sabe o que exatamente|nah sabe o que)/.test(limpo)) {
     return "Entendo programação, Termux, criação de apps (`/app`), ortografia/sílabas, avaliação de sites, traduções, clima, contas e pesquisa na web. Se alguma frase comum falhar, você pode me corrigir que eu aprendo.";
@@ -237,6 +236,18 @@ function encontrarPerguntaAnterior(history) {
   return null;
 }
 
+function botPediuExplicacaoPosErro(history = []) {
+  const ultBot = [...(Array.isArray(history) ? history : [])].reverse().find(m => m && m.type !== "user" && m.text)?.text || "";
+  return /esperava dessa mensagem|Me diga o que estava errado|Me diga em poucas palavras o que você esperava|o que você queria saber de fato/i.test(ultBot);
+}
+
+function ehPerguntaMuitoGenericaParaSalvar(perg) {
+  const np = norm(perg);
+  if (!np || np === "mensagem marcada") return true;
+  if (/^(?:e |mas )?(?:isso|isto|aquilo|ele|ela)\b/.test(np) && np.split(" ").length <= 5) return true;
+  return false;
+}
+
 function processarSeguimentoDeCorrecao(texto, history = []) {
   const raw = String(texto || "").trim();
   if (!raw || ehEntradaSensivel(raw)) return null;
@@ -258,27 +269,55 @@ function processarSeguimentoDeCorrecao(texto, history = []) {
   }
 
   const pend = RizikBrain.getPendingError?.();
+  const aguardandoPosErro = Boolean(pend) || botPediuExplicacaoPosErro(history);
   const n = norm(raw);
-  const mExp = n.match(/^(?:o que eu queria|eu queria|era para|era pra|eu quis dizer|quis dizer|eu estava falando de|eu falei sobre|eu falei de)\s+(?:que\s+(?:voce\s+)?)?(.+)$/);
-  if (pend && mExp) {
-    const intencao = mExp[1].trim();
+
+  const mFala = raw.match(/^(?:eu\s+)?(?:queria|esperava|gostaria)\s+(?:que\s+(?:vc|voce|você)\s+)?(?:falasse|dissesse|respondesse|fizesse|fosse)\s+([\s\S]+)$/i) ||
+    raw.match(/^(?:era\s+(?:para|pra)\s+(?:vc|voce|você)\s+(?:falar|dizer|responder)|pode\s+responder)\s+([\s\S]+)$/i);
+
+  if (mFala && (aguardandoPosErro || mFala[1].trim().split(/\s+/).length <= 8)) {
+    const esperado = mFala[1].trim().replace(/^["“']|["”']$/g, "");
+    const pergOriginal = pend?.question || "";
     RizikBrain.clearPendingError?.();
 
-    if (/^(?:pesquis|procur|busc)/.test(intencao) && pend.question) {
-      const temaLimpo = intencao.replace(/^(?:voce\s+)?(?:pesquis\w*|procur\w*|busc\w*)\s*(?:sobre)?\s*/, "").trim();
-      const query = temaLimpo.length >= 3 ? temaLimpo : pend.question;
+    if (pergOriginal && !ehPerguntaMuitoGenericaParaSalvar(pergOriginal) && esperado.length >= 2) {
+      RizikBrain.learn?.(pergOriginal, esperado);
       return {
-        tipo: "pesquisar",
-        query,
-        aviso: "Agora entendi! Vou pesquisar direito sobre **“" + query + "”**:"
+        tipo: "direto",
+        texto: "Ah, entendi! 😅 Da próxima vez que mandarem **“" + pergOriginal + "”**, eu já respondo: **“" + esperado + "”**!"
       };
     }
 
-    if (intencao.length >= 4 && !/^(?:isso|aquilo|nada)$/.test(intencao)) {
-      RizikBrain.learn?.(pend.question, intencao);
+    return {
+      tipo: "direto",
+      texto: "Ah, tá! 😅 Entendi — você queria uma resposta direta tipo **“" + esperado + "”** em vez de pesquisa na internet. Anotado aqui!"
+    };
+  }
+
+  const mExp = n.match(/^(?:o que eu queria|eu queria|queria|era para|era pra|eu quis dizer|quis dizer|eu estava falando de|eu falei sobre|eu falei de)\s+(?:que\s+(?:voce\s+)?)?(.+)$/);
+  if (aguardandoPosErro && mExp) {
+    const intencao = mExp[1].trim();
+    RizikBrain.clearPendingError?.();
+
+    if (/^(?:pesquis|procur|busc)/.test(intencao)) {
+      const temaLimpo = intencao.replace(/^(?:voce\s+)?(?:pesquis\w*|procur\w*|busc\w*)\s*(?:sobre)?\s*/, "").trim();
+      const query = temaLimpo.length >= 3 ? temaLimpo : (pend?.question || "");
+      if (query) {
+        return {
+          tipo: "pesquisar",
+          query,
+          aviso: "Agora entendi! Vou pesquisar direito sobre **“" + query + "”**:"
+        };
+      }
+    }
+
+    if (intencao.length >= 3 && !/^(?:isso|aquilo|nada)$/.test(intencao)) {
+      if (pend?.question && !ehPerguntaMuitoGenericaParaSalvar(pend.question)) {
+        RizikBrain.learn?.(pend.question, intencao);
+      }
       return {
         tipo: "direto",
-        texto: "Anotado! Aprendi o que você queria com **“" + pend.question + "”** para não errar isso de novo."
+        texto: "Entendi! Guardei o que você esperava" + (pend?.question ? " para **“" + pend.question + "”**" : "") + " e não vou repetir esse erro."
       };
     }
   }
@@ -292,7 +331,7 @@ function analisarEPreparar(history, ctx = {}) {
     registrarCorrecao("(sem pergunta anterior)", "reclamacao-sem-alvo", "pediu-clareza");
     return {
       tipo: "direto",
-      texto: "Desculpa por ter saído do alvo. Me diga em uma frase direta o que você quer saber ou fazer agora que eu sigo daqui."
+      texto: "Desculpa por ter saído do alvo. Me diga em uma frase direta o que você quer saber ou conversar agora que eu sigo daqui."
     };
   }
 
@@ -340,7 +379,7 @@ function analisarEPreparar(history, ctx = {}) {
       registrarCorrecao(orig, "pesquisa-resultado-ruim", "pediu-especificacao");
       return {
         tipo: "direto",
-        texto: "Entendi que você marcou essa resposta sobre **“" + orig + "”** como errada.\n\nMe diga o que estava errado ou o que você queria saber de fato (ou ensine com `ensine: " + orig + " => resposta certa`) para eu corrigir!"
+        texto: "Entendi que você marcou essa resposta sobre **“" + orig + "”** como errada.\n\nMe diga o que estava errado ou o que você queria que eu respondesse!"
       };
     }
     registrarCorrecao(orig, "pesquisa-indevida", "pediu-acao-direta");
@@ -350,7 +389,7 @@ function analisarEPreparar(history, ctx = {}) {
     };
   }
 
-  if (/Não captei bem|Não entendi direito|Essa ficou meio vaga/i.test(botErr)) {
+  if (/Não captei bem|Não entendi direito|Essa ficou meio vaga|Não peguei bem|Fiquei na dúvida/i.test(botErr)) {
     if (/^(o que e|o que sao|quem foi|quem e|onde fica|como funciona|me explica)\b/.test(t) || /\bdistancia\b/.test(t)) {
       registrarCorrecao(orig, "nao-entendeu-pergunta", "pesquisar-pergunta");
       return {
@@ -362,7 +401,7 @@ function analisarEPreparar(history, ctx = {}) {
     registrarCorrecao(orig, "nao-entendeu-conversa", "explicou-motivo");
     return {
       tipo: "direto",
-      texto: "O que não entendi foi a frase **“" + orig + "”**, porque não bati com nenhum comando ou assunto salvo.\n\nSe me explicar o que você queria (ou ensinar com `ensine: " + orig + " => resposta`), eu passo a acertar!"
+      texto: "O que eu não entendi foi **“" + orig + "”**.\n\nMe diga o que você queria com essa frase (ex.: “queria que você respondesse ...”) que eu já ajusto!"
     };
   }
 
@@ -401,11 +440,11 @@ function auditarChat(history, isAdm = false) {
     const antUser = lista[i - 1]?.type === "user" ? String(lista[i - 1].text) : "";
 
     if (m.type !== "user") {
-      if (/Não captei bem|Não entendi direito|Essa ficou meio vaga|Deu um erro inesperado/i.test(txt)) {
+      if (/Não captei bem|Não entendi direito|Essa ficou meio vaga|Não peguei bem|Fiquei na dúvida|Deu um erro inesperado/i.test(txt)) {
         erros.push("• [" + num + "] Não entendeu: “" + antUser.slice(0, 65) + "”");
       }
       if (/Sobre “|Aqui está o resumo sobre/i.test(txt)) {
-        if (antUser && !/\b(pesquis|procur|busc|o que e|quem foi|qm foi|quem e|como funciona|me explica|distancia|historia)\b/i.test(norm(antUser))) {
+        if (antUser && !/\b(pesquis|procur|busc|o que e|quem foi|qm foi|quem e|como funciona|me explica|distancia|historia|cor d)\b/i.test(norm(antUser))) {
           erros.push("• [" + num + "] Pesquisa automática fora de hora para: “" + antUser.slice(0, 60) + "”");
         }
       }
