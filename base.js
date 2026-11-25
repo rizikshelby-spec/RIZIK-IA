@@ -1,4 +1,4 @@
-/* BACH AI 5.1 — base de dados, backup completo e exportador .txt alinhado (ADM Blindado).
+/* BACH AI 5.2 — base de dados, backup completo e exportador .txt alinhado (ADM Blindado).
  * Exporta memórias, conversas, arquivos e o código de todos os 42 módulos.
  * Segurança: chaves secretas, hashes ADM e configurações sensíveis nunca são exportadas
  * nem podem ser sobrescritas na importação; proteção contra Prototype Pollution.
@@ -6,13 +6,13 @@
 
 export const ARQUIVOS = [
   ["index.html", "Interface, temas transparentes, esfera animada, 10 modos, painel de erros ADM e chat"],
-  ["cerebro_avancado.js", "NLU, comparação de sites, controle de preview, recomendações e escrita"],
+  ["cerebro_avancado.js", "NLU, citação (alvo), meta-diálogo, comparação de sites, preview, recomendações e escrita"],
   ["rede_neural.js", "Rede Neural MLP própria (256->48->12) com backpropagation e pesos da nuvem"],
   ["nlu_neural.js", "Roteamento neural, autoaprendizado por reformulação e sincronização com Cloudflare D1"],
   ["llm.js", "Motor nativo próprio da BACH AI (100% independente de IAs externas)"],
-  ["brain.js", "Cérebro, memória de longo prazo, termômetro de humor e aprendizado"],
+  ["brain.js", "Cérebro, memória de longo prazo, estado situacional da conversa, humor e aprendizado"],
   ["mente.js", "Contexto, jogos, inspeção de módulos, criação de apps e pastas"],
-  ["conversa.js", "Personalidade adaptativa e conversação natural"],
+  ["conversa.js", "Personalidade adaptativa, consciência situacional/emocional e conversação natural"],
   ["fatos.js", "Base de fatos e distâncias"],
   ["saberes.js", "Conhecimento adicional"],
   ["saberes_pro.js", "Sabedoria geral avançada (web, ciência, direito, economia, filosofia)"],
@@ -22,7 +22,7 @@ export const ARQUIVOS = [
   ["saber.js", "Leitura de textos, código, links e pesquisa"],
   ["dicionario.js", "Dicionário, definições e tradução"],
   ["arquivos.js", "Arquivos e leitura de mídia/OCR"],
-  ["programacao.js", "Programação e humor existente"],
+  ["programacao.js", "Programação, detector de digitação solta e humor existente"],
   ["historico.js", "Histórico de conversas"],
   ["base.js", "Exportação, importação de backup e pacote .txt"],
   ["autoguard.js", "Monitoramento, Watchdog, Failure Memory, Self-Healing e Rollback"],
@@ -33,10 +33,10 @@ export const ARQUIVOS = [
   ["revisor.js", "Revisor fiel de português, sílabas, código e avaliação de sites"],
   ["editor_adm.js", "Editor interativo ADM (/editar), /tudotxt e central /ajuda"],
   ["utilidades.js", "Senhas, dados, moeda, sorteios, datas, CPF de teste e contador"],
-  ["conversor_texto.js", "Link WhatsApp, maiúsculo/minúsculo, slug, sem acento e Base64"],
+  ["conversor_texto.js", "Link WhatsApp, maiúsculo/minúsculo, sem acento, inverter, slug e Base64"],
   ["saude_bemestar.js", "IMC, meta de água, calorias, respiração 4-7-8 e pausa ativa"],
   ["estudos.js", "Flashcards, simulado com pontuação e técnicas de estudo"],
-  ["dev_ferramentas.js", "Conversor HEX/RGB/HSL, CSS vidro, meta tags e paletas"],
+  ["dev_ferramentas.js", "Conversor HEX/RGB/HSL, CSS vidro transparente, meta tags e paletas"],
   ["intelligence.js", "Cálculo local e raciocínio aritmético"],
   ["personality.js", "Piadas interativas que aguardam a resposta do usuário"],
   ["creativity.js", "Ideias, personagens e histórias offline"],
@@ -95,7 +95,8 @@ const CONHECIDAS = {
   bach_mente_v1: "mente",
   bach_sessoes_v1: "conversas",
   bach_chat_history_v1: "conversaAberta",
-  bach_neural_local_v1: "redeNeural"
+  bach_neural_local_v2: "redeNeural",
+  bach_neural_local_v1: "redeNeuralAntiga"
 };
 
 const ehChaveSegura = key => {
@@ -209,7 +210,7 @@ async function gerarTudoTxt(progresso = () => {}) {
 
   const cabecalho =
     "====================================================================================\n" +
-    "BACH AI 5.1 — PACOTE COMPLETO DE MÓDULOS E CÓDIGOS EM .TXT (MODO ADM)\n" +
+    "BACH AI 5.2 — PACOTE COMPLETO DE MÓDULOS E CÓDIGOS EM .TXT (MODO ADM)\n" +
     "Gerado em: " + new Date().toLocaleString("pt-BR") + "\n" +
     "Arquivos lidos: " + lidos + " de " + ARQUIVOS.length + "\n" +
     "====================================================================================\n\n" +
@@ -298,7 +299,7 @@ async function montar(context = {}) {
 
   const backup = {
     bach: {
-      versao: "5.1",
+      versao: "5.2",
       geradoEm: new Date().toISOString()
     },
     tabelas: {
