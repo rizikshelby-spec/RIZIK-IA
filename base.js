@@ -1,15 +1,17 @@
-/* BACH AI 4.8 — base de dados, backup completo e exportador .txt alinhado (ADM).
- * Exporta memórias, conversas, arquivos e o código de todos os 40 módulos.
+/* BACH AI 5.1 — base de dados, backup completo e exportador .txt alinhado (ADM).
+ * Exporta memórias, conversas, arquivos e o código de todos os 42 módulos.
  * Chaves secretas nunca são incluídas no backup.
  */
 
 export const ARQUIVOS = [
   ["index.html", "Interface, temas transparentes, esfera animada, 10 modos, painel de erros ADM e chat"],
-  ["cerebro_avancado.js", "NLU, recomendações por gênero, comparações e escrita estruturada"],
-  ["llm.js", "Provedor híbrido opcional (ADM)"],
-  ["brain.js", "Cérebro, memória de longo prazo e aprendizado"],
+  ["cerebro_avancado.js", "NLU, comparação de sites, controle de preview, recomendações e escrita"],
+  ["rede_neural.js", "Rede Neural MLP própria (256->48->12) com backpropagation e pesos da nuvem"],
+  ["nlu_neural.js", "Roteamento neural, autoaprendizado por reformulação e sincronização com Cloudflare D1"],
+  ["llm.js", "Motor nativo próprio da BACH AI (100% independente de IAs externas)"],
+  ["brain.js", "Cérebro, memória de longo prazo, termômetro de humor e aprendizado"],
   ["mente.js", "Contexto, jogos, inspeção de módulos, criação de apps e pastas"],
-  ["conversa.js", "Personalidade e conversação natural"],
+  ["conversa.js", "Personalidade adaptativa e conversação natural"],
   ["fatos.js", "Base de fatos e distâncias"],
   ["saberes.js", "Conhecimento adicional"],
   ["saberes_pro.js", "Sabedoria geral avançada (web, ciência, direito, economia, filosofia)"],
@@ -29,7 +31,7 @@ export const ARQUIVOS = [
   ["voz.js", "Motor de voz natural (TTS) corrigido para iOS/Android/PC"],
   ["revisor.js", "Revisor fiel de português, sílabas, código e avaliação de sites"],
   ["editor_adm.js", "Editor interativo ADM (/editar), /tudotxt e central /ajuda"],
-  ["utilidades.js", "Senhas, dados, moeda, sorteios, datas, CPF e contador"],
+  ["utilidades.js", "Senhas, dados, moeda, sorteios, datas, CPF de teste e contador"],
   ["conversor_texto.js", "Link WhatsApp, maiúsculo/minúsculo, slug, sem acento e Base64"],
   ["saude_bemestar.js", "IMC, meta de água, calorias, respiração 4-7-8 e pausa ativa"],
   ["estudos.js", "Flashcards, simulado com pontuação e técnicas de estudo"],
@@ -47,7 +49,8 @@ export const ARQUIVOS = [
 ];
 
 export const COMANDOS = [
-  "/ajuda", "/app pomodoro", "/executar codigo", "/preview html",
+  "/ajuda", "/neural status", "/neural testar", "/neural treinar", "/nuvem status",
+  "/termux", "/app pomodoro", "/executar codigo", "/preview html",
   "/calc (2+3)*4", "/converter 10 km para m",
   "/juros simples 1000 2 12", "/fisica velocidade 100 2",
   "/golpe mensagem suspeita", "/quiz", "/resposta A",
@@ -63,7 +66,7 @@ export const COMANDOS = [
   "/plano objetivo", "/automacao tarefa", "/humor",
   "/auditar", "/copiar", "/diagnostico", "/rollback",
   "/modulos", "/modulo ID on|off", "/editar", "/tudotxt", "/erroremoto URL",
-  "/ia status", "/modelo nome", "/historico", "/nova", "/arquivos",
+  "/ia status", "/historico", "/nova", "/arquivos",
   "/abrir nome", "/buscar palavra", "/apagar nome",
   "/pasta Nome/Sub", "/pastas", "/mover nome para Pasta",
   "/palavra gíria = significado", "/palavras", "/profundo assunto",
@@ -74,7 +77,8 @@ const CHAVES_OCULTAS = new Set([
   "bach_gemini_key",
   "bach_creator_v1",
   "gh_adm_token_v1",
-  "bach_adm_erro_remote_v1"
+  "bach_adm_erro_remote_v1",
+  "bach_cloud_url_v1"
 ]);
 
 const CONHECIDAS = {
@@ -84,7 +88,8 @@ const CONHECIDAS = {
   bach_conhecimento_v1: "pesquisasAntigas",
   bach_mente_v1: "mente",
   bach_sessoes_v1: "conversas",
-  bach_chat_history_v1: "conversaAberta"
+  bach_chat_history_v1: "conversaAberta",
+  bach_neural_local_v1: "redeNeural"
 };
 
 const analisar = value => {
@@ -176,7 +181,7 @@ async function gerarTudoTxt(progresso = () => {}) {
 
   const cabecalho =
     "====================================================================================\n" +
-    "BACH AI 4.8 — PACOTE COMPLETO DE MÓDULOS E CÓDIGOS EM .TXT (MODO ADM)\n" +
+    "BACH AI 5.1 — PACOTE COMPLETO DE MÓDULOS E CÓDIGOS EM .TXT (MODO ADM)\n" +
     "Gerado em: " + new Date().toLocaleString("pt-BR") + "\n" +
     "Arquivos lidos: " + lidos + " de " + ARQUIVOS.length + "\n" +
     "====================================================================================\n\n" +
@@ -245,7 +250,7 @@ async function montar(context = {}) {
     ["Palavras aprendidas", quantidade(mente.lex)],
     ["Assuntos lembrados", quantidade(mente.assuntos)],
     ["Fatos cadastrados", context.totalFatos ?? "?"],
-    ["Departamentos no catálogo", 34],
+    ["Departamentos no catálogo", 36],
     ["Arquivos de código listados", ARQUIVOS.length]
   ];
 
@@ -265,7 +270,7 @@ async function montar(context = {}) {
 
   const backup = {
     bach: {
-      versao: "4.8",
+      versao: "5.1",
       geradoEm: new Date().toISOString()
     },
     tabelas: {
