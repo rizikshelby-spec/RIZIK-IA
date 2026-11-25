@@ -1,6 +1,7 @@
-/* BACH AI 2.6
+/* BACH AI 5.2 - FATOS 2.7
    Base de fatos verificados + distâncias espaciais/geográficas + respostas sobre a própria BACH.
-   Carregamento seguro de saberes.js (não quebra se faltar MAIS). */
+   Correções 2.7: libera termos curtos válidos (pi, sol, lua, dna, cpu, ram, pix) e adiciona
+   respostas diretas para fórmula de Pi, fruta do chocolate, membros do BTS, sereias e medidas comuns. */
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
@@ -9,6 +10,8 @@ const SEM_VALOR = new Set(("qual quais quem quanto quantos quantas como onde qua
   "de do da dos das em no na nos nas e eh ao aos me se fale fala falar diga dizer explique explica explicar sobre significa " +
   "significado definicao conceito mesmo voce vc eu sao foi ser ha tem existe existem exatamente basicamente resumo resuma " +
   "conte conta pode poderia favor pf entao ai tipo seria era passe passa manda mande quero preciso gostaria crie cria faca fazer ajuda ajude algum alguma uns umas pesquise pesquisa busque procure ensina ensine mostra mostre bach ate fica").split(" "));
+
+const CURTAS_VALIDAS = new Set(["pi", "sol", "lua", "dna", "adn", "pib", "cpu", "ram", "bit", "som", "pix", "bts"]);
 
 const stem = w => {
   w = w.replace(/(coes|oes|aes)$/, "ao");
@@ -100,12 +103,24 @@ const FATOS = [
  "🔋 A mitocôndria é a organela que produz a maior parte do ATP, a energia usada pela célula, na respiração celular."],
 ["ossos corpo humano|quantos ossos|ossos humano|esqueleto humano",
  "🦴 O corpo humano adulto tem 206 ossos. Bebês nascem com cerca de 270 a 300 peças, que vão se fundindo."],
+["cromossomos corpo humano|quantos cromossomos|cromossomos humano",
+ "🧬 As células humanas somáticas têm **46 cromossomos** (organizados em 23 pares). Os gametas (óvulo e espermatozoide) carregam 23 cada."],
+["semanas gestacao|quantas semanas gestacao|duracao gravidez|semanas gravidez",
+ "🤰 Uma gestação humana dura em média **40 semanas** (cerca de 9 meses), contadas a partir da data da última menstruação — considerando-se termo normal entre 37 e 42 semanas."],
+["ovulos mulher|quantos ovulos mulher|ovulos nascimento",
+ "🧬 Uma mulher já nasce com todos os seus folículos ovarianos: cerca de **1 a 2 milhões** ao nascer, reduzindo para ~300 a 400 mil na puberdade, dos quais cerca de **400 a 500** chegam a amadurecer como óvulos ao longo da vida reprodutiva."],
 ["coracao|coracao humano",
  "❤️ O coração humano tem 4 câmaras (2 átrios e 2 ventrículos) e bombeia o sangue pelo corpo. Em repouso, um adulto saudável costuma ter 60 a 100 batimentos por minuto."],
 ["maior orgao corpo humano|maior orgao|maior orgao corpo",
  "🫶 O maior órgão do corpo humano é a pele."],
 ["tipos sanguineos|tipo sanguineo|grupos sanguineos|tipos sangue",
  "🩸 Os principais grupos sanguíneos (sistema ABO) são A, B, AB e O, cada um podendo ser Rh positivo (+) ou negativo (−). O tipo O− é doador universal de hemácias e AB+ é receptor universal."],
+["fruta chocolate|feito chocolate|fruta feito chocolate|qual fruta chocolate|origem chocolate|cacau chocolate",
+ "🍫 O chocolate é feito a partir das sementes (amêndoas) do fruto do cacaueiro: o **cacau**!"],
+["membros bts|7 membros bts|integrantes bts|nome membros bts|nomes membros bts",
+ "🎤 Os **7 membros do BTS** são:\n1. **RM** (Kim Nam-joon — líder)\n2. **Jin** (Kim Seok-jin)\n3. **Suga** (Min Yoon-gi)\n4. **J-Hope** (Jung Ho-seok)\n5. **Jimin** (Park Ji-min)\n6. **V** (Kim Tae-hyung)\n7. **Jungkook** (Jeon Jung-kook)"],
+["sereias existem|existem sereias|sereia existe|existe sereia",
+ "🧜‍♀️ **Não existem provas científicas de que sereias reais existam.** Elas são seres lendários presentes na mitologia grega e no folclore de várias culturas. Historicamente, marinheiros às vezes confundiam animais marinhos — como peixes-bois e dugongos — com figuras humanas no mar."],
 ["maior animal|maior animal mundo|maior animal planeta",
  "🐋 O maior animal que já existiu (e existe hoje) é a baleia-azul: até ~30 m de comprimento e ~150 toneladas ou mais."],
 ["maior animal terrestre",
@@ -114,8 +129,8 @@ const FATOS = [
  "🦖 Os dinossauros não-avianos foram extintos há cerca de 66 milhões de anos, após o impacto de um grande asteroide (cratera de Chicxulub, México), somado a efeitos climáticos e vulcanismo. As aves são descendentes de dinossauros."],
 ["evolucao|selecao natural|darwin",
  "🐒 Evolução é a mudança das características das populações ao longo das gerações. Charles Darwin propôs a seleção natural em 'A Origem das Espécies' (1859): indivíduos mais adaptados ao ambiente tendem a deixar mais descendentes."],
-["pi|numero pi",
- "🔢 Pi (π) é a razão entre a circunferência de um círculo e seu diâmetro: ≈ 3,14159265. É um número irracional (infinitas casas decimais sem repetição)."],
+["pi|numero pi|formula pi|formula de pi|valor pi",
+ "🔢 **Pi (π)** é a razão entre o comprimento da circunferência (C) de um círculo e seu diâmetro (d):\n• **Fórmula:** `π = C ÷ d` (e o perímetro é `C = 2 × π × r`)\n• **Valor aproximado:** `3,14159265...` (é um número irracional com infinitas casas decimais)."],
 ["teorema pitagoras|pitagoras",
  "📐 Teorema de Pitágoras: em um triângulo retângulo, a² + b² = c², onde c é a hipotenusa (lado oposto ao ângulo reto) e a, b são os catetos."],
 ["bhaskara|formula bhaskara|equacao segundo grau",
@@ -232,6 +247,8 @@ const FATOS = [
  "📅 Um ano comum tem 365 dias e o bissexto tem 366 (fevereiro ganha o dia 29). São bissextos os anos divisíveis por 4, exceto os divisíveis por 100 que não sejam também por 400 (2000 foi bissexto; 1900 não)."],
 ["milha km|quantos km milha|1 milha|milha em km",
  "📏 1 milha ≈ 1,609 km. Para converter km em milhas, divida por 1,609."],
+["centimetros metro|quantos centimetros metro|1 metro centimetros",
+ "📏 1 metro equivale a **100 centímetros** (e 1.000 milímetros)."],
 ["celsius fahrenheit|converter celsius fahrenheit|fahrenheit celsius",
  "🌡️ °F = °C × 9/5 + 32. E °C = (°F − 32) × 5/9. Exemplo: 25 °C = 77 °F."]
 ];
@@ -311,12 +328,14 @@ function responder(texto) {
   let melhor = null, nota = 0;
   for (const e of BASE) {
     for (const f of e.frases) {
-      if (f.size === 1 && [...f][0].length < 4) continue;
+      const unica = f.size === 1 ? [...f][0] : "";
+      if (f.size === 1 && unica.length < 4 && !CURTAS_VALIDAS.has(unica)) continue;
       let tudo = true;
       for (const w of f) if (!q.has(w)) { tudo = false; break; }
       if (!tudo) continue;
       const cob = f.size / q.size;
-      if (cob < 0.75) continue;
+      const minCob = f.size >= 2 ? 0.65 : 0.75;
+      if (cob < minCob) continue;
       const n = cob + f.size * 0.01;
       if (n > nota) { nota = n; melhor = e; }
     }
