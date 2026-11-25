@@ -1,8 +1,9 @@
-/* BACH AI 5.1 — Conversa Natural, Humor Adaptativo & Memória da Sessão
+/* BACH AI 5.1 — Conversa Natural, Humor Adaptativo & Memória da Sessão (Blindado)
    Adapta o tom ao jeito do usuário ao longo da conversa (zero risada fora de hora),
-   acompanha contexto de respostas anteriores e entende gírias e falas cotidianas. */
+   acompanha contexto de respostas anteriores e entende gírias e falas cotidianas.
+   Segurança: Object.create(null) em giro, limite de entrada anti-travamento e filtro de segredos no resumo. */
 
-const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+const norm = t => String(t || "").slice(0, 600).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .replace(/\bqm\b/g, "quem")
   .replace(/\b(vc|vce|vv|oc|oce)\b/g, "voce")
   .replace(/\b(cvs|cv)\b/g, "conversar")
@@ -21,8 +22,10 @@ const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u030
   .replace(/\s+/g, " ")
   .trim();
 
-const giro = {};
+const giro = Object.create(null);
 const girar = (k, arr) => { giro[k] = ((giro[k] ?? -1) + 1) % arr.length; return arr[giro[k]]; };
+
+const ehEntradaSensivel = t => /^\/(?:adm|admsenha|ghconfig|chave)\b/i.test(String(t || "").trim()) || /@rizik2442/i.test(String(t || ""));
 
 const CURIOSIDADES = [
   "🐙 O polvo tem três corações e sangue azul (por causa da hemocianina, que leva cobre em vez de ferro).",
@@ -162,7 +165,7 @@ function ultimoAssuntoDaSessao(ctx) {
   const h = Array.isArray(ctx.history) ? ctx.history : [];
   for (let i = h.length - 1; i >= 0; i--) {
     const m = h[i];
-    if (!m || m.type !== "user" || !m.text) continue;
+    if (!m || m.type !== "user" || !m.text || ehEntradaSensivel(m.text)) continue;
     const nt = norm(m.text);
     if (nt.split(" ").length >= 3 && !/^(so segue|segue a conversar|burr|pqp|crlh|nao oush|combinado|se voce diz|dnv isso)/.test(nt)) {
       return String(m.text).slice(0, 80);
@@ -173,7 +176,9 @@ function ultimoAssuntoDaSessao(ctx) {
 
 function resumoSessaoCompleta(ctx) {
   const h = Array.isArray(ctx.history) ? ctx.history : [];
-  const falasUser = h.filter(m => m && m.type === "user" && m.text).map(m => String(m.text).trim());
+  const falasUser = h
+    .filter(m => m && m.type === "user" && m.text && !ehEntradaSensivel(m.text))
+    .map(m => String(m.text).trim());
   const assuntos = [];
   for (const f of falasUser) {
     const nt = norm(f);
@@ -196,15 +201,16 @@ function contextoEspacoRecente(ctx) {
 }
 
 function responder(texto, ctx = {}) {
-  const t = norm(texto).replace(/\bbash\b/g, "bach");
+  const raw = String(texto || "");
+  if (!raw || raw.length > 500) return null;
+  const t = norm(raw).replace(/\bbash\b/g, "bach");
   if (!t) return null;
   const n = ctx.nome ? ", " + ctx.nome : "";
   const palavras = t.split(" ").length;
   const h = ctx.hora ?? new Date().getHours();
-  const serio = estaSerioOuBravo(ctx, texto);
+  const serio = estaSerioOuBravo(ctx, raw);
   const leve = !serio && (ctx.mood === "descontraido" || (ctx.humorScore ?? 0) >= 1.2);
 
-  // Resposta da charada
   if (charadaAtual && /^(resposta|qual e|qual a resposta|desisto|nao sei|me diz|diz a resposta|revela)/.test(t)) {
     const r = charadaAtual[1]; charadaAtual = null;
     return "A resposta é: " + r + "\n\nQuer outra charada? Diga “outra charada”.";
@@ -214,7 +220,6 @@ function responder(texto, ctx = {}) {
     if (certa && t.includes(certa)) { const r = charadaAtual[1]; charadaAtual = null; return "🎉 Isso mesmo! Era " + r.charAt(0).toLowerCase() + r.slice(1) + "\nQuer outra? Diga “outra charada”."; }
   }
 
-  // Emergência com animal de estimação
   if (/\b(cachorro|cao|gato|pet|animal)\b/.test(t) && /\b(morrendo|passando mal|convulsao|sangrando|envenenado|desmaiou)\b/.test(t)) {
     return "🚨 **Procure um veterinário de emergência 24h imediatamente!**\n\n" +
       "Enquanto leva ele:\n" +
@@ -223,7 +228,6 @@ function responder(texto, ctx = {}) {
       "• Ligue para a clínica mais próxima avisando que está a caminho.";
   }
 
-  // Contexto de planetas / Plutão / distância na conversa
   const espacoCtx = contextoEspacoRecente(ctx);
   if (espacoCtx) {
     if (/\b(tem mais planetas|mais planetas|existe outros|existem outros|quais outros planetas)\b/.test(t)) {
@@ -234,17 +238,14 @@ function responder(texto, ctx = {}) {
     }
   }
 
-  // Pergunta filosófica sobre fé / Deus
   if (/\b(voce|bach)\b/.test(t) && /\b(acredita|cre|fe)\b/.test(t) && /\bdeus\b/.test(t)) {
     return "Como sou uma inteligência artificial feita de código e dados, eu não tenho fé nem crenças pessoais como um ser humano — mas respeito todas as religiões e posso pesquisar sobre a Bíblia, teologia ou história se você quiser.";
   }
 
-  // Lembrar do início ao fim da conversa atual
   if (/\b(lembra do inicio|lembra do comeco|do que ja falamos|resumo da conversa|inicio da conversa|tudo que falamos|comeco da conversa)\b/.test(t)) {
     return resumoSessaoCompleta(ctx);
   }
 
-  // Senso de humor e autocorreção
   if (/\b(senso de humor|sem humor|nao tem humor|sem graca|seja engracad[oa])\b/.test(t)) {
     return "Eu controlo meu humor pelo seu tom na conversa: quando percebo você falando sério ou frustrado, evito soltar risada ou piada fora de hora.\n\nQuando você brinca ou puxa um papo leve, eu entro no clima junto! Se quiser testar uma piada interativa agora, manda `piada`.";
   }
@@ -252,7 +253,6 @@ function responder(texto, ctx = {}) {
     return "Eu me corrijo de 3 formas reais:\n1. Reanaliso a pergunta ou a mensagem que você marcou (`↩ Responder`) quando você avisa que errei.\n2. Minha Rede Neural aprende quando você reformula uma pergunta após uma falha.\n3. O treino automático no GitHub atualiza os pesos neurais diariamente.\n\nVocê também pode ensinar qualquer resposta direta com `ensine: pergunta => resposta`!";
   }
 
-  // Pedido de N mensagens aleatórias
   const mAleat = t.match(/^(?:me\s+)?(?:manda|mandar|envia|enviar|escreve|escreva|fala|fale)\s+(\d{1,2})\s+mensagens?(?:\s+aleatoriamente|\s+aleatorias?)?$/);
   if (mAleat) {
     const qtd = Math.min(12, Math.max(1, Number(mAleat[1]) || 5));
@@ -261,12 +261,10 @@ function responder(texto, ctx = {}) {
       embaralhadas.map((f, i) => (i + 1) + ". " + f).join("\n");
   }
 
-  // Segurança: dados pessoais de terceiros
   if (/\b(passa|passe|manda|mande|me da|me de|descubra|descobre|ache|encontre|busque|busca|pesquise|quero|preciso)\b.*\b(dados|cpf|rg|endereco|telefone|whatsapp|numero|localizacao|onde mora|foto)\b.*\b(de|do|da)\s+(alguem|uma pessoa|um cara|um homem|uma mulher|uma garota|uma menina|um menino|fulano|ciclano|minha ex|meu ex|vizinho|vizinha|desconhecido|desconhecida)\b/.test(t)) {
     return "Não busco nem repasso dados pessoais de ninguém (CPF, endereço, telefone, localização): isso protege você e as outras pessoas. 🔒";
   }
 
-  // Meus dados
   if (/^(quais (sao )?)?(os )?meus dados$|^(o que )?(voce )?(sabe|guardou|guarda|tem) (sobre|de) mim$|^o que voce sabe de mim$/.test(t)) {
     const extra = [];
     if (ctx.cidade) extra.push("• Cidade: " + ctx.cidade);
@@ -278,12 +276,10 @@ function responder(texto, ctx = {}) {
       "\n• Conversas no histórico: " + (ctx.conversas ?? 0);
   }
 
-  // Crise
   if (/(me matar|suicid|nao quero (mais )?viver|quero morrer|acabar com (tudo|minha vida)|nao aguento mais viver)/.test(t)) {
     return "Sinto muito que você esteja passando por isso. Você não está sozinho(a), e o que você sente importa. 💜\n\nPor favor, fale agora com alguém: no Brasil o CVV atende 24 horas pelo telefone **188** (ligação gratuita) e pelo site **cvv.org.br**. Se estiver em perigo imediato, ligue **192** (SAMU).";
   }
 
-  // Falas reais do chat e perguntas curtas
   if (/^(?:no\s+)?o\s+que\s+voce\s+sabe(?:\s+fazer)?$/.test(t) || /^(?:me\s+)?(?:fala|diz|conta)\s+o\s+que\s+voce\s+(?:entende|sabe)$/.test(t) || /^o\s+que\s+voce\s+entende$/.test(t)) {
     return "Eu entendo e faço: **programação e Termux** (`/termux`), **criação de apps** (`/app`), **matemática e conversões**, **ortografia e sílabas** (`/revisar`, `/silabas`), **avaliação de sites** (`/site`), **tradução de idiomas**, **recomendações** (filmes, músicas, séries, animes) e **pesquisa na web**! Digite `/ajuda` para ver tudo.";
   }
@@ -366,7 +362,6 @@ function responder(texto, ctx = {}) {
     ]);
   }
 
-  // Dúvidas gerais de suporte / problema / configuração do aplicativo
   if (/\b(como (?:eu )?(?:resolvo|resolver|arrumo|arrumar|conserto|consertar|corrijo|corrigir) (?:esse|este|o|um) (?:problema|erro|bug|defeito)|entro na configuracao|configuracoes? do (?:aplicativo|app|celular|sistema))\b/.test(t)) {
     return "🛠️ Para eu te ajudar a resolver certinho, me conta **qual erro aparece** ou **de qual aplicativo/código** você está falando!\n\n" +
       "• Se for erro de **código** ou site: cole o trecho ou a mensagem de erro aqui (ou use `/revisar`).\n" +
@@ -374,7 +369,6 @@ function responder(texto, ctx = {}) {
       "• Se for **configuração de app no celular**: me diga o nome do aplicativo e o que está acontecendo!";
   }
 
-  // Falas curtas: apagar, sumir, erros do quê?, muitos erros
   if (/^(apagar|apaga|deletar|deleta|excluir|exclui)$/.test(t)) {
     return "Quer limpar o chat (`clear` ou `/clear`), começar uma conversa nova (`/nova`) ou apagar um arquivo salvo (`/apagar nome`)?";
   }
@@ -393,7 +387,6 @@ function responder(texto, ctx = {}) {
     return "Pois é, algumas falas curtas ainda precisam de ajuste. Me diga direto o que você queria testar (ex.: `/ajuda`, `/app pomodoro`, ou uma pergunta direta).";
   }
 
-  // Críticas de humor / melhorias
   if (/\b(humor ruim|piada ruim|piada bosta|piada sem graca)\b/.test(t)) {
     return "Beleza, vou manter o tom mais direto por aqui então. Qual assunto você quer agora?";
   }
@@ -416,19 +409,16 @@ function responder(texto, ctx = {}) {
     return "Tranquilo. Quando quiser perguntar ou testar algo, estou por aqui.";
   }
 
-  // Feedback de erro genérico
   if (/\b(nao foi isso|nao era isso|voce entendeu errado|entendeu errado|respondeu errado|nao perguntei isso|nao foi o que perguntei|nada a ver|voce errou|errou feio|nao tem nada a ver)\b/.test(t)) {
     return "Desculpa, entendi errado o que você queria. Me explica em poucas palavras o que você procura.";
   }
 
-  // "Fale" / "Vamos falar sobre o quê?"
   if (/^(fale|fala|fale algo|fala comigo|fale alguma coisa|me fale algo|vamos falar|vamos falar sobre o que|sobre o que vamos falar|sobre o que quer falar|sobre o que podemos falar)$/.test(t)) {
     return leve
       ? "Podemos falar sobre filmes, animes, músicas, ciência, Termux ou jogos!\n\n" + girar("curi", CURIOSIDADES)
       : girar("perg", PERGUNTAS);
   }
 
-  // Recomendações diretas
   if (/\b(recomenda|recomend\w*|indica|indique|sugere|sugira|procura|procure|quero ouvir|quero ver|quero assistir)\b/.test(t)) {
     if (/\b(musica|musicas|som|cancao|cancoes)\b/.test(t)) {
       if (/rock/.test(t)) return MUSICAS_BR.rock;
@@ -442,7 +432,6 @@ function responder(texto, ctx = {}) {
     if (/\b(anime|animes)\b/.test(t) && !/\bsobre\b/.test(t)) return ANIMES_LISTA;
   }
 
-  // Cumprimentos (inclusive OiOi)
   if (/^(?:(?:o+i+)+|r?o+i+|o+l+a+|eai|e ai|opa+|salve|hey|hello|hi|o+i+e+|alo+|hola|bonjour|ciao|hallo)(?:\s+(?:o+i+|bach|bach ai|tudo bem))?$/.test(t)) {
     const s = SAUD[periodo(h)];
     return leve
