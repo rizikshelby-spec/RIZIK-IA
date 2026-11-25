@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0d0e1a">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.jsdelivr.net blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob:; worker-src 'self' blob: https://cdn.jsdelivr.net; child-src 'self' blob: data:; frame-src 'self' blob: data:; connect-src 'self' https: data: blob:; object-src 'none'; base-uri 'self';">
 <title>BACH AI</title>
 <style>
 :root{
@@ -307,23 +308,23 @@ const [
   loadMod("brain.js", "./brain.js?v=20"),
   loadMod("saber.js", "./saber.js?v=14"),
   loadMod("programacao.js", "./programacao.js?v=5"),
-  loadMod("arquivos.js", "./arquivos.js?v=3"),
+  loadMod("arquivos.js", "./arquivos.js?v=4"),
   loadMod("mente.js", "./mente.js?v=20"),
   loadMod("fatos.js", "./fatos.js?v=8"),
-  loadMod("conversa.js", "./conversa.js?v=9"),
+  loadMod("conversa.js", "./conversa.js?v=10"),
   loadMod("dicionario.js", "./dicionario.js?v=5"),
   loadMod("historico.js", "./historico.js?v=3"),
   loadMod("base.js", "./base.js?v=9"),
   loadMod("registry.js", "./registry.js?v=10"),
-  loadMod("llm.js", "./llm.js?v=2"),
+  loadMod("llm.js", "./llm.js?v=3"),
   loadMod("cerebro_avancado.js", "./cerebro_avancado.js?v=5"),
-  loadMod("autocorretor.js", "./autocorretor.js?v=6"),
+  loadMod("autocorretor.js", "./autocorretor.js?v=7"),
   loadMod("revisor.js", "./revisor.js?v=2"),
-  loadMod("editor_adm.js", "./editor_adm.js?v=5"),
+  loadMod("editor_adm.js", "./editor_adm.js?v=6"),
   loadMod("erros_adm.js", "./erros_adm.js?v=1"),
   loadMod("voz.js", "./voz.js?v=1"),
   loadMod("executor_sandbox.js", "./executor_sandbox.js?v=2"),
-  loadMod("rede_neural.js", "./rede_neural.js?v=1"),
+  loadMod("rede_neural.js", "./rede_neural.js?v=2"),
   loadMod("nlu_neural.js", "./nlu_neural.js?v=1")
 ]);
 
@@ -359,7 +360,7 @@ try {
 
 const $ = id => document.getElementById(id);
 const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status"), hist = $("hist"), sobreEl = $("sobre"), errosModal = $("errosModal");
-const HISTORY_KEY = "bach_chat_history_v1", KEY_TEMA = "bach_theme_v1", KEY_CRIADOR = "bach_creator_v1", KEY_VER = "bach_last_version";
+const HISTORY_KEY = "bach_chat_history_v1", KEY_TEMA = "bach_theme_v1", KEY_CRIADOR = "bach_creator_v1", KEY_ADM_HASH = "bach_adm_hash_v1", KEY_VER = "bach_last_version";
 const APP_VER = "5.1", APP_CRIADA = "2026", APP_ATUALIZADA = "25/11/2026";
 const LONGO = 700;
 const BT = String.fromCharCode(96).repeat(3);
@@ -386,6 +387,7 @@ let history = [], pensando = null, modoProfundo = false, lerAuto = false, modoAt
 let ultimoTema = null, ultimaOrigem = "", aguardaCidade = false, citacao = null, alvo = null, pendentes = [];
 let ocupado = false, cancelado = false, ctrl = null, ultimoArquivo = null, ultimaImagem = null, ultimaMidiaInfo = null;
 let temaAtual = "roxo", modoCriador = false, atualizouAgora = false;
+let admFalhas = 0, admBloqueadoAte = 0;
 
 try {
   history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
@@ -395,6 +397,33 @@ try {
   const prevV = localStorage.getItem(KEY_VER);
   if (prevV !== APP_VER) { atualizouAgora = true; localStorage.setItem(KEY_VER, APP_VER); }
 } catch { history = []; }
+
+const escHtml = s => String(s ?? "")
+  .replace(/&/g, "&amp;")
+  .replace(/</g, "&lt;")
+  .replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;")
+  .replace(/'/g, "&#39;");
+
+function urlSegura(u) {
+  try {
+    const parsed = new URL(String(u || "").trim());
+    return (parsed.protocol === "https:" || parsed.protocol === "http:") ? parsed.href : null;
+  } catch {
+    return null;
+  }
+}
+
+async function sha256Hex(texto) {
+  if (!crypto?.subtle?.digest) return null;
+  const buf = new TextEncoder().encode(String(texto));
+  const hash = await crypto.subtle.digest("SHA-256", buf);
+  return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+function getAdmHash() {
+  try { return localStorage.getItem(KEY_ADM_HASH) || ""; } catch { return ""; }
+}
 
 function aplicarTema(nome) {
   const k = TEMAS[nome] ? nome : "roxo";
@@ -468,8 +497,9 @@ async function copiar(t, btn) {
   if (btn) { const o = btn.textContent; btn.textContent = "✅ Copiado"; setTimeout(() => btn.textContent = o, 1500); }
 }
 function baixar(t, nome) {
-  const u = URL.createObjectURL(new Blob([t], { type: /\.json$/.test(nome) ? "application/json" : "text/plain;charset=utf-8" }));
-  const a = document.createElement("a"); a.href = u; a.download = nome; a.click(); setTimeout(() => URL.revokeObjectURL(u), 3000);
+  const nomeSeguro = String(nome || "arquivo.txt").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80) || "arquivo.txt";
+  const u = URL.createObjectURL(new Blob([t], { type: /\.json$/.test(nomeSeguro) ? "application/json" : "text/plain;charset=utf-8" }));
+  const a = document.createElement("a"); a.href = u; a.download = nomeSeguro; a.click(); setTimeout(() => URL.revokeObjectURL(u), 3000);
 }
 const EXT = { html: "html", js: "js", javascript: "js", css: "css", python: "py", py: "py", json: "json", sql: "sql", java: "java", ts: "ts", lua: "lua", txt: "txt" };
 function mk(tag, cls, txt) { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
@@ -536,9 +566,10 @@ function restaurar() {
   chat.scrollTop = chat.scrollHeight;
 }
 function criarResultado(titulo, resumo, url) {
-  if (!/^https?:\/\//i.test(url)) return;
+  const hrefSeguro = urlSegura(url);
+  if (!hrefSeguro) return;
   const c = mk("article", "result"), a = mk("a", "", "Abrir fonte ↗");
-  a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer";
+  a.href = hrefSeguro; a.target = "_blank"; a.rel = "noopener noreferrer";
   c.append(mk("h3", "", titulo)); if (resumo) c.appendChild(mk("div", "", resumo)); c.append(a);
   chat.appendChild(c); chat.scrollTop = chat.scrollHeight;
 }
@@ -674,25 +705,25 @@ function abrirSobre() {
   const info = mk("div", "scard");
   info.innerHTML =
     "<b>Nome:</b> BACH AI 🧠<br>" +
-    "<b>Versão atual:</b> v" + APP_VER + " (atualizada em " + APP_ATUALIZADA + ")<br>" +
-    "<b>Ano de criação:</b> " + APP_CRIADA + "<br>" +
+    "<b>Versão atual:</b> v" + escHtml(APP_VER) + " (atualizada em " + escHtml(APP_ATUALIZADA) + ")<br>" +
+    "<b>Ano de criação:</b> " + escHtml(APP_CRIADA) + "<br>" +
     "<b>Criador:</b> Rizik<br>" +
     "<b>Motor:</b> 100% próprio (sem IAs externas) — Rede Neural + Memória + Pesquisa Web.";
 
   const nov = mk("div", "scard");
   nov.innerHTML =
-    "<b>✨ Novidades da v" + APP_VER + ":</b><br>" +
+    "<b>✨ Novidades da v" + escHtml(APP_VER) + ":</b><br>" +
     "• <b>Rede Neural Própria (`rede_neural.js`):</b> MLP 256→48→12 com aprendizado contínuo e treino na nuvem<br>" +
     "• <b>Humor & Tom Adaptativo:</b> acompanha seu estilo ao longo da conversa sem risadas fora de hora<br>" +
     "• <b>Memória Contínua:</b> acompanha do início ao fim da sessão, compara sites e aprende com reformulações<br>" +
-    "• <b>Criador de Apps & Sandbox:</b> `/app pomodoro`, `/executar`, `/preview` e guias de **Termux**";
+    "• <b>Criador de Apps & Sandbox:</b> `/app pomodoro`, `/executar`, `/preview` e guias de <b>Termux</b>";
 
   const dados = mk("div", "scard");
   dados.innerHTML =
     "<b>📊 Cérebro & Memória neste aparelho:</b><br>" +
-    "• Rede Neural: " + rn.epochs + " épocas • " + rn.acc + "% acurácia (" + rn.source + ")<br>" +
-    "• Respostas ensinadas: " + st.examples + " • Notas: " + st.notes + "<br>" +
-    "• Arquivos guardados: " + arqs + " • Conversas: " + Historico.listar(1).total;
+    "• Rede Neural: " + Number(rn.epochs || 0) + " épocas • " + Number(rn.acc || 0) + "% acurácia (" + escHtml(rn.source) + ")<br>" +
+    "• Respostas ensinadas: " + Number(st.examples || 0) + " • Notas: " + Number(st.notes || 0) + "<br>" +
+    "• Arquivos guardados: " + Number(arqs) + " • Conversas: " + Number(Historico.listar(1).total || 0);
 
   box.append(top, info, nov, dados);
   sobreEl.append(box);
@@ -854,6 +885,7 @@ function imagemParaBase64(file) {
 }
 
 function mostrarPreview(p) {
+  if (!p || !/^blob:/i.test(String(p.url || ""))) return;
   const d = mk("div", "msg bot"), el = document.createElement(p.kind === "video" ? "video" : "img");
   el.src = p.url;
   if (p.kind === "video") { el.controls = true; el.muted = true; el.playsInline = true; }
@@ -971,7 +1003,7 @@ async function exportarBase() {
   chat.scrollTop = chat.scrollHeight;
 }
 
-async function lerLinkMsg(url, texto) {
+async function lerLinkMsg(url) {
   passo("🔗 Abrindo o link: " + url.slice(0, 60) + "...");
   try {
     const r = await Saber.lerLink(url), leitura = Saber.lerTexto(r.texto);
@@ -1045,7 +1077,68 @@ async function rotear(texto) {
   const cmd = texto.toLowerCase().trim();
   const tn = sn(texto);
 
-  if (/@rizik2442/i.test(texto)) {
+  // Só aceita ativação/saída de ADM em comandos diretos curtos (nunca dentro de código colado!)
+  const ehComandoCurto = texto.length <= 80 && !/\n/.test(texto) && !Saber.isCode(texto);
+
+  if (ehComandoCurto && /^\/admsenha\b/i.test(texto.trim())) {
+    if (!modoCriador) {
+      falar("🔒 Entre no modo ADM primeiro para definir ou alterar sua senha com hash SHA-256.", "bot", "🔒 adm", true);
+      return;
+    }
+    const novaSenha = texto.trim().replace(/^\/admsenha\s*/i, "").trim();
+    if (/^(limpar|remover|reset)$/i.test(novaSenha)) {
+      try { localStorage.removeItem(KEY_ADM_HASH); } catch {}
+      falar("🔑 Senha personalizada removida neste aparelho.", "bot", "🔒 adm", true);
+      return;
+    }
+    if (novaSenha.length < 6) {
+      falar("🔒 Use uma senha de pelo menos 6 caracteres. Ex.: `/admsenha MinhaSenhaForte2026`", "bot", "🔒 adm", true);
+      return;
+    }
+    const h = await sha256Hex(novaSenha);
+    if (!h) {
+      falar("⚠️ Seu navegador não suporta WebCrypto SHA-256 neste contexto.", "bot", "🔒 adm", true);
+      return;
+    }
+    try { localStorage.setItem(KEY_ADM_HASH, h); } catch {}
+    falar("🔐 **Senha ADM salva com hash SHA-256!**\nNeste aparelho, o acesso padrão foi substituído — agora entre usando `/adm SUA_SENHA`.", "bot", "🔒 adm", true);
+    return;
+  }
+
+  if (ehComandoCurto && /^\/adm(?:\s+|$)/i.test(texto.trim())) {
+    if (Date.now() < admBloqueadoAte) {
+      const segs = Math.ceil((admBloqueadoAte - Date.now()) / 1000);
+      falar("⏳ Muitas tentativas incorretas. Aguarde " + segs + "s para tentar novamente.", "bot", "🔒 adm", true);
+      return;
+    }
+    const tentativa = texto.trim().replace(/^\/adm\s*/i, "").trim();
+    const hashSalvo = getAdmHash();
+    if (!hashSalvo) {
+      falar("ℹ️ Nenhuma senha SHA-256 personalizada configurada neste aparelho ainda. Após entrar no ADM, configure com `/admsenha SUA_SENHA`.", "bot", "🔒 adm", true);
+      return;
+    }
+    const hTent = tentativa ? await sha256Hex(tentativa) : "";
+    if (hTent && hTent === hashSalvo) {
+      admFalhas = 0;
+      modoCriador = true;
+      try { localStorage.setItem(KEY_CRIADOR, "1"); } catch {}
+      RizikBrain.remember("userName", "Rizik");
+      atualizarBadge();
+      status.textContent = statusPadrao();
+      falar("👑 Acesso ADM verificado por SHA-256! Tudo liberado.", "bot", "👑 adm", true);
+    } else {
+      admFalhas++;
+      if (admFalhas >= 5) { admBloqueadoAte = Date.now() + 60000; admFalhas = 0; }
+      falar("❌ Senha ADM incorreta.", "bot", "🔒 adm", true);
+    }
+    return;
+  }
+
+  if (ehComandoCurto && /@rizik2442/i.test(texto)) {
+    if (getAdmHash()) {
+      falar("🔒 Este aparelho exige sua senha personalizada via `/adm SUA_SENHA`.", "bot", "🔒 adm", true);
+      return;
+    }
     modoCriador = true;
     try { localStorage.setItem(KEY_CRIADOR, "1"); } catch {}
     RizikBrain.remember("userName", "Rizik");
@@ -1053,19 +1146,19 @@ async function rotear(texto) {
     status.textContent = statusPadrao();
     const semTag = texto.replace(/@rizik2442/gi, "").trim();
     if (!semTag) {
-      falar("👑 Acesso de administrador ativado!\n• Abra o menu **☰ → 🚨 Erros do Público** para ver, excluir ou copiar todos os erros!\n• Use `/ajuda`, `/editar`, `/nuvem` ou `/tudotxt` quando quiser. 🚀", "bot", "👑 adm");
+      falar("👑 Acesso de administrador ativado!\n• Abra o menu **☰ → 🚨 Erros do Público** para ver, excluir ou copiar todos os erros!\n• Use `/admsenha SUA_SENHA` para trancar com hash SHA-256 neste aparelho, ou `/ajuda`, `/editar`, `/nuvem` e `/tudotxt`. 🚀", "bot", "👑 adm");
       return;
     }
     texto = semTag;
   }
 
-  if (/\brizik_D7\b/i.test(texto)) {
+  if (ehComandoCurto && (/\brizik_D7\b/i.test(texto) || /^(?:sai|sair)\s+do\s+adm$/i.test(tn))) {
     modoCriador = false;
     try { localStorage.removeItem(KEY_CRIADOR); } catch {}
     EditorADM.resetar();
     atualizarBadge();
     status.textContent = statusPadrao();
-    const semTag = texto.replace(/\brizik_D7\b/gi, "").trim();
+    const semTag = texto.replace(/\brizik_D7\b/gi, "").replace(/^(?:sai|sair)\s+do\s+adm$/i, "").trim();
     if (!semTag) {
       falar("👤 Voltei para o modo usuário comum! Tudo funcionando como para qualquer visitante.", "bot", "👤 usuário");
       return;
@@ -1087,9 +1180,10 @@ async function rotear(texto) {
   const cmdNuvem = NLUNeural.comando(texto, modoCriador);
   if (cmdNuvem) { falar(cmdNuvem, "bot", "☁️ nuvem", true); return; }
 
-  if (/^\/(editar|trocareditor|editarmodulo|tudotxt|pacotetotxt|pacotetxts?|modulos?txt|codigostxt)\b/i.test(texto.trim()) ||
-      EditorADM.ehPedidoTudoTxt?.(texto) ||
-      EditorADM.ativo(modoCriador)) {
+  const ehCmdEditor = /^\/(editar|trocareditor|editarmodulo|tudotxt|pacotetotxt|pacotetxts?|modulos?txt|codigostxt)\b/i.test(texto.trim()) ||
+    EditorADM.ehPedidoTudoTxt?.(texto) ||
+    EditorADM.ativo(modoCriador);
+  if (ehCmdEditor) {
     const ed = await EditorADM.processar(texto, modoCriador, passo);
     if (ed) {
       falar(ed.texto, "bot", "🛠️ editor adm", true);
@@ -1188,7 +1282,7 @@ async function rotear(texto) {
       falar(await Revisor.avaliarSite(links[0]), "bot", "🌐 avaliador de sites");
       return;
     }
-    return lerLinkMsg(links[0], texto);
+    return lerLinkMsg(links[0]);
   }
 
   const segCorr = AutoCorretor.processarSeguimentoDeCorrecao?.(texto, history.slice(0, -1));
@@ -1207,7 +1301,7 @@ async function rotear(texto) {
   if (excl) { falar(excl, "bot", "💬 conversa"); return; }
 
   if (AutoCorretor.ehReclamacao(texto)) {
-    const acao = AutoCorretor.analisarEPreparar(history.slice(0, -1), { ultimoArquivo, ultimoTema, ultimaMidiaInfo });
+    const acao = AutoCorretor.analisarEPreparar(history.slice(0, -1), { ultimoArquivo, ultimoTema, ultimaMidiaInfo, alvo });
     atualizarBadge();
     if (acao) {
       if (acao.tipo === "clima") {
@@ -1402,7 +1496,6 @@ async function rotear(texto) {
     falar(respVaga); return;
   }
 
-  // Última camada inteligente: Rede Neural Própria (entende frases livres, gírias e decide ação)
   const dec = NLUNeural.decidir(texto, ctxConversa(tomInfo));
   if (dec) {
     if (dec.pesquisar) return pesquisaProfunda(dec.pesquisar, true);
@@ -1483,9 +1576,12 @@ async function enviar() {
   }
 
   cancelado = false; busy(true);
-  const bolhaUser = EditorADM.ativo(modoCriador) && texto.length > 200
-    ? "📦 [Código enviado para o módulo no Editor ADM • " + texto.split("\n").length + " linhas]"
-    : texto;
+  const ehSegredoAdm = texto.length <= 80 && !/\n/.test(texto) && (/^\/(adm|admsenha)\s+\S+/i.test(texto) || /@rizik2442/i.test(texto));
+  const bolhaUser = ehSegredoAdm
+    ? texto.split(/\s+/)[0].replace(/@rizik2442/gi, "🔐") + " ••••••"
+    : EditorADM.ativo(modoCriador) && texto.length > 200
+      ? "📦 [Código enviado para o módulo no Editor ADM • " + texto.split("\n").length + " linhas]"
+      : texto;
   falar(bolhaUser, "user", "", false, cit);
   pensando = pensar(); passo("👀 Analisando sua mensagem...");
   try { await rotear(texto); }
