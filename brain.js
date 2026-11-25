@@ -1,8 +1,8 @@
-/* BACH AI 5.4 - CÉREBRO 3.0 (Memória em 3 Camadas + Consciência Situacional + Busca Semântica)
+/* BACH AI 5.4 - CÉREBRO 3.1 (Memória em 3 Camadas + Resumo do Aprendizado + Busca Semântica)
    - Camada 1 (Curto Prazo): sessionState em sessionStorage (emoção, situação, fio da conversa).
    - Camada 2 (Estruturada): perfil completo (nome, cidade, idade, profissão, turno, gostos, projetos).
    - Camada 3 (Semântica): matching com radicais em português + Levenshtein em ensinamentos e notas.
-   - Proteção total contra Prototype Pollution e gravação acidental de segredos. */
+   - Responde naturalmente a "O que você aprendeu?" listando ensinamentos, sinônimos, notas e perfil. */
 
 const KEY = "rizik_brain_v1";
 const KEY_SESSION = "bach_session_state_v1";
@@ -230,7 +230,7 @@ const CORE_WORDS = (
   "programacao codigo javascript python html css sql github arquivo pasta imagem foto video texto " +
   "ajuda ajudar aprender ensinar estudar escrever falar ouvir ler criar jogar lembrar esquecer memoria " +
   "gosto adoro curto odeio moro cidade idade trabalho projeto ideia problema solucao resposta pergunta " +
-  "turno noite dia dialogo conversa triste cansado odio raiva profissao " +
+  "turno noite dia dialogo conversa triste cansado odio raiva profissao aprendeu ensinei " +
   "hello hi hey thanks please sorry bye hola gracias adios bonjour merci ciao hallo danke"
 ).split(" ");
 
@@ -610,6 +610,7 @@ function classify(message) {
   if (/^(onde (eu )?moro|qual (e )?(a )?minha cidade)$/.test(t)) return "city";
   if (/^(quantos anos (eu )?tenho|qual (e )?(a )?minha idade)$/.test(t)) return "age";
   if (/^(do que eu gosto|quais (sao )?(os )?meus gostos)$/.test(t)) return "likes";
+  if (/^(?:mostr[ae]\s+)?(?:o que|quais coisas)\s+(?:voce\s+)?(?:ja\s+)?(?:aprendeu|aprendendo|memorizou|te ensinei|eu te ensinei)(?:\s+(?:comigo|ate agora|ate aqui|hoje|de mim|sobre mim))?$/.test(t)) return "learnedSummary";
   if (/^(o que voce lembra de mim|o que voce sabe de mim|o que voce sabe sobre mim|lembra do que falamos|do que falamos|quais assuntos falamos)$/.test(t)) return "memorySummary";
   return "unknown";
 }
@@ -641,6 +642,32 @@ const HELP =
   "• o que significa ... / como se diz ... em inglês / clima em (sua cidade)\n\n" +
   "🛠️ Ferramentas rápidas\n" +
   "• /ajuda • /app pomodoro • /calc • /converter • /juros • /fisica • /golpe • /quiz";
+
+function buildLearnedSummary() {
+  const syns = Object.entries(data.synonyms || {});
+  const out = ["🧠 **O QUE EU JÁ APRENDI ATÉ AGORA:**\n"];
+
+  if (data.examples.length) {
+    out.push("📚 **Respostas que você me ensinou (" + data.examples.length + "):**");
+    for (const ex of data.examples.slice(-8).reverse()) {
+      out.push("• “" + ex.question + "” → " + String(ex.answer).slice(0, 90) + (ex.answer.length > 90 ? "…" : ""));
+    }
+    out.push("");
+  } else {
+    out.push("📚 **Respostas ensinadas:** ainda nenhuma (você pode ensinar com `ensine: pergunta => resposta`).\n");
+  }
+
+  if (syns.length) {
+    out.push("🔁 **Sinônimos aprendidos (" + syns.length + "):** " + syns.slice(-10).map(([a, b]) => a + " = " + b).join(", ") + "\n");
+  }
+
+  if (data.notes.length) {
+    out.push("📝 **Notas guardadas (" + data.notes.length + "):** " + data.notes.slice(-5).map(n => n.text).join(" | ") + "\n");
+  }
+
+  out.push(buildMemorySummary());
+  return out.join("\n");
+}
 
 function buildMemorySummary() {
   const nome = recall("userName");
@@ -886,6 +913,8 @@ function think(message) {
       return R(data.profile.age ? "Você me disse que tem " + data.profile.age + " anos. 🎂" : "Ainda não sei sua idade.", intent);
     case "likes":
       return R(data.profile.likes.length ? "Você me contou que gosta de: " + data.profile.likes.join(", ") + "." : "Ainda não sei do que você gosta. Me conta!", intent);
+    case "learnedSummary":
+      return R(buildLearnedSummary(), "memorySummary");
     case "memorySummary":
       return R(buildMemorySummary(), intent);
     default:
