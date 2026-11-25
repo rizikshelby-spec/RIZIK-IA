@@ -8,83 +8,98 @@
 <title>BACH AI</title>
 <style>
 :root{
-  --bg:#0d0e1a;--panel:rgba(22,24,42,.84);--panel2:rgba(16,18,32,.92);
+  --bg:#0d0e1a;--panel:rgba(20,22,38,.90);--panel2:rgba(14,16,30,.96);
   --border:rgba(138,118,255,.32);--accent:#8266ff;--accent2:#e056fd;
-  --text:#f5f6ff;--muted:#b4b8d8;--bot:rgba(30,34,60,.16);--user:rgba(98,66,220,.22);
+  --text:#f5f6ff;--muted:#b4b8d8;--bot:rgba(22,25,46,.78);--user:rgba(88,58,205,.54);
   --orb1:#8c6eff;--orb2:#ff4fd8;--orbGlow:rgba(140,110,255,.65);
 }
 *{box-sizing:border-box}
 html,body{height:100%}
-body{margin:0;background:radial-gradient(circle at top,rgba(255,255,255,.04),transparent 55%),var(--bg);color:var(--text);font-family:Arial,sans-serif;display:flex;flex-direction:column;height:100dvh;overflow:hidden;transition:background .4s ease}
-#orb-bg{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+body{margin:0;background:radial-gradient(circle at top,rgba(255,255,255,.04),transparent 55%),var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;transition:background .4s ease}
+#orb-bg{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:.68}
 header,#modos,#chat,#barras,footer{position:relative;z-index:1}
-header{padding:10px 14px;background:var(--panel);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);flex:none}
-.htop{display:flex;align-items:center;gap:10px}
-#btnDrawer{width:38px;height:38px;padding:0;font-size:20px;background:rgba(255,255,255,.08);border:1px solid var(--border);border-radius:11px;display:flex;align-items:center;justify-content:center}
+
+header{padding:11px 16px;background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--border);flex:none}
+.htop{display:flex;align-items:center;gap:12px;max-width:860px;margin:0 auto}
+#btnDrawer{width:40px;height:40px;padding:0;font-size:20px;background:rgba(255,255,255,.08);border:1px solid var(--border);border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none}
 .hbrand{flex:1;min-width:0}
 .htitle{display:flex;align-items:center;gap:8px}
 h2{margin:0;background:linear-gradient(90deg,#fff,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent;font-size:19px}
 #verBadge{font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.1);border:1px solid var(--border);color:var(--text);cursor:pointer;font-weight:bold}
 #verBadge.nova{background:linear-gradient(90deg,var(--accent),var(--accent2));border-color:transparent}
-#status{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
-#modos{display:flex;gap:6px;overflow-x:auto;padding:7px 10px;background:var(--panel2);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);flex:none}
+#status{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
+
+#modos{display:flex;gap:8px;overflow-x:auto;padding:8px 14px;background:var(--panel2);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--border);flex:none;-webkit-overflow-scrolling:touch}
 #modos::-webkit-scrollbar{display:none}
-.modo{flex:none;padding:5px 11px;font-size:12px;font-weight:normal;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:999px;color:var(--text);cursor:pointer;transition:.2s}
+.modo{flex:none;padding:6px 12px;font-size:12px;font-weight:normal;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:999px;color:var(--text);cursor:pointer;transition:.2s;white-space:nowrap}
 .modo.on{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent;color:#fff;font-weight:bold;box-shadow:0 2px 12px var(--orbGlow)}
-#chat{flex:1;overflow:auto;padding:12px 10px 16px;width:100%;max-width:850px;margin:0 auto}
-.msg{padding:9px 12px;margin:6px 0;border-radius:15px;max-width:85%;width:fit-content;line-height:1.48;overflow-wrap:anywhere;font-size:14px;backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);text-shadow:0 1px 2px rgba(0,0,0,.75)}
+
+#chat{flex:1;min-height:0;overflow-y:auto;padding:14px 12px 22px;width:100%;max-width:860px;margin:0 auto;display:block}
+.msg{padding:11px 14px;margin:10px 0 4px;border-radius:17px;max-width:min(86%,680px);width:fit-content;line-height:1.52;overflow-wrap:anywhere;font-size:14.5px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 4px 16px rgba(0,0,0,.22)}
 .msg .t{white-space:pre-wrap}
-.bot{background:var(--bot);border:1px solid var(--border);margin-right:auto}
-.user{background:var(--user);border:1px solid rgba(255,255,255,.22);margin-left:auto;box-shadow:0 3px 14px rgba(0,0,0,.15)}
-.pensando{opacity:.88;border-style:dashed;white-space:pre-line}
-.acoes{display:flex;gap:6px;margin:-2px 0 6px}
-.acoes button{padding:3px 9px;font-size:12px;font-weight:normal;background:rgba(255,255,255,.08);backdrop-filter:blur(6px);border-radius:10px;color:var(--text)}
-.meta{color:var(--muted);font-size:11px;margin:2px 4px 4px;white-space:pre-line}
-.cartao{border:1px solid var(--border);border-radius:10px;margin:6px 0;background:rgba(0,0,0,.25);overflow:hidden;min-width:230px}
-.topo{display:flex;align-items:center;gap:6px;padding:6px 8px;font-size:12px;color:#e4ddff}
-.topo span{flex:1}
-.topo button{padding:4px 9px;font-size:12px;font-weight:normal;background:rgba(255,255,255,.12);border-radius:8px}
+.bot{background:var(--bot);border:1px solid var(--border);border-bottom-left-radius:6px;margin-right:auto}
+.user{background:var(--user);border:1px solid rgba(255,255,255,.22);border-bottom-right-radius:6px;margin-left:auto}
+.pensando{opacity:.9;border-style:dashed;white-space:pre-line}
+
+.acoes{display:flex;gap:6px;margin:2px 2px 8px;flex-wrap:wrap}
+.acoes.user{justify-content:flex-end}
+.acoes button{padding:4px 10px;font-size:12px;font-weight:normal;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(6px);border-radius:10px;color:var(--text)}
+.meta{color:var(--muted);font-size:11px;margin:0 4px 10px;white-space:pre-line}
+
+.cartao{border:1px solid var(--border);border-radius:12px;margin:8px 0;background:rgba(10,12,24,.68);overflow:hidden;min-width:230px}
+.topo{display:flex;align-items:center;gap:8px;padding:8px 10px;font-size:12px;color:#e4ddff}
+.topo span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topo button{padding:5px 10px;font-size:12px;font-weight:normal;background:rgba(255,255,255,.12);border-radius:8px}
 .cartao details{border-top:1px solid rgba(255,255,255,.1)}
-.cartao summary{padding:5px 8px;font-size:12px;color:var(--muted);cursor:pointer}
-.cartao pre{margin:0;padding:8px;max-height:320px;overflow:auto;font-size:12px;line-height:1.4;white-space:pre-wrap;color:#eef0ff}
-.result{background:var(--bot);border:1px solid var(--border);border-radius:12px;padding:10px;margin:6px 0;max-width:88%;font-size:13px;backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);text-shadow:0 1px 2px rgba(0,0,0,.75)}
+.cartao summary{padding:6px 10px;font-size:12px;color:var(--muted);cursor:pointer}
+.cartao pre{margin:0;padding:10px;max-height:320px;overflow:auto;font-size:12px;line-height:1.45;white-space:pre-wrap;color:#eef0ff}
+
+.result{background:var(--bot);border:1px solid var(--border);border-radius:14px;padding:11px 14px;margin:8px 0;max-width:min(86%,680px);font-size:13px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .result h3{margin:0 0 6px;color:#fff;font-size:14px}.result a{color:var(--accent2);overflow-wrap:anywhere;font-weight:bold}
-.msg img,.msg video{max-width:100%;border-radius:10px;display:block}
-footer{flex:none;display:flex;align-items:flex-end;gap:6px;padding:8px 10px;background:var(--panel);backdrop-filter:blur(12px);padding-bottom:max(8px,env(safe-area-inset-bottom));border-top:1px solid var(--border)}
-input[type=text]{flex:1;min-width:0;padding:11px;border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.35);color:#fff;font-size:16px}
-button{padding:10px 14px;border:0;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:bold;cursor:pointer}
+.msg img,.msg video{max-width:100%;border-radius:12px;display:block}
+
+footer{flex:none;background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--border);padding:9px 12px;padding-bottom:max(9px,env(safe-area-inset-bottom))}
+.fwrap{display:flex;align-items:flex-end;gap:8px;width:100%;max-width:860px;margin:0 auto}
+input[type=text]{flex:1;min-width:0;padding:11px;border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.38);color:#fff;font-size:16px}
+button{padding:10px 15px;border:0;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:bold;cursor:pointer}
 button.stop{background:#c0392b}
-#mais,#mic{width:42px;height:44px;padding:0;font-size:20px;background:rgba(255,255,255,.1);border:1px solid var(--border);flex:none}
-#enviar{height:44px;flex:none}
-#mic.gravando{background:#c0392b}
-#menu{display:none;position:fixed;left:10px;bottom:calc(64px + env(safe-area-inset-bottom));background:var(--panel);backdrop-filter:blur(14px);border:1px solid var(--border);border-radius:14px;padding:6px;z-index:12;min-width:250px}
-#menu.aberto{display:block}
-#menu button{display:block;width:100%;text-align:left;background:none;padding:11px 12px;font-weight:normal;font-size:15px}
-#drawerBack{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);z-index:20}
+#mais,#mic{width:44px;height:44px;padding:0;font-size:20px;background:rgba(255,255,255,.09);border:1px solid var(--border);border-radius:14px;flex:none;display:flex;align-items:center;justify-content:center}
+#enviar{height:44px;border-radius:14px;flex:none;padding:0 16px}
+#mic.gravando{background:#c0392b;border-color:transparent}
+
+#menu{display:none;position:fixed;left:max(12px,calc(50% - 420px));bottom:calc(70px + env(safe-area-inset-bottom));background:var(--panel2);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid var(--border);border-radius:16px;padding:8px;z-index:18;min-width:270px;max-width:calc(100vw - 24px);max-height:68dvh;overflow-y:auto;box-shadow:0 14px 36px rgba(0,0,0,.6)}
+#menu.aberto{display:flex;flex-direction:column;gap:3px}
+#menu button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;padding:10px 12px;font-weight:normal;font-size:14.5px;border-radius:11px;color:var(--text)}
+#menu button:hover,#menu button:active{background:rgba(255,255,255,.09)}
+#menu .msep{height:1px;background:var(--border);margin:4px 6px}
+
+#drawerBack{display:none;position:fixed;inset:0;background:rgba(0,0,0,.58);backdrop-filter:blur(4px);z-index:20}
 #drawerBack.aberto{display:flex}
-#drawer{width:min(310px,84vw);height:100%;background:var(--panel2);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:14px;gap:8px;overflow:auto}
-.dhead{display:flex;align-items:center;justify-content:space-between;padding-bottom:10px;border-bottom:1px solid var(--border)}
+#drawer{width:min(316px,85vw);height:100%;background:var(--panel2);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:16px 14px;gap:8px;overflow:auto}
+.dhead{display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid var(--border)}
 .dhead b{font-size:17px;color:#fff}
-.dsub{font-size:11px;color:var(--muted);margin-top:2px}
-.dclose{padding:6px 10px;background:rgba(255,255,255,.1);border-radius:9px}
+.dsub{font-size:11.5px;color:var(--muted);margin-top:3px}
+.dclose{padding:7px 11px;background:rgba(255,255,255,.1);border-radius:10px}
+.dsec{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:6px 4px 0}
 .dbtn{width:100%;text-align:left;background:rgba(255,255,255,.06);border:1px solid var(--border);padding:10px 12px;font-weight:normal;font-size:14px;border-radius:12px}
-.dbtn.admErr{border-color:#ff4d6d;background:rgba(255,77,109,.15);font-weight:bold}
-.dtemas{display:flex;flex-wrap:wrap;gap:6px;padding:6px 2px}
-.tpill{padding:6px 10px;font-size:12px;border-radius:999px;border:1px solid rgba(255,255,255,.22);font-weight:bold;background:rgba(255,255,255,.08)}
+.dbtn.admErr{border-color:#ff4d6d;background:rgba(255,77,109,.16);font-weight:bold}
+.dtemas{display:flex;flex-wrap:wrap;gap:7px;padding:4px 2px}
+.tpill{padding:6px 11px;font-size:12px;border-radius:999px;border:1px solid rgba(255,255,255,.22);font-weight:bold;background:rgba(255,255,255,.08)}
 .tpill.on{box-shadow:0 0 0 2px #fff}
-.dinfo{margin-top:auto;padding-top:10px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);line-height:1.5}
-#hist,#sobre,#errosModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:30;align-items:flex-end;justify-content:center}
+.dinfo{margin-top:auto;padding-top:12px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);line-height:1.55}
+
+#hist,#sobre,#errosModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.68);backdrop-filter:blur(4px);z-index:30;align-items:flex-end;justify-content:center}
 #hist.aberto,#sobre.aberto,#errosModal.aberto{display:flex}
-.hbox,.sbox,.ebox{background:var(--panel2);border:1px solid var(--border);border-radius:18px 18px 0 0;width:100%;max-width:640px;max-height:88dvh;display:flex;flex-direction:column;padding:14px;gap:10px;overflow:auto}
+.hbox,.sbox,.ebox{background:var(--panel2);border:1px solid var(--border);border-radius:18px 18px 0 0;width:100%;max-width:640px;max-height:88dvh;display:flex;flex-direction:column;padding:16px;gap:10px;overflow:auto}
 .sbox{border-radius:18px;margin:auto 12px;max-width:520px}
 .htopo{display:flex;gap:8px;align-items:center}.htopo b{color:#fff;white-space:nowrap}
 .htopo input{padding:8px 10px;font-size:14px}.htopo button{padding:8px 12px;background:rgba(255,255,255,.12)}
-.hlista{overflow:auto;flex:1;display:flex;flex-direction:column;gap:6px;min-height:120px}
-.hitem{display:flex;gap:6px;align-items:center;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:12px;padding:8px 10px}
+.hlista{overflow:auto;flex:1;display:flex;flex-direction:column;gap:8px;min-height:120px}
+.hitem{display:flex;gap:8px;align-items:center;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
 .hitem.atual{border-color:var(--accent)}.hinfo{flex:1;min-width:0;cursor:pointer}
-.htit{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hmeta{font-size:11px;color:var(--muted);margin-top:2px}
+.htit{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hmeta{font-size:11px;color:var(--muted);margin-top:3px}
 .hitem button{background:none;padding:6px 8px}.hvazio{color:var(--muted);text-align:center;padding:24px 0;font-size:14px}
-.hpag{display:flex;flex-wrap:wrap;gap:4px;justify-content:center}
+.hpag{display:flex;flex-wrap:wrap;gap:5px;justify-content:center}
 .hpag button{min-width:32px;padding:6px 0;font-size:13px;background:rgba(255,255,255,.1)}
 .hpag button.on{background:var(--accent)}.hpag button.vazia{opacity:.35}.hpag button:disabled{opacity:.3}
 .hrod{display:flex;gap:8px;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);flex-wrap:wrap}
@@ -93,23 +108,22 @@ button.stop{background:#c0392b}
 .ebar button{padding:6px 10px;font-size:12px;background:rgba(255,255,255,.1)}
 .ebar button.danger{background:rgba(231,76,60,.35);border:1px solid rgba(231,76,60,.6)}
 .ebar button.primary{background:linear-gradient(135deg,var(--accent),var(--accent2))}
-.eitem{display:flex;gap:8px;align-items:flex-start;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:12px;padding:9px 10px}
+.eitem{display:flex;gap:8px;align-items:flex-start;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:12px;padding:10px}
 .eitem input[type=checkbox]{margin-top:4px;width:18px;height:18px;accent-color:var(--accent2);flex:none}
-.einfo{flex:1;min-width:0;font-size:13px;line-height:1.4}
+.einfo{flex:1;min-width:0;font-size:13px;line-height:1.45}
 .etipo{display:inline-block;font-size:10px;font-weight:bold;padding:2px 6px;border-radius:6px;background:rgba(255,77,109,.25);color:#ffb3c1;margin-right:6px}
 .edata{font-size:11px;color:var(--muted)}
 .eitem button{background:rgba(231,76,60,.25);padding:5px 8px;font-size:13px;flex:none}
-.scard{background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.5}
+.scard{background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:12px;padding:12px;font-size:13px;line-height:1.55}
 [hidden]{display:none!important}
-textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.35);color:#fff;font-size:16px;font-family:inherit;line-height:1.35;resize:none;max-height:130px;overflow-y:auto}
+textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 13px;border:1px solid var(--border);border-radius:14px;background:rgba(0,0,0,.38);color:#fff;font-size:16px;font-family:inherit;line-height:1.35;resize:none;max-height:130px;overflow-y:auto}
 #barras{flex:none;background:var(--panel);border-top:1px solid var(--border)}
-#citbar,#anexos{display:flex;align-items:center;gap:8px;padding:6px 12px;font-size:12px;color:#e5dcff;flex-wrap:wrap}
+#citbar,#anexos{display:flex;align-items:center;gap:8px;padding:7px 14px;font-size:12px;color:#e5dcff;flex-wrap:wrap;max-width:860px;margin:0 auto}
 #citbar{flex-wrap:nowrap;border-left:3px solid var(--accent)}
 #citbar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#citbar button,#anexos button{padding:2px 8px;font-size:12px;background:rgba(255,255,255,.12)}
-.chip{display:flex;gap:6px;align-items:center;background:rgba(255,255,255,.1);border-radius:10px;padding:3px 4px 3px 9px;max-width:100%;overflow-wrap:anywhere}
-.cit{border-left:3px solid var(--accent2);background:rgba(0,0,0,.22);border-radius:6px;padding:4px 8px;margin-bottom:6px;font-size:12px;color:#e9dfff;white-space:pre-wrap;overflow-wrap:anywhere}
-.acoes.user{justify-content:flex-end}
+#citbar button,#anexos button{padding:3px 9px;font-size:12px;background:rgba(255,255,255,.12)}
+.chip{display:flex;gap:6px;align-items:center;background:rgba(255,255,255,.1);border-radius:10px;padding:4px 6px 4px 10px;max-width:100%;overflow-wrap:anywhere}
+.cit{border-left:3px solid var(--accent2);background:rgba(0,0,0,.28);border-radius:8px;padding:5px 9px;margin-bottom:8px;font-size:12px;color:#e9dfff;white-space:pre-wrap;overflow-wrap:anywhere}
 </style>
 </head>
 <body>
@@ -119,7 +133,7 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px
   <div class="htop">
     <button id="btnDrawer" aria-label="Abrir menu">☰</button>
     <div class="hbrand">
-      <div class="htitle"><h2>BACH AI 🧠</h2><span id="verBadge" title="Sobre e novidades">v5.1</span></div>
+      <div class="htitle"><h2>BACH AI 🧠</h2><span id="verBadge" title="Sobre e novidades">v5.2</span></div>
       <div id="status">Carregando...</div>
     </div>
   </div>
@@ -142,21 +156,26 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px
 <div id="barras"><div id="citbar" hidden></div><div id="anexos" hidden></div></div>
 
 <footer>
-  <button id="mais" aria-label="Mais opções">+</button>
-  <textarea id="entrada" rows="1" enterkeyhint="enter" placeholder="Mensagem ou /ajuda..." autocomplete="off"></textarea>
-  <button id="mic" aria-label="Falar">🎤</button>
-  <button id="enviar">Enviar</button>
+  <div class="fwrap">
+    <button id="mais" aria-label="Mais opções">+</button>
+    <textarea id="entrada" rows="1" enterkeyhint="enter" placeholder="Mensagem ou /ajuda..." autocomplete="off"></textarea>
+    <button id="mic" aria-label="Falar">🎤</button>
+    <button id="enviar">Enviar</button>
+  </div>
 </footer>
 
 <div id="menu">
   <button data-acao="anexar">📎 Anexar foto, vídeo ou arquivo</button>
+  <button data-acao="arquivos">📁 Meus arquivos</button>
+  <div class="msep"></div>
+  <button data-acao="profundo">🧠 Pensar bastante: desligado</button>
+  <button data-acao="voz">🔊 Ler respostas sozinha: desligado</button>
+  <div class="msep"></div>
+  <button data-acao="jogo">🎮 Jogar um joguinho</button>
   <button data-acao="copiarChat">📋 Copiar conversa inteira</button>
   <button data-acao="auditar">🩺 Auditar erros do chat</button>
   <button data-acao="errosAdm" id="menuErrosAdm" hidden>🚨 Erros do Público (0)</button>
-  <button data-acao="profundo">🧠 Pensar bastante: desligado</button>
-  <button data-acao="voz">🔊 Ler respostas sozinha: desligado</button>
-  <button data-acao="arquivos">📁 Meus arquivos</button>
-  <button data-acao="jogo">🎮 Jogar um joguinho</button>
+  <div class="msep"></div>
   <button data-acao="sobre">ℹ️ Sobre a BACH AI</button>
 </div>
 
@@ -169,20 +188,27 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px
       </div>
       <button class="dclose" id="fecharDrawer">✕</button>
     </div>
+
     <button class="dbtn admErr" data-d="errosAdm" id="drawerErrosAdm" hidden>🚨 Erros do Público (0)</button>
+
+    <div class="dsec">Conversas e Arquivos</div>
     <button class="dbtn" data-d="nova">➕ Nova conversa</button>
-    <button class="dbtn" data-d="copiarChat">📋 Copiar conversa inteira</button>
-    <button class="dbtn" data-d="auditar">🩺 Auditar erros do chat</button>
     <button class="dbtn" data-d="historico">🕘 Histórico de conversas</button>
     <button class="dbtn" data-d="arquivos">📁 Meus arquivos</button>
     <button class="dbtn" data-d="anexar">📎 Anexar mídia / documento</button>
+
+    <div class="dsec">Ferramentas e Diversão</div>
+    <button class="dbtn" data-d="copiarChat">📋 Copiar conversa inteira</button>
+    <button class="dbtn" data-d="auditar">🩺 Auditar erros do chat</button>
     <button class="dbtn" data-d="jogo">🎮 Jogos no chat</button>
-    <div style="font-size:12px;color:var(--muted);margin-top:4px">🎨 Temas e Cores (ou peça no chat!):</div>
+
+    <div class="dsec">🎨 Temas e Cores (ou peça no chat!)</div>
     <div class="dtemas" id="listaTemas"></div>
+
     <button class="dbtn" data-d="sobre">ℹ️ Sobre o App &amp; Atualizações</button>
     <div class="dinfo">
       <b>Criador:</b> Rizik<br>
-      <b>Versão:</b> 5.1 (2026)<br>
+      <b>Versão:</b> 5.2 (2026)<br>
       Rede Neural própria + memória contínua no navegador.
     </div>
   </aside>
@@ -233,17 +259,17 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px
     const [r1,g1,b1] = c1, [r2,g2,b2] = c2;
 
     const aura = ctx.createRadialGradient(cx, cy, R * 0.1, cx, cy, R * 1.45);
-    aura.addColorStop(0, "rgba(255,255,255,.42)");
-    aura.addColorStop(0.28, "rgba(" + r1 + "," + g1 + "," + b1 + ",.28)");
-    aura.addColorStop(0.65, "rgba(" + r2 + "," + g2 + "," + b2 + ",.14)");
+    aura.addColorStop(0, "rgba(255,255,255,.32)");
+    aura.addColorStop(0.28, "rgba(" + r1 + "," + g1 + "," + b1 + ",.24)");
+    aura.addColorStop(0.65, "rgba(" + r2 + "," + g2 + "," + b2 + ",.12)");
     aura.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = aura; ctx.beginPath(); ctx.arc(cx, cy, R * 1.45, 0, Math.PI * 2); ctx.fill();
 
     for (let i = 0; i < 12; i++) {
       const a = t * 0.25 + (i * Math.PI) / 6, len = R * (0.95 + 0.35 * Math.sin(t * 3 + i * 1.7));
       const g = ctx.createLinearGradient(cx, cy, cx + Math.cos(a) * len, cy + Math.sin(a) * len);
-      g.addColorStop(0, "rgba(255,255,255,.55)");
-      g.addColorStop(0.45, "rgba(" + r1 + "," + g1 + "," + b1 + ",.28)");
+      g.addColorStop(0, "rgba(255,255,255,.45)");
+      g.addColorStop(0.45, "rgba(" + r1 + "," + g1 + "," + b1 + ",.24)");
       g.addColorStop(1, "rgba(0,0,0,0)");
       ctx.strokeStyle = g; ctx.lineWidth = (i % 3 === 0 ? 1.8 : 0.9) * dpr;
       ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * len, cy + Math.sin(a) * len); ctx.stroke();
@@ -258,33 +284,33 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 11px;border:1px
         const f = 2.6 / (2.6 - p.z), px = cx + p.x * R * f, py = cy + p.y * R * f;
         if (s === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
       }
-      ctx.strokeStyle = k % 2 === 0 ? "rgba(" + r1 + "," + g1 + "," + b1 + ",.36)" : "rgba(" + r2 + "," + g2 + "," + b2 + ",.32)";
+      ctx.strokeStyle = k % 2 === 0 ? "rgba(" + r1 + "," + g1 + "," + b1 + ",.32)" : "rgba(" + r2 + "," + g2 + "," + b2 + ",.28)";
       ctx.lineWidth = 1.1 * dpr; ctx.stroke();
     }
 
     const rim = ctx.createRadialGradient(cx, cy, R * 0.82, cx, cy, R * 1.06);
     rim.addColorStop(0, "rgba(0,0,0,0)");
-    rim.addColorStop(0.75, "rgba(" + r1 + "," + g1 + "," + b1 + ",.28)");
+    rim.addColorStop(0.75, "rgba(" + r1 + "," + g1 + "," + b1 + ",.25)");
     rim.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = rim; ctx.beginPath(); ctx.arc(cx, cy, R * 1.06, 0, Math.PI * 2); ctx.fill();
 
     for (let i = 0; i < N; i++) {
       const p = rot(PTS[i], ax, ay), f = 2.6 / (2.6 - p.z);
-      const al = Math.max(0.14, Math.min(0.92, (p.z + 1.1) * 0.44));
-      ctx.fillStyle = i % 2 === 0 ? "rgba(" + r1 + "," + g1 + "," + b1 + "," + al + ")" : "rgba(255,255,255," + (al * 0.85) + ")";
+      const al = Math.max(0.14, Math.min(0.88, (p.z + 1.1) * 0.42));
+      ctx.fillStyle = i % 2 === 0 ? "rgba(" + r1 + "," + g1 + "," + b1 + "," + al + ")" : "rgba(255,255,255," + (al * 0.8) + ")";
       ctx.beginPath(); ctx.arc(cx + p.x * R * f, cy + p.y * R * f, PTS[i].s * f * 0.85 * dpr, 0, Math.PI * 2); ctx.fill();
     }
 
     const fw = R * (1.25 + 0.18 * Math.sin(t * 3.2));
     const fl = ctx.createLinearGradient(cx - fw, cy, cx + fw, cy);
-    fl.addColorStop(0, "rgba(0,0,0,0)"); fl.addColorStop(0.42, "rgba(" + r1 + "," + g1 + "," + b1 + ",.42)");
-    fl.addColorStop(0.5, "rgba(255,255,255,.85)"); fl.addColorStop(0.58, "rgba(" + r2 + "," + g2 + "," + b2 + ",.42)");
+    fl.addColorStop(0, "rgba(0,0,0,0)"); fl.addColorStop(0.42, "rgba(" + r1 + "," + g1 + "," + b1 + ",.35)");
+    fl.addColorStop(0.5, "rgba(255,255,255,.72)"); fl.addColorStop(0.58, "rgba(" + r2 + "," + g2 + "," + b2 + ",.35)");
     fl.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = fl; ctx.fillRect(cx - fw, cy - 2 * dpr, fw * 2, 4 * dpr);
 
     const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.34);
-    core.addColorStop(0, "rgba(255,255,255,.9)");
-    core.addColorStop(0.35, "rgba(" + r1 + "," + g1 + "," + b1 + ",.55)");
+    core.addColorStop(0, "rgba(255,255,255,.75)");
+    core.addColorStop(0.35, "rgba(" + r1 + "," + g1 + "," + b1 + ",.45)");
     core.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = core; ctx.beginPath(); ctx.arc(cx, cy, R * 0.34, 0, Math.PI * 2); ctx.fill();
     requestAnimationFrame(draw);
@@ -322,7 +348,7 @@ const [
   loadMod("revisor.js", "./revisor.js?v=3"),
   loadMod("editor_adm.js", "./editor_adm.js?v=7"),
   loadMod("erros_adm.js", "./erros_adm.js?v=2"),
-  loadMod("voz.js", "./voz.js?v=1"),
+  loadMod("voz.js", "./voz.js?v=2"),
   loadMod("executor_sandbox.js", "./executor_sandbox.js?v=3"),
   loadMod("rede_neural.js", "./rede_neural.js?v=2"),
   loadMod("nlu_neural.js", "./nlu_neural.js?v=2")
@@ -339,13 +365,13 @@ const Dic = mDic.Dic || { detectar: () => null, consultar: async () => null };
 const Historico = mHist.Historico || { salvarAtual: () => {}, listar: () => ({ pagina: 1, paginas: 1, totalPaginas: 1, total: 0, atual: "", itens: [] }), abrir: () => null, nova: () => {}, apagar: () => null, limparTudo: () => {}, idAtual: () => "" };
 const Base = mBase.Base || { montar: async () => { throw new Error("base.js indisponível"); }, importar: () => 0 };
 const SkillRouter = mReg.SkillRouter || { handle: () => null, instructions: () => "", modePrompt: () => "" };
-const LLM = mLLM.LLM || { hasModel: () => false, command: () => null, getConfig: () => ({ model: "BACH-AI-5.1" }) };
+const LLM = mLLM.LLM || { hasModel: () => false, command: () => null, getConfig: () => ({ model: "BACH-AI-5.2" }) };
 const CerebroAvancado = mAv.CerebroAvancado || { responder: async () => null };
 const AutoCorretor = mAuto.AutoCorretor || { ehReclamacao: () => false, tratarExclamacao: () => null, processarSeguimentoDeCorrecao: () => null, registrarFalhaPublica: () => {}, analisarEPreparar: () => null, formatarChat: h => JSON.stringify(h), auditarChat: () => "Módulo autocorretor.js não carregado." };
 const Revisor = mRev.Revisor || { detectarPedidoDireto: () => null, avaliarSite: async () => "revisor.js não carregado.", revisarCodigoFiel: () => null, revisarPortugues: () => null };
 const EditorADM = mEd.EditorADM || { ativo: () => false, ehPedidoTudoTxt: () => false, resetar: () => {}, comandoConfig: () => null, processar: async () => null, ajudaComandos: () => "Use /ajuda para ver os comandos." };
 const ErrosADM = mErros.ErrosADM || { registrar: () => {}, listar: () => [], contar: () => 0, excluir: () => 0, excluirVarios: () => 0, limparTudo: () => {}, formatarParaCopiar: () => "", comando: () => null };
-const Voz = mVoz.Voz || { ler: () => false, parar: () => {}, comando: () => null };
+const Voz = mVoz.Voz || { ler: () => false, parar: () => {}, desbloquear: () => {}, comando: () => null };
 const ExecutorSandbox = mExec.ExecutorSandbox || { detectarPedido: () => false, executar: async () => ({ texto: "executor_sandbox.js não carregado." }), criarCardPreview: () => document.createElement("div") };
 const RedeNeural = mNeural.RedeNeural || { comando: () => null, predict: () => ({ intent: "conversa_geral", confidence: 0 }), reinforce: () => false, getStats: () => ({ dim: 256, hidden: 48, classes: 12, epochs: 0, acc: 0, source: "offline", learnedCount: 0 }) };
 const NLUNeural = mNLU.NLUNeural || { decidir: () => null, marcarFalha: () => {}, registrarSucessoAposFalha: () => false, enviarParaNuvem: () => {}, comando: () => null };
@@ -361,20 +387,20 @@ try {
 const $ = id => document.getElementById(id);
 const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status"), hist = $("hist"), sobreEl = $("sobre"), errosModal = $("errosModal");
 const HISTORY_KEY = "bach_chat_history_v1", KEY_TEMA = "bach_theme_v1", KEY_CRIADOR = "bach_creator_v1", KEY_ADM_HASH = "bach_adm_hash_v1", KEY_VER = "bach_last_version";
-const APP_VER = "5.1", APP_CRIADA = "2026", APP_ATUALIZADA = "25/11/2026";
+const APP_VER = "5.2", APP_CRIADA = "2026", APP_ATUALIZADA = "25/11/2026";
 const LONGO = 700;
 const BT = String.fromCharCode(96).repeat(3);
 const RE_CERCA_ALL = new RegExp(BT, "g");
 const RE_CERCA_SPLIT = new RegExp(BT + "([\\w+-]*)[ \\t]*\\n?([\\s\\S]*?)" + BT, "g");
 
 const TEMAS = {
-  roxo:     { nome: "💜 Roxo",     bg:"#0d0e1a", panel:"rgba(22,24,42,.84)", panel2:"rgba(16,18,32,.92)", border:"rgba(138,118,255,.32)", accent:"#8266ff", accent2:"#e056fd", bot:"rgba(30,34,60,.16)", user:"rgba(98,66,220,.22)", orb1:"#8c6eff", orb2:"#ff4fd8", glow:"rgba(140,110,255,.65)" },
-  vermelho: { nome: "❤️ Vermelho", bg:"#16070b", panel:"rgba(36,14,20,.84)", panel2:"rgba(26,10,14,.92)", border:"rgba(255,70,95,.34)",   accent:"#ff3555", accent2:"#ff7c43", bot:"rgba(44,18,26,.16)", user:"rgba(195,28,55,.22)", orb1:"#ff2a4b", orb2:"#ff8533", glow:"rgba(255,50,80,.65)" },
-  azul:     { nome: "💙 Azul",     bg:"#07101f", panel:"rgba(14,24,44,.84)", panel2:"rgba(10,18,34,.92)", border:"rgba(55,165,255,.32)",  accent:"#2997ff", accent2:"#00e5ff", bot:"rgba(18,34,60,.16)", user:"rgba(24,108,210,.22)", orb1:"#2997ff", orb2:"#00f2fe", glow:"rgba(40,160,255,.65)" },
-  verde:    { nome: "💚 Verde",    bg:"#06150f", panel:"rgba(12,32,24,.84)", panel2:"rgba(8,24,18,.92)",  border:"rgba(25,215,140,.32)",  accent:"#10d48e", accent2:"#7dff7a", bot:"rgba(16,44,34,.16)", user:"rgba(14,142,96,.22)",  orb1:"#0fd68c", orb2:"#4dff88", glow:"rgba(20,215,140,.6)" },
-  rosa:     { nome: "🩷 Rosa",     bg:"#170713", panel:"rgba(36,14,32,.84)", panel2:"rgba(26,10,24,.92)", border:"rgba(255,85,185,.34)",  accent:"#ff4db8", accent2:"#a66bff", bot:"rgba(46,20,42,.16)", user:"rgba(196,40,136,.22)", orb1:"#ff3ea5", orb2:"#a66bff", glow:"rgba(255,65,175,.65)" },
-  dourado:  { nome: "💛 Dourado",  bg:"#150f05", panel:"rgba(34,25,12,.84)", panel2:"rgba(24,18,8,.92)",  border:"rgba(255,180,45,.34)",  accent:"#ffb020", accent2:"#ff662b", bot:"rgba(44,34,16,.16)", user:"rgba(186,115,15,.22)", orb1:"#ffb020", orb2:"#ff5e36", glow:"rgba(255,175,35,.62)" },
-  neon:     { nome: "⚡ Neon",     bg:"#090716", panel:"rgba(18,16,38,.86)", panel2:"rgba(12,11,28,.94)", border:"rgba(0,245,212,.34)",   accent:"#00e5c8", accent2:"#f15bb5", bot:"rgba(22,26,56,.16)", user:"rgba(126,38,215,.22)", orb1:"#00f5d4", orb2:"#f15bb5", glow:"rgba(0,240,210,.62)" }
+  roxo:     { nome: "💜 Roxo",     bg:"#0d0e1a", panel:"rgba(20,22,38,.90)", panel2:"rgba(14,16,30,.96)", border:"rgba(138,118,255,.32)", accent:"#8266ff", accent2:"#e056fd", bot:"rgba(22,25,46,.78)", user:"rgba(88,58,205,.54)", orb1:"#8c6eff", orb2:"#ff4fd8", glow:"rgba(140,110,255,.65)" },
+  vermelho: { nome: "❤️ Vermelho", bg:"#16070b", panel:"rgba(34,12,18,.90)", panel2:"rgba(24,8,13,.96)",  border:"rgba(255,70,95,.34)",   accent:"#ff3555", accent2:"#ff7c43", bot:"rgba(38,14,22,.78)", user:"rgba(180,28,52,.54)", orb1:"#ff2a4b", orb2:"#ff8533", glow:"rgba(255,50,80,.65)" },
+  azul:     { nome: "💙 Azul",     bg:"#07101f", panel:"rgba(12,22,40,.90)", panel2:"rgba(8,16,32,.96)",  border:"rgba(55,165,255,.32)",  accent:"#2997ff", accent2:"#00e5ff", bot:"rgba(14,28,52,.78)", user:"rgba(22,98,195,.54)", orb1:"#2997ff", orb2:"#00f2fe", glow:"rgba(40,160,255,.65)" },
+  verde:    { nome: "💚 Verde",    bg:"#06150f", panel:"rgba(10,30,22,.90)", panel2:"rgba(7,22,16,.96)",  border:"rgba(25,215,140,.32)",  accent:"#10d48e", accent2:"#7dff7a", bot:"rgba(12,38,28,.78)", user:"rgba(14,132,88,.54)",  orb1:"#0fd68c", orb2:"#4dff88", glow:"rgba(20,215,140,.6)" },
+  rosa:     { nome: "🩷 Rosa",     bg:"#170713", panel:"rgba(34,12,30,.90)", panel2:"rgba(24,9,22,.96)",  border:"rgba(255,85,185,.34)",  accent:"#ff4db8", accent2:"#a66bff", bot:"rgba(40,16,36,.78)", user:"rgba(182,36,126,.54)", orb1:"#ff3ea5", orb2:"#a66bff", glow:"rgba(255,65,175,.65)" },
+  dourado:  { nome: "💛 Dourado",  bg:"#150f05", panel:"rgba(32,24,11,.90)", panel2:"rgba(22,16,7,.96)",  border:"rgba(255,180,45,.34)",  accent:"#ffb020", accent2:"#ff662b", bot:"rgba(38,28,14,.78)", user:"rgba(176,108,14,.54)", orb1:"#ffb020", orb2:"#ff5e36", glow:"rgba(255,175,35,.62)" },
+  neon:     { nome: "⚡ Neon",     bg:"#090716", panel:"rgba(16,14,34,.92)", panel2:"rgba(10,9,24,.97)",  border:"rgba(0,245,212,.34)",   accent:"#00e5c8", accent2:"#f15bb5", bot:"rgba(18,22,48,.80)", user:"rgba(116,34,198,.54)", orb1:"#00f5d4", orb2:"#f15bb5", glow:"rgba(0,240,210,.62)" }
 };
 
 const NOMES_MODOS = {
@@ -570,7 +596,7 @@ function criarResultado(titulo, resumo, url) {
   if (!hrefSeguro) return;
   const c = mk("article", "result"), a = mk("a", "", "Abrir fonte ↗");
   a.href = hrefSeguro; a.target = "_blank"; a.rel = "noopener noreferrer";
-  c.append(mk("h3", "", titulo)); if (resumo) c.appendChild(mk("div", "", resumo)); c.append(a);
+  c.append(mk("h3", "", titulo)); if (resumo) c.append(mk("div", "", resumo)); c.append(a);
   chat.appendChild(c); chat.scrollTop = chat.scrollHeight;
 }
 
@@ -713,9 +739,9 @@ function abrirSobre() {
   const nov = mk("div", "scard");
   nov.innerHTML =
     "<b>✨ Novidades da v" + escHtml(APP_VER) + ":</b><br>" +
-    "• <b>Rede Neural Própria (`rede_neural.js`):</b> MLP 256→48→12 com aprendizado contínuo e treino na nuvem<br>" +
-    "• <b>Humor & Tom Adaptativo:</b> acompanha seu estilo ao longo da conversa sem risadas fora de hora<br>" +
-    "• <b>Memória Contínua:</b> acompanha do início ao fim da sessão, compara sites e aprende com reformulações<br>" +
+    "• <b>Voz Universal (`voz.js`):</b> leitura em voz alta corrigida para Android, PC e iOS<br>" +
+    "• <b>Visual mais nítido:</b> menus organizados com divisórias e balões mais legíveis<br>" +
+    "• <b>Roteamento mais inteligente:</b> perguntas gerais vão direto à resposta ou pesquisa<br>" +
     "• <b>Criador de Apps & Sandbox:</b> `/app pomodoro`, `/executar`, `/preview` e guias de <b>Termux</b>";
 
   const dados = mk("div", "scard");
@@ -818,9 +844,9 @@ async function noticias(q) {
   } catch (e) { console.error(e); falar("Não consegui buscar as notícias agora. Tente de novo em instantes."); }
 }
 
-async function pesquisaProfunda(q, fundo = true) {
+async function pesquisaProfunda(q, fundo = true, salvarArquivo = false) {
   const temas = dividirTemas(q);
-  if (temas.length > 1) { for (const t of temas) { if (cancelado) return; await pesquisaProfunda(t, fundo); } return; }
+  if (temas.length > 1) { for (const t of temas) { if (cancelado) return; await pesquisaProfunda(t, fundo, salvarArquivo); } return; }
   q = temas[0] || q;
   const temaLimpo = Mente.tema(q) || q;
   ultimoTema = temaLimpo;
@@ -842,7 +868,9 @@ async function pesquisaProfunda(q, fundo = true) {
     const tx = r.texto.replace(/\n\n💬 Em poucas palavras:[^\n]*/, "").replace(/\n\n🔍 Como cheguei nisso:[^\n]*/, "").replace(/\nℹ️[^\n]*/, "").replace(/\n\n💾 Guardei[^\n]*/, "").replace(/\n\n🚫 Não guardei[^\n]*/, "");
     if (r.conf !== "baixa") { Mente.lembrarTema(temaLimpo); RizikBrain.logTopic(temaLimpo); }
     falar(tx, "bot", "🌐 internet, filtrada e resumida");
-    if (r.conf !== "baixa") Arquivos.salvar({ nome: "pesquisa-" + temaLimpo.slice(0, 24), pasta: Mente.pasta("Pesquisas"), texto: r.texto, tipo: "pesquisa" });
+    if (salvarArquivo && r.conf === "alta" && temaLimpo.length >= 4) {
+      Arquivos.salvar({ nome: "pesquisa-" + temaLimpo.slice(0, 32), pasta: Mente.pasta("Pesquisas"), texto: r.texto, tipo: "pesquisa" });
+    }
     r.fontes.forEach(f => criarResultado(f.titulo, "", f.url));
   } catch (e) {
     console.error(e);
@@ -1073,11 +1101,16 @@ function extrairAlvoTraducao(fonteOpcional = "") {
 
 const sn = t => String(t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 
+const parecePerguntaGeral = (raw, tn) => {
+  if (/\b(voce|vc|bach|bash|seu nome|sua idade|meu nome)\b/.test(tn)) return false;
+  if (/\?\s*$/.test(String(raw)) && tn.split(" ").length >= 2) return true;
+  return /^(?:qual|quais|quem|como|onde|quando|porque|por que|quanto|quantos|quantas|o que|de qual|em qual|sera que|existe|existem|para que serve)\b/.test(tn) && tn.split(" ").length >= 3;
+};
+
 async function rotear(texto) {
   const cmd = texto.toLowerCase().trim();
   const tn = sn(texto);
 
-  // Só aceita ativação/saída de ADM em comandos diretos curtos (nunca dentro de código colado!)
   const ehComandoCurto = texto.length <= 80 && !/\n/.test(texto) && !Saber.isCode(texto);
 
   if (ehComandoCurto && /^\/admsenha\b/i.test(texto.trim())) {
@@ -1289,7 +1322,7 @@ async function rotear(texto) {
   if (segCorr) {
     if (segCorr.tipo === "pesquisar") {
       falar(segCorr.aviso, "bot", "🔄 aprendizado");
-      return pesquisaProfunda(segCorr.query, true);
+      return pesquisaProfunda(segCorr.query, true, true);
     }
     if (segCorr.texto) {
       falar(segCorr.texto, "bot", "🧠 aprendi com você");
@@ -1319,7 +1352,7 @@ async function rotear(texto) {
       }
       if (acao.tipo === "pesquisar") {
         falar(acao.aviso, "bot", "🔄 autocorreção");
-        return pesquisaProfunda(acao.query, true);
+        return pesquisaProfunda(acao.query, true, true);
       }
       if (acao.texto) {
         falar(acao.texto, "bot", "🔄 autocorreção");
@@ -1383,7 +1416,7 @@ async function rotear(texto) {
   }
   const cid = extrairClima(texto); if (cid) return clima(cid);
 
-  if (modoAtual === "pesquisa") return pesquisaProfunda(extrairProfundo(texto) || extrairPesquisa(texto) || texto, true);
+  if (modoAtual === "pesquisa") return pesquisaProfunda(extrairProfundo(texto) || extrairPesquisa(texto) || texto, true, true);
   if (modoAtual === "visao") {
     if (!ultimaImagem && !ultimaMidiaInfo) { falar("👁️ Modo Imagens ativo: toque no + para enviar uma foto ou vídeo!"); return; }
     falar(ultimaMidiaInfo?.resumo || "Envie uma foto pelo + para eu analisar.", "bot", "👁️ análise de imagem"); return;
@@ -1418,7 +1451,7 @@ async function rotear(texto) {
       falar(mtTex.texto, "bot", mtTex.origem || "📖 leitura do arquivo");
       return;
     }
-    if (av.pesquisarTema) { NLUNeural.registrarSucessoAposFalha(texto, "pesquisa"); return pesquisaProfunda(av.pesquisarTema, true); }
+    if (av.pesquisarTema) { NLUNeural.registrarSucessoAposFalha(texto, "pesquisa"); return pesquisaProfunda(av.pesquisarTema, true, true); }
     if (av.texto) {
       if (av.origem !== "🔄 autocorreção") NLUNeural.registrarSucessoAposFalha(texto, "conversa_geral");
       falar(av.texto, "bot", av.origem || "🧠 BACH AI");
@@ -1426,8 +1459,8 @@ async function rotear(texto) {
     }
   }
 
-  const prof = extrairProfundo(texto); if (prof !== null) { NLUNeural.registrarSucessoAposFalha(texto, "pesquisa"); return pesquisaProfunda(prof, true); }
-  const cons = extrairPesquisa(texto); if (cons !== null) { NLUNeural.registrarSucessoAposFalha(texto, "pesquisa"); return pesquisaProfunda(cons, modoProfundo || modoCriador); }
+  const prof = extrairProfundo(texto); if (prof !== null) { NLUNeural.registrarSucessoAposFalha(texto, "pesquisa"); return pesquisaProfunda(prof, true, true); }
+  const cons = extrairPesquisa(texto); if (cons !== null) { NLUNeural.registrarSucessoAposFalha(texto, "pesquisa"); return pesquisaProfunda(cons, modoProfundo || modoCriador, true); }
 
   if (await seguir(texto)) return;
 
@@ -1459,7 +1492,7 @@ async function rotear(texto) {
   if (mt) {
     NLUNeural.registrarSucessoAposFalha(texto, mt.pesquisa ? "pesquisa" : "termux_dev");
     if (mt.noticias) return noticias(mt.q);
-    if (mt.pesquisa) return pesquisaProfunda(mt.pesquisa, mt.fundo !== false);
+    if (mt.pesquisa) return pesquisaProfunda(mt.pesquisa, mt.fundo !== false, false);
     if (mt.apagar) { const resAp = Arquivos.comando("/apagar " + mt.apagar); falar(resAp || "Não consegui apagar esse arquivo.", "bot", "🗑️ arquivos"); return; }
     falar(mt.texto, "bot", mt.origem || "🧠 minha mente"); return;
   }
@@ -1486,10 +1519,10 @@ async function rotear(texto) {
     return;
   }
 
-  if (Mente.pergunta(texto)) {
+  if (Mente.pergunta(texto) || parecePerguntaGeral(texto, tn)) {
     if (Fatos.sobreVoce(texto)) { falar("Sou a BACH AI 🧠! Pode me perguntar de outro jeito ou digitar `/ajuda` para ver tudo que sei fazer.", "bot", "🧠 sobre mim"); return; }
-    const tm = Mente.tema(texto);
-    if (tm && tm.length >= 2) return pesquisaProfunda(texto, true);
+    const tm = Mente.tema(texto) || tn;
+    if (tm && tm.length >= 2) return pesquisaProfunda(texto, true, false);
     const respVaga = "Pode me explicar um pouquinho melhor o que você quer saber? 🤔";
     NLUNeural.marcarFalha(texto);
     registrarErroPublico("vaga", texto, respVaga, "pergunta sem tema claro");
@@ -1498,7 +1531,7 @@ async function rotear(texto) {
 
   const dec = NLUNeural.decidir(texto, ctxConversa(tomInfo));
   if (dec) {
-    if (dec.pesquisar) return pesquisaProfunda(dec.pesquisar, true);
+    if (dec.pesquisar) return pesquisaProfunda(dec.pesquisar, true, false);
     if (dec.criarApp) {
       const appRes = SkillRouter.handle("/app " + dec.criarApp, { hasAI: false, history, mode: modoAtual, mood: tomInfo.mood });
       if (appRes) {
@@ -1544,6 +1577,7 @@ async function enviar() {
   if (ocupado) { parar(); return; }
   const texto = entrada.value.trim(), arquivos = pendentes.splice(0);
   if (!texto && !arquivos.length) return;
+  if (lerAuto || modoAtual === "voz") Voz.desbloquear?.();
   entrada.value = ""; ajustar(); desenharAnexos();
   const cit = citacao ? (citacao.tipo === "user" ? "Você: " : "BACH: ") + citacao.texto.replace(/\s+/g, " ").slice(0, 160) : "";
   alvo = citacao ? citacao.texto : null; limparCit();
@@ -1597,12 +1631,12 @@ $("modos").onclick = e => {
   const b = e.target.closest("button[data-modo]"); if (!b) return;
   document.querySelectorAll("#modos .modo").forEach(x => x.classList.remove("on"));
   b.classList.add("on"); modoAtual = b.dataset.modo;
-  if (modoAtual === "voz") { lerAuto = true; const bv = menu.querySelector('[data-acao="voz"]'); if (bv) bv.textContent = "🔊 Ler respostas sozinha: ligado"; }
+  if (modoAtual === "voz") { lerAuto = true; Voz.desbloquear?.(); const bv = menu.querySelector('[data-acao="voz"]'); if (bv) bv.textContent = "🔊 Ler respostas sozinha: ligado"; }
   status.textContent = statusPadrao();
 };
 
 const drawerBack = $("drawerBack"), menu = $("menu"), seletor = $("seletor");
-$("btnDrawer").onclick = () => { atualizarBadge(); drawerBack.classList.add("aberto"); };
+$("btnDrawer").onclick = () => { menu.classList.remove("aberto"); atualizarBadge(); drawerBack.classList.add("aberto"); };
 $("fecharDrawer").onclick = () => drawerBack.classList.remove("aberto");
 drawerBack.onclick = e => { if (e.target === drawerBack) drawerBack.classList.remove("aberto"); };
 $("verBadge").onclick = abrirSobre;
@@ -1622,7 +1656,20 @@ $("drawer").onclick = e => {
   if (d === "sobre") abrirSobre();
 };
 
-$("mais").onclick = () => { atualizarBadge(); menu.classList.toggle("aberto"); };
+$("mais").onclick = e => {
+  e.stopPropagation();
+  atualizarBadge();
+  menu.classList.toggle("aberto");
+};
+document.addEventListener("click", e => {
+  if (menu.classList.contains("aberto") && !menu.contains(e.target) && e.target !== $("mais")) {
+    menu.classList.remove("aberto");
+  }
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") menu.classList.remove("aberto");
+});
+
 menu.onclick = e => {
   const b = e.target.closest("button[data-acao]"); if (!b) return; menu.classList.remove("aberto");
   const a = b.dataset.acao;
@@ -1631,7 +1678,7 @@ menu.onclick = e => {
   if (a === "auditar") rodarAuditoria();
   if (a === "errosAdm") abrirErrosADM("");
   if (a === "profundo") { modoProfundo = !modoProfundo; b.textContent = "🧠 Pensar bastante: " + (modoProfundo ? "ligado" : "desligado"); falar(modoProfundo ? "Modo pensar bastante LIGADO 🧠" : "Modo pensar bastante desligado."); }
-  if (a === "voz") { lerAuto = !lerAuto; b.textContent = "🔊 Ler respostas sozinha: " + (lerAuto ? "ligado" : "desligado"); if (!lerAuto) Voz.parar(); }
+  if (a === "voz") { lerAuto = !lerAuto; b.textContent = "🔊 Ler respostas sozinha: " + (lerAuto ? "ligado" : "desligado"); if (lerAuto) Voz.desbloquear?.(); else Voz.parar(); }
   if (a === "arquivos") { entrada.value = "/arquivos"; enviar(); }
   if (a === "jogo") { entrada.value = "vamos jogar"; enviar(); }
   if (a === "sobre") abrirSobre();
