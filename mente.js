@@ -1,8 +1,8 @@
-/* BACH AI 5.1 — MENTE 3.3 (Revisada & Blindada)
+/* BACH AI 5.2 — MENTE 3.4 (Revisada & Blindada)
    Contexto inteligente: entende "Me resume" após fotos/textos, inspeciona módulos de sites/códigos
    colados, jogos (sem falsos positivos em "jogar fora" e sem prender comandos /), criação de apps e pastas.
-   Segurança: leitura segura com Object.hasOwn/Object.create(null) evitando colisão com
-   palavras reservadas (constructor, toString, __proto__) e import alinhado com saber.js?v=15. */
+   Correções 3.4: impede que palavras comuns virem termos técnicos ("repetindo" -> "repeticao"),
+   exige contexto mínimo para aulas de código e amplia pergunta() para "qual a/o", "de qual", "como faço" e "?". */
 import { Saber } from "./saber.js?v=15";
 import { KB, ERROS } from "./conhecimento.js?v=1";
 
@@ -50,7 +50,7 @@ const BASE_LEX = (
   "mundo noticia noticias hoje agora ontem amanha semana mes ano seculo tempo clima chuva calor frio sol lua estrela terra planeta universo galaxia marte " +
   "pais cidade estado capital brasil mundo pessoa gente homem mulher crianca jovem adulto idoso amigo amiga familia pai mae irmao irma filho filha " +
   "casa apartamento quarto cozinha sala rua bairro escola faculdade universidade trabalho emprego empresa dinheiro banco salario preco compra venda " +
-  "comida agua cafe leite pao arroz feijao carne frango peixe fruta banana maca laranja doce bolo pizza lanche suco cerveja vinho " +
+  "comida agua cafe leite pao arroz feijao carne frango peixe fruta banana maca laranja doce bolo pizza lanche suco cerveja vinho chocolate cacau " +
   "animal cachorro gato cavalo passaro peixe pato leao tigre urso lobo macaco cobra tubarao baleia dinossauro inseto planta arvore flor floresta pinguim galinha " +
   "cores azul verde vermelho amarelo preto branco rosa roxo laranja marrom cinza dourado prateado pintar pintura quadro quadros desenho desenhar " +
   "tema temas esfera bolinha transparente modulo modulos melhorar risos musica cantar dancar instrumento violao guitarra piano bateria banda show album letra " +
@@ -61,10 +61,10 @@ const BASE_LEX = (
   "criar fazer construir montar editar apagar excluir salvar abrir fechar buscar procurar pesquisar encontrar saber entender conhecer distancia " +
   "esporte futebol basquete volei tenis corrida natacao luta campeonato copa time jogador gol " +
   "carro moto bicicleta aviao onibus trem navio viagem turismo hotel mapa estrada transito " +
-  "hospital medico doenca saude remedio vacina corpo cabeca olho boca mao pe coracao cerebro sangue " +
-  "amor feliz felicidade triste tristeza raiva medo susto calma paz alegria saudade sonho esperanca " +
+  "hospital medico doenca saude remedio vacina corpo cabeca olho boca mao pe coracao cerebro sangue gravidez gestacao dormir dormi acordar " +
+  "amor feliz felicidade triste tristeza raiva medo susto calma paz alegria saudade sonho esperanca natal sereia sereias formula " +
   "importante facil dificil grande pequeno alto baixo novo velho rapido devagar muito pouco tudo nada algum alguem ninguem " +
-  "sempre nunca depois antes durante porque quando quanto onde quem qual qualquer outro mesmo primeiro ultimo ultimas " +
+  "sempre nunca depois antes durante porque quando quanto onde quem qual qualquer outro mesmo primeiro ultimo ultimas repetindo repetir " +
   "politica economia ciencia tecnologia cultura arte geografia matematica fisica quimica biologia filosofia psicologia direito " +
   "presidente governo eleicao lei guerra paz energia eletricidade bateria motor robo inteligencia artificial termux linux bash " +
   "imagem video foto audio som voz tela teclado mouse camera microfone arquivo pasta pastas documento " +
@@ -98,10 +98,11 @@ function lev(a, b) {
 
 function corrigir(w) {
   if (w.length < 5 || /\d|\s/.test(w)) return w;
-  if (/^(passe|passa|passar|passou|arroz|manda|mande|pede|pedir|quero|prece|pesse|lancou|lanca|lancar|estreou|saiu|presta|recomenda|indica|bugado|bugada|fazem|travou|arrumo|consertar|entende|entendeu|mandei|responde|pergunto|consciencia|sobreviver|melhore|melhora)$/.test(w)) return w;
+  if (/(?:ando|endo|indo|mente|inho|inha|coes|sao)$/.test(w)) return w;
+  if (/^(passe|passa|passar|passou|arroz|manda|mande|pede|pedir|quero|prece|pesse|lancou|lanca|lancar|estreou|saiu|presta|recomenda|indica|bugado|bugada|fazem|travou|arrumo|consertar|entende|entendeu|mandei|responde|pergunto|consciencia|sobreviver|melhore|melhora|repetindo|repetir|dormi|dormir|acordar|gravidez|natal|sereia|sereias|formula|criado|criada|fruta|membros|episodios)$/.test(w)) return w;
   const L = lexico();
   if (L.has(w)) return w;
-  const max = w.length >= 8 ? 2 : 1;
+  const max = 1;
   let best = w, bd = max + 1;
   for (const c of L) {
     if (c[0] !== w[0] || Math.abs(c.length - w.length) > max || w.startsWith(c) || c.startsWith(w)) continue;
@@ -143,7 +144,7 @@ const prep = t => " " + normSimples(t)
 function tema(t) {
   let x = prep(t).trim();
   const CMD = /^(?:(?:pode|poderia|consegue|faz|faca|fazer|quero|gostaria)\s+)?(?:me\s+)?(?:explica|explique|explicar|fala|fale|falar|diz|diga|conta|conte|mostra|mostre|pesquisa|pesquise|pesquisar|procure|procura|procurar|busca|busque|buscar|indica|indique|recomenda|recomende)(?:\s+uma\s+pesquisa)?(?:\s+na\s+(?:internet|web|net)|no\s+google|\s+online)?(?:\s+pra\s+mim|\s+por\s+favor)?(?:\s+(?:sobre|de|por|a\s+respeito\s+de))?(?:\s+|$)/;
-  const PERG = /^(?:o\s+que|quem|quais|qual|quantos|quantas|quanto|onde|quando|como|por\s+que|porque|para\s+que|sera\s+que)\s+(?:e|sao|foi|foram|era|eram|esta|estao|significa|significam|funciona|funcionam|aconteceu|existe|existem|fica|ficam|fazer|faz|faco|tem|vai|vao)?\s*/;
+  const PERG = /^(?:o\s+que|quem|quais|qual|quantos|quantas|quanto|onde|quando|como|por\s+que|porque|para\s+que|sera\s+que)\s+(?:e|a|o|as|os|sao|foi|foram|era|eram|esta|estao|significa|significam|funciona|funcionam|aconteceu|existe|existem|fica|ficam|fazer|faco|faz|tem|vai|vao)?\s*/;
   const ART = /^(?:a|o|as|os|um|uma|uns|umas|de|do|da|dos|das|no|na|nos|nas|que|sobre|na\s+internet|na\s+web|no\s+google|por\s+favor|pra\s+mim)\s+/;
   const SUF = /\s+(?:ja\s+lancou|lancou|vai\s+lancar|ja\s+saiu|vai\s+sair|e\s+bom|e\s+boa|sao\s+bons|sao\s+boas|vale\s+a\s+pena|presta|e\s+legal|sao\s+legais|legais|legal|bom|boa|melhor|melhores|hoje|agora|atualmente|por\s+favor)$/;
 
@@ -476,18 +477,20 @@ const LING = { javascript: "JavaScript", js: "JavaScript", python: "Python", htm
 const ROTEIRO = "🗺️ Roteiro: 1) variáveis e tipos, 2) condicionais, 3) loops, 4) funções, 5) arrays e objetos, 6) DOM e eventos (JS), 7) fetch/API e async, 8) um projeto pequeno. Depois: classes, módulos, testes e Git.\nPergunte por qualquer um (ex.: “o que é função?”). Diga “mais” para o nível avançado.";
 const ASSUNTOS = "variáveis, condicionais, loops, funções, arrays, objetos/JSON, classes, async/await, DOM, fetch/API, closures, recursão, algoritmos, regex, Git, SQL, HTML, CSS, Python, Termux, módulos, localStorage, debug, testes, jogos, apps e IA";
 
-const FRACA = new Set("for let var if map get post py ui def then this select join click clique evento eventos cores estilo lista listas jogo jogos game app aplicativo interface teste testes testar bug bugs dict tag tags estrutura scope push pull se senao".split(" "));
+const FRACA = new Set("for let var if map get post py ui def then this select join click clique evento eventos cores estilo lista listas jogo jogos game app aplicativo interface teste testes testar bug bugs dict tag tags estrutura scope push pull se senao repeticao laco classe objeto modulo modulos variavel funcao erro erros".split(" "));
 function achaTopico(p) {
+  const temCtxProg = /\b(programacao|codigo|codigos|javascript|js|python|html|css|sql|em js|em python|o que e|como usar|exemplo de|me explica)\b/.test(p);
   let best = null, sc = 0;
   KB.forEach((e, i) => {
     let s = 0;
     for (const k of e[0].split("|")) if (p.includes(" " + k + " ")) s += FRACA.has(k) ? 0.5 : k.length > 3 ? 2 : 1;
     if (s > sc) { sc = s; best = i; }
   });
-  return sc >= 1 ? best : null;
+  if (sc >= 1.5 || (sc >= 1 && temCtxProg)) return best;
+  return null;
 }
 
-const ACAO_TELA = /\b(cliquei|clique|cliquem|clicar|clica|cliquei nisso|toquei|toca|tocar|apertei|aperta|apertar|botao|menu|aba|tela|opcao|entra nele|entra no site|veja os modulos|quantos modulos)\b/;
+const ACAO_TELA = /\b(cliquei|clique|cliquem|clicar|clica|cliquei nisso|toquei|toca|tocar|apertei|aperta|apertar|botao|menu|aba|tela|opcao|entra nele|entra no site|veja os modulos|quantos modulos|repetindo|repetir)\b/;
 function topico(i, p) {
   const [, b, ex, av] = KB[i], fundo = has(p, /avancad|profund|detalhad|completo/);
   ctx.ultimo = { t: "prog", i };
@@ -588,7 +591,7 @@ function responder(msg) {
   if (!outroAssunto && (PEDIDO_TEXTO_BARE.test(p) || (has(p, REF_ARQUIVO) && has(p, ACAO_ARQUIVO))) && (pedeExplicitoArq || ctx.ultimo?.t === "texto")) {
     if (ctx.texto) return { texto: sobreTexto(p), origem: "📖 leitura do seu arquivo" };
     if (ctx.ultimoMidia) return { texto: "Na última mídia (“" + ctx.ultimoMidia.nome + "”) não encontrei texto legível para explicar. 🖼️", origem: "🧠 contexto" };
-    if (ctx.tema) return { pesquisa: ctx.tema, fundo: true };
+    if (ctx.tema) return { pesquisarTema: ctx.tema, fundo: true };
     return { texto: "O que você quer que eu explique ou resuma? Cole o texto/código aqui, envie uma foto pelo + ou me diga o assunto. 🤔", origem: "🧠 contexto" };
   }
 
@@ -638,13 +641,14 @@ function responder(msg) {
   return null;
 }
 
-const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo|vamos falar sobre|falar sobre o que|nao foi isso|travou foi|sabe rir|velho do ceu|conversa comigo|opa o que|oxe o que|entende o que|eu falo de|nao mandei|como assim|porque nao|eu que pergunto|consciencia|fazendo pesquisa|nao entendeu|nao entendeu|nao entende|acertei|que humor ruim|melhore|sentiu o que|blz o que|jogar voce fora)/;
+const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo|vamos falar sobre|falar sobre o que|nao foi isso|travou foi|sabe rir|velho do ceu|conversa comigo|opa o que|oxe o que|entende o que|eu falo de|nao mandei|como assim|porque nao|eu que pergunto|consciencia|fazendo pesquisa|nao entendeu|nao entende|acertei|que humor ruim|melhore|sentiu o que|blz o que|jogar voce fora|vai ficar repetindo|dormi bem)/;
 const pergunta = t => {
   const p = prep(t);
   if (has(p, SMALL)) return false;
   if (has(p, /\b(eu|voce|pergunto|digo|disse|falei|mandei|entende|entendeu|pesquisando|fazendo pesquisa)\b/)) return false;
-  return has(p, /^ ?(o que e|o que sao|o que foi|o que significa|quem e|quem foi|quem sao|quais sao|qual e|qual foi|quantos|quantas|onde fica|onde esta|quando foi|quando aconteceu|como funciona|como fazer|como surgiu|por que|me explica|explique|explica|fale sobre|fala sobre|historia de|historia do|historia da) /) ||
-    (/\?\s*$/.test(String(t)) && has(p, /\b(qual distancia|distancia de|fica onde|quantos km|quantos anos|qual tamanho|qual altura|qual peso|qual idade|qual capital|quem inventou|quando nasceu|o que significa|como funciona)\b/));
+  if (has(p, /^ ?(o que e|o que sao|o que foi|o que significa|quem e|quem foi|quem sao|quais sao|quais os|quais as|qual e|qual a|qual o|qual foi|de qual|em qual|com qual|quantos|quantas|quanto|onde fica|onde esta|quando foi|quando aconteceu|como funciona|como fazer|como faco|como posso|como surgiu|por que|porque|para que|me explica|explique|explica|fale sobre|fala sobre|historia de|historia do|historia da) /)) return true;
+  if (/\?\s*$/.test(String(t)) && p.trim().split(" ").length >= 2) return true;
+  return false;
 };
 
 const stats = () => ({ girias: Object.keys(VOCAB).length, lexBase: BASE_LEX.length, kbProg: KB.length, erros: ERROS.length, jogos: 4, modelosApps: Object.keys(TEMPLATES).length, pasta: ctx.pasta, tema: ctx.tema });
