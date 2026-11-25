@@ -1,28 +1,31 @@
-/* BACH AI 5.1 — REDE NEURAL PRÓPRIA BLINDADA (MLP + Backpropagation + N-gramas)
+/* BACH AI 5.2 — REDE NEURAL PRÓPRIA BLINDADA (MLP + Backpropagation + L2 + N-gramas)
  * 100% desenvolvida no projeto, sem modelos externos.
  * Classifica intenções em frases livres/gírias, executa treino online por correção
  * e carrega pesos treinados automaticamente na nuvem (pesos_neurais.json).
+ * Melhorias 5.2: base de treino ampliada e equilibrada + regularização L2 para evitar
+ * excesso de confiança em ruído ou frases inéditas, preservando exemplos aprendidos do v1.
  * Segurança: validação completa de pesos/dimensões (anti-NaN), Map seguro para rótulos,
  * bloqueio de segredos em extraSamples e limite de entrada contra travamento.
  */
 
-const K_NEURAL = "bach_neural_local_v1";
+const K_NEURAL_OLD = "bach_neural_local_v1";
+const K_NEURAL = "bach_neural_local_v2";
 const DIM = 256;
 const HIDDEN = 48;
 
 export const INTENCOES = [
   "saudacao",       // 0: oi, bom dia, tudo bem, aqui ta tudo bem
   "habilidades",    // 1: o que vc sabe, do que entende, para que serve
-  "pesquisa",       // 2: pesquise, quem foi, qm foi, o que e, historia de
+  "pesquisa",       // 2: pesquise, quem foi, o que e, como funciona, historia de
   "criar_app",      // 3: cria um app, /app, calculadora, jogo html
   "termux_dev",     // 4: termux, terminal, programar, codigo, python, js
   "reclamacao",     // 5: errou, nada a ver, burro, nao entende, ruim
   "humor_jogo",     // 6: piada, jogar forca, velha, quiz, charada
-  "utilidades",     // 7: senha, cpf, dado, moeda, sorteio, calcular, clima
+  "utilidades",     // 7: senha, cpf, dado, moeda, sorteio, calcular, clima, datas
   "traducao_texto", // 8: traduzir, significado, sinonimo, revisar, silabas
   "recomendacao",   // 9: recomenda filme, musica, anime, serie
   "memoria_eu",     // 10: meu nome, o que lembra de mim, do que falamos
-  "conversa_geral"  // 11: obrigado, tchau, uai, tudo bem sim, curiosidade
+  "conversa_geral"  // 11: obrigado, tchau, uai, acabei de acordar, dormi bem
 ];
 
 const BASE_TREINO = [
@@ -35,12 +38,17 @@ const BASE_TREINO = [
   ["do que voce entende", "habilidades"], ["para que voce serve", "habilidades"],
   ["quais sao suas funcoes", "habilidades"], ["o que voce consegue fazer", "habilidades"],
   ["vc auto corrige", "habilidades"], ["como funciona sua autocorrecao", "habilidades"],
+  ["que dia voce foi criado", "habilidades"], ["quem criou voce", "habilidades"],
 
   ["pesquise sobre buraco negro", "pesquisa"], ["pesquisa como melhorar uma ia sozinha", "pesquisa"],
   ["quem foi adao e eva", "pesquisa"], ["qm foi eva", "pesquisa"], ["qm foi adam", "pesquisa"],
   ["o que e fotossintese", "pesquisa"], ["me fala do sol", "pesquisa"],
   ["qual a distancia da terra ate marte", "pesquisa"], ["historia da segunda guerra", "pesquisa"],
   ["quem inventou o aviao", "pesquisa"], ["oq eu queria era para vc pesquisar", "pesquisa"],
+  ["como dormir confortavel na gravidez", "pesquisa"], ["qual a formula de pi", "pesquisa"],
+  ["de qual fruta e feito o chocolate", "pesquisa"], ["sereias existem", "pesquisa"],
+  ["quantos episodios lancados tem one piece", "pesquisa"], ["qual o nome dos membros do bts", "pesquisa"],
+  ["quantos dentes tem um ser humano adulto", "pesquisa"], ["como fazer um bolo de chocolate", "pesquisa"],
 
   ["cria um app de pomodoro", "criar_app"], ["faz um aplicativo de notas", "criar_app"],
   ["crie um jogo da cobrinha", "criar_app"], ["cria uma calculadora html", "criar_app"],
@@ -56,7 +64,7 @@ const BASE_TREINO = [
   ["voce nao entende nada", "reclamacao"], ["nunca entende nada", "reclamacao"],
   ["vc e burro", "reclamacao"], ["para de errar", "reclamacao"],
   ["pse entt nao fala bosta", "reclamacao"], ["pqp que erro", "reclamacao"],
-  ["so foca em melhorar", "reclamacao"],
+  ["so foca em melhorar", "reclamacao"], ["tu mandou tudo errado", "reclamacao"],
 
   ["conta uma piada", "humor_jogo"], ["vamos jogar forca", "humor_jogo"],
   ["jogar jogo da velha", "humor_jogo"], ["quero jogar quiz", "humor_jogo"],
@@ -66,6 +74,7 @@ const BASE_TREINO = [
   ["joga um dado d20", "utilidades"], ["cara ou coroa", "utilidades"],
   ["quanto e 15 por cento de 200", "utilidades"], ["converter 10 km para metros", "utilidades"],
   ["como esta o clima hoje", "utilidades"], ["previsao do tempo em sao paulo", "utilidades"],
+  ["quantos dias faltam para o natal", "utilidades"], ["que dia cai o natal", "utilidades"],
 
   ["traduz isso para portugues", "traducao_texto"], ["como se diz obrigado em japones", "traducao_texto"],
   ["o que significa efemero", "traducao_texto"], ["sinonimo de feliz", "traducao_texto"],
@@ -82,7 +91,9 @@ const BASE_TREINO = [
   ["muito obrigado pela ajuda", "conversa_geral"], ["tchau ate mais", "conversa_geral"],
   ["eu so te respondi", "conversa_geral"], ["so segue a conversa", "conversa_geral"],
   ["nao quero jogar agora", "conversa_geral"], ["me conta uma curiosidade", "conversa_geral"],
-  ["entre essas duas qual e a melhor", "conversa_geral"], ["pode parar o timer", "conversa_geral"]
+  ["entre essas duas qual e a melhor", "conversa_geral"], ["pode parar o timer", "conversa_geral"],
+  ["acabei de acordar", "conversa_geral"], ["dormi bem hoje", "conversa_geral"],
+  ["pergunta se eu dormi bem", "conversa_geral"], ["olha isso aqui", "conversa_geral"]
 ];
 
 function ehEntradaSensivel(texto) {
@@ -205,6 +216,7 @@ function trainSample(texto, targetIdx, lr = 0.08) {
   const x = vetorizar(texto);
   const { h, probs } = forward(x);
   const outLen = INTENCOES.length;
+  const decay = 0.0004;
 
   const dLogits = new Float32Array(outLen);
   for (let k = 0; k < outLen; k++) {
@@ -217,7 +229,7 @@ function trainSample(texto, targetIdx, lr = 0.08) {
     for (let k = 0; k < outLen; k++) {
       const idx = j * outLen + k;
       err += dLogits[k] * net.W2[idx];
-      net.W2[idx] -= lr * h[j] * dLogits[k];
+      net.W2[idx] -= lr * (h[j] * dLogits[k] + decay * net.W2[idx]);
     }
     dH[j] = err * (1 - h[j] * h[j]);
   }
@@ -227,7 +239,7 @@ function trainSample(texto, targetIdx, lr = 0.08) {
     if (x[i] === 0) continue;
     const base = i * HIDDEN;
     for (let j = 0; j < HIDDEN; j++) {
-      net.W1[base + j] -= lr * x[i] * dH[j];
+      net.W1[base + j] -= lr * (x[i] * dH[j] + decay * net.W1[base + j]);
     }
   }
   for (let j = 0; j < HIDDEN; j++) net.b1[j] -= lr * dH[j];
@@ -235,7 +247,7 @@ function trainSample(texto, targetIdx, lr = 0.08) {
   return -Math.log(Math.max(probs[targetIdx], 1e-7));
 }
 
-function treinarLote(amostras = BASE_TREINO, epocas = 35, lr = 0.09) {
+function treinarLote(amostras = BASE_TREINO, epocas = 30, lr = 0.08) {
   const idxMap = new Map(INTENCOES.map((name, i) => [name, i]));
   const tudo = [...amostras, ...(net.extraSamples || [])].filter(x => Array.isArray(x) && idxMap.has(x[1]));
   let lastLoss = 0;
@@ -265,7 +277,7 @@ function salvarLocal() {
   try {
     const round = arr => Array.from(arr, v => Math.round(v * 10000) / 10000);
     localStorage.setItem(K_NEURAL, JSON.stringify({
-      v: 1,
+      v: 2,
       epochs: net.epochs,
       acc: net.acc,
       source: net.source,
@@ -350,11 +362,17 @@ async function init() {
           treinarLote(extras, 6, 0.05);
         }
       }
+    } else {
+      // Migra apenas os exemplos ensinados do v1 e re-treina limpo com L2
+      const antigo = JSON.parse(localStorage.getItem(K_NEURAL_OLD) || "null");
+      if (antigo?.extraSamples) {
+        net.extraSamples = filtrarAmostras(antigo.extraSamples);
+      }
     }
   } catch {}
 
   if (net.epochs === 0) {
-    treinarLote(BASE_TREINO, 40, 0.09);
+    treinarLote(BASE_TREINO, 32, 0.08);
   }
 }
 
@@ -377,7 +395,7 @@ function reinforce(texto, intencao) {
   net.extraSamples = (net.extraSamples || []).filter(s => norm(s[0]) !== norm(txt));
   net.extraSamples.push([txt.slice(0, 140), intencao]);
   net.extraSamples = net.extraSamples.slice(-120);
-  for (let i = 0; i < 12; i++) trainSample(txt, idx, 0.08);
+  for (let i = 0; i < 10; i++) trainSample(txt, idx, 0.07);
   salvarLocal();
   return true;
 }
