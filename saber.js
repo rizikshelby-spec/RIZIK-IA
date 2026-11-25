@@ -1,8 +1,8 @@
-/* BACH AI 5.2 - SABER 3.4 (Blindado & Mais Preciso)
+/* BACH AI 5.4 - SABER 3.5 (Blindado & Sem Falsos Matches de Cache/Conversa)
    Leitura de textos/código/links, pesquisa inteligente com expansão de gírias (qm -> quem),
    separação entre entidade principal (Wikipédia) e pergunta completa (Web),
-   preservação de dados úteis entre parênteses, prioridade para português, catálogo Jikan
-   e bloqueio contra SSRF/endereços locais ou protocolos inseguros em links. */
+   preservação de dados úteis entre parênteses, prioridade para português, catálogo Jikan,
+   bloqueio contra SSRF e proteção contra matches falsos de 1 radical no cache local. */
 
 const KB_KEY = "bach_conhecimento_v2";
 
@@ -16,6 +16,7 @@ const STOP = new Set((
   "pesquisa pesquisar pesquise procure procura buscar busque explica explicar explique resume resumir " +
   "net internet web google online pra pro pros pras ai ta to ne la ca oq oqe oque aqui escrito escrita " +
   "nisso nisto disso mes meses ano anos semana semanas dia dias hoje amanha ontem falar perguntei perguntar pergutar " +
+  "perguntando pergunto pergunta perguntas responde responda responder respondendo esqueceu esqueci esquecer lembra lembro lembrar " +
   "serve servem servir servisse presta errando errado errada corrigir arrumar falou disse respondeu travou rir chutar " +
   "fica ficam tipo tip coisa coisas tudo querer escrever escrevi saber sabe sabia precisa precisam forma maneira jeito"
 ).split(" "));
@@ -459,16 +460,21 @@ function saveKB(entry) {
 }
 
 function buscarConhecimento(texto) {
-  const qk = new Set(kr(texto));
+  const qRaw = kwAssunto(texto);
+  const qk = new Set(qRaw.map(radical));
   if (!qk.size) return null;
+  if (qk.size === 1 && qRaw[0].length < 5) return null;
   let top = null, score = 0;
   for (const e of loadKB()) {
-    const ek = new Set(kr(e.q));
+    const eRaw = kwAssunto(e.q);
+    const ek = new Set(eRaw.map(radical));
+    if (!ek.size) continue;
+    if (qk.size === 1 && ek.size === 1 && qRaw[0] !== eRaw[0]) continue;
     const inter = [...qk].filter(w => ek.has(w)).length;
     const s = inter / Math.max(qk.size, ek.size);
     if (s > score) { score = s; top = e; }
   }
-  if (!top || score < 0.78) return null;
+  if (!top || score < 0.8) return null;
   const dias = Math.floor((Date.now() - (top.at || 0)) / 86400000);
   return "📚 Já pesquisei isso (“" + top.q + "”, " + new Date(top.at).toLocaleDateString("pt-BR") + "):\n\n" + String(top.resumo).slice(0, 1500) +
     (dias > 30 ? "\n\n⚠️ Essa pesquisa tem mais de 30 dias e pode estar desatualizada." : "") +
@@ -596,7 +602,7 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true, opts = {}
   const assunto = info.assunto || q;
   const entidade = info.entidade || assunto;
   const qk = info.termos;
-  if (!qk.length || (qk.length === 1 && /^(serve|fazer|falar|dizer|ver|ter|ir|vir|dar|saber|poder|querer|achar|ficar|melhorar|posso|audio|rir|travou|arrumar)$/.test(qk[0]))) {
+  if (!qk.length || (qk.length === 1 && /^(serve|fazer|falar|dizer|ver|ter|ir|vir|dar|saber|poder|querer|achar|ficar|melhorar|posso|audio|rir|travou|arrumar|esqueceu|lembra|perguntando|pergunto|respondi|respondeu|entendeu|certo|errado)$/.test(qk[0]))) {
     throw new Error("irrelevante");
   }
 
