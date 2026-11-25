@@ -1,5 +1,5 @@
 /* BACH AI 5.0 — AUTOCORRETOR REAL, TOM ADAPTATIVO & APRENDIZADO CONTÍNUO
-   1) Respeita o tom do usuário: nunca ri quando o usuário está sério ou frustrado.
+   1) Respeita o tom do usuário: nunca ri nem usa frases estranhas quando está sério/frustrado.
    2) Pula reações curtas/xingamentos no histórico para achar a verdadeira pergunta que falhou.
    3) Aprende com correções (*), explicações pós-erro e grava na Central ADM. */
 
@@ -10,6 +10,9 @@ import("./erros_adm.js?v=1").then(m => { errosAdmMod = m?.ErrosADM || null; }).c
 
 const K_CORR = "bach_autocorrecoes_v1";
 const K_FAIL = "bach_failures_v1";
+
+const giro = {};
+const girar = (k, arr) => { giro[k] = ((giro[k] ?? -1) + 1) % arr.length; return arr[giro[k]]; };
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "")
@@ -23,6 +26,8 @@ const norm = t => String(t || "").toLowerCase().normalize("NFD")
   .replace(/\b(tip)\b/g, "tipo")
   .replace(/\b(mn)\b/g, "mano")
   .replace(/\bcvs\b/g, "conversar")
+  .replace(/\b(pse)\b/g, "pois e")
+  .replace(/\b(entt)\b/g, "entao")
   .replace(/[^a-z0-9\s]/g, " ")
   .replace(/\s+/g, " ")
   .trim();
@@ -31,7 +36,7 @@ const reduzirRepetidas = t => String(t || "").replace(/([a-zA-ZÀ-ÿ])\1{2,}/g, 
 
 const RE_RECLAMACAO = /\b(voce errou|vc errou|vc erro|voce erro|errou|para de errar|esses erros|nesses erros|nao foi isso|nao era isso|fugiu do assunto|saiu do assunto|mudou de assunto|nada a ver|nada aver|nada haver|nao entende|nao entendeu|nunca entende|nao capta|respondeu errado|falou errado|disse errado|ta errado|esta errado|nao mandei pesquisar|nao mandei vc falar|nao pedi isso|nem disse isso|texto do nada|isso ta errado|fazendo pesquisa|fazer pesquisa agora|para de pesquisar|so pesquisa|o que (?:voce )?nao entendeu|senha bosta|chatao|pqp bach|o droga)\b/;
 
-const RE_REACAO_RUIDO = /^(?:oush+|oxe+|oxente|ue+|uai+|eita+|vixi+|vish+|ave+|nossa+|caramba+|aff+|mds+|pqp|crlh|vsf|kct|porra|merda|burr[oa](?:\s+ate\s+d\+?)?|idiota|inutil|meu deus|o deus+|meu ovo|meu obo|aham|uhum|ok|okay|claro|dnv isso|de novo isso|se vc diz ne|so segue a cvs|viu entende nada|combinado oq|o que|oque|nao oush|ruim de vc|reacao ruim de vc)$/;
+const RE_REACAO_RUIDO = /^(?:oush+|oxe+|oxente|ue+|uai+|eita+|vixi+|vish+|ave+|nossa+|caramba+|aff+|mds+|pqp|crlh|vsf|kct|porra|merda|burr[oa](?:\s+ate\s+d\+?)?|idiota|inutil|meu deus|o deus+|meu ovo|meu obo|aham|uhum|ok|okay|claro|dnv isso|de novo isso|se vc diz ne|so segue a cvs|viu entende nada|combinado oq|o que|oque|nao oush|ruim de vc|reacao ruim de vc|sentiu o que|nao quero|so foca em melhorar|pois e entao nao fala bosta)$/;
 
 function ehReclamacao(texto) {
   const t = norm(reduzirRepetidas(texto));
@@ -104,13 +109,20 @@ function tratarExclamacao(texto, history = []) {
   if (semGiria && ehRisada(semGiria) && limpo.split(" ").length <= 5) {
     return serioOuBravo
       ? "Entendi. Me diga como posso te ajudar agora."
-      : "Haha 😂 Boa! Manda a próxima!";
+      : girar("ris-ok", ["Haha 😂 Boa! Manda a próxima.", "Rindo junto 😄 Pode mandar a próxima."]);
   }
 
   if (/^(?:ah+|oh+|eh+|ih+|uh+|uai+|eita+|nossa+|vixi+|vish+|socorro+|meu deus|o deus+|deus+|caramba+|misericordia+|aff+s?|mds+|ave+|aiai+|ai+|oxi+|oxe+)(?:\s+(?:ah+|oh+|deus+|meu deus|o deus+|nossa+|eita+|senhor+|socorro+|ave+|mds+))*$/.test(limpo)) {
     return serioOuBravo
-      ? "Vi que algo não saiu como você esperava. Me diga direto o que você quer fazer ou saber agora que eu ajusto o foco."
-      : "Eita! Senti a reação daqui — me conta o que rolou ou o que você precisa agora.";
+      ? girar("exc-serio", [
+          "O que não saiu certo? Me diga direto o que você queria fazer agora.",
+          "Percebi que algo falhou aqui. Qual comando ou pergunta você quer tentar?",
+          "Me diga em uma frase direta o que você precisa agora que eu foco só nisso."
+        ])
+      : girar("exc-leve", [
+          "O que foi? Se algo ficou estranho ou quiser tentar outro comando, me avisa.",
+          "Uai, o que aconteceu? Pode mandar a pergunta direta ou explicar o que queria."
+        ]);
   }
 
   if (/\b(tem|possui|existe|voce tem)\b/.test(limpo) && /\b(consciencia|sentimentos|emocoes|alma)\b/.test(limpo) && limpo.split(" ").length <= 10) {
@@ -159,7 +171,6 @@ function encontrarPerguntaAnterior(history) {
     if (!txt || ehReclamacao(txt) || RE_REACAO_RUIDO.test(n) || ehRisada(n)) continue;
     if (/^(?:ah+|oh+|eh+|ih+|uh+|uai+|eita+|nossa+|vixi+|vish+|ave+|meu deus|o deus+|mds+|pqp|crlh)\b/.test(n) && n.split(" ").length <= 3) continue;
 
-    // Pega a resposta da BACH logo após essa pergunta do usuário
     let respBot = "";
     for (let j = i + 1; j < history.length; j++) {
       if (history[j] && history[j].type !== "user" && history[j].text) {
@@ -180,7 +191,6 @@ function processarSeguimentoDeCorrecao(texto, history = []) {
   const raw = String(texto || "").trim();
   if (!raw) return null;
 
-  // 1) Correção com asterisco no final (ex.: "Ruim de vc*")
   if (/\*$/.test(raw) && raw.length <= 60) {
     const limpoAst = raw.replace(/\*+$/, "").trim();
     const ultUser = [...(Array.isArray(history) ? history : [])].reverse().find(m => m && m.type === "user" && m.text !== raw);
@@ -197,7 +207,6 @@ function processarSeguimentoDeCorrecao(texto, history = []) {
     };
   }
 
-  // 2) Usuário explicando o que queria depois de uma falha registrada
   const pend = RizikBrain.getPendingError?.();
   const n = norm(raw);
   const mExp = n.match(/^(?:o que eu queria|eu queria|era para|era pra|eu quis dizer|quis dizer|eu estava falando de|eu falei sobre|eu falei de)\s+(?:que\s+(?:voce\s+)?)?(.+)$/);
