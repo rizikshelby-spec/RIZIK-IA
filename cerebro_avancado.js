@@ -1,6 +1,8 @@
-/* BACH AI 5.1 - CÉREBRO AVANÇADO BLINDADO
+/* BACH AI 5.2 - CÉREBRO AVANÇADO BLINDADO
    NLU natural, comparação de sites avaliados no histórico, controle contextual de apps criados,
    tom adaptativo (zero risada fora de hora), temas, senhas, recomendações e escrita.
+   Correções 5.2: trava falsos positivos em "trabalho", "troca", "garantia", "enem" e "foco",
+   e evita respostas repetidas em sequência usando o histórico.
    Segurança: import alinhado com autoguard.js?v=2, Object.create(null) em giro,
    limite de entrada anti-travamento e proteção de comandos restritos. */
 import { AutoGuard } from "./autoguard.js?v=2";
@@ -31,6 +33,18 @@ const norm = t => String(t || "").slice(0, 1200).toLowerCase().normalize("NFD")
 
 const giro = Object.create(null);
 const girar = (k, arr) => { giro[k] = ((giro[k] ?? -1) + 1) % arr.length; return arr[giro[k]]; };
+
+function semRepetir(k, arr, ctx = {}) {
+  const ultimasBot = (Array.isArray(ctx.history) ? ctx.history : [])
+    .filter(m => m && m.type !== "user" && m.text)
+    .slice(-4)
+    .map(m => String(m.text).trim());
+  for (let i = 0; i < arr.length; i++) {
+    const cand = girar(k, arr);
+    if (!ultimasBot.includes(cand.trim())) return cand;
+  }
+  return girar(k, arr);
+}
 
 function ehEntradaSensivel(texto) {
   const s = String(texto || "").trim();
@@ -214,15 +228,15 @@ const COMPARACOES = {
 };
 
 const CONHECIMENTO_PRATICO = [
-  [/\b(produtividade|foco|procrastin|estudar melhor|como estudar|concentr)\b/,
+  [/\b(dicas? de produtividade|como vencer a procrastin|procrastinacao|estudar melhor|como estudar|dicas? de foco|como ter foco|como me concentrar)\b/,
    "🎯 **Técnicas para focar e estudar melhor:**\n1. **Pomodoro:** 25 min focado + 5 min de pausa.\n2. **Estudo ativo:** explique o assunto em voz alta ou faça exercícios.\n3. **Regra dos 2 minutos:** se leva menos de 2 min, faça agora."],
-  [/\b(50 30 20|organizar dinheiro|economizar|orcamento|educacao financeira|guardar dinheiro)\b/,
+  [/\b(50 30 20|organizar dinheiro|como economizar|orcamento pessoal|educacao financeira|como guardar dinheiro)\b/,
    "💰 **Método 50-30-20:**\n• **50%** necessidades essenciais.\n• **30%** lazer e desejos.\n• **20%** reserva de emergência e investimentos."],
-  [/\b(redacao|enem|dissertacao|escrever bem)\b/,
+  [/\b(como fazer(?: uma)? redacao|estrutura(?: da)? redacao|dicas? de redacao|modelo de dissertacao|como escrever bem)\b/,
    "✍️ **Estrutura de Redação (ENEM):**\n1. **Introdução:** tema + tese + 2 argumentos.\n2. **D1 e D2:** defenda os argumentos com repertório e consequências.\n3. **Conclusão:** Quem + O quê + Como + Para quê + Detalhamento."],
-  [/\b(curriculo|entrevista|emprego|trabalho)\b/,
+  [/\b(dicas? de curriculo|como fazer(?: um)? curriculo|dicas? de entrevista|preparar para entrevista|conseguir(?: um)? emprego)\b/,
    "💼 **Dicas de Currículo e Entrevista:**\n• Currículo em 1–2 páginas com resultados reais.\n• Na entrevista use o método **STAR** (Situação, Tarefa, Ação, Resultado)."],
-  [/\b(direito consumidor|procon|arrependimento|troca|garantia|reembolso)\b/,
+  [/\b(direitos? do consumidor|procon|direito de arrependimento|prazo(?: de)? garantia|reembolso compra online)\b/,
    "⚖️ **Direitos básicos (CDC Brasil):**\n• Compras online: **7 dias corridos** para devolução e reembolso total.\n• Defeito: 30 dias (não duráveis) ou 90 dias (duráveis) de garantia legal."]
 ];
 
@@ -412,7 +426,7 @@ async function responder(raw, ctx = {}) {
     if (compSites) return { texto: compSites, origem: "⚖️ comparação de sites" };
   }
 
-  // 0.3) Controle contextual do último app gerado (ex.: "Pode parar", "Para o time" após /app pomodoro)
+  // 0.3) Controle contextual do último app gerado
   if (/^(?:pode\s+)?(?:parar|para|pausar|pausa|zerar|resetar)(?:\s+(?:o\s+)?(?:time|timer|tempo|cronometro|app|relogio))?$/.test(t)) {
     const appRec = detectarAppRecente(ctx.history);
     if (appRec) {
@@ -427,7 +441,7 @@ async function responder(raw, ctx = {}) {
     };
   }
 
-  // 0.5) Pedido rápido de senha ("vamos de senha", "senha", "/senha")
+  // 0.5) Pedido rápido de senha
   if (/^(?:vamos\s+(?:de|se)\s+senha|senha|gera\w*\s+senha|manda\s+uma\s+senha|me\s+da\s+uma\s+senha|quero\s+uma\s+senha)$/.test(t) ||
       /^\/senha(?:\s+(\d{1,2}))?$/i.test(s.trim())) {
     const tam = (s.match(/\d{1,2}/) || [])[0] || 14;
@@ -514,26 +528,26 @@ async function responder(raw, ctx = {}) {
     return {
       texto: serio
         ? "Certo. Pode mandar o próximo assunto ou pergunta."
-        : girar("soltas", [
+        : semRepetir("soltas", [
             "Beleza! Manda o próximo assunto ou pergunta.",
             "Estou ouvindo! Quer pesquisar algo, criar um app ou testar outra função?"
-          ]),
+          ], ctx),
       origem: "💬 conversa"
     };
   }
 
-  // 4) Feedback de erro / frustração (sem risadinhas quando o usuário está sério/bravo!)
-  if (/\b(nao foi|nao era|falou errado|disse errado|respondeu errado|entendeu errado|errando|ta errado|esta errado|vc ainda erra|voce ainda erra|so erra|voce e burro|burro|burra|nada a ver|nada aver|nada haver|erros atrais|erros atras|da erro|dando erro|para de dizer que travou|travou foi|pergutar mais|chutar o que|chutar oq|nao mandei pesquisar|nao pedi pesquisa|nao pedi pra pesquisar|nao era pra pesquisar|para de pesquisar|nao entende|nao entendeu|nunca entende)\b/.test(t) ||
+  // 4) Feedback de erro / frustração
+  if (/\b(nao foi|nao era|falou errado|disse errado|respondeu errado|entendeu errado|errando|ta errado|esta errado|vc ainda erra|voce ainda erra|so erra|voce e burro|burro|burra|nada a ver|nada aver|nada haver|erros atrais|erros atras|da erro|dando erro|para de dizer que travou|travou foi|pergutar mais|chutar o que|chutar oq|nao mandei pesquisar|nao pedi pesquisa|nao pedi pra pesquisar|nao era pra pesquisar|para de pesquisar|so pesquisa|o que (?:voce )?nao entendeu|senha bosta|chatao|pqp bach|o droga)\b/.test(t) ||
       /^(te |quero |vou |vamos te |irei te )?(corrigir|arrumar|consertar|ensinar)( ta)?$/.test(t) ||
       /\b(arrumo tudo|arrumo voce|irei te consertar|para que fui criala)\b/.test(t)) {
     if (!ehEntradaSensivel(s)) {
       AutoGuard.recordFailure({ module: "conversa", type: "user-feedback", input: s, detail: ctx.ultimoBot ? ctx.ultimoBot.slice(0, 100) : "insatisfação" });
     }
     return {
-      texto: girar("fb-err", [
+      texto: semRepetir("fb-err", [
         "Você tem razão" + nomeUser + " — errei essa resposta. Me diga em uma frase direta o que você quer saber ou fazer agora que eu foco nisso.",
         "Desculpa por essa falha" + nomeUser + ". Anotei para melhorar; pode mandar direto o assunto ou usar **↩ Responder** na mensagem certa."
-      ]),
+      ], ctx),
       origem: "🔄 autocorreção"
     };
   }
@@ -553,11 +567,11 @@ async function responder(raw, ctx = {}) {
     return {
       texto: serio
         ? "Certo. Quando quiser mandar a próxima coisa, estou por aqui."
-        : girar("ok-nat", [
+        : semRepetir("ok-nat", [
             "Beleza! Tô por aqui — quando quiser, manda a próxima.",
             "Combinado! Se precisar de pesquisa, tema, senha, cálculo ou traduzir algo, é só falar.",
             "Fechou! Qualquer coisa estou pronta aqui."
-          ]),
+          ], ctx),
       origem: "💬 conversa"
     };
   }
@@ -572,10 +586,10 @@ async function responder(raw, ctx = {}) {
   // 6) Conversa solta e gírias
   if (/^(conversa comigo|vamos conversar|bora conversar|fala comigo|fale comigo)$/.test(t)) {
     return {
-      texto: girar("conv-solta", [
+      texto: semRepetir("conv-solta", [
         "Bora" + nomeUser + "! Sobre o que você quer trocar ideia hoje: filmes, música, programação, Termux, curiosidades ou algum projeto seu?",
         "Estou aqui" + nomeUser + "! Quer uma curiosidade, uma recomendação de filme/música ou ajuda em alguma coisa?"
-      ]),
+      ], ctx),
       origem: "💬 conversa"
     };
   }
@@ -583,7 +597,7 @@ async function responder(raw, ctx = {}) {
     return {
       texto: serio
         ? "Estou acompanhando. Pode mandar direto o que você precisa agora."
-        : girar("giria-ok", ["Estou por aqui! Manda o que você precisa agora.", "Opa! Pode mandar sua pergunta, foto ou assunto."]),
+        : semRepetir("giria-ok", ["Estou por aqui! Manda o que você precisa agora.", "Opa! Pode mandar sua pergunta, foto ou assunto."], ctx),
       origem: "💬 conversa"
     };
   }
