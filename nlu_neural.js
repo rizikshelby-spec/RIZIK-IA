@@ -1,46 +1,96 @@
-/* BACH AI 5.1 — NLU NEURAL & AUTO-APRENDIZADO CONTÍNUO
+/* BACH AI 5.1 — NLU NEURAL & AUTO-APRENDIZADO CONTÍNUO BLINDADO
  * Liga a RedeNeural às decisões da BACH AI, aprende automaticamente por reformulação
  * e sincroniza eventos de melhoria com o Cloudflare Worker + Banco D1 gratuito.
+ * Segurança: HTTPS obrigatório, anti-SSRF (bloqueia IPs locais/privados),
+ * mascaramento de tokens/senhas e limite de taxa no envio à nuvem.
  */
 
-import { RedeNeural, INTENCOES } from "./rede_neural.js?v=1";
+import { RedeNeural, INTENCOES } from "./rede_neural.js?v=2";
 import { RizikBrain } from "./brain.js?v=20";
 
 const K_CLOUD = "bach_cloud_url_v1";
 
-// Depois que criar seu Worker gratuito na Cloudflare, cole a URL abaixo para todos os usuários enviarem aprendizados:
+// Depois que criar seu Worker gratuito na Cloudflare, cole a URL HTTPS abaixo para todos os usuários enviarem aprendizados:
 const DEFAULT_CLOUD_URL = "";
 
 let ultimaFalha = null;
+let ultimoEnvioNuvem = 0;
+
+function hostPrivadoOuLocal(hostname) {
+  const h = String(hostname || "").toLowerCase().replace(/^\[|\]$/g, "");
+  if (!h || h === "localhost" || h === "::1" || h.endsWith(".local") || h.endsWith(".internal")) return true;
+  if (/^(?:127\.|10\.|0\.|169\.254\.|192\.168\.)/.test(h)) return true;
+  const m172 = h.match(/^172\.(\d{1,3})\./);
+  if (m172 && Number(m172[1]) >= 16 && Number(m172[1]) <= 31) return true;
+  return false;
+}
+
+function urlNuvemSegura(url) {
+  const s = String(url || "").trim().replace(/\/+$/, "");
+  if (!s) return "";
+  try {
+    const u = new URL(s);
+    if (u.protocol !== "https:") return "";
+    if (hostPrivadoOuLocal(u.hostname)) return "";
+    return u.origin + u.pathname.replace(/\/+$/, "");
+  } catch {
+    return "";
+  }
+}
+
+function redigirSegredos(texto) {
+  let s = String(texto || "");
+  s = s.replace(/(\/(?:adm|admsenha|ghconfig|chave)\b)[^\n]*/gi, "$1 [OCULTO]");
+  s = s.replace(/@rizik2442/gi, "[ADM]");
+  s = s.replace(/\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{12,}\b/g, "[TOKEN_GH]");
+  s = s.replace(/\bgithub_pat_[A-Za-z0-9_]{20,}\b/g, "[TOKEN_GH]");
+  s = s.replace(/\b(?:sk-[A-Za-z0-9_-]{16,}|AIza[0-9A-Za-z\-_]{20,})\b/g, "[CHAVE_API]");
+  s = s.replace(/\bBearer\s+[A-Za-z0-9._\-]{12,}/gi, "Bearer [OCULTO]");
+  return s;
+}
+
+function ehEntradaSensivel(texto) {
+  const s = String(texto || "").trim();
+  return /^\/(?:adm|admsenha|ghconfig|chave)\b/i.test(s) || /@rizik2442/i.test(s);
+}
 
 function getCloudUrl() {
   try {
-    return localStorage.getItem(K_CLOUD) || DEFAULT_CLOUD_URL;
+    return urlNuvemSegura(localStorage.getItem(K_CLOUD) || DEFAULT_CLOUD_URL);
   } catch {
-    return DEFAULT_CLOUD_URL;
+    return urlNuvemSegura(DEFAULT_CLOUD_URL);
   }
 }
 
 function setCloudUrl(url) {
   try {
     if (!url) localStorage.removeItem(K_CLOUD);
-    else localStorage.setItem(K_CLOUD, String(url).trim().replace(/\/+$/, ""));
+    else {
+      const segura = urlNuvemSegura(url);
+      if (segura) localStorage.setItem(K_CLOUD, segura);
+    }
   } catch {}
 }
 
 function enviarParaNuvem({ tipo = "evento", entrada = "", intencao = "", motivo = "" }) {
   const base = getCloudUrl();
-  if (!base || !/^https?:\/\//i.test(base)) return;
+  if (!base) return;
+  if (ehEntradaSensivel(entrada)) return;
+
+  const agora = Date.now();
+  if (agora - ultimoEnvioNuvem < 2000) return;
+  ultimoEnvioNuvem = agora;
+
   try {
     fetch(base + "/evento", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         tipo: String(tipo).slice(0, 40),
-        entrada: String(entrada).slice(0, 300),
+        entrada: redigirSegredos(entrada).slice(0, 300),
         intencao: String(intencao).slice(0, 40),
-        motivo: String(motivo).slice(0, 140),
-        at: Date.now()
+        motivo: redigirSegredos(motivo).slice(0, 140),
+        at: agora
       })
     }).catch(() => {});
   } catch {}
@@ -48,7 +98,7 @@ function enviarParaNuvem({ tipo = "evento", entrada = "", intencao = "", motivo 
 
 function marcarFalha(texto) {
   const s = String(texto || "").trim();
-  if (!s || s.length < 2) return;
+  if (!s || s.length < 2 || ehEntradaSensivel(s)) return;
   ultimaFalha = { texto: s, at: Date.now() };
   enviarParaNuvem({ tipo: "falha", entrada: s, motivo: "nao-entendeu" });
 }
@@ -63,6 +113,7 @@ function registrarSucessoAposFalha(textoAtual, intencaoCerta) {
   ultimaFalha = null;
 
   if (!intencaoCerta || !INTENCOES.includes(intencaoCerta)) return false;
+  if (ehEntradaSensivel(falhaTxt) || ehEntradaSensivel(textoAtual)) return false;
   if (falhaTxt.toLowerCase() === String(textoAtual || "").trim().toLowerCase()) return false;
 
   // Aprende sozinha na Rede Neural que a frase anterior que falhou tem essa intenção!
@@ -204,11 +255,12 @@ function comando(raw, isAdm) {
     return "🔌 Conexão com a nuvem desligada neste aparelho.";
   }
 
-  if (!/^https?:\/\/\S+/i.test(arg)) {
-    return "Envie uma URL válida começando com `https://`. Ex.: `/nuvem https://bach-nuvem.seuuser.workers.dev`";
+  const segura = urlNuvemSegura(arg);
+  if (!segura) {
+    return "Envie uma URL **HTTPS** válida e pública (não pode ser `http://` nem endereço local). Ex.: `/nuvem https://bach-nuvem.seuuser.workers.dev`";
   }
 
-  setCloudUrl(arg);
+  setCloudUrl(segura);
   return "✅ Nuvem conectada (`" + getCloudUrl() + "`)! Para funcionar no celular de todos os visitantes, cole essa mesma URL em `DEFAULT_CLOUD_URL` dentro de `nlu_neural.js`.";
 }
 
