@@ -1,7 +1,8 @@
-/* BACH AI 5.2 - CÉREBRO 2.0 (Consciência Situacional + Memória Contínua + Blindagem)
-   Conversa com memória automática do usuário, estado situacional da conversa atual
-   (emoções, rotina/trabalho, desabafos, fio do assunto), termômetro adaptativo de tom,
-   aprendizado contínuo com correções e proteção contra Prototype Pollution. */
+/* BACH AI 5.4 - CÉREBRO 3.0 (Memória em 3 Camadas + Consciência Situacional + Busca Semântica)
+   - Camada 1 (Curto Prazo): sessionState em sessionStorage (emoção, situação, fio da conversa).
+   - Camada 2 (Estruturada): perfil completo (nome, cidade, idade, profissão, turno, gostos, projetos).
+   - Camada 3 (Semântica): matching com radicais em português + Levenshtein em ensinamentos e notas.
+   - Proteção total contra Prototype Pollution e gravação acidental de segredos. */
 
 const KEY = "rizik_brain_v1";
 const KEY_SESSION = "bach_session_state_v1";
@@ -17,6 +18,7 @@ const BASE = {
     dislikes: [],
     city: null,
     age: null,
+    profession: null,
     projects: [],
     workShift: null,
     favorites: {},
@@ -24,7 +26,7 @@ const BASE = {
     interactions: 0
   },
   topics: [],
-  version: 11
+  version: 12
 };
 
 function limparObjPlano(src, maxValLen = 500) {
@@ -47,7 +49,7 @@ function load() {
         ...BASE,
         ...s,
         name: "BACH AI",
-        version: 11,
+        version: 12,
         facts: limparObjPlano(s.facts, 400),
         examples: Array.isArray(s.examples) ? s.examples : [],
         synonyms: limparObjPlano(s.synonyms, 80),
@@ -58,6 +60,7 @@ function load() {
           likes: Array.isArray(s.profile?.likes) ? s.profile.likes : [],
           dislikes: Array.isArray(s.profile?.dislikes) ? s.profile.dislikes : [],
           projects: Array.isArray(s.profile?.projects) ? s.profile.projects : [],
+          profession: typeof s.profile?.profession === "string" ? s.profile.profession.slice(0, 80) : null,
           workShift: typeof s.profile?.workShift === "string" ? s.profile.workShift.slice(0, 80) : null,
           favorites: limparObjPlano(s.profile?.favorites, 80),
           humorScore: Number.isFinite(s.profile?.humorScore) ? s.profile.humorScore : 0,
@@ -95,7 +98,7 @@ function loadSession() {
       return {
         ...defaultSession(),
         ...s,
-        lastEvents: Array.isArray(s.lastEvents) ? s.lastEvents.slice(-8) : []
+        lastEvents: Array.isArray(s.lastEvents) ? s.lastEvents.slice(-10) : []
       };
     }
   } catch {}
@@ -137,7 +140,7 @@ function updateSessionState(patch = {}) {
   }
   if (typeof patch.lastBotQuestion === "string") sessionState.lastBotQuestion = patch.lastBotQuestion.slice(0, 220);
   if (typeof patch.addEvent === "string" && patch.addEvent.trim()) {
-    sessionState.lastEvents = [...(sessionState.lastEvents || []), patch.addEvent.trim().slice(0, 140)].slice(-8);
+    sessionState.lastEvents = [...(sessionState.lastEvents || []), patch.addEvent.trim().slice(0, 140)].slice(-10);
   }
   saveSession();
   return getSessionState();
@@ -176,6 +179,11 @@ function normalize(t) {
 
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 
+const stemPt = w => {
+  if (w.length <= 4) return w;
+  return w.replace(/(coes|oes|aes)$/, "ao").replace(/(ando|endo|indo|mente)$/, "").replace(/s$/, "");
+};
+
 function applySyn(t) {
   return normalize(t)
     .split(" ")
@@ -205,10 +213,11 @@ function lev(a, b) {
 function similarity(a, b) {
   if (!a || !b) return 0;
   const ratio = 1 - lev(a, b) / Math.max(a.length, b.length);
-  const A = new Set(a.split(" ")), B = new Set(b.split(" "));
+  const A = new Set(a.split(" ").map(stemPt));
+  const B = new Set(b.split(" ").map(stemPt));
   const inter = [...A].filter(w => B.has(w)).length;
   const jac = inter / new Set([...A, ...B]).size;
-  return Math.max(ratio, jac * 0.9);
+  return Math.max(ratio, jac * 0.92);
 }
 
 const CORE_WORDS = (
@@ -221,7 +230,7 @@ const CORE_WORDS = (
   "programacao codigo javascript python html css sql github arquivo pasta imagem foto video texto " +
   "ajuda ajudar aprender ensinar estudar escrever falar ouvir ler criar jogar lembrar esquecer memoria " +
   "gosto adoro curto odeio moro cidade idade trabalho projeto ideia problema solucao resposta pergunta " +
-  "turno noite dia dialogo conversa triste cansado odio raiva " +
+  "turno noite dia dialogo conversa triste cansado odio raiva profissao " +
   "hello hi hey thanks please sorry bye hola gracias adios bonjour merci ciao hallo danke"
 ).split(" ");
 
@@ -327,6 +336,26 @@ function getStats() {
   };
 }
 
+function searchMemory(query) {
+  const q = applySyn(query);
+  if (!q || q.length < 3) return [];
+  const resultados = [];
+
+  for (const ex of data.examples) {
+    const s = similarity(q, applySyn(ex.question));
+    if (s >= 0.45) {
+      resultados.push({ camada: "aprendizado", score: s, texto: ex.question + " → " + ex.answer });
+    }
+  }
+  for (const n of data.notes) {
+    const s = similarity(q, applySyn(n.text));
+    if (s >= 0.4) {
+      resultados.push({ camada: "nota", score: s, texto: n.text });
+    }
+  }
+  return resultados.sort((a, b) => b.score - a.score).slice(0, 4);
+}
+
 /* ---------- Termômetro Adaptativo de Humor, Emoção & Situação ---------- */
 
 function detectTone(raw) {
@@ -350,7 +379,6 @@ function extractSituationalContext(raw) {
   const n = normalize(s);
   if (!n || ehSegredo(s) || s.length > 260) return;
 
-  // Mudança de turno no trabalho
   const mTurnoAtual = n.match(/\b(?:fui mandad[oa]|me mandaram|me mudaram|me colocaram|me passaram|mudei|mudaram|trocaram|vou trabalhar|trabalho|estou|to)\s+(?:para o |pro |no |de )?(?:turno\s+(?:de |da |do )?)?(dia|manha|tarde|noite|madrugada)\b/);
   const mTurnoAnt = n.match(/\b(?:eu\s+)?(?:trabalhava|estava|ficava|era)\s+(?:a |de |na |no )?(?:turno\s+(?:de |da |do )?)?(noite|madrugada|dia|manha|tarde)\b/);
 
@@ -375,7 +403,6 @@ function extractSituationalContext(raw) {
     return;
   }
 
-  // Outras situações pessoais/emocionais
   if (/\b(estou|to|tou|me sinto)\s+(?:muito\s+)?(triste|mal|chatead[oa]|ansios[oa]|desanimad[oa]|cansad[oa]|exaust[oa]|estressad[oa])\b/.test(n)) {
     const mEm = n.match(/\b(triste|mal|chatead[oa]|ansios[oa]|desanimad[oa]|cansad[oa]|exaust[oa]|estressad[oa])\b/);
     updateSessionState({
@@ -517,6 +544,16 @@ function captureUserMemory(original) {
     return `Anotado! Guardei que você tem ${data.profile.age} anos. 🎂`;
   }
 
+  m = raw.match(/^(?:eu\s+)?(?:trabalho como|sou|minha profiss[aã]o [eé])\s+(?:um\s+|uma\s+)?([A-Za-zÀ-ÿ\s]{3,40})$/i);
+  if (m && !/\b(seu dono|seu criador|de boa|tranquilo|cansado|triste|feliz|de|do|da|rizik)\b/i.test(m[1])) {
+    const prof = m[1].trim().replace(/[.!]+$/, "");
+    if (prof.split(/\s+/).length <= 4) {
+      data.profile.profession = prof;
+      save();
+      return `Legal! Guardei que você atua como ${prof}. 💼`;
+    }
+  }
+
   m = raw.match(/^(?:eu\s+)?(?:estou|to)\s+(?:criando|fazendo|desenvolvendo|estudando|aprendendo)\s+(.+)$/i);
   if (m && !/^(nada|isso|testando|tentando)\b/i.test(m[1])) {
     const proj = m[1].trim().replace(/[.!]+$/, "");
@@ -584,7 +621,7 @@ function analyzeText(txt) {
   const code = /(\bconst\b|\bfunction\b|=>|<\/?[a-z]+>|\bimport\b|\bexport\b|\breturn\b)/.test(txt);
   return "Recebi um texto grande: " + words + " palavras e " + txt.length + " caracteres." +
     (code ? " Parece código de programação." : "") +
-    "\n\nPosso resumir, explicar o funcionamento, montar uma cadeia de uso ou revisar o código.";
+    "\n\nPosso resumir, explicar o funcionamento, montar uma cadeia de uso, pesquisar trechos com `/rag` ou revisar o código.";
 }
 
 const HELP =
@@ -598,8 +635,8 @@ const HELP =
   "🎨 Visual e Modos\n" +
   "• Use o menu ☰ ou peça: “tema vermelho”, “tema azul”, “tema neon”...\n" +
   "• Use os 10 modos no topo (Automático, Raciocínio, Pesquisa, Programação, Visão...)\n\n" +
-  "🔎 Pesquisar, recomendar e traduzir\n" +
-  "• pesquise sobre ... / recomenda filmes de drama / sertanejo / animes / séries\n" +
+  "🔎 Pesquisar, arquivos e traduzir\n" +
+  "• pesquise sobre ... / `/rag pergunta` nos seus arquivos salvos\n" +
   "• escreva um e-mail / plano de estudos / diferença entre X e Y\n" +
   "• o que significa ... / como se diz ... em inglês / clima em (sua cidade)\n\n" +
   "🛠️ Ferramentas rápidas\n" +
@@ -610,23 +647,31 @@ function buildMemorySummary() {
   const p = data.profile;
   const sess = getSessionState();
   const parts = [];
+  parts.push("**Camada 1 — Curto Prazo (Sessão Atual):**");
+  parts.push("• Clima/emoção atual: " + (sess.emotion || "neutro"));
+  if (sess.situation?.resumo) parts.push("• Situação citada agora: " + sess.situation.resumo);
+  if (sess.lastEvents?.length) parts.push("• Eventos recentes: " + sess.lastEvents.slice(-3).join(" | "));
+
+  parts.push("\n**Camada 2 — Memória Estruturada (Perfil):**");
   if (nome) parts.push("• Nome: " + nome);
   if (p.age) parts.push("• Idade: " + p.age + " anos");
   if (p.city) parts.push("• Cidade: " + p.city);
+  if (p.profession) parts.push("• Profissão: " + p.profession);
   if (p.workShift) parts.push("• Turno / trabalho citado: " + p.workShift);
-  if (sess.situation?.resumo) parts.push("• Situação atual nesta conversa: " + sess.situation.resumo);
   if (p.likes.length) parts.push("• Coisas que você gosta: " + p.likes.join(", "));
   if (p.dislikes.length) parts.push("• Coisas que você não curte: " + p.dislikes.join(", "));
   if (p.projects.length) parts.push("• Projetos/estudos: " + p.projects.join(", "));
   const favs = Object.entries(p.favorites || {});
   if (favs.length) parts.push("• Favoritos: " + favs.map(([k, v]) => k + " = " + v).join("; "));
   const estilo = p.humorScore >= 1.2 ? "descontraído / bem-humorado" : p.humorScore <= -1.2 ? "direto / sério" : "equilibrado";
-  parts.push("• Estilo que percebi em você: " + estilo);
+  parts.push("• Estilo percebido: " + estilo);
+
+  parts.push("\n**Camada 3 — Memória Semântica & Tópicos:**");
+  parts.push("• Respostas ensinadas: " + data.examples.length + " • Notas: " + data.notes.length);
   if (data.topics.length) parts.push("• Assuntos que já conversamos (" + data.topics.length + "): " + data.topics.slice(-10).map(x => x.topic).join(", "));
-  if (data.notes.length) parts.push("• Notas salvas: " + data.notes.slice(-5).map(n => n.text).join(" | "));
-  return parts.length
-    ? "🧠 Isto é o que eu lembro sobre você e nossas conversas:\n\n" + parts.join("\n")
-    : "Ainda sei pouco sobre você! Me conte seu nome, o que você gosta ou o que está fazendo que eu guardo tudo.";
+  if (data.notes.length) parts.push("• Últimas notas: " + data.notes.slice(-5).map(n => n.text).join(" | "));
+
+  return "🧠 **MINHA MEMÓRIA EM 3 CAMADAS SOBRE VOCÊ:**\n\n" + parts.join("\n");
 }
 
 function importarMemoriaSegura(d) {
@@ -669,6 +714,7 @@ function importarMemoriaSegura(d) {
       d.profile.projects.filter(x => typeof x === "string").forEach(x => pushUnique(data.profile.projects, x, 15));
     }
     if (typeof d.profile.city === "string") data.profile.city = d.profile.city.slice(0, 45);
+    if (typeof d.profile.profession === "string") data.profile.profession = d.profile.profession.slice(0, 80);
     if (typeof d.profile.workShift === "string") data.profile.workShift = d.profile.workShift.slice(0, 80);
     if (Number.isFinite(d.profile.age)) data.profile.age = d.profile.age;
     Object.assign(data.profile.favorites, limparObjPlano(d.profile.favorites, 80));
@@ -790,7 +836,7 @@ function think(message) {
     return R("Fui criada por Rizik em **2026** e sigo recebendo atualizações constantes! 🚀", "identity");
   }
   if (intent === "identity") {
-    return R("Sou a BACH AI! 🧠 Fui criada por Rizik para ajudar todo mundo de graça — com memória contínua, leitura de fotos/vídeos/códigos, temas e pesquisa na internet.", intent);
+    return R("Sou a BACH AI! 🧠 Fui criada por Rizik para ajudar todo mundo de graça — 100% própria, com memória em 3 camadas, leitura de fotos/vídeos/códigos, temas e pesquisa na internet.", intent);
   }
 
   const { item, score } = bestExample(original);
@@ -825,7 +871,7 @@ function think(message) {
     case "goodbye":
       return R("Até logo! Tudo que conversamos continua salvo aqui.", intent);
     case "capabilities":
-      return R("Posso conversar acompanhando seu estilo e situação, lembrar do que falamos do começo ao fim, mudar temas, criar apps (`/app`), traduzir idiomas, ler fotos/vídeos/códigos e pesquisar na internet.", intent);
+      return R("Posso conversar acompanhando seu estilo e situação, lembrar em 3 camadas do começo ao fim, buscar nos seus arquivos (`/rag`), mudar temas, criar apps (`/app`), traduzir idiomas, ler fotos/vídeos/códigos e pesquisar na internet.", intent);
     case "canread":
       return R("Sim! Leio textos, códigos, links, fotos (inclusive prints em modo escuro) e vídeos.", intent);
     case "time":
@@ -858,6 +904,7 @@ export const RizikBrain = {
   getRecentTopics,
   getProfile,
   getStats,
+  searchMemory,
   normalize,
   updateTone,
   getMood,
