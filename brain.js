@@ -1,8 +1,11 @@
-/* BACH AI - CÉREBRO 1.0
+/* BACH AI - CÉREBRO 1.1 (Blindado)
    Conversa, memória automática do usuário do início ao fim da sessão,
-   perfil adaptativo de humor/tom, aprendizado contínuo com correções e backup. */
+   perfil adaptativo de humor/tom, aprendizado contínuo com correções e backup.
+   Segurança: uso de Object.hasOwn em dicionários dinâmicos, proteção contra
+   Prototype Pollution na importação e bloqueio de segredos na memória. */
 
 const KEY = "rizik_brain_v1";
+const PROIBIDAS = new Set(["__proto__", "constructor", "prototype"]);
 const BASE = {
   name: "BACH AI",
   facts: {},
@@ -23,26 +26,38 @@ const BASE = {
   version: 10
 };
 
+function limparObjPlano(src, maxValLen = 500) {
+  const out = {};
+  if (!src || typeof src !== "object" || Array.isArray(src)) return out;
+  for (const k of Object.keys(src)) {
+    if (PROIBIDAS.has(k)) continue;
+    const v = src[k];
+    if (typeof v === "string") out[k] = v.slice(0, maxValLen);
+    else if (typeof v === "number" || typeof v === "boolean") out[k] = v;
+  }
+  return out;
+}
+
 function load() {
   try {
     const s = JSON.parse(localStorage.getItem(KEY));
-    if (s && typeof s === "object") {
+    if (s && typeof s === "object" && !Array.isArray(s)) {
       return {
         ...BASE,
         ...s,
         name: "BACH AI",
         version: 10,
-        facts: s.facts || {},
+        facts: limparObjPlano(s.facts, 400),
         examples: Array.isArray(s.examples) ? s.examples : [],
-        synonyms: s.synonyms || {},
+        synonyms: limparObjPlano(s.synonyms, 80),
         notes: Array.isArray(s.notes) ? s.notes : [],
         profile: {
           ...BASE.profile,
-          ...(s.profile || {}),
+          ...(s.profile && typeof s.profile === "object" ? s.profile : {}),
           likes: Array.isArray(s.profile?.likes) ? s.profile.likes : [],
           dislikes: Array.isArray(s.profile?.dislikes) ? s.profile.dislikes : [],
           projects: Array.isArray(s.profile?.projects) ? s.profile.projects : [],
-          favorites: s.profile?.favorites || {},
+          favorites: limparObjPlano(s.profile?.favorites, 80),
           humorScore: Number.isFinite(s.profile?.humorScore) ? s.profile.humorScore : 0,
           interactions: Number.isFinite(s.profile?.interactions) ? s.profile.interactions : 0
         },
@@ -86,7 +101,10 @@ function normalize(t) {
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 
 function applySyn(t) {
-  return normalize(t).split(" ").map(w => data.synonyms[w] || w).join(" ");
+  return normalize(t)
+    .split(" ")
+    .map(w => (w && !PROIBIDAS.has(w) && Object.hasOwn(data.synonyms, w)) ? data.synonyms[w] : w)
+    .join(" ");
 }
 
 function lev(a, b) {
@@ -141,7 +159,7 @@ function vocab() {
 function fixTypos(text) {
   const v = vocab();
   return normalize(text).split(" ").map(w => {
-    if (w.length < 4 || v.has(w) || data.synonyms[w]) return w;
+    if (w.length < 4 || v.has(w) || (Object.hasOwn(data.synonyms, w))) return w;
     const max = w.length >= 7 ? 2 : 1;
     let best = w, bd = max + 1;
     for (const c of v) {
@@ -153,10 +171,15 @@ function fixTypos(text) {
   }).join(" ");
 }
 
+function ehSegredo(texto) {
+  const s = String(texto || "").trim();
+  return /^\/(?:adm|admsenha|ghconfig|chave)\b/i.test(s) || /@rizik2442/i.test(s);
+}
+
 function learn(q, a) {
-  q = String(q || "").trim();
-  a = String(a || "").trim();
-  if (!q || !a) return false;
+  q = String(q || "").trim().slice(0, 400);
+  a = String(a || "").trim().slice(0, 2000);
+  if (!q || !a || ehSegredo(q) || ehSegredo(a)) return false;
   const key = applySyn(q);
   const i = data.examples.findIndex(x => applySyn(x.question) === key);
   const item = {
@@ -174,7 +197,7 @@ function learn(q, a) {
 function learnSynonym(from, to) {
   const a = normalize(from).replace(/\s+/g, "");
   const b = normalize(to);
-  if (!a || !b || b.includes(" ")) return false;
+  if (!a || !b || b.includes(" ") || PROIBIDAS.has(a) || PROIBIDAS.has(b)) return false;
   data.synonyms[a] = b;
   save();
   return true;
@@ -189,12 +212,16 @@ function forget(q) {
 }
 
 function remember(k, v) {
-  data.facts[k] = v;
+  const key = String(k || "");
+  if (!key || PROIBIDAS.has(key)) return;
+  data.facts[key] = v;
   save();
 }
 
 function recall(k) {
-  return data.facts[k] ?? null;
+  const key = String(k || "");
+  if (!key || PROIBIDAS.has(key) || !Object.hasOwn(data.facts, key)) return null;
+  return data.facts[key] ?? null;
 }
 
 function logTopic(topic) {
@@ -275,7 +302,7 @@ function getMood() {
 }
 
 function setPendingError(question, botResponse = "") {
-  if (!question) return;
+  if (!question || ehSegredo(question)) return;
   pendingError = {
     question: String(question).trim(),
     botResponse: String(botResponse || "").slice(0, 200),
@@ -355,8 +382,10 @@ function captureUserMemory(original) {
   if (m) {
     const cat = m[1].toLowerCase();
     const val = m[2].trim().replace(/[.!]+$/, "");
-    data.profile.favorites[cat] = val;
-    save();
+    if (!PROIBIDAS.has(cat)) {
+      data.profile.favorites[cat] = val;
+      save();
+    }
     return `Guardei! Seu ${cat} favorito é ${val}. ⭐`;
   }
 
@@ -447,6 +476,54 @@ function buildMemorySummary() {
     : "Ainda sei pouco sobre você! Me conte seu nome, o que você gosta ou o que está fazendo que eu guardo tudo.";
 }
 
+function importarMemoriaSegura(d) {
+  if (!d || typeof d !== "object" || Array.isArray(d)) return false;
+
+  if (Array.isArray(d.examples)) {
+    for (const e of d.examples.slice(0, 300)) {
+      if (e && typeof e.question === "string" && typeof e.answer === "string") {
+        learn(e.question, e.answer);
+      }
+    }
+  }
+
+  Object.assign(data.facts, limparObjPlano(d.facts, 400));
+
+  if (d.synonyms && typeof d.synonyms === "object" && !Array.isArray(d.synonyms)) {
+    for (const k of Object.keys(d.synonyms)) {
+      if (PROIBIDAS.has(k)) continue;
+      if (typeof d.synonyms[k] === "string") learnSynonym(k, d.synonyms[k]);
+    }
+  }
+
+  if (Array.isArray(d.notes)) {
+    for (const n of d.notes.slice(0, 200)) {
+      if (n && typeof n.text === "string" && !ehSegredo(n.text)) {
+        data.notes.push({ text: n.text.slice(0, 300), at: Number(n.at) || Date.now() });
+      }
+    }
+    data.notes = data.notes.slice(-200);
+  }
+
+  if (d.profile && typeof d.profile === "object" && !Array.isArray(d.profile)) {
+    if (Array.isArray(d.profile.likes)) {
+      d.profile.likes.filter(x => typeof x === "string").forEach(x => pushUnique(data.profile.likes, x));
+    }
+    if (Array.isArray(d.profile.dislikes)) {
+      d.profile.dislikes.filter(x => typeof x === "string").forEach(x => pushUnique(data.profile.dislikes, x));
+    }
+    if (Array.isArray(d.profile.projects)) {
+      d.profile.projects.filter(x => typeof x === "string").forEach(x => pushUnique(data.profile.projects, x, 15));
+    }
+    if (typeof d.profile.city === "string") data.profile.city = d.profile.city.slice(0, 45);
+    if (Number.isFinite(d.profile.age)) data.profile.age = d.profile.age;
+    Object.assign(data.profile.favorites, limparObjPlano(d.profile.favorites, 80));
+  }
+
+  save();
+  return true;
+}
+
 function think(message) {
   const original = String(message || "").trim();
   const t = normalize(original);
@@ -466,7 +543,7 @@ function think(message) {
 
   let m = original.match(/^(?:ensine|corrija|corrigir)\s*:\s*(.+?)\s*=>\s*(.+)$/is);
   if (m) {
-    learn(m[1], m[2]);
+    if (!learn(m[1], m[2])) return R("Não foi possível salvar esse conteúdo na memória.", "learning");
     clearPendingError();
     return R("Aprendi! 🧠 Guardei essa resposta na memória e já vou usar daqui pra frente.", "learning");
   }
@@ -481,7 +558,7 @@ function think(message) {
   if (m) {
     const ladoA = m[1].split(",").map(normalize).filter(Boolean);
     const b = normalize(m[2]);
-    if (!ladoA.length || !b || b.includes(" ") || ladoA.some(a => a.includes(" "))) {
+    if (!ladoA.length || !b || b.includes(" ") || ladoA.some(a => a.includes(" ") || PROIBIDAS.has(a)) || PROIBIDAS.has(b)) {
       return R("Use palavras simples. Ex: sinônimo: blz = beleza ou sinônimos: top, massa, daora = legal", "synonym");
     }
     ladoA.forEach(a => { data.synonyms[a] = b; });
@@ -505,7 +582,9 @@ function think(message) {
 
   m = original.match(/^lembre\s*:\s*(.+)$/i);
   if (m) {
-    data.notes.push({ text: m[1].trim(), at: Date.now() });
+    if (ehSegredo(m[1])) return R("Por segurança, não guardo senhas ou comandos administrativos nas notas. 🔒", "note");
+    data.notes.push({ text: m[1].trim().slice(0, 300), at: Date.now() });
+    data.notes = data.notes.slice(-200);
     save();
     return R("Anotado! 📝", "note");
   }
@@ -525,12 +604,7 @@ function think(message) {
   if (m) {
     try {
       const d = JSON.parse(m[1]);
-      (d.examples || []).forEach(e => e && learn(e.question, e.answer));
-      Object.assign(data.facts, d.facts || {});
-      Object.assign(data.synonyms, d.synonyms || {});
-      (d.notes || []).forEach(n => n && n.text && data.notes.push(n));
-      if (d.profile) Object.assign(data.profile, d.profile);
-      save();
+      if (!importarMemoriaSegura(d)) return R("Esse backup não está válido.", "import");
       return R("Memória importada com sucesso! 🧠", "import");
     } catch {
       return R("Esse backup não está válido. Copie o texto completo.", "import");
