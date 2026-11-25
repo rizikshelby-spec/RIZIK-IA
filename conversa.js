@@ -1,10 +1,10 @@
-/* BACH AI 5.0 — Conversa Natural, Humor Adaptativo & Memória da Sessão
+/* BACH AI 5.1 — Conversa Natural, Humor Adaptativo & Memória da Sessão
    Adapta o tom ao jeito do usuário ao longo da conversa (zero risada fora de hora),
-   acompanha do início ao fim do chat e entende respostas cotidianas e reações naturais. */
+   acompanha contexto de respostas anteriores e entende gírias e falas cotidianas. */
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .replace(/\bqm\b/g, "quem")
-  .replace(/\b(vc|vce|vv)\b/g, "voce")
+  .replace(/\b(vc|vce|vv|oc|oce)\b/g, "voce")
   .replace(/\b(cvs|cv)\b/g, "conversar")
   .replace(/\b(oq|oqe|oque)\b/g, "o que")
   .replace(/\b(pq|pk)\b/g, "porque")
@@ -14,6 +14,9 @@ const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u030
   .replace(/\b(dnv)\b/g, "de novo")
   .replace(/\b(pse)\b/g, "pois e")
   .replace(/\b(entt)\b/g, "entao")
+  .replace(/\b(ahamn|ahamm)\b/g, "aham")
+  .replace(/\b(tendii+)\b/g, "entendi")
+  .replace(/\bnn\b/g, "nao")
   .replace(/[^a-z0-9\s]/g, " ")
   .replace(/\s+/g, " ")
   .trim();
@@ -183,6 +186,15 @@ function resumoSessaoCompleta(ctx) {
     "\n\nPode continuar de qualquer um desses pontos!";
 }
 
+function contextoEspacoRecente(ctx) {
+  const h = Array.isArray(ctx.history) ? ctx.history : [];
+  const ultBot = [...h].reverse().slice(0, 8).filter(m => m && m.type !== "user" && m.text).map(m => String(m.text)).join("\n");
+  if (/plut[aã]o|planeta|sistema solar|merc[uú]rio|marte|j[uú]piter|saturno|sol/i.test(ultBot)) {
+    return ultBot;
+  }
+  return "";
+}
+
 function responder(texto, ctx = {}) {
   const t = norm(texto).replace(/\bbash\b/g, "bach");
   if (!t) return null;
@@ -202,17 +214,42 @@ function responder(texto, ctx = {}) {
     if (certa && t.includes(certa)) { const r = charadaAtual[1]; charadaAtual = null; return "🎉 Isso mesmo! Era " + r.charAt(0).toLowerCase() + r.slice(1) + "\nQuer outra? Diga “outra charada”."; }
   }
 
+  // Emergência com animal de estimação
+  if (/\b(cachorro|cao|gato|pet|animal)\b/.test(t) && /\b(morrendo|passando mal|convulsao|sangrando|envenenado|desmaiou)\b/.test(t)) {
+    return "🚨 **Procure um veterinário de emergência 24h imediatamente!**\n\n" +
+      "Enquanto leva ele:\n" +
+      "• Mantenha o animal calmo, aquecido e com ar para respirar.\n" +
+      "• **Não dê remédios humanos** (podem ser fatais para cães e gatos).\n" +
+      "• Ligue para a clínica mais próxima avisando que está a caminho.";
+  }
+
+  // Contexto de planetas / Plutão / distância na conversa
+  const espacoCtx = contextoEspacoRecente(ctx);
+  if (espacoCtx) {
+    if (/\b(tem mais planetas|mais planetas|existe outros|existem outros|quais outros planetas)\b/.test(t)) {
+      return "🪐 Sim! No Sistema Solar existem **8 planetas principais** em ordem a partir do Sol:\n1. Mercúrio\n2. Vênus\n3. Terra\n4. Marte\n5. Júpiter\n6. Saturno\n7. Urano\n8. Netuno\n\nAlém deles, existem planetas anões como **Plutão, Ceres, Éris, Haumea e Makemake**, e milhares de exoplanetas fora do Sistema Solar!";
+    }
+    if (/\b(enquanto a distancia|quanto a distancia|qual a distancia|distancia dele|distancia de plutao)\b/.test(t)) {
+      return "🚀 A distância média de **Plutão até o Sol** é de cerca de **5,9 bilhões de km** (quase 40 vezes a distância da Terra ao Sol), variando entre 4,4 bilhões e 7,3 bilhões de km ao longo da órbita!";
+    }
+  }
+
+  // Pergunta filosófica sobre fé / Deus
+  if (/\b(voce|bach)\b/.test(t) && /\b(acredita|cre|fe)\b/.test(t) && /\bdeus\b/.test(t)) {
+    return "Como sou uma inteligência artificial feita de código e dados, eu não tenho fé nem crenças pessoais como um ser humano — mas respeito todas as religiões e posso pesquisar sobre a Bíblia, teologia ou história se você quiser.";
+  }
+
   // Lembrar do início ao fim da conversa atual
   if (/\b(lembra do inicio|lembra do comeco|do que ja falamos|resumo da conversa|inicio da conversa|tudo que falamos|comeco da conversa)\b/.test(t)) {
     return resumoSessaoCompleta(ctx);
   }
 
-  // Honestidade sobre senso de humor adaptativo e autocorreção
+  // Senso de humor e autocorreção
   if (/\b(senso de humor|sem humor|nao tem humor|sem graca|seja engracad[oa])\b/.test(t)) {
     return "Eu controlo meu humor pelo seu tom na conversa: quando percebo você falando sério ou frustrado, evito soltar risada ou piada fora de hora.\n\nQuando você brinca ou puxa um papo leve, eu entro no clima junto! Se quiser testar uma piada interativa agora, manda `piada`.";
   }
-  if (/\b(auto\s*corrig\w*|auto\s*correcao|autocorrecao|se\s+corrig\w*|se\s+arrum\w*)\b/.test(t)) {
-    return "Na conversa, eu me autocorrijo reanalisando sua pergunta anterior quando você avisa que errei, ajustando meu tom e aprendendo respostas que você me ensinar (`ensine: pergunta => resposta`).\n\nPara evoluir meus códigos com rede neural na nuvem automaticamente, estamos montando o módulo neural + treino automático no GitHub!";
+  if (/\b(auto\s*corrig\w*|auto\s*correcao|autocorrecao|se\s+corrig\w*|se\s+arrum\w*|aprender\s+sozinha)\b/.test(t)) {
+    return "Eu me corrijo de 3 formas reais:\n1. Reanaliso a pergunta ou a mensagem que você marcou (`↩ Responder`) quando você avisa que errei.\n2. Minha Rede Neural aprende quando você reformula uma pergunta após uma falha.\n3. O treino automático no GitHub atualiza os pesos neurais diariamente.\n\nVocê também pode ensinar qualquer resposta direta com `ensine: pergunta => resposta`!";
   }
 
   // Pedido de N mensagens aleatórias
@@ -246,7 +283,7 @@ function responder(texto, ctx = {}) {
     return "Sinto muito que você esteja passando por isso. Você não está sozinho(a), e o que você sente importa. 💜\n\nPor favor, fale agora com alguém: no Brasil o CVV atende 24 horas pelo telefone **188** (ligação gratuita) e pelo site **cvv.org.br**. Se estiver em perigo imediato, ligue **192** (SAMU).";
   }
 
-  // Respostas diretas às falas comuns da conversa
+  // Falas reais do chat e perguntas curtas
   if (/^(?:no\s+)?o\s+que\s+voce\s+sabe(?:\s+fazer)?$/.test(t) || /^(?:me\s+)?(?:fala|diz|conta)\s+o\s+que\s+voce\s+(?:entende|sabe)$/.test(t) || /^o\s+que\s+voce\s+entende$/.test(t)) {
     return "Eu entendo e faço: **programação e Termux** (`/termux`), **criação de apps** (`/app`), **matemática e conversões**, **ortografia e sílabas** (`/revisar`, `/silabas`), **avaliação de sites** (`/site`), **tradução de idiomas**, **recomendações** (filmes, músicas, séries, animes) e **pesquisa na web**! Digite `/ajuda` para ver tudo.";
   }
@@ -267,13 +304,40 @@ function responder(texto, ctx = {}) {
       ? "Certo, seguindo nossa conversa — o último ponto foi sobre **“" + ult + "”**. Quer continuar por aí ou mudar de assunto?"
       : "Estou acompanhando! Pode mandar o assunto que você quer conversar.";
   }
+  if (/^(?:sim\s+)?aconteceu(?:\s+algo)?$/.test(t) || /^aconteceu\s+algo$/.test(t)) {
+    return "Sinto muito que tenha acontecido alguma coisa. Se quiser conversar, desabafar ou só distrair a cabeça um pouco, estou por aqui.";
+  }
+  if (/^(?:exatamente|isso\s+exatamente)$/.test(t)) {
+    return "Certo! Pode continuar de onde paramos ou mandar a próxima coisa.";
+  }
+  if (/\bmarquei\b.*\b(palavra|mensagem|frase|texto)\b/.test(t)) {
+    return "Entendi! Agora, quando você usa **↩ Responder** em uma mensagem e avisa que errei, eu leio direto o trecho que você marcou.";
+  }
+  if (/^(?:posso\s+explicar|quer\s+que\s+eu\s+explico)/.test(t)) {
+    return "Pode explicar sim! Ou se preferir me ensinar uma resposta direta para qualquer frase, use `ensine: frase => resposta`. Se for um assunto geral, eu também pesquiso na web!";
+  }
+  if (/^(?:quantas\s+pessoas?\s+te\s+ajuda|quem\s+te\s+ajuda)/.test(t)) {
+    return "Fui criada por Rizik, e vou evoluindo com os testes, correções e treinos da nossa Rede Neural!";
+  }
+  if (/^(?:o\s+tema\s+sempre\s+muda|mudar\s+o\s+tema)$/.test(t)) {
+    return "O tema visual só muda quando você pede (ex.: `tema azul`, `tema vermelho`, `tema neon`) ou escolhe no menu **☰** — e fica salvo no seu navegador!";
+  }
+  if (/^(?:aqui\s+tem\s+acesso\s+adm|ele\s+e\s+pago)$/.test(t)) {
+    return "A BACH AI é gratuita para todo mundo! Existe apenas um modo de organização reservado para o criador administrar os módulos e erros.";
+  }
+  if (/^link\s+invalido$/.test(t)) {
+    return "Se um link falhou, confira se ele está completo começando com `https://` (por exemplo: `/site https://exemplo.com`).";
+  }
+  if (/^(?:ai\s+)?voce\s+me\s+quebra$/.test(t)) {
+    return "Foi mal por essa! Me diga em poucas palavras o que você queria que eu tento acertar agora.";
+  }
   if (/^sentiu\s+o\s+que$/.test(t)) {
     return "Só quis dizer que percebi sua reação na resposta anterior, mas escrevi de um jeito estranho. Pode mandar direto o que você quer agora!";
   }
   if (/^(?:combinado|beleza|fechou)\s+o\s+que$/.test(t)) {
     return "Foi só uma forma de confirmar que estou pronta para a próxima mensagem! Me diga direto o que você quer fazer agora.";
   }
-  if (/^(?:nao\s+quero(?:\s+nao)?)$/.test(t)) {
+  if (/^(?:nao\s+quero(?:\s+nao)?|nao\s+ne)$/.test(t)) {
     return "Tudo bem! Quando quiser testar algum outro comando ou assunto, é só mandar.";
   }
   if (/^(?:so\s+foca\s+em\s+melhorar|foca\s+em\s+melhorar|melhora\s+logo)$/.test(t)) {
@@ -434,7 +498,7 @@ function responder(texto, ctx = {}) {
   if (/^(k{3,}|ha{2,}h?a?|rs+|rsrs+|he{2,}|hue+|kkk+)$/.test(t)) {
     return serio ? "Entendi. Me diga o que você precisa agora." : girar("riso", ["😂 Boa! Manda a próxima!", "Haha 😄 Tô curtindo o papo!"]);
   }
-  if (/^(hm+|hmm+|ok|okay|certo|entendi|uhum|ahan|aham|tendi|sei|ata|ah|ah entendi|saquei|blz|show|massa|legal|top|boa|bacana|beleza|otimo|otima)$/.test(t)) {
+  if (/^(hm+|hmm+|ok|okay|certo|entendi|uhum|aham|tendi|sei|ata|at|ah|ah entendi|saquei|blz|show|massa|legal|top|boa|bacana|beleza|otimo|otima)$/.test(t)) {
     return girar("ok", [
       "Certo! Pode mandar a próxima pergunta, comando ou assunto.",
       "Beleza. Estou acompanhando — o que você quer fazer agora?"
@@ -445,6 +509,9 @@ function responder(texto, ctx = {}) {
     return leve
       ? "Obrigada! 🥰 Fico feliz que esteja gostando — vou continuar evoluindo com você!"
       : "Obrigada" + n + "! Isso ajuda muito a saber que estou no caminho certo.";
+  }
+  if (/^\s*(?:quem\s+e\s+voce|sobre\s+a\s+bach)\s*$/.test(t)) {
+    return "Sou a BACH AI 🧠, criada do zero por Rizik — com Rede Neural própria, memória contínua no seu aparelho, leitura de arquivos e imagens, criação de apps, ferramentas locais e pesquisa na web.";
   }
   if (/\b(isso|essa resposta|sua busca|sua pesquisa|o resultado) (esta|ta|foi|saiu) errad[ao]\b/.test(t) ||
       /\berrad[ao] (a )?(sua busca|sua pesquisa|essa resposta)\b/.test(t) ||
