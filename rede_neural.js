@@ -1,7 +1,9 @@
-/* BACH AI 5.1 — REDE NEURAL PRÓPRIA (MLP + Backpropagation + N-gramas)
+/* BACH AI 5.1 — REDE NEURAL PRÓPRIA BLINDADA (MLP + Backpropagation + N-gramas)
  * 100% desenvolvida no projeto, sem modelos externos.
  * Classifica intenções em frases livres/gírias, executa treino online por correção
  * e carrega pesos treinados automaticamente na nuvem (pesos_neurais.json).
+ * Segurança: validação completa de pesos/dimensões (anti-NaN), Map seguro para rótulos,
+ * bloqueio de segredos em extraSamples e limite de entrada contra travamento.
  */
 
 const K_NEURAL = "bach_neural_local_v1";
@@ -83,8 +85,15 @@ const BASE_TREINO = [
   ["entre essas duas qual e a melhor", "conversa_geral"], ["pode parar o timer", "conversa_geral"]
 ];
 
+function ehEntradaSensivel(texto) {
+  const s = String(texto || "").trim();
+  return /^\/(?:adm|admsenha|ghconfig|chave)\b/i.test(s) ||
+    /@rizik2442/i.test(s) ||
+    /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{12,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{16,}|AIza[0-9A-Za-z\-_]{20,}\b/.test(s);
+}
+
 function norm(t) {
-  return String(t || "").toLowerCase().normalize("NFD")
+  return String(t || "").slice(0, 600).toLowerCase().normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/\bqm\b/g, "quem")
     .replace(/\b(vc|vce|vv|oc|oce)\b/g, "voce")
@@ -113,7 +122,7 @@ function vetorizar(texto) {
   const t = norm(texto);
   if (!t) return vec;
 
-  const palavras = t.split(" ").filter(Boolean);
+  const palavras = t.split(" ").filter(Boolean).slice(0, 80);
   for (let i = 0; i < palavras.length; i++) {
     const w = palavras[i];
     vec[hashStr("w:" + w) % DIM] += 1.6;
@@ -227,8 +236,8 @@ function trainSample(texto, targetIdx, lr = 0.08) {
 }
 
 function treinarLote(amostras = BASE_TREINO, epocas = 35, lr = 0.09) {
-  const idxMap = Object.fromEntries(INTENCOES.map((name, i) => [name, i]));
-  const tudo = [...amostras, ...(net.extraSamples || [])].filter(x => idxMap[x[1]] !== undefined);
+  const idxMap = new Map(INTENCOES.map((name, i) => [name, i]));
+  const tudo = [...amostras, ...(net.extraSamples || [])].filter(x => Array.isArray(x) && idxMap.has(x[1]));
   let lastLoss = 0;
 
   for (let ep = 0; ep < epocas; ep++) {
@@ -236,7 +245,7 @@ function treinarLote(amostras = BASE_TREINO, epocas = 35, lr = 0.09) {
     const ordem = tudo.slice().sort(() => Math.random() - 0.5);
     let loss = 0;
     for (const [txt, label] of ordem) {
-      loss += trainSample(txt, idxMap[label], taxa);
+      loss += trainSample(txt, idxMap.get(label), taxa);
     }
     lastLoss = loss / (ordem.length || 1);
   }
@@ -269,16 +278,50 @@ function salvarLocal() {
   } catch (e) { console.warn("Neural save:", e); }
 }
 
+function vetorValido(arr, tamanho) {
+  if (!Array.isArray(arr) || arr.length !== tamanho) return false;
+  for (let i = 0; i < arr.length; i++) {
+    if (typeof arr[i] !== "number" || !Number.isFinite(arr[i]) || Math.abs(arr[i]) > 1000) return false;
+  }
+  return true;
+}
+
+function filtrarAmostras(lista) {
+  if (!Array.isArray(lista)) return [];
+  const validas = new Set(INTENCOES);
+  const out = [];
+  for (const item of lista.slice(-120)) {
+    if (
+      Array.isArray(item) &&
+      typeof item[0] === "string" &&
+      typeof item[1] === "string" &&
+      validas.has(item[1]) &&
+      !ehEntradaSensivel(item[0])
+    ) {
+      out.push([item[0].trim().slice(0, 140), item[1]]);
+    }
+  }
+  return out;
+}
+
 function carregarPayload(obj, sourceLabel) {
-  if (!obj || !Array.isArray(obj.W1) || obj.W1.length !== DIM * HIDDEN) return false;
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return false;
+  if (
+    !vetorValido(obj.W1, DIM * HIDDEN) ||
+    !vetorValido(obj.b1, HIDDEN) ||
+    !vetorValido(obj.W2, HIDDEN * INTENCOES.length) ||
+    !vetorValido(obj.b2, INTENCOES.length)
+  ) {
+    return false;
+  }
   net.W1 = new Float32Array(obj.W1);
   net.b1 = new Float32Array(obj.b1);
   net.W2 = new Float32Array(obj.W2);
   net.b2 = new Float32Array(obj.b2);
-  net.epochs = obj.epochs || 0;
-  net.acc = obj.acc || 0;
-  net.source = sourceLabel || obj.source || "pesos-carregados";
-  if (Array.isArray(obj.extraSamples)) net.extraSamples = obj.extraSamples;
+  net.epochs = Number.isFinite(obj.epochs) && obj.epochs >= 0 ? Math.round(obj.epochs) : 0;
+  net.acc = Number.isFinite(obj.acc) ? Math.max(0, Math.min(100, Math.round(obj.acc))) : 0;
+  net.source = String(sourceLabel || obj.source || "pesos-carregados").replace(/[<>"'`]/g, "").slice(0, 40);
+  net.extraSamples = filtrarAmostras(obj.extraSamples);
   return true;
 }
 
@@ -300,9 +343,12 @@ async function init() {
     if (local) {
       if (!carregouNuvem) {
         carregarPayload(local, local.source || "local-salvo");
-      } else if (Array.isArray(local.extraSamples) && local.extraSamples.length) {
-        net.extraSamples = local.extraSamples;
-        treinarLote(local.extraSamples, 6, 0.05);
+      } else {
+        const extras = filtrarAmostras(local.extraSamples);
+        if (extras.length) {
+          net.extraSamples = extras;
+          treinarLote(extras, 6, 0.05);
+        }
       }
     }
   } catch {}
@@ -326,11 +372,12 @@ function predict(texto) {
 
 function reinforce(texto, intencao) {
   const idx = INTENCOES.indexOf(intencao);
-  if (idx < 0 || !String(texto || "").trim()) return false;
-  net.extraSamples = (net.extraSamples || []).filter(s => norm(s[0]) !== norm(texto));
-  net.extraSamples.push([String(texto).trim().slice(0, 140), intencao]);
+  const txt = String(texto || "").trim();
+  if (idx < 0 || !txt || ehEntradaSensivel(txt)) return false;
+  net.extraSamples = (net.extraSamples || []).filter(s => norm(s[0]) !== norm(txt));
+  net.extraSamples.push([txt.slice(0, 140), intencao]);
   net.extraSamples = net.extraSamples.slice(-120);
-  for (let i = 0; i < 12; i++) trainSample(texto, idx, 0.08);
+  for (let i = 0; i < 12; i++) trainSample(txt, idx, 0.08);
   salvarLocal();
   return true;
 }
@@ -368,7 +415,7 @@ function comando(raw) {
   m = arg.match(/^ensinar\s+(.+?)\s*=>\s*([a-z_]+)$/i);
   if (m) {
     const ok = reinforce(m[1], m[2].toLowerCase());
-    if (!ok) return "Categoria inválida. Use uma destas:\n" + INTENCOES.map(x => "`" + x + "`").join(", ");
+    if (!ok) return "Categoria inválida ou conteúdo bloqueado. Use uma destas categorias:\n" + INTENCOES.map(x => "`" + x + "`").join(", ");
     return "✅ Rede neural treinada! Agora `" + m[1] + "` aponta para **`" + m[2].toLowerCase() + "`** (" + (predict(m[1]).confidence * 100).toFixed(1) + "% de confiança).";
   }
 
