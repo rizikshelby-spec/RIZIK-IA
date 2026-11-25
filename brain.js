@@ -1,10 +1,10 @@
-/* BACH AI 5.2 - CÉREBRO 1.2 (Blindado)
-   Conversa, memória automática do usuário do início ao fim da sessão,
-   perfil adaptativo de humor/tom, aprendizado contínuo com correções e backup.
-   Segurança: uso de Object.hasOwn em dicionários dinâmicos, proteção contra
-   Prototype Pollution na importação e bloqueio de segredos na memória. */
+/* BACH AI 5.2 - CÉREBRO 2.0 (Consciência Situacional + Memória Contínua + Blindagem)
+   Conversa com memória automática do usuário, estado situacional da conversa atual
+   (emoções, rotina/trabalho, desabafos, fio do assunto), termômetro adaptativo de tom,
+   aprendizado contínuo com correções e proteção contra Prototype Pollution. */
 
 const KEY = "rizik_brain_v1";
+const KEY_SESSION = "bach_session_state_v1";
 const PROIBIDAS = new Set(["__proto__", "constructor", "prototype"]);
 const BASE = {
   name: "BACH AI",
@@ -18,12 +18,13 @@ const BASE = {
     city: null,
     age: null,
     projects: [],
+    workShift: null,
     favorites: {},
     humorScore: 0,
     interactions: 0
   },
   topics: [],
-  version: 10
+  version: 11
 };
 
 function limparObjPlano(src, maxValLen = 500) {
@@ -46,7 +47,7 @@ function load() {
         ...BASE,
         ...s,
         name: "BACH AI",
-        version: 10,
+        version: 11,
         facts: limparObjPlano(s.facts, 400),
         examples: Array.isArray(s.examples) ? s.examples : [],
         synonyms: limparObjPlano(s.synonyms, 80),
@@ -57,6 +58,7 @@ function load() {
           likes: Array.isArray(s.profile?.likes) ? s.profile.likes : [],
           dislikes: Array.isArray(s.profile?.dislikes) ? s.profile.dislikes : [],
           projects: Array.isArray(s.profile?.projects) ? s.profile.projects : [],
+          workShift: typeof s.profile?.workShift === "string" ? s.profile.workShift.slice(0, 80) : null,
           favorites: limparObjPlano(s.profile?.favorites, 80),
           humorScore: Number.isFinite(s.profile?.humorScore) ? s.profile.humorScore : 0,
           interactions: Number.isFinite(s.profile?.interactions) ? s.profile.interactions : 0
@@ -73,6 +75,78 @@ function load() {
 let data = load();
 let pending = null;
 let pendingError = null;
+
+function defaultSession() {
+  return {
+    emotion: "neutro",
+    emotionAt: 0,
+    activeThread: null,
+    situation: null,
+    lastEvents: [],
+    lastBotQuestion: "",
+    updatedAt: Date.now()
+  };
+}
+
+function loadSession() {
+  try {
+    const s = JSON.parse(sessionStorage.getItem(KEY_SESSION) || "null");
+    if (s && typeof s === "object" && !Array.isArray(s)) {
+      return {
+        ...defaultSession(),
+        ...s,
+        lastEvents: Array.isArray(s.lastEvents) ? s.lastEvents.slice(-8) : []
+      };
+    }
+  } catch {}
+  return defaultSession();
+}
+
+let sessionState = loadSession();
+
+function saveSession() {
+  try {
+    sessionState.updatedAt = Date.now();
+    sessionStorage.setItem(KEY_SESSION, JSON.stringify(sessionState));
+  } catch {}
+}
+
+function getSessionState() {
+  if (sessionState.emotion !== "neutro" && sessionState.emotionAt && (Date.now() - sessionState.emotionAt) > 25 * 60 * 1000) {
+    sessionState.emotion = "neutro";
+    saveSession();
+  }
+  return {
+    ...sessionState,
+    situation: sessionState.situation ? { ...sessionState.situation } : null,
+    lastEvents: [...(sessionState.lastEvents || [])]
+  };
+}
+
+function updateSessionState(patch = {}) {
+  if (!patch || typeof patch !== "object") return getSessionState();
+  if (typeof patch.emotion === "string") {
+    sessionState.emotion = patch.emotion;
+    sessionState.emotionAt = Date.now();
+  }
+  if (patch.activeThread !== undefined) sessionState.activeThread = patch.activeThread;
+  if (patch.situation !== undefined) {
+    sessionState.situation = patch.situation
+      ? { ...(sessionState.situation || {}), ...patch.situation, at: Date.now() }
+      : null;
+  }
+  if (typeof patch.lastBotQuestion === "string") sessionState.lastBotQuestion = patch.lastBotQuestion.slice(0, 220);
+  if (typeof patch.addEvent === "string" && patch.addEvent.trim()) {
+    sessionState.lastEvents = [...(sessionState.lastEvents || []), patch.addEvent.trim().slice(0, 140)].slice(-8);
+  }
+  saveSession();
+  return getSessionState();
+}
+
+function resetSessionState() {
+  sessionState = defaultSession();
+  saveSession();
+}
 
 function save() {
   try {
@@ -93,6 +167,8 @@ function normalize(t) {
     .replace(/\bpq\b/g, "porque")
     .replace(/\b(tb|tbm|tmb)\b/g, "tambem")
     .replace(/\bcvs\b/g, "conversar")
+    .replace(/\bnd\b/g, "nada")
+    .replace(/\bq\b/g, "que")
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -145,6 +221,7 @@ const CORE_WORDS = (
   "programacao codigo javascript python html css sql github arquivo pasta imagem foto video texto " +
   "ajuda ajudar aprender ensinar estudar escrever falar ouvir ler criar jogar lembrar esquecer memoria " +
   "gosto adoro curto odeio moro cidade idade trabalho projeto ideia problema solucao resposta pergunta " +
+  "turno noite dia dialogo conversa triste cansado odio raiva " +
   "hello hi hey thanks please sorry bye hola gracias adios bonjour merci ciao hallo danke"
 ).split(" ");
 
@@ -159,7 +236,6 @@ function vocab() {
 function fixTypos(text) {
   const v = vocab();
   return normalize(text).split(" ").map(w => {
-    // Só corrige palavras >= 5 letras para não trocar palavras válidas curtas (ex.: "olha" -> "ola")
     if (w.length < 5 || v.has(w) || Object.hasOwn(data.synonyms, w)) return w;
     const max = w.length >= 8 ? 2 : 1;
     let best = w, bd = max + 1;
@@ -251,22 +327,79 @@ function getStats() {
   };
 }
 
-/* ---------- Termômetro Adaptativo de Humor e Tom ---------- */
+/* ---------- Termômetro Adaptativo de Humor, Emoção & Situação ---------- */
 
 function detectTone(raw) {
   const s = String(raw || "");
   const n = normalize(s);
   const rindo = /😂|🤣|😄|😆|😜|🤪|\b(k{3,}|ha{2,}h?a?|rsrs+|hehe+|hue+)\b/i.test(s);
   const brincadeira = /\b(piada|charada|brincar|diverte|engracado|zoeira|humor)\b/.test(n);
-  const frustrado = /\b(burro|burra|idiota|inutil|lixo|errou|errado|errada|nada a ver|nada haver|nao entende|nao entendeu|nunca entende|pqp|crlh|merda|porra|chato|chata|ruim|horrivel|droga|para de errar|muitos erros|esperava melhoras|tudo errado)\b/.test(n);
-  const triste = /\b(triste|mal|ansioso|ansiosa|chorando|deprimido|cansado|cansada|desanimado|morrer|suicid)\b/.test(n);
-  const serio = /\b(codigo|erro|bug|problema|configuracao|trabalho|curriculo|revisar|contrato|golpe|imc|medico|resumo|estudar)\b/.test(n);
+  const frustrado = /\b(burro|burra|idiota|inutil|lixo|errou|errado|errada|nada a ver|nada haver|nao entende|nao entendeu|nunca entende|pqp|crlh|merda|porra|chato|chata|ruim|horrivel|droga|para de errar|muitos erros|esperava melhoras|tudo errado|que odio|odio disso|saco cheio|que saco|ta dificil|nao quero testar|q pergunta)\b/.test(n);
+  const triste = /\b(triste|mal|ansioso|ansiosa|chorando|deprimido|deprimida|cansado|cansada|desanimado|desanimada|chateado|chateada|exausto|exausta|sozinho|sozinha|solidao|morrer|suicid|fui mandado|mandaram|demitido|demitida|perdi o)\b/.test(n);
+  const serio = /\b(codigo|erro|bug|problema|configuracao|trabalho|curriculo|revisar|contrato|golpe|imc|medico|resumo|estudar|turno)\b/.test(n);
 
-  if (frustrado) return "frustrado";
   if (triste) return "triste";
+  if (frustrado) return "frustrado";
   if (rindo || brincadeira) return "descontraido";
   if (serio || s.length > 180) return "serio";
   return "neutro";
+}
+
+function extractSituationalContext(raw) {
+  const s = String(raw || "").trim();
+  const n = normalize(s);
+  if (!n || ehSegredo(s) || s.length > 260) return;
+
+  // Mudança de turno no trabalho
+  const mTurnoAtual = n.match(/\b(?:fui mandad[oa]|me mandaram|me mudaram|me colocaram|me passaram|mudei|mudaram|trocaram|vou trabalhar|trabalho|estou|to)\s+(?:para o |pro |no |de )?(?:turno\s+(?:de |da |do )?)?(dia|manha|tarde|noite|madrugada)\b/);
+  const mTurnoAnt = n.match(/\b(?:eu\s+)?(?:trabalhava|estava|ficava|era)\s+(?:a |de |na |no )?(?:turno\s+(?:de |da |do )?)?(noite|madrugada|dia|manha|tarde)\b/);
+
+  if ((/\b(turno|trabalh\w*|escala|horario|servico|emprego)\b/.test(n)) && (mTurnoAtual || mTurnoAnt)) {
+    const sitAtual = sessionState.situation?.tipo === "trabalho_turno" ? { ...sessionState.situation } : { tipo: "trabalho_turno" };
+    if (mTurnoAtual) {
+      sitAtual.turnoNovo = mTurnoAtual[1];
+      data.profile.workShift = "turno " + (mTurnoAtual[1] === "noite" || mTurnoAtual[1] === "manha" || mTurnoAtual[1] === "tarde" ? "da " : "do ") + mTurnoAtual[1];
+      save();
+    }
+    if (mTurnoAnt) sitAtual.turnoAntigo = mTurnoAnt[1];
+    sitAtual.resumo = sitAtual.turnoAntigo && sitAtual.turnoNovo
+      ? `saiu do turno da ${sitAtual.turnoAntigo} para o turno do ${sitAtual.turnoNovo}`
+      : sitAtual.turnoNovo
+        ? `foi colocado no turno do ${sitAtual.turnoNovo}`
+        : `trabalhava no turno da ${sitAtual.turnoAntigo}`;
+    updateSessionState({
+      activeThread: "trabalho_turno",
+      situation: sitAtual,
+      addEvent: s
+    });
+    return;
+  }
+
+  // Outras situações pessoais/emocionais
+  if (/\b(estou|to|tou|me sinto)\s+(?:muito\s+)?(triste|mal|chatead[oa]|ansios[oa]|desanimad[oa]|cansad[oa]|exaust[oa]|estressad[oa])\b/.test(n)) {
+    const mEm = n.match(/\b(triste|mal|chatead[oa]|ansios[oa]|desanimad[oa]|cansad[oa]|exaust[oa]|estressad[oa])\b/);
+    updateSessionState({
+      emotion: /cansad|exaust/.test(mEm?.[1] || "") ? "cansado" : "triste",
+      activeThread: sessionState.activeThread || "desabafo",
+      addEvent: s
+    });
+    return;
+  }
+
+  if (/\b(que odio|odio|raiva|revoltado|revoltada|nao aguento|saco cheio)\b/.test(n)) {
+    updateSessionState({
+      emotion: sessionState.emotion === "triste" ? "triste" : "frustrado",
+      addEvent: s
+    });
+    return;
+  }
+
+  if (/\b(estou bem|to bem|melhorei|fiquei feliz|to feliz|animad[oa])\b/.test(n)) {
+    updateSessionState({
+      emotion: "animado",
+      addEvent: s
+    });
+  }
 }
 
 function updateTone(raw) {
@@ -274,7 +407,7 @@ function updateTone(raw) {
   let score = Number(data.profile.humorScore || 0);
 
   if (instant === "frustrado") score = Math.max(-4, score - 2);
-  else if (instant === "triste") score = Math.min(0, score - 1);
+  else if (instant === "triste") score = Math.max(-3, score - 1.5);
   else if (instant === "serio") score = Math.max(-3, score - 0.5);
   else if (instant === "descontraido") score = Math.min(4, score + 1.5);
   else score = score > 0 ? Math.max(0, score - 0.15) : Math.min(0, score + 0.15);
@@ -283,22 +416,35 @@ function updateTone(raw) {
   data.profile.interactions = (data.profile.interactions || 0) + 1;
   save();
 
+  extractSituationalContext(raw);
+  if (instant === "triste") updateSessionState({ emotion: "triste" });
+  else if (instant === "frustrado" && sessionState.emotion !== "triste") updateSessionState({ emotion: "frustrado" });
+  else if (instant === "descontraido") updateSessionState({ emotion: "animado" });
+
   const mood =
     instant === "frustrado" ? "frustrado" :
     instant === "triste" ? "triste" :
     instant === "serio" ? "serio" :
+    sessionState.emotion === "triste" ? "triste" :
     score >= 1.2 || instant === "descontraido" ? "descontraido" :
     score <= -1.2 ? "serio" : "neutro";
 
-  return { mood, instant, score: data.profile.humorScore };
+  return { mood, instant, score: data.profile.humorScore, session: getSessionState() };
 }
 
 function getMood() {
   const score = Number(data.profile.humorScore || 0);
+  const sess = getSessionState();
+  const mood =
+    sess.emotion === "triste" ? "triste" :
+    sess.emotion === "frustrado" ? "frustrado" :
+    score >= 1.2 ? "descontraido" :
+    score <= -1.2 ? "serio" : "neutro";
   return {
     score,
-    mood: score >= 1.2 ? "descontraido" : score <= -1.2 ? "serio" : "neutro",
-    humorAllowed: score >= 0.8
+    mood,
+    emotion: sess.emotion,
+    humorAllowed: score >= 0.8 && sess.emotion !== "triste" && sess.emotion !== "frustrado"
   };
 }
 
@@ -341,22 +487,22 @@ function captureUserMemory(original) {
   if (!raw || raw.includes("?") || raw.length > 140) return null;
 
   let m = raw.match(/^(?:eu\s+)?(?:gosto muito de|gosto de|adoro|curto|amo)\s+(.+)$/i);
-  if (m && !/^(te|voce|vc|ele|ela|que|quando|como|se|saber|ver|perguntar)\b/i.test(m[1])) {
+  if (m && !/^(te|voce|vc|ele|ela|que|quando|como|se|saber|ver|perguntar|disso|isso)\b/i.test(m[1])) {
     const item = m[1].trim().replace(/[.!]+$/, "");
     if (pushUnique(data.profile.likes, item)) {
       return `Legal! Vou lembrar que você gosta de ${item}. 💜`;
     }
   }
 
-  m = raw.match(/^(?:eu\s+)?(?:nao gosto de|não gosto de|odeio|detesto)\s+(.+)$/i);
-  if (m) {
+  m = raw.match(/^(?:eu\s+)?(?:nao gosto de|não gosto de|detesto)\s+(.+)$/i);
+  if (m && !/^(disso|isso|nada|de nada|que)\b/i.test(m[1])) {
     const item = m[1].trim().replace(/[.!]+$/, "");
     if (pushUnique(data.profile.dislikes, item)) {
       return `Anotado! Vou lembrar que você não curte ${item}. 📝`;
     }
   }
 
-  const naoCidade = /^(boa|paz|maior|menor|ferro|aco|verdade|mentira|familia|casa|longe|perto|volta|acordo|novo|confianca|palavra|respeito)$/i;
+  const naoCidade = /^(boa|paz|maior|menor|ferro|aco|verdade|mentira|familia|casa|longe|perto|volta|acordo|novo|confianca|palavra|respeito|noite|dia|turno)$/i;
   m = raw.match(/^(?:eu\s+)?(?:moro em|moro no|moro na|sou de|sou do|sou da|vivo em)\s+(.+)$/i);
   if (m && m[1].split(/\s+/).length <= 5 && !naoCidade.test(normalize(m[1]))) {
     data.profile.city = m[1].trim().replace(/[.!]+$/, "").slice(0, 45);
@@ -372,7 +518,7 @@ function captureUserMemory(original) {
   }
 
   m = raw.match(/^(?:eu\s+)?(?:estou|to)\s+(?:criando|fazendo|desenvolvendo|estudando|aprendendo)\s+(.+)$/i);
-  if (m) {
+  if (m && !/^(nada|isso|testando|tentando)\b/i.test(m[1])) {
     const proj = m[1].trim().replace(/[.!]+$/, "");
     if (pushUnique(data.profile.projects, proj, 15)) {
       return `Show! Vou lembrar que você está trabalhando/estudando ${proj}. 🚀`;
@@ -417,7 +563,8 @@ function classify(message) {
   if (/^(oi|ola|eai|opa|bom dia|boa tarde|boa noite|hello|hi|hey|hola|bonjour|ciao|hallo)$/.test(t)) return "greeting";
   if (/^(bora|vamos|partiu|vambora|vamos nessa|bora la)$/.test(t)) return "encouragement";
   if (/^(beleza|blz|legal|massa|show|bacana|top|otimo|otima)$/.test(t)) return "positive";
-  if (/^(tudo bem|como vai|como voce esta|bem e voce|bem e vc|to bem e voce|estou bem e voce|e voce|e vc|tudo certo)$/.test(t)) return "wellbeing";
+  if (/^(e voce|e vc)$/.test(t)) return "reciprocal";
+  if (/^(tudo bem|como vai|como voce esta|bem e voce|bem e vc|to bem e voce|estou bem e voce|tudo certo)$/.test(t)) return "wellbeing";
   if (/^(obrigado|obrigada|valeu|agradecido|agradecida|thanks|gracias|merci|danke)$/.test(t)) return "thanks";
   if (/^(tchau|ate mais|falou|fui|ate logo|bye|adios)$/.test(t)) return "goodbye";
   if (/^(?:que horas sao|que horas e|que hora e|qual (?:e )?(?:a )?hora(?: agora)?|hora agora|me diz as horas|diz as horas)$/.test(t)) return "time";
@@ -461,10 +608,13 @@ const HELP =
 function buildMemorySummary() {
   const nome = recall("userName");
   const p = data.profile;
+  const sess = getSessionState();
   const parts = [];
   if (nome) parts.push("• Nome: " + nome);
   if (p.age) parts.push("• Idade: " + p.age + " anos");
   if (p.city) parts.push("• Cidade: " + p.city);
+  if (p.workShift) parts.push("• Turno / trabalho citado: " + p.workShift);
+  if (sess.situation?.resumo) parts.push("• Situação atual nesta conversa: " + sess.situation.resumo);
   if (p.likes.length) parts.push("• Coisas que você gosta: " + p.likes.join(", "));
   if (p.dislikes.length) parts.push("• Coisas que você não curte: " + p.dislikes.join(", "));
   if (p.projects.length) parts.push("• Projetos/estudos: " + p.projects.join(", "));
@@ -519,6 +669,7 @@ function importarMemoriaSegura(d) {
       d.profile.projects.filter(x => typeof x === "string").forEach(x => pushUnique(data.profile.projects, x, 15));
     }
     if (typeof d.profile.city === "string") data.profile.city = d.profile.city.slice(0, 45);
+    if (typeof d.profile.workShift === "string") data.profile.workShift = d.profile.workShift.slice(0, 80);
     if (Number.isFinite(d.profile.age)) data.profile.age = d.profile.age;
     Object.assign(data.profile.favorites, limparObjPlano(d.profile.favorites, 80));
   }
@@ -643,12 +794,12 @@ function think(message) {
   }
 
   const { item, score } = bestExample(original);
-  if (item && score >= 0.82) {
+  if (item && score >= 0.85) {
     item.uses = (item.uses || 0) + 1;
     save();
     return R(item.answer, "learned");
   }
-  if (item && score >= 0.6) {
+  if (item && score >= 0.72 && t.split(" ").length >= 3) {
     pending = { original, answer: item.answer };
     return R(`Você quis dizer “${item.question}”? (sim/não)`, "confirm");
   }
@@ -665,18 +816,16 @@ function think(message) {
       return R(mood === "descontraido" ? "Bora! 🚀 O que vamos fazer agora?" : "Certo, pode mandar o que você precisa.", intent);
     case "positive":
       return R(mood === "descontraido" ? "Show! 🙌" : "Ótimo!", intent);
+    case "reciprocal":
+      return { handled: false, intent, text: null };
     case "wellbeing":
-      return R(pick(
-        mood === "descontraido"
-          ? ["Estou ótima e pronta pra ajudar! 😄 E você?", "Tudo certo por aqui! E com você?"]
-          : ["Estou bem, obrigada. Como posso ajudar?", "Tudo bem por aqui! O que você gostaria de fazer agora?"]
-      ), intent);
+      return { handled: false, intent, text: null };
     case "thanks":
       return R("Por nada! Sempre que precisar, estou aqui.", intent);
     case "goodbye":
       return R("Até logo! Tudo que conversamos continua salvo aqui.", intent);
     case "capabilities":
-      return R("Posso conversar acompanhando seu estilo, lembrar do que falamos do começo ao fim, mudar temas, criar apps (`/app`), traduzir idiomas, ler fotos/vídeos/códigos e pesquisar na internet.", intent);
+      return R("Posso conversar acompanhando seu estilo e situação, lembrar do que falamos do começo ao fim, mudar temas, criar apps (`/app`), traduzir idiomas, ler fotos/vídeos/códigos e pesquisar na internet.", intent);
     case "canread":
       return R("Sim! Leio textos, códigos, links, fotos (inclusive prints em modo escuro) e vídeos.", intent);
     case "time":
@@ -713,6 +862,9 @@ export const RizikBrain = {
   updateTone,
   getMood,
   detectTone,
+  getSessionState,
+  updateSessionState,
+  resetSessionState,
   setPendingError,
   getPendingError,
   clearPendingError
