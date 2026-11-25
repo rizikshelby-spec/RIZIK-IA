@@ -1,10 +1,12 @@
-/* BACH AI 5.0 — Programação Completa, Termux, Bash, Python, Node & Gerador Autônomo de Apps
+/* BACH AI 5.1 — Programação Completa, Termux, Bash, Python, Node & Gerador Autônomo de Apps (Blindado)
  * Cria aplicativos HTML/CSS/JS completos sob demanda, gera scripts .sh prontos e ensina Termux.
+ * Segurança: sanitização estrita de título/chave em templates HTML, validação de dados do
+ * localStorage nos apps gerados e compatibilidade total com Sandbox sem allow-modals.
  */
 
 const BT = String.fromCharCode(96).repeat(3);
 
-const norm = s => String(s || "").toLowerCase().normalize("NFD")
+const norm = s => String(s || "").slice(0, 400).toLowerCase().normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "")
   .replace(/[^a-z0-9\s./-]/g, " ")
   .replace(/\s+/g, " ")
@@ -80,7 +82,7 @@ esac`;
 }
 
 function montarHTML(titulo, css, body, script) {
-  const safeTitulo = escHtml(titulo);
+  const safeTitulo = escHtml(String(titulo || "App").slice(0, 60));
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -110,10 +112,11 @@ ${script}
 function appPomodoro() {
   return montarHTML(
     "Timer Pomodoro",
-    ".tempo{font-size:52px;font-weight:bold;text-align:center;margin:16px 0;letter-spacing:2px}.row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}",
+    ".tempo{font-size:52px;font-weight:bold;text-align:center;margin:16px 0 6px;letter-spacing:2px}.aviso{min-height:20px;text-align:center;color:#7dff7a;font-size:13px;margin-bottom:10px}.row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}",
     `<div class="card">
       <h1>⏱️ Timer Pomodoro</h1>
       <div class="tempo" id="t">25:00</div>
+      <div class="aviso" id="msg"></div>
       <div class="row">
         <button onclick="iniciar()">▶ Iniciar</button>
         <button class="sec" onclick="pausar()">⏸ Pausar</button>
@@ -129,20 +132,21 @@ function desenha() {
 }
 function iniciar() {
   if (iv) return;
+  document.getElementById("msg").textContent = "";
   iv = setInterval(() => {
     if (seg > 0) { seg--; desenha(); }
-    else { pausar(); alert("⏰ Tempo concluído!"); }
+    else { pausar(); document.getElementById("msg").textContent = "⏰ Tempo concluído!"; }
   }, 1000);
 }
 function pausar() { clearInterval(iv); iv = null; }
-function modo(min) { pausar(); seg = min * 60; desenha(); }`
+function modo(min) { pausar(); seg = min * 60; document.getElementById("msg").textContent = ""; desenha(); }`
   );
 }
 
 function appNotas() {
   return montarHTML(
     "Bloco de Notas",
-    ".item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px;background:rgba(0,0,0,.28);border-radius:10px;margin-top:8px}.item span{flex:1;white-space:pre-wrap}",
+    ".item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px;background:rgba(0,0,0,.28);border-radius:10px;margin-top:8px}.item span{flex:1;white-space:pre-wrap;overflow-wrap:anywhere}",
     `<div class="card">
       <h1>📝 Bloco de Notas</h1>
       <textarea id="txt" rows="3" placeholder="Escreva sua anotação..."></textarea>
@@ -150,7 +154,10 @@ function appNotas() {
       <div id="lista"></div>
     </div>`,
     `let notas = [];
-try { notas = JSON.parse(localStorage.getItem("app_notas_v1") || "[]"); } catch {}
+try {
+  const p = JSON.parse(localStorage.getItem("app_notas_v1") || "[]");
+  if (Array.isArray(p)) notas = p.filter(x => typeof x === "string");
+} catch {}
 function salvar() { try { localStorage.setItem("app_notas_v1", JSON.stringify(notas)); } catch {} }
 function render() {
   const el = document.getElementById("lista");
@@ -175,7 +182,7 @@ render();`
 function appFinancas() {
   return montarHTML(
     "Controle de Gastos",
-    ".saldo{font-size:28px;font-weight:bold;text-align:center;margin:10px 0 14px}.row{display:flex;gap:8px;margin-bottom:10px}.item{display:flex;justify-content:space-between;padding:8px 10px;border-radius:10px;background:rgba(0,0,0,.28);margin-top:6px}",
+    ".saldo{font-size:28px;font-weight:bold;text-align:center;margin:10px 0 14px}.row{display:flex;gap:8px;margin-bottom:10px}.item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;background:rgba(0,0,0,.28);margin-top:6px}",
     `<div class="card">
       <h1>💰 Controle Financeiro</h1>
       <div class="saldo" id="saldo">R$ 0,00</div>
@@ -188,7 +195,10 @@ function appFinancas() {
       <div id="lista"></div>
     </div>`,
     `let itens = [];
-try { itens = JSON.parse(localStorage.getItem("app_fin_v1") || "[]"); } catch {}
+try {
+  const p = JSON.parse(localStorage.getItem("app_fin_v1") || "[]");
+  if (Array.isArray(p)) itens = p.filter(x => x && typeof x.d === "string" && Number.isFinite(x.v));
+} catch {}
 function salvar() { try { localStorage.setItem("app_fin_v1", JSON.stringify(itens)); } catch {} }
 function fmt(v) { return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
 function render() {
@@ -208,7 +218,7 @@ function add(sinal) {
   const d = document.getElementById("desc"), v = document.getElementById("val");
   const num = Number(v.value);
   if (!d.value.trim() || !(num > 0)) return;
-  itens.unshift({ d: d.value.trim(), v: num * sinal });
+  itens.unshift({ d: d.value.trim().slice(0, 80), v: num * sinal });
   d.value = ""; v.value = ""; salvar(); render();
 }
 render();`
@@ -254,12 +264,14 @@ setInterval(() => {
 }
 
 function appGenerico(tema) {
-  const titulo = tema.charAt(0).toUpperCase() + tema.slice(1);
+  const bruto = String(tema || "Meu App").trim().slice(0, 60) || "Meu App";
+  const titulo = bruto.charAt(0).toUpperCase() + bruto.slice(1);
   const safeTitulo = escHtml(titulo);
-  const safeKey = "bach_custom_" + norm(tema).replace(/[^a-z0-9]/g, "_").slice(0, 24);
+  const safeKey = "bach_custom_" + (norm(bruto).replace(/[^a-z0-9]/g, "_").slice(0, 24) || "app");
+  const jsonKey = JSON.stringify(safeKey).replace(/</g, "\\u003c");
   return montarHTML(
     titulo,
-    ".row{display:flex;gap:8px;margin-bottom:10px}.item{display:flex;align-items:center;gap:8px;padding:10px;background:rgba(0,0,0,.28);border-radius:10px;margin-top:8px}.item.ok span{text-decoration:line-through;opacity:.55}.item span{flex:1}.info{font-size:12px;color:#b4b8d8;margin-bottom:10px;text-align:center}",
+    ".row{display:flex;gap:8px;margin-bottom:10px}.item{display:flex;align-items:center;gap:8px;padding:10px;background:rgba(0,0,0,.28);border-radius:10px;margin-top:8px}.item.ok span{text-decoration:line-through;opacity:.55}.item span{flex:1;overflow-wrap:anywhere}.info{font-size:12px;color:#b4b8d8;margin-bottom:10px;text-align:center}",
     `<div class="card">
       <h1>✨ ${safeTitulo}</h1>
       <div class="info">App gerado pela BACH AI • Dados salvos no navegador</div>
@@ -270,9 +282,12 @@ function appGenerico(tema) {
       <input id="busca" placeholder="🔎 Filtrar itens..." oninput="render()">
       <div id="lista"></div>
     </div>`,
-    `const K = ${JSON.stringify(safeKey)};
+    `const K = ${jsonKey};
 let dados = [];
-try { dados = JSON.parse(localStorage.getItem(K) || "[]"); } catch {}
+try {
+  const p = JSON.parse(localStorage.getItem(K) || "[]");
+  if (Array.isArray(p)) dados = p.filter(x => x && typeof x.t === "string");
+} catch {}
 function salvar() { try { localStorage.setItem(K, JSON.stringify(dados)); } catch {} }
 function render() {
   const q = document.getElementById("busca").value.toLowerCase();
@@ -290,7 +305,7 @@ function render() {
 function add() {
   const i = document.getElementById("inp");
   if (!i.value.trim()) return;
-  dados.unshift({ t: i.value.trim(), ok: false });
+  dados.unshift({ t: i.value.trim().slice(0, 200), ok: false });
   i.value = ""; salvar(); render();
 }
 render();`
@@ -311,9 +326,10 @@ function criarAppSobMedida(pedido) {
   } else if (/\b(cobrinha|snake)\b/.test(t)) {
     html = appCobrinha(); nome = "jogo-cobrinha.html";
   } else {
-    const tema = pedido
+    const tema = String(pedido || "")
       .replace(/^(?:crie|cria|criar|faz|faca|fazer|monte|monta|gere|gera|programe|desenvolva)\s+(?:um\s+|uma\s+)?(?:app|aplicativo|sistema|site|programa|jogo)\s*(?:de|sobre|para|com)?\s*/i, "")
-      .trim() || "Meu App";
+      .trim()
+      .slice(0, 60) || "Meu App";
     html = appGenerico(tema);
     nome = (norm(tema).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "meu-app") + ".html";
   }
@@ -341,12 +357,10 @@ function handle(text, context = {}) {
   const t = norm(raw);
   if (!t) return null;
 
-  // 1) Guias Termux / Linux / Bash / Scripts
   for (const [re, resp] of GUIAS_TERMUX) {
     if (re.test(t)) return resp;
   }
 
-  // 2) Pedido para abrir o terminal do Termux aqui no chat (explica limite real do navegador)
   const antBot = ultimoBotDoCtx(context);
   if (/\b(abre|abrir)\b.*\b(terminal|termux|console|shell)\b/.test(t) ||
       (/^(?:nao consegue\??|(?:voce|vc) nao consegue abrir\??|abre|abrir)$/.test(t) && /termux|terminal|sandbox|executar/i.test(antBot))) {
@@ -356,12 +370,10 @@ function handle(text, context = {}) {
       "• Para rodar código **JavaScript ou HTML** aqui dentro mesmo: use `/executar codigo` ou `/preview <h1>Oi</h1>`!";
   }
 
-  // 3) Referência a um painel recém-gerado
   if (/^(?:abre\s+)?(?:o\s+)?painel$/.test(t) && /meu-painel\.html|Preview ao vivo/i.test(antBot)) {
     return "🖼️ O painel criado apareceu no cartão **▶️ Preview ao vivo** logo acima — você já pode clicar e testar direto dentro dele ou tocar em **⛶ Tela cheia**.";
   }
 
-  // 4) Seguimento natural para criar app/script (sem roubar pedidos de pesquisa/perguntas!)
   const ehPesquisaOuPergunta = /\b(pesquis\w*|procur\w*|busc\w*|explic\w*|o que|como|porque|por que|qual|quais|quem)\b/.test(t);
   if (!ehPesquisaOuPergunta && /\b(cria|crie|criar|faz|faca|fazer|gera|gere)\b/.test(t) && t.split(" ").length <= 7 &&
       (/\b(para mim|pra mim|e so criar|e so fazer|abre ai|abre e cria|cria ai|faz ai)\b/.test(t) ||
@@ -372,7 +384,6 @@ function handle(text, context = {}) {
     return criarAppSobMedida("Meu Painel");
   }
 
-  // 5) Pedido explícito de criar app (/app ... ou frase natural)
   const m = raw.match(/^\/app(?:\s+([\s\S]+))?$/i);
   if (m) {
     if (!m[1]) {
