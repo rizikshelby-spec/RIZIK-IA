@@ -1,8 +1,10 @@
-/* BACH AI - DICIONÁRIO 2.3
-   Dicionário brasileiro + gírias + sinônimos/antônimos + tradução flexível em blocos longos. */
+/* BACH AI - DICIONÁRIO 2.4 (Blindado)
+   Dicionário brasileiro + gírias + sinônimos/antônimos + tradução flexível em blocos longos.
+   Segurança: cache limitado (anti-vazamento de memória), Object.hasOwn para mapas de idiomas,
+   validação de idioma antes de chamadas externas e limite de tamanho em regex. */
 
-const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s'’-]/g, " ").replace(/\s+/g, " ").trim();
-const normCmd = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+const norm = t => String(t || "").slice(0, 1500).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s'’-]/g, " ").replace(/\s+/g, " ").trim();
+const normCmd = t => String(t || "").slice(0, 700).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
 
 export const LINGUAS = {
   en: ["ingles", "english"], es: ["espanhol", "castelhano", "spanish"], fr: ["frances", "french"], it: ["italiano", "italian"],
@@ -12,6 +14,8 @@ export const LINGUAS = {
 };
 const NOME = { en: "inglês", es: "espanhol", fr: "francês", it: "italiano", de: "alemão", pt: "português", ja: "japonês", zh: "chinês", ru: "russo", ko: "coreano", ar: "árabe", nl: "holandês", tr: "turco", el: "grego", la: "latim", hi: "hindi", pl: "polonês", sv: "sueco" };
 const BANDEIRA = { en: "🇬🇧", es: "🇪🇸", fr: "🇫🇷", it: "🇮🇹", de: "🇩🇪", ja: "🇯🇵", zh: "🇨🇳", ru: "🇷🇺", ko: "🇰🇷", pt: "🇧🇷" };
+const nomeLing = c => Object.hasOwn(NOME, c) ? NOME[c] : c;
+const bandLing = c => Object.hasOwn(BANDEIRA, c) ? BANDEIRA[c] : "🌐";
 const lingua = n => { n = norm(n); for (const [c, v] of Object.entries(LINGUAS)) if (v.includes(n)) return c; return null; };
 const LRE = Object.values(LINGUAS).flat().join("|");
 
@@ -461,7 +465,7 @@ segunda-feira|Monday|lunes|lundi|lunedì|Montag
 terça-feira|Tuesday|martes|mardi|martedì|Dienstag
 quarta-feira|Wednesday|miércoles|mercredi|mercoledì|Mittwoch
 quinta-feira|Thursday|jueves|jeudi|giovedì|Donnerstag
-sexta-feira|Friday|viernes|vendredi|venerdì|Freitag
+sexta-feira|Friday|viernes|vendredi|vendredi|Freitag
 sábado|Saturday|sábado|samedi|sabato|Samstag
 domingo|Sunday|domingo|dimanche|domenica|Sonntag
 janeiro|January|enero|janvier|gennaio|Januar
@@ -571,7 +575,7 @@ mentira|lie|mentira|mensonge|bugia|Lüge
 ajuda|help|ayuda|aide|aiuto|Hilfe
 pergunta|question|pregunta|question|domanda|Frage
 resposta|answer|respuesta|réponse|risposta|Antwort
-palavra|word|palabra|mot|parola|Wort
+palavra|word|palavra|mot|parola|Wort
 língua|language|idioma|langue|lingua|Sprache
 música|music|música|musique|musica|Musik
 jogo|game|juego|jeu|gioco|Spiel
@@ -606,14 +610,28 @@ const ANTX = ANT.map(l => { const [p, s] = l.split(": "); return { p, n: norm(p)
 const TR = TRAD.map(r => ({ nk: r.map(norm), r }));
 const COLS = ["pt", "en", "es", "fr", "it", "de"];
 const cache = new Map();
-const limpa = h => String(h || "").replace(/<[^>]*>/g, "").replace(/&[a-z#0-9]+;/gi, m => ({ "&amp;": "&", "&quot;": '"', "&#39;": "'", "&nbsp;": " ", "&lt;": "<", "&gt;": ">" }[m] || " ")).replace(/\s+/g, " ").trim();
+const MAX_CACHE = 150;
+const ENT_MAP = { "&amp;": "&", "&quot;": '"', "&#39;": "'", "&nbsp;": " ", "&lt;": "<", "&gt;": ">" };
+const limpa = h => String(h || "").replace(/<[^>]*>/g, "").replace(/&[a-z#0-9]+;/gi, m => {
+  const k = m.toLowerCase();
+  return Object.hasOwn(ENT_MAP, k) ? ENT_MAP[k] : " ";
+}).replace(/\s+/g, " ").trim();
 const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
 
 async function jget(url, ms = 9000) {
   if (cache.has(url)) return cache.get(url);
   const c = new AbortController(), id = setTimeout(() => c.abort(), ms);
-  try { const r = await fetch(url, { signal: c.signal }); if (!r.ok) return null; const j = await r.json(); cache.set(url, j); return j; }
-  catch { return null; } finally { clearTimeout(id); }
+  try {
+    const r = await fetch(url, { signal: c.signal });
+    if (!r.ok) return null;
+    const j = await r.json();
+    if (cache.size >= MAX_CACHE) {
+      const oldest = cache.keys().next().value;
+      cache.delete(oldest);
+    }
+    cache.set(url, j);
+    return j;
+  } catch { return null; } finally { clearTimeout(id); }
 }
 
 function limpaAspas(s) { return String(s || "").replace(/^["'“”‘’:\-\s]+|["'“”‘’\s]+$/g, "").trim(); }
@@ -624,19 +642,18 @@ const REF_ALVO = /^(?:isso|isto|ele|ela|o texto|esse texto|essa frase|esta frase
 
 function detectar(texto) {
   const raw = String(texto || "").trim();
+  if (!raw || raw.length > 600) return null;
   const tail = raw.replace(/\s+/g, " ").trim();
   const s = normCmd(raw).replace(/\bvc\b/g, "voce");
-  if (!s || s.length > 600) return null;
+  if (!s) return null;
   let m;
 
-  // Pedido direto sobre citação ou mídia recente ("só traduz", "traduz", "traduz a foto")
   m = s.match(/^(?:(?:so|apenas|agora|por favor|pfv|pf)\s+)*(?:traduz|traduza|traduzir)(?:\s+(?:isso|isto|ele|ela|o texto|esse texto|essa frase|esta frase|a foto|essa foto|a imagem|essa imagem|o print))?(?:\s+(?:em|para|pra)\s+(?:o\s+|a\s+)?([a-z]+))?$/);
   if (m) {
     const alvo = m[1] ? lingua(m[1]) : null;
     if (!m[1] || alvo) return { tipo: "trad", q: "__ALVO__", alvo };
   }
 
-  // Pedido natural: "eu quero que vc traduz em portugues o texto que vc leu na foto"
   if (/\b(?:traduz|traduza|traduzir)\b/.test(s) && /\b(na foto|da foto|na imagem|da imagem|que (?:voce|vc) leu|esse texto|o texto|essa frase)\b/.test(s)) {
     const ml = s.match(new RegExp("\\b(?:em|para|pra)\\s+(?:o\\s+|a\\s+)?(" + LRE + ")\\b"));
     return { tipo: "trad", q: "__ALVO__", alvo: ml ? lingua(ml[1]) : "pt" };
@@ -694,7 +711,7 @@ function achaTrad(q) {
   return null;
 }
 function paraTodas(l, colOrig) {
-  return COLS.map((c, i) => i === colOrig ? null : (BANDEIRA[c] || "") + " " + cap(NOME[c]) + ": " + l[i]).filter(Boolean).join("\n");
+  return COLS.map((c, i) => i === colOrig ? null : bandLing(c) + " " + cap(nomeLing(c)) + ": " + l[i]).filter(Boolean).join("\n");
 }
 function achaPT(q) {
   const k = norm(q);
@@ -705,7 +722,8 @@ function achaPT(q) {
 function fmtPT(e) { return "📖 " + e.p + " (" + e.c + ")\n\n" + cap(e.d) + "\n\n📚 Fonte: dicionário da BACH."; }
 
 async function traduzirBloco(q, src, tgt) {
-  const j = await jget("https://api.mymemory.translated.net/get?q=" + encodeURIComponent(q) + "&langpair=" + src + "|" + tgt);
+  if (!Object.hasOwn(NOME, src) || !Object.hasOwn(NOME, tgt)) return null;
+  const j = await jget("https://api.mymemory.translated.net/get?q=" + encodeURIComponent(q) + "&langpair=" + encodeURIComponent(src + "|" + tgt));
   const r = j?.responseData?.translatedText;
   if (!r || /MYMEMORY WARNING|INVALID|QUERY LENGTH LIMIT/i.test(r)) return null;
   return limpa(r);
@@ -715,7 +733,6 @@ async function traduzirNet(q, src, tgt) {
   const texto = String(q || "").trim();
   if (texto.length <= 420) return await traduzirBloco(texto, src, tgt);
 
-  // Divide textos longos (como OCR de foto) em blocos <= 420 caracteres
   const linhas = texto.split(/\n+/);
   const blocos = [];
   let atual = "";
@@ -786,10 +803,10 @@ async function defNet(q, lang, passo) {
   }
   passo?.("📖 Consultando o Wiktionary...");
   const j = await jget("https://en.wiktionary.org/api/rest_v1/page/definition/" + encodeURIComponent(w));
-  const lista = j && (j[lang] || j[lang === "la" ? "la" : lang]);
+  const lista = j && Object.hasOwn(j, lang) ? j[lang] : null;
   if (lista?.length) {
     const partes = lista.slice(0, 3).map(b => cap(b.partOfSpeech) + ":\n" + (b.definitions || []).slice(0, 2).map(d => "• " + limpa(d.definition)).filter(x => x.length > 4).join("\n")).join("\n\n");
-    let txt = "📖 " + w + " (" + (NOME[lang] || lang) + ") — definição em inglês:\n\n" + partes;
+    let txt = "📖 " + w + " (" + nomeLing(lang) + ") — definição em inglês:\n\n" + partes;
     const tr = await traduzirNet(w, lang, "pt");
     if (tr && norm(tr) !== norm(w)) txt += "\n\n🇧🇷 Em português: " + tr;
     return txt + "\n\n🌐 Fonte: en.wiktionary.org";
@@ -836,9 +853,9 @@ async function consultar(d, passo) {
     if (t) {
       const [pt] = t.linha;
       if (alvo === "pt") return "🌍 " + cap(q) + " → português: " + pt;
-      if (alvo && COLS.includes(alvo)) return "🌍 " + cap(pt) + " em " + NOME[alvo] + ": " + t.linha[COLS.indexOf(alvo)] + (t.col !== 0 ? "\n(Você escreveu em " + NOME[COLS[t.col]] + "; em português é “" + pt + "”.)" : "");
+      if (alvo && COLS.includes(alvo)) return "🌍 " + cap(pt) + " em " + nomeLing(alvo) + ": " + t.linha[COLS.indexOf(alvo)] + (t.col !== 0 ? "\n(Você escreveu em " + nomeLing(COLS[t.col]) + "; em português é “" + pt + "”.)" : "");
       if (t.col === 0) return "🌍 “" + pt + "” nas principais línguas:\n\n" + paraTodas(t.linha, 0);
-      return "🌍 “" + q + "” (" + NOME[COLS[t.col]] + ") em português é: " + pt + "\n\n" + paraTodas(t.linha, t.col);
+      return "🌍 “" + q + "” (" + nomeLing(COLS[t.col]) + ") em português é: " + pt + "\n\n" + paraTodas(t.linha, t.col);
     }
     if (!alvo) {
       const src = adivinharIdioma(q);
@@ -849,14 +866,14 @@ async function consultar(d, passo) {
       }
       passo?.("🌍 Traduzindo...");
       const out = [];
-      for (const l of ["en", "es", "fr"]) { const r = await traduzirNet(q, "pt", l); if (r) out.push((BANDEIRA[l] || "") + " " + cap(NOME[l]) + ": " + r); }
+      for (const l of ["en", "es", "fr"]) { const r = await traduzirNet(q, "pt", l); if (r) out.push(bandLing(l) + " " + cap(nomeLing(l)) + ": " + r); }
       return out.length ? "🌍 “" + q + "” em:\n\n" + out.join("\n") + "\n\n🌐 Tradução automática (MyMemory). Diga “em japonês” etc. para outra língua." : null;
     }
     let src = adivinharIdioma(q);
     if (alvo === "pt" && src === "pt") src = "en";
-    passo?.("🌍 Traduzindo para " + NOME[alvo] + "...");
+    passo?.("🌍 Traduzindo para " + nomeLing(alvo) + "...");
     const r = await traduzirNet(q, src, alvo);
-    return r ? "🌍 Tradução para " + (BANDEIRA[alvo] || "🌐") + " " + cap(NOME[alvo]) + ":\n\n" + r + "\n\n🌐 Tradução automática (MyMemory)." : null;
+    return r ? "🌍 Tradução para " + bandLing(alvo) + " " + cap(nomeLing(alvo)) + ":\n\n" + r + "\n\n🌐 Tradução automática (MyMemory)." : null;
   }
   return null;
 }
