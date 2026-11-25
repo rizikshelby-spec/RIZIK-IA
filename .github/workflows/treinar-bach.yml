@@ -1,0 +1,34 @@
+name: Treinar Rede Neural BACH AI
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  treinar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Treinar Rede Neural BACH
+        env:
+          CLOUD_URL: ${{ secrets.BACH_CLOUD_URL }}
+          CLOUD_KEY: ${{ secrets.BACH_CLOUD_KEY }}
+        run: node treinar_neural.mjs
+
+      - name: Publicar novos pesos neurais
+        run: |
+          git config user.name "BACH AI Bot"
+          git config user.email "bach-bot@users.noreply.github.com"
+          git add pesos_neurais.json dataset_neural.json
+          git diff --staged --quiet || (git commit -m "chore(neural): atualiza pesos neurais automaticamente" && git push)
