@@ -1,4 +1,7 @@
-/* BACH AI 4.5 — AUTOGUARD (Monitoramento, Watchdog, Failure Memory, Self-Healing & Rollback) */
+/* BACH AI 5.1 — AUTOGUARD BLINDADO (Monitoramento, Watchdog, Failure Memory, Self-Healing & Rollback)
+ * Segurança: mascara segredos/tokens antes de gravar falhas no localStorage,
+ * valida integridade dos snapshots no rollback e amplia detecção no securityScan.
+ */
 
 const K_FAIL = "bach_failures_v1";
 const K_SNAP = "bach_snapshots_v1";
@@ -6,10 +9,29 @@ const K_PERF = "bach_perf_v1";
 
 let booted = false;
 
+function redigirSegredos(texto) {
+  let s = String(texto || "");
+  s = s.replace(/(\/(?:adm|admsenha|ghconfig|chave)\b)[^\n]*/gi, "$1 [OCULTO]");
+  s = s.replace(/@rizik2442/gi, "[ADM]");
+  s = s.replace(/\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{12,}\b/g, "[TOKEN_GH]");
+  s = s.replace(/\bgithub_pat_[A-Za-z0-9_]{20,}\b/g, "[TOKEN_GH]");
+  s = s.replace(/\b(?:sk-[A-Za-z0-9_-]{16,}|AIza[0-9A-Za-z\-_]{20,})\b/g, "[CHAVE_API]");
+  s = s.replace(/\bBearer\s+[A-Za-z0-9._\-]{12,}/gi, "Bearer [OCULTO]");
+  return s;
+}
+
+function ehEntradaSensivel(texto) {
+  const s = String(texto || "").trim();
+  return /^\/(?:adm|admsenha|ghconfig|chave)\b/i.test(s) || /@rizik2442/i.test(s);
+}
+
 function readJSON(key, fallback) {
   try {
     const v = JSON.parse(localStorage.getItem(key));
-    return v !== null && v !== undefined ? v : fallback;
+    if (v === null || v === undefined) return fallback;
+    if (Array.isArray(fallback) && !Array.isArray(v)) return fallback;
+    if (!Array.isArray(fallback) && typeof fallback === "object" && (typeof v !== "object" || Array.isArray(v))) return fallback;
+    return v;
   } catch {
     return fallback;
   }
@@ -62,8 +84,12 @@ function createSnapshot() {
     const brain = localStorage.getItem("rizik_brain_v1");
     const mente = localStorage.getItem("bach_mente_v1");
     if (!brain) return false;
-    JSON.parse(brain);
-    if (mente) JSON.parse(mente);
+    const bObj = JSON.parse(brain);
+    if (!bObj || typeof bObj !== "object" || Array.isArray(bObj)) return false;
+    if (mente) {
+      const mObj = JSON.parse(mente);
+      if (!mObj || typeof mObj !== "object" || Array.isArray(mObj)) return false;
+    }
 
     const snaps = readJSON(K_SNAP, []);
     snaps.push({ at: Date.now(), brain, mente: mente || null });
@@ -81,8 +107,16 @@ function rollback() {
   }
   const last = snaps[snaps.length - 1];
   try {
-    if (last.brain) localStorage.setItem("rizik_brain_v1", last.brain);
-    if (last.mente) localStorage.setItem("bach_mente_v1", last.mente);
+    if (last?.brain) {
+      const bObj = JSON.parse(last.brain);
+      if (!bObj || typeof bObj !== "object" || Array.isArray(bObj)) throw new Error("Snapshot de memória inválido.");
+      localStorage.setItem("rizik_brain_v1", last.brain);
+    }
+    if (last?.mente) {
+      const mObj = JSON.parse(last.mente);
+      if (!mObj || typeof mObj !== "object" || Array.isArray(mObj)) throw new Error("Snapshot da mente inválido.");
+      localStorage.setItem("bach_mente_v1", last.mente);
+    }
     logPerf("rollback");
     return { ok: true, at: last.at };
   } catch (e) {
@@ -91,13 +125,14 @@ function rollback() {
 }
 
 function recordFailure({ module = "geral", type = "error", input = "", detail = "" }) {
+  if (ehEntradaSensivel(input)) return;
   const list = readJSON(K_FAIL, []);
   list.push({
     at: Date.now(),
     module: String(module).slice(0, 30),
     type: String(type).slice(0, 30),
-    input: String(input).slice(0, 120),
-    detail: String(detail).slice(0, 180)
+    input: redigirSegredos(input).slice(0, 120),
+    detail: redigirSegredos(detail).slice(0, 180)
   });
   writeJSON(K_FAIL, list.slice(-30));
   logPerf("error");
@@ -106,12 +141,12 @@ function recordFailure({ module = "geral", type = "error", input = "", detail = 
 function logPerf(kind, ms = 0) {
   const p = readJSON(K_PERF, { totalCalls: 0, totalMs: 0, errors: 0, healings: 0, rollbacks: 0, slowCount: 0 });
   if (kind === "call") {
-    p.totalCalls++;
-    p.totalMs += ms;
-    if (ms > 4000) p.slowCount++;
-  } else if (kind === "error") p.errors++;
-  else if (kind === "healing") p.healings++;
-  else if (kind === "rollback") p.rollbacks++;
+    p.totalCalls = (Number(p.totalCalls) || 0) + 1;
+    p.totalMs = (Number(p.totalMs) || 0) + ms;
+    if (ms > 4000) p.slowCount = (Number(p.slowCount) || 0) + 1;
+  } else if (kind === "error") p.errors = (Number(p.errors) || 0) + 1;
+  else if (kind === "healing") p.healings = (Number(p.healings) || 0) + 1;
+  else if (kind === "rollback") p.rollbacks = (Number(p.rollbacks) || 0) + 1;
   writeJSON(K_PERF, p);
 }
 
@@ -134,11 +169,16 @@ function guard(moduleName, fn) {
 }
 
 function securityScan(code) {
+  const src = String(code || "");
   const issues = [];
-  if (/\beval\s*\(/.test(code)) issues.push("Uso de eval() — risco de execução arbitrária.");
-  if (/new\s+Function\s*\(/.test(code)) issues.push("Uso de Function() dinâmica — prefira parser seguro.");
-  if (/innerHTML\s*=/.test(code)) issues.push("Atribuição direta a innerHTML — prefira textContent para dados do usuário.");
-  if (/AIza[0-9A-Za-z\-_]{20,}|sk-[0-9A-Za-z]{20,}/.test(code)) issues.push("Possível chave secreta exposta no código.");
+  if (/\beval\s*\(/.test(src)) issues.push("Uso de eval() — risco de execução arbitrária.");
+  if (/new\s+Function\s*\(/.test(src)) issues.push("Uso de Function() dinâmica — prefira parser seguro.");
+  if (/(?:innerHTML|outerHTML)\s*=|insertAdjacentHTML\s*\(|document\.write\s*\(/.test(src)) {
+    issues.push("Inserção direta de HTML no DOM — prefira textContent para dados do usuário.");
+  }
+  if (/AIza[0-9A-Za-z\-_]{20,}|sk-[0-9A-Za-z]{20,}|(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{12,}|github_pat_[A-Za-z0-9_]{20,}/.test(src)) {
+    issues.push("Possível chave ou token secreto exposto no código.");
+  }
   return issues;
 }
 
