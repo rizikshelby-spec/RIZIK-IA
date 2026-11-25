@@ -133,7 +133,7 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 13px;border:1px
   <div class="htop">
     <button id="btnDrawer" aria-label="Abrir menu">☰</button>
     <div class="hbrand">
-      <div class="htitle"><h2>BACH AI 🧠</h2><span id="verBadge" title="Sobre e novidades">v5.2</span></div>
+      <div class="htitle"><h2>BACH AI 🧠</h2><span id="verBadge" title="Sobre e novidades">v5.4</span></div>
       <div id="status">Carregando...</div>
     </div>
   </div>
@@ -208,8 +208,8 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 13px;border:1px
     <button class="dbtn" data-d="sobre">ℹ️ Sobre o App &amp; Atualizações</button>
     <div class="dinfo">
       <b>Criador:</b> Rizik<br>
-      <b>Versão:</b> 5.2 (2026)<br>
-      Rede Neural própria + memória contínua no navegador.
+      <b>Versão:</b> 5.4 (2026)<br>
+      100% Própria • Rede Neural + RAG IndexedDB + memória em 3 camadas.
     </div>
   </aside>
 </div>
@@ -331,33 +331,33 @@ const [
   mConv, mDic, mHist, mBase, mReg, mLLM, mAv,
   mAuto, mRev, mEd, mErros, mVoz, mExec, mNeural, mNLU
 ] = await Promise.all([
-  loadMod("brain.js", "./brain.js?v=20"),
+  loadMod("brain.js", "./brain.js?v=21"),
   loadMod("saber.js", "./saber.js?v=15"),
   loadMod("programacao.js", "./programacao.js?v=5"),
-  loadMod("arquivos.js", "./arquivos.js?v=5"),
+  loadMod("arquivos.js", "./arquivos.js?v=6"),
   loadMod("mente.js", "./mente.js?v=20"),
   loadMod("fatos.js", "./fatos.js?v=8"),
   loadMod("conversa.js", "./conversa.js?v=10"),
   loadMod("dicionario.js", "./dicionario.js?v=5"),
   loadMod("historico.js", "./historico.js?v=3"),
   loadMod("base.js", "./base.js?v=10"),
-  loadMod("registry.js", "./registry.js?v=10"),
-  loadMod("llm.js", "./llm.js?v=3"),
+  loadMod("registry.js", "./registry.js?v=11"),
+  loadMod("llm.js", "./llm.js?v=4"),
   loadMod("cerebro_avancado.js", "./cerebro_avancado.js?v=5"),
   loadMod("autocorretor.js", "./autocorretor.js?v=7"),
   loadMod("revisor.js", "./revisor.js?v=3"),
-  loadMod("editor_adm.js", "./editor_adm.js?v=7"),
+  loadMod("editor_adm.js", "./editor_adm.js?v=8"),
   loadMod("erros_adm.js", "./erros_adm.js?v=2"),
   loadMod("voz.js", "./voz.js?v=2"),
   loadMod("executor_sandbox.js", "./executor_sandbox.js?v=3"),
-  loadMod("rede_neural.js", "./rede_neural.js?v=2"),
-  loadMod("nlu_neural.js", "./nlu_neural.js?v=2")
+  loadMod("rede_neural.js", "./rede_neural.js?v=3"),
+  loadMod("nlu_neural.js", "./nlu_neural.js?v=3")
 ]);
 
-const RizikBrain = mBrain.RizikBrain || { think: () => ({ handled: false }), learn: () => {}, remember: () => {}, recall: () => null, logTopic: () => {}, getRecentTopics: () => [], getProfile: () => ({}), getStats: () => ({ examples: 0, synonyms: 0, facts: 0, notes: 0 }), updateTone: () => ({ mood: "neutro", score: 0 }), getMood: () => ({ mood: "neutro", score: 0, humorAllowed: false }), getSessionState: () => ({}), updateSessionState: () => ({}), resetSessionState: () => {} };
+const RizikBrain = mBrain.RizikBrain || { think: () => ({ handled: false }), learn: () => {}, remember: () => {}, recall: () => null, logTopic: () => {}, getRecentTopics: () => [], getProfile: () => ({}), getStats: () => ({ examples: 0, synonyms: 0, facts: 0, notes: 0 }), searchMemory: () => [], updateTone: () => ({ mood: "neutro", score: 0 }), getMood: () => ({ mood: "neutro", score: 0, humorAllowed: false }), getSessionState: () => ({}), updateSessionState: () => ({}), resetSessionState: () => {} };
 const Saber = mSaber.Saber || { urlsEm: () => [], isCode: () => false, lerTexto: t => t, buscarConhecimento: () => null, summarize: () => [], pesquisaProfunda: async () => { throw new Error("saber.js indisponível"); }, lerLink: async () => { throw new Error("saber.js indisponível"); } };
 const Prog = mProg.Prog || { humor: () => null, responder: () => null, desconhecido: () => "Não entendi isso." };
-const Arquivos = mArq.Arquivos || { comando: () => null, salvar: a => ({ nome: a.nome || "arquivo", pasta: a.pasta || "Textos" }), lerMidia: async () => { throw new Error("arquivos.js indisponível"); } };
+const Arquivos = mArq.Arquivos || { comando: () => null, salvar: a => ({ nome: a.nome || "arquivo", pasta: a.pasta || "Textos" }), lerMidia: async () => { throw new Error("arquivos.js indisponível"); }, buscarRAG: () => [], total: () => 0 };
 const Mente = mMente.Mente || { jogando: () => false, responder: () => null, setTexto: () => {}, setMidia: () => {}, pasta: p => p, pergunta: () => false, tema: () => "", lembrarTema: () => {}, limparTema: () => {}, stats: () => ({}) };
 const Fatos = mFatos.Fatos || { responder: () => null, sobreMim: () => null, sobreVoce: () => false, enumerar: () => null, resumir: () => null, total: 0 };
 const Conversa = mConv.Conversa || { responder: () => null };
@@ -365,7 +365,7 @@ const Dic = mDic.Dic || { detectar: () => null, consultar: async () => null };
 const Historico = mHist.Historico || { salvarAtual: () => {}, listar: () => ({ pagina: 1, paginas: 1, totalPaginas: 1, total: 0, atual: "", itens: [] }), abrir: () => null, nova: () => {}, apagar: () => null, limparTudo: () => {}, idAtual: () => "" };
 const Base = mBase.Base || { montar: async () => { throw new Error("base.js indisponível"); }, importar: () => 0 };
 const SkillRouter = mReg.SkillRouter || { handle: () => null, instructions: () => "", modePrompt: () => "" };
-const LLM = mLLM.LLM || { hasModel: () => false, command: () => null, getConfig: () => ({ model: "BACH-AI-5.2" }) };
+const LLM = mLLM.LLM || { hasModel: () => false, command: () => null, label: () => "BACH AI 5.4 (Motor Próprio)", getConfig: () => ({ model: "BACH-AI-5.4-Nativa", reasoningDepth: "normal" }) };
 const CerebroAvancado = mAv.CerebroAvancado || { responder: async () => null };
 const AutoCorretor = mAuto.AutoCorretor || { ehReclamacao: () => false, tratarExclamacao: () => null, processarSeguimentoDeCorrecao: () => null, registrarFalhaPublica: () => {}, analisarEPreparar: () => null, formatarChat: h => JSON.stringify(h), auditarChat: () => "Módulo autocorretor.js não carregado." };
 const Revisor = mRev.Revisor || { detectarPedidoDireto: () => null, avaliarSite: async () => "revisor.js não carregado.", revisarCodigoFiel: () => null, revisarPortugues: () => null };
@@ -373,7 +373,7 @@ const EditorADM = mEd.EditorADM || { ativo: () => false, ehPedidoTudoTxt: () => 
 const ErrosADM = mErros.ErrosADM || { registrar: () => {}, listar: () => [], contar: () => 0, excluir: () => 0, excluirVarios: () => 0, limparTudo: () => {}, formatarParaCopiar: () => "", comando: () => null };
 const Voz = mVoz.Voz || { ler: () => false, parar: () => {}, desbloquear: () => {}, comando: () => null };
 const ExecutorSandbox = mExec.ExecutorSandbox || { detectarPedido: () => false, executar: async () => ({ texto: "executor_sandbox.js não carregado." }), criarCardPreview: () => document.createElement("div") };
-const RedeNeural = mNeural.RedeNeural || { comando: () => null, predict: () => ({ intent: "conversa_geral", confidence: 0 }), reinforce: () => false, getStats: () => ({ dim: 256, hidden: 48, classes: 12, epochs: 0, acc: 0, source: "offline", learnedCount: 0 }) };
+const RedeNeural = mNeural.RedeNeural || { comando: () => null, predict: () => ({ intent: "conversa_geral", confidence: 0 }), reinforce: () => false, getStats: () => ({ dim: 384, hidden: 64, classes: 12, epochs: 0, acc: 0, source: "offline", learnedCount: 0 }) };
 const NLUNeural = mNLU.NLUNeural || { decidir: () => null, marcarFalha: () => {}, registrarSucessoAposFalha: () => false, enviarParaNuvem: () => {}, comando: () => null };
 
 try {
@@ -387,7 +387,8 @@ try {
 const $ = id => document.getElementById(id);
 const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status"), hist = $("hist"), sobreEl = $("sobre"), errosModal = $("errosModal");
 const HISTORY_KEY = "bach_chat_history_v1", KEY_TEMA = "bach_theme_v1", KEY_CRIADOR = "bach_creator_v1", KEY_ADM_HASH = "bach_adm_hash_v1", KEY_VER = "bach_last_version";
-const APP_VER = "5.2", APP_CRIADA = "2026", APP_ATUALIZADA = "25/11/2026";
+const DEFAULT_ADM_HASH = ""; // Cole aqui o hash SHA-256 exibido por /admsenha para liberar /adm em outros aparelhos
+const APP_VER = "5.4", APP_CRIADA = "2026", APP_ATUALIZADA = "25/11/2026";
 const LONGO = 700;
 const BT = String.fromCharCode(96).repeat(3);
 const RE_CERCA_ALL = new RegExp(BT, "g");
@@ -449,7 +450,7 @@ async function sha256Hex(texto) {
 }
 
 function getAdmHash() {
-  try { return localStorage.getItem(KEY_ADM_HASH) || ""; } catch { return ""; }
+  try { return localStorage.getItem(KEY_ADM_HASH) || DEFAULT_ADM_HASH; } catch { return DEFAULT_ADM_HASH; }
 }
 
 function aplicarTema(nome) {
@@ -727,7 +728,7 @@ function abrirSobre() {
   atualizarBadge();
   const st = RizikBrain.getStats();
   const rn = RedeNeural.getStats();
-  let arqs = 0; try { arqs = (JSON.parse(localStorage.getItem("bach_arquivos_v1")) || []).length; } catch {}
+  const arqs = Arquivos.total ? Arquivos.total() : 0;
   sobreEl.innerHTML = "";
   sobreEl.classList.add("aberto");
   sobreEl.onclick = e => { if (e.target === sobreEl) sobreEl.classList.remove("aberto"); };
@@ -743,15 +744,15 @@ function abrirSobre() {
     "<b>Versão atual:</b> v" + escHtml(APP_VER) + " (atualizada em " + escHtml(APP_ATUALIZADA) + ")<br>" +
     "<b>Ano de criação:</b> " + escHtml(APP_CRIADA) + "<br>" +
     "<b>Criador:</b> Rizik<br>" +
-    "<b>Motor:</b> 100% próprio (sem IAs externas) — Rede Neural + Memória + Pesquisa Web.";
+    "<b>Motor:</b> " + escHtml(LLM.label ? LLM.label() : "BACH AI 5.4 (100% Própria)");
 
   const nov = mk("div", "scard");
   nov.innerHTML =
     "<b>✨ Novidades da v" + escHtml(APP_VER) + ":</b><br>" +
-    "• <b>Voz Universal (`voz.js`):</b> leitura em voz alta corrigida para Android, PC e iOS<br>" +
-    "• <b>Visual mais nítido:</b> menus organizados com divisórias e balões mais legíveis<br>" +
-    "• <b>Roteamento mais inteligente:</b> perguntas gerais vão direto à resposta ou pesquisa<br>" +
-    "• <b>Criador de Apps & Sandbox:</b> `/app pomodoro`, `/executar`, `/preview` e guias de <b>Termux</b>";
+    "• <b>Rede Neural 3.0 (384→64→12):</b> 16 sinais linguísticos + treino sem travar a tela<br>" +
+    "• <b>IndexedDB + RAG BM25 (`/rag`):</b> guarda arquivos completos sem corte de 16 KB<br>" +
+    "• <b>10 Modos Reais:</b> Matemática, Aprendizado, Criatividade, Raciocínio em cadeia (`/cadeia`)<br>" +
+    "• <b>Editor ADM Seguro:</b> valida sintaxe JS/HTML antes de subir e permite `/desfazer_edicao`";
 
   const dados = mk("div", "scard");
   dados.innerHTML =
@@ -859,7 +860,8 @@ async function pesquisaProfunda(q, fundo = true, salvarArquivo = false) {
   q = temas[0] || q;
   const temaLimpo = Mente.tema(q) || q;
   ultimoTema = temaLimpo;
-  const usarFundo = modoProfundo || modoCriador || modoAtual === "raciocinio" || fundo;
+  const engDepth = LLM.getConfig?.().reasoningDepth === "profundo";
+  const usarFundo = modoProfundo || modoCriador || modoAtual === "raciocinio" || engDepth || fundo;
 
   let deuFato = false;
   if (/\b(piadas?|humor|engra[cç]ad[oa]s?)\b/i.test(q)) {
@@ -960,7 +962,7 @@ async function processarArquivo(f, silenciosoSeTexto = false) {
     }
 
     const a = Arquivos.salvar({ nome: f.name, pasta, texto, resumo: resposta.slice(0, 300), tipo: r.tipo });
-    if (!silenciosoSeTexto) falar(resposta + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos");
+    if (!silenciosoSeTexto) falar(resposta + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos ou pergunte com `/rag pergunta`");
     else if (pensando) { pensando.fim(); pensando = null; }
   } catch (e) {
     console.error(e);
@@ -1030,7 +1032,6 @@ function abrirHistorico(pag = 1, termo = "") {
   rod.append(mk("span", "", r.total + " conversa(s) • página " + r.pagina + " de " + r.paginas), novo, tudo);
   box.append(top, lista, pg, rod); hist.append(box);
 }
-
 async function exportarBase() {
   passo("📦 Reunindo memória, conversas, interface e módulos...");
   const cfg = LLM.getConfig();
@@ -1052,7 +1053,7 @@ async function lerLinkMsg(url) {
     ultimoArquivo = { nome: a.nome, texto: r.texto }; Mente.setTexto(a.nome, r.texto);
     ultimaImagem = null; ultimaMidiaInfo = null;
     RizikBrain.logTopic(a.nome);
-    falar("🔗 Abri " + r.url + "\n\n" + leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\n💡 Pergunte: “explica”, “quantos módulos tem?”, “cadeia de códigos”, “resume” ou “revisa”.", "bot", "🔗 link");
+    falar("🔗 Abri " + r.url + "\n\n" + leitura + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\n💡 Pergunte: “explica”, “quantos módulos tem?”, “cadeia de códigos”, “resume”, “/rag pergunta” ou “revisa”.", "bot", "🔗 link");
   } catch (e) { console.error(e); falar("Não consegui abrir esse link. Se for privado, copie o texto e cole aqui. 📋"); }
 }
 
@@ -1094,12 +1095,12 @@ async function seguir(texto) {
   return false;
 }
 function ctxConversa(tomInfo = { mood: "neutro", score: 0 }) {
-  let arquivos = 0; try { arquivos = (JSON.parse(localStorage.getItem("bach_arquivos_v1")) || []).length; } catch {}
+  const arquivos = Arquivos.total ? Arquivos.total() : 0;
   const st = RizikBrain.getStats(), perf = RizikBrain.getProfile();
   return {
     nome: perf.userName, cidade: perf.city, gostos: perf.likes, projetos: perf.projects,
     hora: new Date().getHours(), aprendidas: st.examples, notas: st.notes, arquivos,
-    conversas: Historico.listar(1).total, modoCriador,
+    conversas: Historico.listar(1).total, modoCriador, mode: modoAtual,
     mood: tomInfo.mood, humorScore: tomInfo.score, history, ultimoTema,
     alvo, ultimoBot: ultimoBotTexto(),
     session: tomInfo.session || RizikBrain.getSessionState?.()
@@ -1149,7 +1150,7 @@ async function rotear(texto) {
       return;
     }
     try { localStorage.setItem(KEY_ADM_HASH, h); } catch {}
-    falar("🔐 **Senha ADM salva com hash SHA-256!**\nNeste aparelho, o acesso padrão foi substituído — agora entre usando `/adm SUA_SENHA`.", "bot", "🔒 adm", true);
+    falar("🔐 **Senha ADM salva com hash SHA-256!**\nAgora entre usando `/adm SUA_SENHA`.\n\n💡 Para funcionar também em outros aparelhos sem expor sua senha no código, cole este hash em `DEFAULT_ADM_HASH` no `index.html`:\n`" + h + "`", "bot", "🔒 adm", true);
     return;
   }
 
@@ -1162,7 +1163,7 @@ async function rotear(texto) {
     const tentativa = texto.trim().replace(/^\/adm\s*/i, "").trim();
     const hashSalvo = getAdmHash();
     if (!hashSalvo) {
-      falar("ℹ️ Nenhuma senha SHA-256 personalizada configurada neste aparelho ainda. Após entrar no ADM, configure com `/admsenha SUA_SENHA`.", "bot", "🔒 adm", true);
+      falar("ℹ️ Nenhuma senha SHA-256 configurada ainda. No aparelho onde o ADM já estiver conectado, use `/admsenha SUA_SENHA` e cole o hash gerado em `DEFAULT_ADM_HASH`.", "bot", "🔒 adm", true);
       return;
     }
     const hTent = tentativa ? await sha256Hex(tentativa) : "";
@@ -1182,36 +1183,14 @@ async function rotear(texto) {
     return;
   }
 
-  if (ehComandoCurto && /@rizik2442/i.test(texto)) {
-    if (getAdmHash()) {
-      falar("🔒 Este aparelho exige sua senha personalizada via `/adm SUA_SENHA`.", "bot", "🔒 adm", true);
-      return;
-    }
-    modoCriador = true;
-    try { localStorage.setItem(KEY_CRIADOR, "1"); } catch {}
-    RizikBrain.remember("userName", "Rizik");
-    atualizarBadge();
-    status.textContent = statusPadrao();
-    const semTag = texto.replace(/@rizik2442/gi, "").trim();
-    if (!semTag) {
-      falar("👑 Acesso de administrador ativado!\n• Abra o menu **☰ → 🚨 Erros do Público** para ver, excluir ou copiar todos os erros!\n• Use `/admsenha SUA_SENHA` para trancar com hash SHA-256 neste aparelho, ou `/ajuda`, `/editar`, `/nuvem` e `/tudotxt`. 🚀", "bot", "👑 adm");
-      return;
-    }
-    texto = semTag;
-  }
-
-  if (ehComandoCurto && (/\brizik_D7\b/i.test(texto) || /^(?:sai|sair)\s+do\s+adm$/i.test(tn))) {
+  if (ehComandoCurto && /^(?:sai|sair)\s+do\s+adm$/i.test(tn)) {
     modoCriador = false;
     try { localStorage.removeItem(KEY_CRIADOR); } catch {}
     EditorADM.resetar();
     atualizarBadge();
     status.textContent = statusPadrao();
-    const semTag = texto.replace(/\brizik_D7\b/gi, "").replace(/^(?:sai|sair)\s+do\s+adm$/i, "").trim();
-    if (!semTag) {
-      falar("👤 Voltei para o modo usuário comum! Tudo funcionando como para qualquer visitante.", "bot", "👤 usuário");
-      return;
-    }
-    texto = semTag;
+    falar("👤 Voltei para o modo usuário comum! Tudo funcionando como para qualquer visitante.", "bot", "👤 usuário");
+    return;
   }
 
   const tomInfo = RizikBrain.updateTone ? RizikBrain.updateTone(texto) : { mood: "neutro", score: 0 };
@@ -1228,7 +1207,7 @@ async function rotear(texto) {
   const cmdNuvem = NLUNeural.comando(texto, modoCriador);
   if (cmdNuvem) { falar(cmdNuvem, "bot", "☁️ nuvem", true); return; }
 
-  const ehCmdEditor = /^\/(editar|trocareditor|editarmodulo|tudotxt|pacotetotxt|pacotetxts?|modulos?txt|codigostxt)\b/i.test(texto.trim()) ||
+  const ehCmdEditor = /^\/(editar|trocareditor|editarmodulo|desfazer_edicao|tudotxt|pacotetotxt|pacotetxts?|modulos?txt|codigostxt)\b/i.test(texto.trim()) ||
     EditorADM.ehPedidoTudoTxt?.(texto) ||
     EditorADM.ativo(modoCriador);
   if (ehCmdEditor) {
@@ -1376,7 +1355,7 @@ async function rotear(texto) {
     }
   }
 
-  passo("🧠 Consultando minha memória...");
+  passo("🧠 Consultando minhas 3 camadas de memória...");
   const r = RizikBrain.think(texto);
   if (r.intent === "longtext") {
     const cod = Saber.isCode(texto), leitura = Saber.lerTexto(texto);
@@ -1385,7 +1364,7 @@ async function rotear(texto) {
     ultimaImagem = null; ultimaMidiaInfo = null;
     RizikBrain.logTopic(a.nome);
     const revExtra = cod ? "\n\n" + Revisor.revisarCodigoFiel(texto) : "";
-    falar(leitura + revExtra + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos\n💡 Agora pergunte: “explica”, “cadeia de códigos”, “resume”, “/revisar” ou “/executar”.");
+    falar(leitura + revExtra + "\n\n📁 Guardei em: " + a.pasta + "/" + a.nome + "\nVeja tudo com /arquivos\n💡 Agora pergunte: “explica”, “cadeia de códigos”, “resume”, “/rag pergunta”, “/revisar” ou “/executar”.");
     return;
   }
 
@@ -1420,6 +1399,18 @@ async function rotear(texto) {
     if (ultimaMidiaInfo) { falar(ultimaMidiaInfo.resumo, "bot", "👁️ análise de mídia"); return; }
   }
 
+  // Busca semântica RAG nos arquivos salvos (Modo Documentos ou menção explícita a arquivos/documentos)
+  if ((modoAtual === "documentos" || /\b(nos meus arquivos|no meu arquivo|no documento|nos documentos|no texto que enviei|no arquivo que mandei)\b/.test(tn)) &&
+      Arquivos.buscarRAG && Arquivos.total?.() > 0 && !/^(resume|resuma|explica|explique|revisa)/.test(tn)) {
+    const ragHits = Arquivos.buscarRAG(texto, 3);
+    if (ragHits.length) {
+      falar("📄 **Encontrei nos seus arquivos salvos (RAG local):**\n\n" +
+        ragHits.map((h, i) => (i + 1) + ". **" + h.pasta + "/" + h.arquivo + "** (relevância " + h.score + ")\n“" + h.trecho.slice(0, 460) + "”").join("\n\n"),
+        "bot", "📄 RAG documentos");
+      return;
+    }
+  }
+
   const cidSalva = (() => { try { return localStorage.getItem("bach_cidade"); } catch { return null; } })();
   const pedeClimaSemCidade =
     /^(?:(?:olha|ver|veja|mostra|qual|como)\s+(?:(?:o|a|est[aá]|ta|t[aá]|[ée])\s+)?)?(?:o\s+)?(?:clima|tempo|previs[aã]o(?:\s+do\s+tempo)?)(?:\s+(?:para|pra|de|em))?(?:\s+(?:hoje|hj|agora|amanh[aã]|amanha))?\s*\??$/i.test(texto) ||
@@ -1437,9 +1428,13 @@ async function rotear(texto) {
     falar(ultimaMidiaInfo?.resumo || "Envie uma foto pelo + para eu analisar.", "bot", "👁️ análise de imagem"); return;
   }
   if (modoAtual === "documentos") {
-    if (!ultimoArquivo) { falar("📄 Modo Documentos ativo: cole um texto longo, um link ou anexe um arquivo pelo +."); return; }
-    const mtDoc = Mente.responder(texto, { alvo });
-    falar(mtDoc?.texto || Saber.lerTexto(ultimoArquivo.texto), "bot", "📄 documentos"); return;
+    if (!ultimoArquivo && !(Arquivos.total?.() > 0)) { falar("📄 Modo Documentos ativo: cole um texto longo, um link ou anexe um arquivo pelo +."); return; }
+    if (ultimoArquivo) {
+      const mtDoc = Mente.responder(texto, { alvo });
+      if (mtDoc?.texto) { falar(mtDoc.texto, "bot", "📄 documentos"); return; }
+    }
+    falar("📄 Não achei esse trecho nos seus arquivos. Tente `/rag palavra-chave` ou anexe um novo documento pelo +.", "bot", "📄 documentos");
+    return;
   }
 
   if (/\b(jogar|jogo da velha|jogo da forca|forca|adivinhe o numero)\b/i.test(tn) && !/\b(crie|criar|faca|fazer|programe|explique|o que e|fora|lixo|oq|nao)\b/i.test(tn)) {
@@ -1545,6 +1540,12 @@ async function rotear(texto) {
     falar(respVaga); return;
   }
 
+  const memSem = RizikBrain.searchMemory ? RizikBrain.searchMemory(texto) : [];
+  if (memSem.length && memSem[0].score >= 0.68) {
+    falar("🧠 Lembrei de algo relacionado na minha memória:\n• " + memSem[0].texto, "bot", "🧠 memória semântica");
+    return;
+  }
+
   const dec = NLUNeural.decidir(texto, ctxConversa(tomInfo));
   if (dec) {
     if (dec.pesquisar) return pesquisaProfunda(dec.pesquisar, true, false);
@@ -1626,9 +1627,9 @@ async function enviar() {
   }
 
   cancelado = false; busy(true);
-  const ehSegredoAdm = texto.length <= 80 && !/\n/.test(texto) && (/^\/(adm|admsenha)\s+\S+/i.test(texto) || /@rizik2442/i.test(texto));
+  const ehSegredoAdm = texto.length <= 80 && !/\n/.test(texto) && /^\/(adm|admsenha)\s+\S+/i.test(texto);
   const bolhaUser = ehSegredoAdm
-    ? texto.split(/\s+/)[0].replace(/@rizik2442/gi, "🔐") + " ••••••"
+    ? texto.split(/\s+/)[0] + " ••••••"
     : EditorADM.ativo(modoCriador) && texto.length > 200
       ? "📦 [Código enviado para o módulo no Editor ADM • " + texto.split("\n").length + " linhas]"
       : texto;
@@ -1648,7 +1649,9 @@ $("modos").onclick = e => {
   document.querySelectorAll("#modos .modo").forEach(x => x.classList.remove("on"));
   b.classList.add("on"); modoAtual = b.dataset.modo;
   if (modoAtual === "voz") { lerAuto = true; Voz.desbloquear?.(); const bv = menu.querySelector('[data-acao="voz"]'); if (bv) bv.textContent = "🔊 Ler respostas sozinha: ligado"; }
-  status.textContent = statusPadrao();
+  const descModo = SkillRouter.modePrompt ? SkillRouter.modePrompt(modoAtual) : "";
+  status.textContent = descModo ? (NOMES_MODOS[modoAtual] + " — " + descModo.replace(/^MODO [^:]+:\s*/i, "")) : statusPadrao();
+  setTimeout(() => { if (!ocupado) status.textContent = statusPadrao(); }, 3500);
 };
 
 const drawerBack = $("drawerBack"), menu = $("menu"), seletor = $("seletor");
@@ -1740,7 +1743,7 @@ if (falhas.length) {
   falar("⚠️ Alguns módulos não carregaram no GitHub: " + falhas.join(", ") + "\nConfira os nomes ou cole esses arquivos inteiros.", "bot", "⚠️ diagnóstico", true);
 } else if (!history.length) {
   const nomeSalvo = RizikBrain.recall("userName");
-  falar((nomeSalvo ? "Que bom te ver de volta, **" + nomeSalvo + "**! 💜 " : "Olá! ") + "Sou a **BACH AI** 🧠 (v" + APP_VER + "), com Rede Neural própria e memória contínua. Digite `/ajuda` para ver tudo ou `/neural status`!", "bot", "", true);
+  falar((nomeSalvo ? "Que bom te ver de volta, **" + nomeSalvo + "**! 💜 " : "Olá! ") + "Sou a **BACH AI** 🧠 (v" + APP_VER + "), 100% própria com Rede Neural 3.0, RAG em IndexedDB e memória em 3 camadas. Digite `/ajuda` para ver tudo ou `/neural status`!", "bot", "", true);
 }
 </script>
 </body>
