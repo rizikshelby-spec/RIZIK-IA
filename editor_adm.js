@@ -245,7 +245,9 @@ function comandoConfig(raw, isAdm) {
 }
 
 function ehPedidoTudoTxt(raw) {
-  const t = String(raw || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const s = String(raw || "").trim();
+  if (s.length > 90 || /<\/?[a-z]+>|\bfunction\b|\bconst\b|\n/i.test(s)) return false;
+  const t = s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   return /^\/(tudotxt|pacotetotxt|pacotetxts?|modulos?txt|codigostxt)\b/.test(t) ||
     (/\b(todos|tudo)\b/.test(t) && /\b(modulos?|codigos?|arquivos?)\b/.test(t) && /\btxt\b/.test(t));
 }
@@ -395,7 +397,7 @@ function ajudaComandos(isAdm) {
     "🎨 **Piadas, Criatividade, Arquivos & Chat:**\n" +
     "• `/humor` (piada interativa!) • `/ideia tema` • `/historia tema` • `/personagem tema`\n" +
     "• `/plano objetivo` • `/automacao tarefa`\n" +
-    "• `/arquivos` • `/abrir nome` • `/buscar palavra` • `/apagar nome`\n" +
+    "• `/arquivos` • `/abrir nome` • `/buscar palavra` • `/apagar nome` (ou `/excluir nome`)\n" +
     "• `/pasta Nome` • `/pastas` • `/mover arquivo para Pasta`\n" +
     "• `/palavra giria = significado` • `/palavras` • `/profundo assunto`\n" +
     "• `/historico` • `/nova` • `/clear` • `/copiar` • `/auditar` • `/exportar`";
