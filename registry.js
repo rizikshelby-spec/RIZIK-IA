@@ -1,4 +1,6 @@
-/* BACH AI 5.1 — registro central dos departamentos, Watchdog AutoGuard e roteador de habilidades (Blindado). */
+/* BACH AI 5.4 — Orquestrador Central dos Departamentos, 10 Modos Reais & Watchdog AutoGuard
+ * 100% BACH AI própria (sem IAs externas).
+ */
 
 import { AutoGuard } from "./autoguard.js?v=2";
 import { Intelligence } from "./intelligence.js?v=2";
@@ -20,7 +22,7 @@ let devHandle = null;
 let progTermuxHandle = null;
 let saberesProHandle = null;
 
-await Promise.allSettled([
+const prontoModulos = Promise.allSettled([
   import("./utilidades.js?v=2").then(m => { if (m?.Utilidades?.handle) utilHandle = m.Utilidades.handle; }),
   import("./conversor_texto.js?v=1").then(m => { if (m?.ConversorTexto?.handle) convTextoHandle = m.ConversorTexto.handle; }),
   import("./saude_bemestar.js?v=1").then(m => { if (m?.SaudeBemEstar?.handle) saudeHandle = m.SaudeBemEstar.handle; }),
@@ -29,6 +31,8 @@ await Promise.allSettled([
   import("./programacao_termux.js?v=4").then(m => { if (m?.ProgramacaoTermux?.handle) progTermuxHandle = m.ProgramacaoTermux.handle; }),
   import("./saberes_pro.js?v=1").then(m => { if (m?.SaberesPro?.handle) saberesProHandle = m.SaberesPro.handle; })
 ]);
+
+await prontoModulos;
 
 const SETTINGS_KEY = "bach_modules_v1";
 const PROIBIDAS = new Set(["__proto__", "constructor", "prototype"]);
@@ -68,7 +72,7 @@ const DEPARTMENTS = [
   { id: "executor-sandbox", name: "32. Executor seguro (Sandbox)", status: "ATIVO", control: false, skills: "Executa scripts JS e abre preview ao vivo de apps HTML/CSS/JS direto no chat." },
   { id: "voz-tts", name: "33. Voz natural (TTS)", status: "ATIVO", control: false, skills: "Leitura em português dividida em trechos (compatível com iPhone, Android e PC)." },
   { id: "erros-adm", name: "34. Central de erros ADM", status: "ATIVO", control: false, skills: "Captura automática de falhas do público com busca, seleção, exclusão e cópia no ADM." },
-  { id: "rede-neural", name: "35. Rede Neural Própria", status: "NEURAL", control: false, skills: "MLP 256->48->12 com backpropagation, n-gramas e pesos treinados na nuvem." },
+  { id: "rede-neural", name: "35. Rede Neural Própria", status: "NEURAL", control: false, skills: "MLP com backpropagation, n-gramas e pesos treinados no próprio projeto." },
   { id: "nlu-nuvem", name: "36. NLU Neural & Nuvem D1", status: "NUVEM + LOCAL", control: false, skills: "Entendimento livre, autoaprendizado por reformulação e coleta na Cloudflare D1." }
 ];
 
@@ -112,7 +116,7 @@ function enabled(id) {
 }
 
 function listModules() {
-  return "🧠 BACH AI 5.1 — DEPARTAMENTOS (" + DEPARTMENTS.length + ")\n\n" +
+  return "🧠 BACH AI 5.4 — DEPARTAMENTOS (" + DEPARTMENTS.length + ")\n\n" +
     DEPARTMENTS.map(d => {
       const flag = d.control ? (enabled(d.id) ? "🟢" : "⚪") : "🔹";
       return flag + " " + d.name + "\n   ID: " + d.id + " • " + d.status + "\n   " + d.skills;
@@ -163,28 +167,119 @@ const HANDLERS = [
   ["ciencias", Science.handle, "🔬 fórmulas de física"],
   ["seguranca", Security.handle, "🔒 triagem de segurança"],
   ["educacao", Education.handle, "🧑‍🏫 quiz educativo"],
-  ["criatividade", Creativity.handle, "🎨 criatividade offline"],
+  ["criatividade", Creativity.handle, "🎨 criatividade"],
   ["estrategia", Planning.handle, "🗺️ planejamento"],
   ["automacao", Automation.handle, "🤖 planejamento de automação"]
 ];
 
+const PRIORIDADE_MODO = {
+  matematica: ["inteligencia", "mundo", "financas", "ciencias"],
+  programacao: ["programacao-termux", "dev-ferramentas", "saberes-pro", "estrategia"],
+  aprendizado: ["estudos", "educacao", "saberes-pro"],
+  criatividade: ["criatividade", "personalidade"],
+  raciocinio: ["inteligencia", "ciencias", "financas", "estrategia", "saberes-pro"]
+};
+
+function ordenarHandlers(mode = "auto") {
+  const pref = PRIORIDADE_MODO[mode];
+  if (!pref) return HANDLERS;
+  const mapa = new Map(HANDLERS.map(h => [h[0], h]));
+  const primeiro = pref.map(id => mapa.get(id)).filter(Boolean);
+  const resto = HANDLERS.filter(h => !pref.includes(h[0]));
+  return [...primeiro, ...resto];
+}
+
+function adaptarEntradaPorModo(raw, mode = "auto") {
+  const s = String(raw || "").trim();
+  if (!s || s.startsWith("/")) return s;
+  const low = s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  if (mode === "criatividade") {
+    let m = s.match(/^(?:cria|crie|inventa|invente|faz|faca|escreva|escreve|gera|gere)?\s*(?:uma?\s+)?(?:hist[oó]ria|conto)\s*(?:sobre|de)?\s*(.+)$/i);
+    if (m) return "/historia " + m[1].trim();
+    m = s.match(/^(?:cria|crie|inventa|invente|faz|faca)?\s*(?:um\s+)?personagem\s*(?:sobre|de|para)?\s*(.+)$/i);
+    if (m) return "/personagem " + m[1].trim();
+    m = s.match(/^(?:me\s+d[eê]|d[eê]|cria|crie|manda|sugere)?\s*(?:umas?\s+)?ideias?\s*(?:de|para|sobre)?\s*(.+)$/i);
+    if (m) return "/ideia " + m[1].trim();
+  }
+
+  if (mode === "aprendizado") {
+    if (/^(?:me\s+)?(?:faz|faca|cria|manda|quero)\s+(?:um\s+)?(?:simulado|teste|prova)(?:\s+(?:de|sobre)\s+([a-z]+))?$/i.test(low)) {
+      const mat = (low.match(/(?:de|sobre)\s+([a-z]+)$/) || [])[1] || "";
+      return mat ? "/simulado " + mat : "/simulado";
+    }
+    if (/^(?:me\s+)?(?:manda|faz|cria|quero)\s+(?:um\s+)?flashcard(?:\s+(?:de|sobre)\s+([a-z]+))?$/i.test(low)) {
+      const mat = (low.match(/(?:de|sobre)\s+([a-z]+)$/) || [])[1] || "";
+      return mat ? "/flashcard " + mat : "/flashcard";
+    }
+    if (/^(?:a|b|c|d)$/i.test(low) && sessionStorage.getItem("bach_simulado_v1")) {
+      return "/alt " + low.toUpperCase();
+    }
+    if (/^(?:a|b|c|d)$/i.test(low) && sessionStorage.getItem("bach_quiz_active_v1")) {
+      return "/resposta " + low.toUpperCase();
+    }
+  }
+
+  if (mode === "matematica") {
+    const semPrefixo = s.replace(/^(?:resolva|calcule|quanto\s+[eé])\s+/i, "").trim();
+    if (/^[\d\s()+\-*/^×÷%,.]+$/.test(semPrefixo) && /\d/.test(semPrefixo) && /[+\-*/^×÷%]/.test(semPrefixo)) {
+      return "/calc " + semPrefixo;
+    }
+  }
+
+  return s;
+}
+
+function executarPassosEmCadeia(raw, context = {}) {
+  const mode = context.mode || "auto";
+  if (mode !== "raciocinio" && !/^\/cadeia\s+/i.test(raw)) return null;
+
+  const corpo = raw.replace(/^\/cadeia\s+/i, "").trim();
+  const partes = corpo.split(/\s*;\s*|\s+e\s+depois\s+/i).map(x => x.trim()).filter(Boolean);
+  if (partes.length < 2 || partes.length > 4) return null;
+
+  const saidas = [];
+  const lista = ordenarHandlers(mode);
+  for (let i = 0; i < partes.length; i++) {
+    const entrada = adaptarEntradaPorModo(partes[i], mode);
+    let achou = null;
+    for (const [id, fn, origin] of lista) {
+      if (!enabled(id)) continue;
+      const ans = AutoGuard.guard(id, () => fn(entrada, context));
+      if (ans) {
+        const txt = typeof ans === "object" && ans.texto ? ans.texto : String(ans);
+        achou = "**Passo " + (i + 1) + " (" + origin + "):**\n" + txt;
+        break;
+      }
+    }
+    if (!achou) return null;
+    saidas.push(achou);
+  }
+
+  return {
+    texto: "🧠 **Execução em cadeia (Raciocínio BACH):**\n\n" + saidas.join("\n\n---\n\n"),
+    origem: "🧠 raciocínio em cadeia"
+  };
+}
+
 function handle(text, context = {}) {
-  const raw = String(text || "").trim();
-  const low = raw.toLowerCase();
+  const rawOriginal = String(text || "").trim();
+  const low = rawOriginal.toLowerCase();
+  const mode = context.mode || "auto";
 
   if (Object.hasOwn(AJUDA_FERRAMENTAS, low)) {
     return { texto: AJUDA_FERRAMENTAS[low], origem: "🛠️ ajuda da ferramenta" };
   }
 
-  if (/^\/(modulos|statusmodulos)$/i.test(raw)) {
+  if (/^\/(modulos|statusmodulos)$/i.test(rawOriginal)) {
     return { texto: listModules(), origem: "🧠 catálogo de módulos" };
   }
 
-  if (/^\/(diagnostico|saude)$/i.test(raw)) {
+  if (/^\/(diagnostico|saude)$/i.test(rawOriginal)) {
     return { texto: AutoGuard.diagnose(), origem: "🛡️ autoguard" };
   }
 
-  if (/^\/rollback$/i.test(raw)) {
+  if (/^\/rollback$/i.test(rawOriginal)) {
     if (context.modoCriador === false) {
       return { texto: "🔒 O comando `/rollback` é exclusivo do modo administrador.", origem: "🔒 adm" };
     }
@@ -197,15 +292,17 @@ function handle(text, context = {}) {
     };
   }
 
-  const setting = moduleCommand(raw, context);
+  const setting = moduleCommand(rawOriginal, context);
   if (setting) return { texto: setting, origem: "⚙️ gerenciamento de módulos" };
 
-  for (const [id, fn, origin] of HANDLERS) {
+  const cadeia = executarPassosEmCadeia(rawOriginal, context);
+  if (cadeia) return cadeia;
+
+  const raw = adaptarEntradaPorModo(rawOriginal, mode);
+  const listaOrdenada = ordenarHandlers(mode);
+
+  for (const [id, fn, origin] of listaOrdenada) {
     if (!enabled(id)) continue;
-    if (context.hasAI && !raw.startsWith("/")) {
-      if (id === "criatividade" || id === "estrategia") continue;
-      if (id === "personalidade" && !Personality.temAtiva?.()) continue;
-    }
 
     const answer = AutoGuard.guard(id, () => fn(raw, context));
     if (answer) {
@@ -221,26 +318,24 @@ function handle(text, context = {}) {
 
 function modePrompt(mode = "auto") {
   const map = {
-    auto: "MODO AUTOMÁTICO: entenda a intenção real do usuário e responda da forma mais útil, clara e natural possível.",
-    raciocinio: "MODO RACIOCÍNIO PROFUNDO: analise o problema por partes, revise sua lógica antes de concluir e explique como chegou à resposta.",
-    pesquisa: "MODO PESQUISA: priorize precisão factual, compare informações e aponte limites quando não houver dados recentes confirmados.",
-    aprendizado: "MODO APRENDIZADO: atue como professor paciente, dê exemplos práticos e proponha um exercício curto ao final.",
-    programacao: "MODO PROGRAMAÇÃO: entregue código completo e limpo em blocos com crases e linguagem, aponte bugs e explique como testar.",
-    matematica: "MODO MATEMÁTICA: mostre as etapas do cálculo, confira unidades e verifique a conta final antes de responder.",
-    visao: "MODO VISÃO: descreva e analise a imagem enviada com atenção a textos, objetos, cores e detalhes.",
-    voz: "MODO VOZ: responda de forma direta, natural e agradável para leitura em voz alta.",
-    criatividade: "MODO CRIATIVIDADE: explore ideias originais, narrativas envolventes e soluções fora do comum.",
-    documentos: "MODO DOCUMENTOS: resuma, estruture em pontos-chave e revise o conteúdo do arquivo/texto enviado."
+    auto: "MODO AUTOMÁTICO: detecta a intenção e escolhe o melhor departamento próprio da BACH.",
+    raciocinio: "MODO RACIOCÍNIO: aceita tarefas encadeadas (separadas por `;`) e aprofunda pesquisas.",
+    pesquisa: "MODO PESQUISA: prioriza busca em fontes da web e Wikipédia com citação.",
+    aprendizado: "MODO APRENDIZADO: prioriza flashcards, simulados, quiz e explicações didáticas.",
+    programacao: "MODO PROGRAMAÇÃO: prioriza Termux, criação de apps, ferramentas dev e revisão de código.",
+    matematica: "MODO MATEMÁTICA: prioriza cálculos, conversões, juros e fórmulas físicas.",
+    visao: "MODO VISÃO: analisa dimensões, cores e textos extraídos por OCR de imagens/vídeos.",
+    voz: "MODO VOZ: lê respostas em voz alta automaticamente em português.",
+    criatividade: "MODO CRIATIVIDADE: cria histórias, personagens e ideias mesmo sem usar comandos `/`.",
+    documentos: "MODO DOCUMENTOS: analisa, resume e inspeciona arquivos/textos enviados."
   };
   return Object.hasOwn(map, mode) ? map[mode] : map.auto;
 }
 
 function instructions() {
-  return `REGRAS E LIMITES DA BACH AI:
-- Identidade: você é a BACH AI, criada por Rizik (nunca se apresente como outro serviço).
-- Use o histórico e as memórias existentes para manter o contexto, mas não invente lembranças.
-- Separe fatos confirmados, inferências e opiniões.
-- Em matemática e ciências, confira operações, unidades e hipóteses.`;
+  return `REGRAS DA BACH AI (MOTOR PRÓPRIO):
+- 100% independente de IAs externas.
+- Usa memória contínua, rede neural própria e pesquisa web verificada.`;
 }
 
 export const SkillRouter = {
