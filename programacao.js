@@ -1,6 +1,7 @@
-/* BACH AI 5.2 - PROGRAMAÇÃO + HUMOR 1.2
- * Exige contexto mínimo de programação para palavras ambíguas (lista, classe, objeto, repetição),
- * identifica teclas/números soltos sem repetir mensagens em sequência e evita respostas idênticas. */
+/* BACH AI 5.2 - PROGRAMAÇÃO + HUMOR 1.3
+ * Exige contexto mínimo de programação para palavras ambíguas,
+ * detecta com precisão teclas soltas / digitação aleatória (sem falsos positivos em palavras reais)
+ * e evita respostas robóticas repetidas respeitando o humor atual do usuário. */
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9+# ]+/g, " ").replace(/\s+/g, " ").trim();
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -66,6 +67,7 @@ const PIADAS = [
 let saco = [], jaContou = false;
 let ultimoIdxDesc = -1;
 let ultimoIdxRuido = -1;
+let ruidosSeguidos = 0;
 
 const embaralhar = a => {
   for (let i = a.length - 1; i > 0; i--) {
@@ -102,37 +104,80 @@ function humor(texto) {
   return null;
 }
 
+const CURTAS_VALIDAS = new Set([
+  "oi", "ok", "ei", "ue", "ai", "ui", "eu", "tu", "vc", "pq", "oq", "qm", "hj",
+  "td", "nd", "mt", "tb", "ta", "to", "ne", "ja", "so", "fe", "pe", "ar", "hi",
+  "app", "bug", "pix", "cep", "cpf", "imc", "bts", "sol", "lua", "ceu", "mar",
+  "rio", "som", "luz", "cor", "dia", "dor", "paz", "bom", "mal", "ovo", "rei",
+  "lei", "sim", "nao", "oxe", "uai", "opa", "eai", "blz", "vlw", "obg", "tmj",
+  "sla", "rlx", "vdd", "ctz", "dnv", "mds", "pqp", "web", "bot", "dev", "top",
+  "gif", "pdf", "zip", "sql", "css", "php", "xml", "txt", "ram", "cpu", "ssd",
+  "rgb", "pi", "dna", "pib", "api", "git"
+]);
+
+const CLUSTERS_INI = new Set([
+  "bl","br","ch","cl","cr","dr","fl","fr","gl","gr","gu","kn","ph","pl","pr",
+  "ps","qu","sh","sk","sl","sm","sn","sp","st","sw","th","tr","vr","wh"
+]);
+
 function ehTeclaOuNumeroSolto(raw) {
   const s = String(raw || "").trim();
   const n = norm(s).replace(/\s+/g, "");
   if (!n) return true;
   if (/^\d+$/.test(n)) return true;
+
   if (!s.includes(" ")) {
+    if (CURTAS_VALIDAS.has(n)) return false;
     if (n.length <= 2) return true;
     if (!/[aeiou]/.test(n)) return true;
-    if (/[bcdfghjklmnpqrstvwxyz]{4,}/.test(n)) return true;
-    if (/\d/.test(n) && /[a-z]/.test(n) && n.length <= 5) return true;
+    if (/\d/.test(n) && /[a-z]/.test(n) && n.length <= 7) return true;
+    if (/[bcdfghjklmnpqrstvwxyz]{3,}/.test(n) && !/(str|scr|spr|ntr|ndr|mbr|mpr|ngr|nch)/.test(n)) return true;
+    if (/^[bcdfghjklmnpqrstvwxyz]{2}/.test(n) && !CLUSTERS_INI.has(n.slice(0, 2))) return true;
+    if (/[bcdfghjklmnpqrstvwxyz]{2}$/.test(n) && !/(ns|rs|ls|st|nt|nd|rd|ld|rk|ck|ng|sh|th|ch|pt)$/.test(n)) return true;
+    if (/[bcdfghjklmnpqrstvwxyz]$/.test(n) && !/[lmnrsxz]$/.test(n) && n.length <= 6) return true;
   }
   return false;
 }
 
-function desconhecido(t = "") {
+function desconhecido(t = "", ctx = {}) {
   const raw = String(t || "").trim();
   if (ehTeclaOuNumeroSolto(raw)) {
+    ruidosSeguidos++;
     const amostra = raw.slice(0, 20);
+    if (ruidosSeguidos >= 3) {
+      return pick([
+        "Tá só testando ou batendo no teclado, né? 😄 Quando quiser conversar de verdade é só mandar!",
+        "Tô vendo que você tá só apertando teclas soltas (`" + amostra + "`) — fico por aqui te esperando!",
+        "Beleza, tô ligada aqui! Quando quiser falar de algum assunto ou pedir algo, manda a frase completa."
+      ]);
+    }
     const opcoesRuido = [
-      "Parece que você mandou só uma tecla ou número solto (`" + amostra + "`). Mande uma pergunta ou digite `/ajuda`! 😊",
-      "Recebi `" + amostra + "`, mas parece digitação solta. Quer pesquisar algo, conversar ou testar `/app pomodoro`?",
-      "Não tem contexto em `" + amostra + "` — se foi um teste de teclado, tô ligada! Mande uma pergunta completa quando quiser."
+      "Parece que você mandou só tecla ou número solto (`" + amostra + "`). Se foi sem querer, tranquilo — manda o que você queria dizer!",
+      "Recebi `" + amostra + "`, mas não forma nenhuma palavra ou comando. Quer conversar sobre algo?"
     ];
     ultimoIdxRuido = (ultimoIdxRuido + 1) % opcoesRuido.length;
     return opcoesRuido[ultimoIdxRuido];
   }
 
+  ruidosSeguidos = 0;
+
+  if (ctx?.mood === "triste" || ctx?.emotion === "triste") {
+    return pick([
+      "Tô te ouvindo, " + (ctx.nome || "por aqui") + ". Pode falar do seu jeito o que tá te incomodando que a gente conversa.",
+      "Não sei se captei tudo da sua frase, mas continuo aqui com você. Quer me explicar melhor o que aconteceu?"
+    ]);
+  }
+  if (ctx?.mood === "frustrado" || ctx?.emotion === "frustrado" || ctx?.emotion === "irritado") {
+    return pick([
+      "Desculpa, essa eu realmente não entendi direito. Me diz em poucas palavras o que você queria que eu respondesse!",
+      "Não quero chutar resposta nada a ver — me explica rapidinho o que você quis dizer com isso?"
+    ]);
+  }
+
   const opcoes = [
-    "Não captei bem o que você quis dizer com isso 😅. Pode perguntar de outro jeito ou digitar `/ajuda` para ver tudo que eu faço!",
-    "Essa ficou meio vaga pra mim! 🤔 Me diga direto o assunto (ex.: pesquise sobre..., me recomenda..., calcula..., escreve um texto...) ou me ensine com: `ensine: pergunta => resposta`.",
-    "Não entendi direito essa frase 😊. Quer pesquisar algo, trocar de tema (ex.: “tema vermelho”), conversar ou pedir uma recomendação?"
+    "Não peguei bem o que você quis dizer com “" + raw.slice(0, 45) + "” 🤔. Me explica com outras palavras?",
+    "Fiquei na dúvida sobre o que você quis dizer aqui. Você quer conversar sobre isso, pesquisar ou pedir alguma coisa específica?",
+    "Essa eu não entendi direito 😅. Se for algo que você quer que eu aprenda a responder, pode me ensinar ou explicar de outro jeito!"
   ];
   let idx = Math.floor(Math.random() * opcoes.length);
   if (idx === ultimoIdxDesc) idx = (idx + 1) % opcoes.length;
@@ -140,4 +185,4 @@ function desconhecido(t = "") {
   return opcoes[idx];
 }
 
-export const Prog = { responder, humor, desconhecido };
+export const Prog = { responder, humor, desconhecido, ehTeclaOuNumeroSolto };
