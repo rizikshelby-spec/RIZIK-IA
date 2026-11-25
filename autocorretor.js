@@ -1,5 +1,5 @@
-/* BACH AI 5.2 — AUTOCORRETOR REAL BLINDADO, TOM ADAPTATIVO & APRENDIZADO CONTÍNUO
-   1) Captura seguimentos pós-erro como "queria que vc falasse ah ta", "era pra falar..." etc.
+/* BACH AI 5.3 — AUTOCORRETOR REAL BLINDADO, TOM ADAPTATIVO & APRENDIZADO CONTÍNUO
+   1) Captura seguimentos pós-erro como "quando eu digo isso a referente a sua resposta", "queria que falasse...", etc.
    2) Respeita o tom do usuário e usa a mensagem citada (↩ Responder) quando marcada.
    3) Pula reações curtas/xingamentos e palavras soltas ("erro", "errou") para achar a pergunta real.
    4) Grava falhas na Central ADM mascarando segredos. */
@@ -152,7 +152,7 @@ function tratarExclamacao(texto, history = []) {
   }
 
   if (/^(?:eu que pergunto|tipo o que|o que voce quer fazer|fazer o que agora)/.test(limpo) && limpo.split(" ").length <= 8) {
-    return "Você escolhe: podemos só bater papo sobre qualquer coisa, falar do seu dia ou pesquisar algo se você quiser.";
+    return "Você escolhe: podemos trocar ideia sobre seu dia, debater algum tema ou pesquisar algo se você quiser.";
   }
   if (/^(?:desde quando (?:voce )?entende|sabe o que exatamente|nah sabe o que)/.test(limpo)) {
     return "Entendo programação, Termux, criação de apps (`/app`), ortografia/sílabas, avaliação de sites, traduções, clima, contas e pesquisa na web. Se alguma frase comum falhar, você pode me corrigir que eu aprendo.";
@@ -271,6 +271,23 @@ function processarSeguimentoDeCorrecao(texto, history = []) {
   const pend = RizikBrain.getPendingError?.();
   const aguardandoPosErro = Boolean(pend) || botPediuExplicacaoPosErro(history);
   const n = norm(raw);
+
+  // Novo: entende explicações contextuais ("quando eu digo isso a referente a sua resposta", etc.)
+  const ehExplicacaoContextual = /\b(referente|respondendo|sua resposta|sua pergunta|o que (?:vc|voce) perguntou|o que (?:vc|voce) falou|quando (?:eu )?digo|quando disse|eu disse isso|tava respondendo|estava respondendo|era resposta|foi resposta)\b/.test(n);
+  if (aguardandoPosErro && ehExplicacaoContextual) {
+    const pergOriginal = pend?.question || "";
+    RizikBrain.clearPendingError?.();
+    if (pergOriginal && /^(?:ss+|sim|nao|e ai|tudo|bem|ok|blz)\b/i.test(norm(pergOriginal))) {
+      return {
+        tipo: "direto",
+        texto: "Ah, agora fez todo sentido! 😅 Quando você mandou **“" + pergOriginal + "”**, estava só respondendo à minha pergunta anterior e puxando papo de volta — e eu saí pesquisando na internet sem precisar. Desculpa pela confusão! Por aqui tá tudo ótimo, e como tá seu dia?"
+      };
+    }
+    return {
+      tipo: "direto",
+      texto: "Entendi agora! 😅 Você estava respondendo à minha fala anterior" + (pergOriginal ? " com **“" + pergOriginal + "”**" : "") + ", e eu interpretei fora de contexto. Valeu por explicar — pode continuar que agora tô acompanhando!"
+    };
+  }
 
   const mFala = raw.match(/^(?:eu\s+)?(?:queria|esperava|gostaria)\s+(?:que\s+(?:vc|voce|você)\s+)?(?:falasse|dissesse|respondesse|fizesse|fosse)\s+([\s\S]+)$/i) ||
     raw.match(/^(?:era\s+(?:para|pra)\s+(?:vc|voce|você)\s+(?:falar|dizer|responder)|pode\s+responder)\s+([\s\S]+)$/i);
