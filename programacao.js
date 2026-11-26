@@ -1,4 +1,7 @@
-/* BACH AI 5.4 - PROGRAMAÇÃO + HUMOR + FALLBACK CONTEXTUAL INTELIGENTE */
+/* BACH AI 5.5 - PROGRAMAÇÃO + HUMOR + FALLBACK CONVERSACIONAL INTELIGENTE
+   - Não dispara tutoriais de programação no meio de conversas comuns.
+   - Substitui respostas robóticas de fallback por compreensão real de relatos, planos,
+     desabafos, opiniões e contexto emocional da sessão. */
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9+# ]+/g, " ").replace(/\s+/g, " ").trim();
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -22,11 +25,20 @@ const TOPICOS = [
   { amb: false, k: ["algoritmo", "algoritmos", "logica de programacao"], t: "🧩 Algoritmo é uma receita de passos para resolver um problema. Dica: antes de codar, escreva os passos em português, depois traduza para código." },
   { amb: true, k: ["bug", "bugs", "erro no codigo", "debug", "depurar", "nao funciona"], t: "🐛 Para caçar bugs:\n1) Leia a mensagem de erro (ela diz a linha).\n2) Use console.log para ver os valores.\n3) Teste uma parte de cada vez.\n4) Copie o erro e pesquise.\n\nCole o código aqui e eu leio as funções dele!" },
   { amb: false, k: ["criar uma ia", "criar ia", "fazer uma ia", "construir uma ia", "criar inteligencia artificial", "criar um chatbot", "criar chatbot"], t: "🤖 Você já está fazendo uma — a BACH! Passos:\n1) Entrada e saída (chat).\n2) Cérebro: regras + memória que aprende.\n3) Busca de informação (pesquisa).\n4) Ler arquivos, fotos e vídeos.\n5) Evoluir: busca por contexto e raciocínio próprio.\n\nQual parte quer melhorar agora?" },
-  { amb: false, k: ["aprender a programar", "como programar", "comecar a programar", "aprender programacao", "o que e programacao", "programar"], t: "💻 Programar é dar instruções para o computador.\n\nRoteiro: 1) lógica e variáveis, 2) condições e loops, 3) funções, 4) listas e objetos, 5) um projeto pequeno (como esta IA!).\n\nPergunte: \"o que é função\", \"exemplo de loop\", \"o que é API\"..." }
+  { amb: false, k: ["aprender a programar", "como programar", "comecar a programar", "aprender programacao", "o que e programacao"], t: "💻 Programar é dar instruções para o computador.\n\nRoteiro: 1) lógica e variáveis, 2) condições e loops, 3) funções, 4) listas e objetos, 5) um projeto pequeno (como esta IA!).\n\nPergunte: \"o que é função\", \"exemplo de loop\", \"o que é API\"..." }
 ];
 
 function responder(texto) {
-  const t = " " + norm(texto) + " ";
+  const raw = String(texto || "").trim();
+  const t = " " + norm(raw) + " ";
+  const palavras = t.trim().split(/\s+/).filter(Boolean);
+
+  // Não dispara tutorial se for apenas uma conversa casual citando algo ("odeio python", "meu amigo programa")
+  const ehPerguntaOuPedido = /\?$/.test(raw) ||
+    /\b(o que e|oque e|como funciona|como usar|como fazer|explica|explique|exemplo|aprender|comecar|sintaxe|pra que serve|para que serve|ensina|ajuda)\b/.test(t) ||
+    palavras.length <= 2;
+  if (!ehPerguntaOuPedido) return null;
+
   const temCtxProg = /\b(programacao|programar|codigo|codigos|codar|javascript|js|python|html|css|sql|node|react|em js|em python|exemplo de|sintaxe|o que e funcao|o que e variavel|o que e loop|o que e array|o que e objeto|o que e classe)\b/.test(t);
   let melhor = null, pontos = 0;
   for (const tp of TOPICOS) {
@@ -60,7 +72,6 @@ const PIADAS = [
   { c: "geral", t: "Por que a galinha atravessou a rua?\n\n…Para provar ao pato que dava. 🐔" },
   { c: "geral", t: "O que é um pontinho verde na tela da reunião online?\n\n…Alguém que diz “estou só ouvindo” e foi lavar a louça. 🟢" }
 ];
-
 let saco = [], jaContou = false;
 let ruidosSeguidos = 0;
 
@@ -177,59 +188,85 @@ function desconhecido(t = "", ctx = {}) {
   ruidosSeguidos = 0;
   const n = norm(raw);
   const nucleo = extrairNucleo(raw);
+  const em = ctx?.session?.emotion || ctx?.mood || "neutro";
+  const sit = ctx?.session?.situation?.resumo || "";
 
-  // Se o usuário estiver frustrado/criticando, não finge que entendeu nem transforma em assunto
+  // 1) Se a pessoa está triste / passou por algo difícil (ex.: perdeu emprego), mantém empatia real na conversa
+  if (em === "triste" || em === "cansado" || em === "ansioso") {
+    const gancho = sit ? " (especialmente com isso de " + sit + ")" : "";
+    return escolherInedita([
+      "Tô te acompanhando" + nome + gancho + ". Pode ir soltando no seu ritmo — o que mais tá pesando na sua cabeça agora?",
+      "Entendo você" + nome + ". Nessas horas não tem resposta mágica mesmo, mas tô aqui pra conversar de verdade com você. Como você tá lidando com isso hoje?",
+      "Faz sentido você se sentir assim" + nome + gancho + ". Quer desabafar mais um pouco ou prefere que a gente mude de assunto pra esfriar a cabeça?"
+    ], ctx);
+  }
+
+  // 2) Se o usuário está criticando / frustrado com a IA
   if (ctx?.mood === "frustrado" || /\b(erra\w*|falh\w*|bug\w*|burr\w*|mds|seja certo|respondeu|nao entendeu)\b/.test(n)) {
     return escolherInedita([
-      "Não peguei bem o que você quis dizer com “" + raw.slice(0, 50) + "”" + nome + ". Me manda em uma frase direta o que você espera que eu faça agora.",
-      "Essa fugiu do meu alcance" + nome + " — se eu tiver errado antes, pode usar `/auditar` ou me dizer direto qual assunto quer puxar!"
+      "Peguei que essa resposta anterior não bateu" + nome + ". Me manda em uma frase direta o que você quer falar ou fazer agora.",
+      "Essa fugiu do que você queria" + nome + " — se quiser me mostrar o erro, usa `↩ Responder` na mensagem ou `/auditar`!"
     ], ctx);
   }
 
-  // Só usa gancho de pergunta anterior se ela NÃO for uma pergunta genérica de fallback
-  const qBot = String(ctx?.session?.lastBotQuestion || "");
-  const qBotGenerica = !qBot || /quer continuar nesse assunto|não ficou claro|O que foi\?|Me diga rapidinho|Qual comando ou pergunta/i.test(qBot);
-  if (!qBotGenerica && raw.split(/\s+/).length <= 8 && !/[?!]/.test(raw) && !/\b(mds|oxe|falha|erro|verifica|certo)\b/.test(n)) {
-    return "Anotei (“" + raw.slice(0, 60) + "”)! Quer continuar nesse ponto ou puxar outro assunto?";
+  // 3) Relato de acontecimento / história ("aí aconteceu...", "eu fiz...", "fui...")
+  if (/^(?:ai|e ai|entao|depois|hoje|ontem|eu|ela|ele|a gente|nois|nós)\b/.test(n) && raw.split(/\s+/).length >= 3) {
+    if (/\b(comprei|ganhei|consegui|passei|fui|assisti|joguei|terminei|comecei|fiz|aprendi|encontrei|vi|achei)\b/.test(n)) {
+      return escolherInedita([
+        "Sério" + nome + "? Conta o resto dessa história — o que rolou depois?",
+        "Eita, e como foi isso aí" + nome + "? Deu bom no final?"
+      ], ctx);
+    }
+    if (/\b(perdi|quebrou|estragou|briguei|briga|falhou|dificil|complicado|puxado|corrido|problema|preocupad|medo|estress|chato|triste|ruim|foda|merda|bosta)\b/.test(n)) {
+      return escolherInedita([
+        "Poxa" + nome + ", que situação chata… Como você tá resolvendo isso agora?",
+        "Complicado passar por isso" + nome + ". Quer desabafar o que aconteceu ou pensar numa saída juntos?"
+      ], ctx);
+    }
+    return escolherInedita([
+      "Tô acompanhando" + nome + "! Continua — e o que aconteceu depois disso?",
+      "Entendi" + nome + ". E como você tá vendo essa situação agora?"
+    ], ctx);
   }
 
-  // Relato positivo / acontecimento
-  if (/\b(comprei|ganhei|consegui|passei|fui|assisti|joguei|terminei|comecei|fiz|aprendi|encontrei)\b/.test(n)) {
+  // 4) Planos, vontades e necessidades ("quero...", "preciso...", "tô pensando em...")
+  if (/^(?:eu\s+)?(?:quero|queria|preciso|to pensando em|estou pensando em|vou|pretendo)\b/.test(n)) {
     const foco = nucleo ? " sobre **" + nucleo + "**" : "";
     return escolherInedita([
-      "Que massa" + nome + "! Como foi essa experiência" + foco + "?",
-      "Sério" + nome + "? Conta mais detalhes" + foco + " — curtiu?"
+      "Boa" + nome + "! O que tá faltando pra você dar o primeiro passo" + foco + "?",
+      "Interessante" + nome + " — quer organizar isso passo a passo comigo ou trocar ideia sobre prós e contras?"
     ], ctx);
   }
 
-  // Relato negativo / perrengue
-  if (/\b(perdi|quebrou|estragou|briguei|briga|falhou|dificil|complicado|puxado|corrido|problema|preocupad|medo|estress|chato|triste|ruim)\b/.test(n)) {
-    const foco = nucleo ? " com **" + nucleo + "**" : "";
+  // 5) Pergunta aberta direcionada para a conversa (em vez de dizer "não entendi")
+  if (/\?\s*$/.test(raw)) {
     return escolherInedita([
-      "Poxa" + nome + ", chato passar por isso" + foco + ". Como você tá lidando com essa situação agora?",
-      "Sinto muito por esse perrengue" + foco + nome + ". Quer desabafar ou pensar em uma saída?"
+      "Boa pergunta" + nome + " — depende muito do contexto do que você tá vivendo agora. Me dá só mais um detalhe do cenário pra eu opinar de verdade!",
+      "Você me fez pensar aqui" + nome + " 🤔 — tá perguntando isso por curiosidade ou porque tá acontecendo algo parecido aí?"
     ], ctx);
   }
 
-  // Estado triste do usuário
-  if (ctx?.mood === "triste" || ctx?.emotion === "triste") {
+  // 6) Continuação de conversa sobre a última pergunta não genérica da BACH
+  const qBot = String(ctx?.session?.lastBotQuestion || "");
+  const qBotGenerica = !qBot || /quer continuar nesse assunto|não ficou claro|O que foi\?|Me diga rapidinho|Qual comando ou pergunta/i.test(qBot);
+  if (!qBotGenerica && raw.split(/\s+/).length <= 8) {
     return escolherInedita([
-      "Tô te ouvindo" + nome + ". Pode explicar com calma o que tá acontecendo agora que eu acompanho.",
-      "Não sei se captei cada detalhe disso, mas continuo aqui com você — quer me contar um pouco mais?"
+      "Tô ligada" + nome + "! E o que mais você pensa sobre isso?",
+      "Anotado" + nome + " — quer continuar puxando esse fio ou mudar pra outro papo?"
     ], ctx);
   }
 
-  // Frase com tema real identificável
+  // 7) Comentário livre com tema identificável
   if (nucleo && nucleo.length >= 3) {
     return escolherInedita([
-      "Vi que você citou **" + nucleo + "**, mas não ficou claro o que você quer fazer com isso. Quer conversar sobre o assunto, que eu pesquise na web ou te ajude em algo específico?",
-      "Sobre **" + nucleo + "**: você quer uma explicação, minha opinião ou só tá comentando mesmo?"
+      "Peguei a ideia sobre **" + nucleo + "**" + nome + "! Você quer bater papo e trocar opinião sobre isso ou quer que eu pesquise algum detalhe específico?",
+      "Sobre **" + nucleo + "**" + nome + ": me conta o que tá rolando com isso pra eu entrar no papo direito!"
     ], ctx);
   }
 
   return escolherInedita([
-    "Não entendi bem o contexto dessa frase" + nome + ". Pode me dizer em poucas palavras o que você quis dizer?",
-    "Fiquei na dúvida sobre o que você quer agora — quer bater papo sobre algum tema ou fazer uma pergunta específica?"
+    "Tô acompanhando" + nome + ", só faltou um tiquinho de contexto pra eu responder na mosca. Me fala em uma frase o que tá rolando!",
+    "Peguei metade da ideia" + nome + " — me dá só mais um detalhe do assunto que a gente segue o papo!"
   ], ctx);
 }
 
