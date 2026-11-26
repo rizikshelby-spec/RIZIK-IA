@@ -1,8 +1,8 @@
-/* BACH AI 5.4 - SABER 3.5 (Blindado & Sem Falsos Matches de Cache/Conversa)
-   Leitura de textos/código/links, pesquisa inteligente com expansão de gírias (qm -> quem),
-   separação entre entidade principal (Wikipédia) e pergunta completa (Web),
-   preservação de dados úteis entre parênteses, prioridade para português, catálogo Jikan,
-   bloqueio contra SSRF e proteção contra matches falsos de 1 radical no cache local. */
+/* BACH AI 5.5 - SABER 3.6 (Busca Atual Real + Anti-Cache Desatualizado + Links Completos)
+ * - Detecta pedidos de conteúdo atualizado/recente (ex.: filmes recentes 2025/2026) e consulta a web ao vivo.
+ * - Corrige gírias e erros de digitação (melho -> melhor, atualisado -> atualizado, qm -> quem).
+ * - Protege contra SSRF em links externos e amplia leitura de código via link para 350 KB.
+ */
 
 const KB_KEY = "bach_conhecimento_v2";
 
@@ -22,7 +22,7 @@ const STOP = new Set((
 ).split(" "));
 
 const INTENCAO_STOP = new Set((
-  "bom boa bons boas legal legais ruim melhor melhores pior piores presta vale pena " +
+  "bom boa bons boas legal legais ruim melhor melhores pior piores presta vale pena top " +
   "lancou lanca lancar lancamento lancamentos estreou estreia estrear saiu sair sai lancado lancados " +
   "recomenda recomende indica indique assistir assisto ver saber proximo proxima proximos proximas vem vim vir chegar " +
   "existe existem existiu existir nome nomes membro membros integrante integrantes " +
@@ -59,13 +59,13 @@ function expandirGirias(t) {
     .replace(/\b(pq|pk)\b/g, "porque")
     .replace(/\b(tb|tbm|tmb)\b/g, "tambem")
     .replace(/\bpra\b/g, "para")
+    .replace(/\bmelho\b/g, "melhor")
+    .replace(/\batualisado\b/g, "atualizado")
     .replace(/\b(para|pra|como)\s+dormi\b/g, "$1 dormir")
-    .replace(/\bepisodios\b/g, "episodios")
     .replace(/\bpisodios\b/g, "episodios");
 }
 
 const tokens = t => expandirGirias(t).split(/[^a-z0-9]+/).filter(Boolean);
-
 const kw = t => tokens(t).filter(w => (/^\d+$/.test(w) || w.length >= 2) && !STOP.has(w));
 const kwAssunto = t => kw(t).filter(w => !INTENCAO_STOP.has(w));
 
@@ -80,7 +80,7 @@ function topWords(text, n = 8) {
 }
 
 function sentences(text) {
-  const t = String(text || "").slice(0, 100000).replace(/\s+/g, " ");
+  const t = String(text || "").slice(0, 120000).replace(/\s+/g, " ");
   return (t.match(/[^.!?]+[.!?]+/g) || [t]).map(s => s.trim()).filter(s => s.length >= 40 && s.length <= 420);
 }
 
@@ -112,9 +112,9 @@ function isCode(text) {
 }
 
 function analyzeCode(text) {
-  const sample = String(text || "").slice(0, 200000);
+  const sample = String(text || "").slice(0, 400000);
   let lang = "código";
-  if (/^\s*<(!doctype|html|head|body|div|section|main)\b/i.test(sample) || /<script\b/i.test(sample)) lang = "HTML";
+  if (/^\s*<(!doctype|html|head|body|div|section|main)\b/i.test(sample) || /^\s*<script\b/i.test(sample)) lang = "HTML";
   else if (/\bdef\s+\w+\([^)]*\)\s*:/.test(sample)) lang = "Python";
   else if (/\b(const|let|var|function)\b|=>/.test(sample)) lang = "JavaScript";
 
@@ -128,22 +128,23 @@ function analyzeCode(text) {
 
   const feats = [];
   if (/localStorage/.test(sample)) feats.push("guarda dados no navegador (localStorage)");
+  if (/indexedDB/i.test(sample)) feats.push("armazena dados em IndexedDB");
   if (/fetch\(/.test(sample)) feats.push("faz requisições na internet (fetch)");
   if (/\bexport\b/.test(sample)) feats.push("exporta um módulo para outros arquivos");
   if (/addEventListener|onclick/.test(sample)) feats.push("reage a cliques e teclas");
   if (/JSON\.parse|JSON\.stringify/.test(sample)) feats.push("converte dados em JSON");
   if (/\.test\(|\.match\(|RegExp/.test(sample)) feats.push("usa expressões regulares");
 
-  let out = "📖 Li o texto. Parece " + lang + " (" + sample.split(/\s+/).length + " palavras).";
+  let out = "📖 Li o arquivo. Parece **" + lang + "** (" + sample.split("\n").length + " linhas, " + sample.split(/\s+/).length + " palavras).";
   if (comment) out += "\n\nDescrição no código: " + comment.replace(/\s+/g, " ").trim().slice(0, 220);
-  if (funcs.size) out += "\n\nFunções que encontrei (" + funcs.size + "): " + [...funcs].slice(0, 15).join(", ") + (funcs.size > 15 ? "..." : "");
+  if (funcs.size) out += "\n\nFunções encontradas (" + funcs.size + "): " + [...funcs].slice(0, 15).join(", ") + (funcs.size > 15 ? "..." : "");
   if (feats.length) out += "\n\nO que ele faz:\n• " + feats.join("\n• ");
   if (urls.length) out += "\n\nEndereços usados:\n• " + urls.join("\n• ");
-  return out + "\n\n💡 Agora você pode pedir: “explica”, “revisa o código” ou “faz uma cadeia de códigos”.";
+  return out + "\n\n💡 Agora você pode pedir: “explica”, “revisa o código”, “cadeia de códigos” ou “copiar código”.";
 }
 
 function lerTexto(text) {
-  const sample = String(text || "").slice(0, 200000);
+  const sample = String(text || "").slice(0, 400000);
   if (isCode(sample)) return analyzeCode(sample);
   const resumo = summarize(sample, 4);
   const palavras = sample.trim().split(/\s+/).length;
@@ -178,7 +179,7 @@ const CONTEUDO_ADULTO = /\b(pornogr[áa]fic[oa]|porn[oô]|er[óo]tic[oa]|sexo ex
 
 function ehFuturoGenerico(qn) {
   const temMidia = /\b(filmes?|series?|animes?|desenhos?|jogos?|apps?|aplicativos?)\b/.test(qn);
-  const temFuturo = /\b(mes que vem|proximo mes|proximos meses|em breve|vai estrear|vao estrear|vai lancar|vao lancar|lancamentos?|vao\s+(?:sair|vir|vim|lancar|estrear|chegar)|vai\s+(?:sair|vir|vim|lancar|estrear|chegar)|que (?:vai|vao|ira|irao) (?:sair|vir|vim)|que esta(?:o)? vindo|vindo ai)\b/.test(qn);
+  const temFuturo = /\b(mes que vem|proximo mes|proximos meses|em breve|vai estrear|vao estrear|vai lancar|vao lancar|vao\s+(?:sair|vir|vim|lancar|estrear|chegar)|vai\s+(?:sair|vir|vim|lancar|estrear|chegar)|que (?:vai|vao|ira|irao) (?:sair|vir|vim)|que esta(?:o)? vindo|vindo ai)\b/.test(qn);
   if (!temMidia || !temFuturo) return false;
   const sobra = kwAssunto(qn).filter(w => !/^(filmes?|series?|animes?|desenhos?|jogos?|apps?|aplicativos?|estrear|estreia|sair|vir|vim|vindo|ter|novo|novos|nova|novas|esse|este|breve|mes|meses|ano|anos|semana|semanas|vao|vai|vou|proximo|proxima|proximos|proximas|chegar)$/.test(w));
   return sobra.length === 0;
@@ -188,10 +189,13 @@ const META_REFERENCIA = /\b(isso|aquilo|essa resposta|sua resposta)\b[\s\S]{0,25
 
 async function buscarAnimesJikan(qn, assunto, progresso) {
   progresso("⛩️ Consultando catálogo ao vivo de animes...");
+  const ehAtual = /\b(atual|atuais|atualizado|recentes?|agora|temporada|2025|2026|novo|novos)\b/.test(qn);
   const ehTop = /\b(recomenda\w*|melhor\w*|top|indica\w*|bom|bons|assistir|populares)\b/.test(qn) || assunto === "anime" || assunto === "animes";
-  const url = ehTop
-    ? "https://api.jikan.moe/v4/top/anime?sfw&limit=8"
-    : "https://api.jikan.moe/v4/anime?q=" + encodeURIComponent(assunto) + "&sfw&limit=6&order_by=score&sort=desc";
+  const url = ehAtual
+    ? "https://api.jikan.moe/v4/seasons/now?sfw&limit=8"
+    : ehTop
+      ? "https://api.jikan.moe/v4/top/anime?sfw&limit=8"
+      : "https://api.jikan.moe/v4/anime?q=" + encodeURIComponent(assunto) + "&sfw&limit=6&order_by=score&sort=desc";
   const data = await get(url, 10000, true);
   const lista = data?.data || [];
   if (!lista.length) return null;
@@ -204,9 +208,9 @@ async function buscarAnimesJikan(qn, assunto, progresso) {
   });
 
   return {
-    texto: "⛩️ **Animes encontrados (" + (ehTop ? "mais bem avaliados" : "busca: " + assunto) + "):**\n\n" +
+    texto: "⛩️ **Animes encontrados (" + (ehAtual ? "temporada atual" : ehTop ? "mais bem avaliados" : "busca: " + assunto) + "):**\n\n" +
       linhas.join("\n") +
-      "\n\n💡 Quer a sinopse de algum específico? Peça: “pesquise sobre [nome do anime]”.",
+      "\n\n💡 Quer a sinopse de algum específico? Peça `pesquise sobre [nome do anime]`.",
     conf: "alta",
     fontes: lista.slice(0, 3).map(a => ({ titulo: "MyAnimeList: " + a.title, url: a.url }))
   };
@@ -227,9 +231,10 @@ function limparConsulta(q) {
     entidade: (termosLimpos.length ? termosLimpos : termosAssunto.length ? termosAssunto : termosTodos).join(" "),
     webQuery: n,
     ehPessoa: /\bquem\s+(?:foi|e|eh|era)\b/.test(expandirGirias(q)),
-    ehLancamento: /\b(lancou|lanca|lancar|lancamento|estreia|estreou|saiu|quando sai|mes que vem|proximo mes)\b/.test(n),
+    ehLancamento: /\b(lancou|lanca|lancar|lancamento|estreia|estreou|saiu|quando sai|recente|recentes|atualizado|de agora)\b/.test(n),
     ehOpiniao: /\b(e bom|e boa|vale a pena|presta|critica|nota|legal|legais|recomenda)\b/.test(n),
-    ehAtualidade: !temAno && /\b(eleic|ganhou|venceu|campeao|resultado|placar|atual|atualmente|presidente|governador|prefeito)\b/.test(n),
+    ehAtualidade: /\b(eleic|ganhou|venceu|campeao|resultado|placar|atual|atuais|atualizado|atualmente|recente|recentes|de agora|esse ano|deste ano|2025|2026|presidente|governador|prefeito)\b/.test(n) ||
+      (!temAno && /\b(hoje|agora|ultimos)\b/.test(n)),
     permiteAdulto: CONTEUDO_ADULTO.test(n),
     termos: termosAssunto.length ? termosAssunto : termosTodos
   };
@@ -259,7 +264,7 @@ function resumirDesambiguacao(texto, titulo) {
   if (!linhas.length) return null;
   return "📚 **“" + titulo + "” pode se referir a vários significados na Wikipédia:**\n\n• " +
     linhas.slice(0, 6).join("\n• ") +
-    "\n\n💡 Se quiser saber de um específico, me diga o nome completo (ex.: *Adão e Eva* ou *Eva personagem*).";
+    "\n\n💡 Se quiser um específico, diga o nome completo.";
 }
 
 async function wiki(q, qk, permiteAdulto = false, ehPessoa = false) {
@@ -387,7 +392,7 @@ function filtrar(links, qs, permiteAdulto = false, anoAtual = "") {
     const texto = l.titulo + " " + l.snippet;
     const k = new Set(kr(texto));
     const hits = [...qs].filter(w => k.has(w)).length;
-    const bonusPT = /pt\.wikipedia|\.br\/|brasilescola|todamateria|significados|mundoeducacao|bbc\.|g1\.globo|uol|tuasaude|minhavida/i.test(l.url) ? 3 : 0;
+    const bonusPT = /pt\.wikipedia|\.br\/|brasilescola|todamateria|significados|mundoeducacao|bbc\.|g1\.globo|uol|adorocinema|omelete|tecmundo/i.test(l.url) ? 3 : 0;
     const penEn = (/en\.wikipedia/i.test(l.url) || pareceIngles(texto)) ? -2 : 0;
     const bonusAno = anoAtual && texto.includes(anoAtual) ? 3 : 0;
     return { ...l, hits, v: hits * 2 + bonusPT + penEn + bonusAno };
@@ -403,7 +408,7 @@ function cleanPage(t) {
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/https?:\/\/\S+/g, " ")
     .replace(/[#*_`>|]/g, " ")
-    .slice(0, 30000);
+    .slice(0, 35000);
 }
 
 async function readPage(link, qs) {
@@ -441,7 +446,7 @@ async function lerLink(url) {
   let texto = raw ? await get(u, 15000) : String(await get("https://r.jina.ai/" + u, 15000)).replace(/!\[[^\]]*\]\([^)]*\)/g, " ");
   texto = texto.trim();
   if (texto.length < 20) throw new Error("vazio");
-  return { texto: texto.slice(0, 200000), nome, url: u };
+  return { texto: texto.slice(0, 350000), nome, url: u };
 }
 
 /* ---------- Base de conhecimento ---------- */
@@ -460,6 +465,8 @@ function saveKB(entry) {
 }
 
 function buscarConhecimento(texto) {
+  const qn = expandirGirias(texto);
+  if (/\b(atualizado|atual|atuais|recente|recentes|agora|hoje|2025|2026|novo|novos)\b/.test(qn)) return null;
   const qRaw = kwAssunto(texto);
   const qk = new Set(qRaw.map(radical));
   if (!qk.size) return null;
@@ -476,17 +483,13 @@ function buscarConhecimento(texto) {
   }
   if (!top || score < 0.8) return null;
   const dias = Math.floor((Date.now() - (top.at || 0)) / 86400000);
-  return "📚 Já pesquisei isso (“" + top.q + "”, " + new Date(top.at).toLocaleDateString("pt-BR") + "):\n\n" + String(top.resumo).slice(0, 1500) +
-    (dias > 30 ? "\n\n⚠️ Essa pesquisa tem mais de 30 dias e pode estar desatualizada." : "") +
-    "\n\nPara atualizar: pesquise a fundo sobre " + top.q;
+  return "📚 Do que já consultei sobre “" + top.q + "” (" + new Date(top.at).toLocaleDateString("pt-BR") + "):\n\n" + String(top.resumo).slice(0, 1800) +
+    (dias > 30 ? "\n\n⚠️ Esse registro tem mais de 30 dias — se quiser dados atualizados, peça `pesquise a fundo sobre " + top.q + "`." : "");
 }
 
 /* ---------- Montar a resposta com ranking BM25 ---------- */
 
 const LIXO = /(cookie|copyright|©|todos os direitos|pol[ií]tica de privacidade|termos de uso|inscreva|assine|newsletter|clique aqui|leia mais|compartilhe|whatsapp|facebook|instagram|login|cadastr|publicidade|an[uú]ncio|aceitar|menu principal|veja também|ver também)/i;
-
-function hash(s) { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; }
-const pickFixo = (a, chave) => a[hash(chave) % a.length];
 
 function limparFrase(s) {
   return String(s)
@@ -522,7 +525,7 @@ function candidatas(fontes, qs, permiteAdulto = false, anoAtual = "") {
         hits = qs.size - nao.length + achou;
         cob = qs.size ? hits / qs.size : 0;
       } else if (!hits && !lead) return;
-      const temAnoAtual = Boolean(anoAtual && s.includes(anoAtual));
+      const temAnoAtual = Boolean(anoAtual && (s.includes(anoAtual) || s.includes(String(Number(anoAtual) - 1))));
       out.push({ s, k, fi, pos, hits, cob, wiki: !!f.wiki, lead, principal: !!f.primario, temAnoAtual, emIngles: pareceIngles(s), len: k.size });
     });
   });
@@ -563,8 +566,8 @@ function escolher(c, qs, pedeLista, n = 4, ehAtual = false) {
 function compor(q, fontes, n = 4, permiteAdulto = false, ehAtual = false, anoAtual = "") {
   const qk = kwAssunto(q);
   const qs = new Set((qk.length ? qk : kw(q)).map(radical));
-  const pedeLista = /^\s*(quais|quantos|quantas|cite|liste|tipos|exemplos)\b|\b(cores|tipos|exemplos|lista|membros|integrantes)\b/i.test(norm(q));
-  const { sel: escolhidas, total } = escolher(candidatas(fontes, qs, permiteAdulto, anoAtual), qs, pedeLista, n, ehAtual);
+  const pedeLista = /^\s*(quais|quantos|quantas|cite|liste|tipos|exemplos)\b|\b(cores|tipos|exemplos|lista|membros|integrantes|filmes|series)\b/i.test(norm(q));
+  const { sel: escolhidas } = escolher(candidatas(fontes, qs, permiteAdulto, anoAtual), qs, pedeLista, n, ehAtual);
   if (!escolhidas.length) return null;
   if (qs.size >= 2 && !escolhidas.some(x => x.lead || x.cob >= 0.45)) return null;
 
@@ -574,21 +577,14 @@ function compor(q, fontes, n = 4, permiteAdulto = false, ehAtual = false, anoAtu
   const [primeira, ...resto] = sel;
 
   let corpo = primeira.s + " [" + num(primeira.fi) + "]";
-  if (resto.length) corpo += "\n\nAlém disso:\n" + resto.map(x => "• " + x.s + " [" + num(x.fi) + "]").join("\n");
+  if (resto.length) corpo += "\n\n" + resto.map(x => "• " + x.s + " [" + num(x.fi) + "]").join("\n");
 
   const principal = fontes.some(f => f.primario);
   const apoio = Math.max(...sel.map(x => x.apoio));
   const forte = sel.filter(x => x.cob >= 0.6).length;
-  const conf = principal && (apoio >= 1 || forte >= 2) ? "alta" : principal || apoio >= 1 || usados.length >= 2 && forte >= 2 ? "média" : "baixa";
+  const conf = principal && (apoio >= 1 || forte >= 2) ? "alta" : principal || apoio >= 1 || (usados.length >= 2 && forte >= 2) ? "média" : "baixa";
 
-  let t = "🧠 " + pickFixo([
-    "Sobre “" + q + "”, foi isso que encontrei:",
-    "Pesquisei “" + q + "” e organizei os pontos principais:",
-    "Aqui está o resumo sobre “" + q + "”:"
-  ], norm(q)) + "\n\n" + (conf === "baixa" ? "⚠️ Não tenho certeza total dessa resposta; confira nas fontes.\n\n" : "") + corpo;
-
-  t += "\n\n🔍 Como cheguei nisso: analisei " + fontes.length + " fonte(s), separei " + total +
-    " trecho(s) ligados ao tema e resumi os " + sel.length + " mais confiáveis.";
+  let t = (conf === "baixa" ? "⚠️ Não há confirmação total nas fontes encontradas — confira os links abaixo.\n\n" : "") + corpo;
   t += "\n\nFontes:\n" + usados.map((fi, i) => "[" + (i + 1) + "] " + fontes[fi].nome).join("\n");
   return { texto: t, corpo, conf, usados };
 }
@@ -613,9 +609,11 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true, opts = {}
     } catch (e) { console.warn("jikan", e); }
   }
 
-  if (/\b(filme|filmes)\b/.test(qn) && /\b(bom|bons|boa|boas|recomenda\w*|indica\w*|melhor\w*|assistir|procura\w*)\b/.test(qn) && qk.length <= 3) {
+  // Só usa a lista clássica se NÃO tiver pedido por filmes atuais/recentes/2025/2026
+  const querFilmeAtual = /\b(atual|atuais|atualizado|atualizados|de agora|recente|recentes|novo|novos|2025|2026|lancamento|lancamentos|streaming)\b/.test(qn);
+  if (!querFilmeAtual && /\b(filme|filmes)\b/.test(qn) && /\b(bom|bons|boa|boas|recomenda\w*|indica\w*|melhor\w*|assistir|procura\w*|top)\b/.test(qn) && qk.length <= 3) {
     return {
-      texto: "🎬 **10 filmes muito bem avaliados para assistir:**\n\n" +
+      texto: "🎬 **10 filmes muito bem avaliados:**\n\n" +
         "1. Interestelar (2014) — Ficção / Aventura\n" +
         "2. A Origem (2010) — Ficção / Suspense\n" +
         "3. Parasita (2019) — Drama / Suspense\n" +
@@ -626,7 +624,7 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true, opts = {}
         "8. Duna: Parte Dois (2024) — Aventura / Ficção\n" +
         "9. Homem-Aranha no Aranhaverso (2018) — Animação\n" +
         "10. O Auto da Compadecida (2000) — Comédia Brasileira\n\n" +
-        "💡 Quer de um gênero específico (drama, terror, ação, aventura, comédia, romance)? É só pedir!",
+        "💡 Se quiser lançamentos recentes (2025/2026) ou um gênero específico, peça `filmes recentes` ou `filmes de terror`.",
       conf: "alta",
       fontes: []
     };
@@ -667,7 +665,7 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true, opts = {}
   try { links = await web(consultaWeb); } catch (e) { console.warn("web", e); }
   if ((fundo || opts.semLimite) && links.length < 3) {
     try {
-      const extra = info.ehAtualidade ? assunto + " resultado " + anoAtual : info.ehLancamento ? assunto + " lancou" : assunto + " explicacao resumo";
+      const extra = info.ehAtualidade ? assunto + " " + (Number(anoAtual) - 1) + " " + anoAtual : info.ehLancamento ? assunto + " lancou" : assunto + " explicacao resumo";
       const mais = await web(extra);
       const vistos = new Set(links.map(l => l.url));
       mais.forEach(l => { if (!vistos.has(l.url)) links.push(l); });
@@ -683,22 +681,21 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true, opts = {}
   const maxFrases = opts.semLimite ? 9 : fundo ? 6 : 4;
 
   if ((fundo || opts.semLimite) && webFontes.length) {
-    progresso("📖 Lendo as melhores páginas...");
+    progresso("📖 Lendo as páginas mais relevantes...");
     await Promise.allSettled(webFontes.slice(0, maxPaginas).map(async f => {
       progresso("🌐 Lendo " + host(f.url));
       f.frases.push(...await readPage(f, qs));
     }));
   }
 
-  progresso("🧩 Comparando as fontes e montando a resposta...");
+  progresso("🧩 Organizando os resultados...");
   const r = compor(assunto, fontes, maxFrases, info.permiteAdulto, info.ehAtualidade, anoAtual);
   if (!r) throw new Error("irrelevante");
 
   const guardou = r.conf !== "baixa" && !info.ehAtualidade;
   if (guardou) saveKB({ q: assunto, resumo: r.corpo, at: Date.now() });
 
-  const texto = r.texto + (guardou ? "\n\n💾 Guardei esse resumo na memória." : "") +
-    (fundo ? "" : "\nQuer mais detalhes? Peça: pesquise a fundo sobre " + assunto);
+  const texto = r.texto + (fundo ? "" : "\n\nQuer mais detalhes? Peça `pesquise a fundo sobre " + assunto + "`.");
   return { texto, conf: r.conf, fontes: r.usados.map(i => ({ titulo: fontes[i].nome, url: fontes[i].url })) };
 }
 
