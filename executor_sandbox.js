@@ -1,7 +1,7 @@
-/* BACH AI 5.1 — Executor Seguro de Scripts & Preview de Apps (Sandbox Blindado)
+/* BACH AI 5.5 — Executor Seguro de Scripts & Preview de Apps (Sandbox Blindado)
  * Executa código JavaScript em iframe isolado (sandbox="allow-scripts", sem acesso aos dados da BACH)
- * com proteção contra quebra de tag </script>, verificação de origem postMessage,
- * limite anti-DoS de logs e CSP isolada bloqueando rede externa.
+ * com proteção contra quebra de tag </script>, detecção fiel JS vs HTML vs texto comum,
+ * verificação de origem postMessage, limite anti-DoS de logs e CSP isolada bloqueando rede externa.
  */
 
 const MAX_CODE_CHARS = 150000;
@@ -19,8 +19,29 @@ function extrairCodigoDoTexto(raw) {
     .trim();
 }
 
+function pareceModuloOuScriptJS(codigo) {
+  const s = String(codigo || "").trim();
+  const semComentarios = s.replace(/^(\s*\/\*[\s\S]*?\*\/|\s*\/\/[^\n]*\n)+/, "").trim();
+  if (/^\s*<!doctype\s+html/i.test(semComentarios) || /^\s*<html\b/i.test(semComentarios)) {
+    return false;
+  }
+  return /^(?:import|export|const|let|var|function|async\s+function|class)\b/.test(semComentarios) ||
+    /\bexport\s+(?:const|let|function|default|\{)/.test(semComentarios);
+}
+
 function ehHTML(codigo) {
-  return /<!doctype html>|<html\b|<body\b|<div\b|<button\b|<canvas\b|<style\b/i.test(codigo);
+  const s = String(codigo || "").trim();
+  if (!s || pareceModuloOuScriptJS(s)) return false;
+  return /^\s*(?:<!doctype\s+html|<html\b|<head\b|<body\b|<div\b|<section\b|<main\b|<header\b|<form\b|<button\b|<canvas\b|<style\b|<h[1-6]\b|<p\b|<ul\b|<table\b|<script\b)/i.test(s);
+}
+
+function pareceTextoComum(codigo) {
+  const s = String(codigo || "").trim();
+  if (!s) return true;
+  if (/^===\s*(?:CENTRAL DE ERROS|CONVERSA BACH AI)/i.test(s)) return true;
+  if (ehHTML(s) || pareceModuloOuScriptJS(s)) return false;
+  const temSintaxeJS = /[;{}()]/.test(s) && /(\b(?:const|let|var|function|return|if|for|while|console|Math|JSON|alert)\b|=>)/.test(s);
+  return !temSintaxeJS;
 }
 
 function pareceBashOuPython(codigo) {
@@ -203,19 +224,29 @@ function detectarPedido(raw) {
 
 async function executar(raw, ctx = {}) {
   const s = String(raw || "").trim();
+  const pediuPreview = /^\/preview\b/i.test(s);
   let codigo = extrairCodigoDoTexto(s);
+  let veioDeArquivo = false;
 
   if (!codigo || /^(?:esse|este|o)?\s*(?:codigo|script|app|html|programa|preview)$/i.test(codigo)) {
     codigo = ctx.ultimoArquivo?.texto || "";
+    veioDeArquivo = true;
   }
 
   if (!codigo) {
     return {
       texto: "▶️ **Executor Seguro (Sandbox):**\n" +
-        "Cole o código depois do comando para rodar ao vivo!\n" +
+        "Cole o código depois do comando para rodar ao vivo:\n" +
         "• `/executar console.log(2 + 2)` — roda JavaScript isolado\n" +
-        "• `/preview <h1>Oi!</h1>` — abre o app HTML/CSS/JS na tela\n" +
-        "• Ou peça um app (ex.: `/app pomodoro`) e eu já abro funcionando!"
+        "• `/preview <h1>Oi!</h1>` — abre HTML/CSS/JS na tela\n" +
+        "• Ou peça um app (ex.: `/app pomodoro`) que já abro funcionando."
+    };
+  }
+
+  if (veioDeArquivo && pareceTextoComum(codigo)) {
+    return {
+      texto: "📄 O último arquivo salvo (**" + (ctx.ultimoArquivo?.nome || "texto") + "**) é texto comum/relatório, não código executável.\n\n" +
+        "Cole o script depois de `/executar` (ex.: `/executar console.log(2 + 2)`) ou peça `/app pomodoro`."
     };
   }
 
@@ -229,18 +260,18 @@ async function executar(raw, ctx = {}) {
   if (outro === "bash") {
     return {
       texto: "📱 **Script Termux / Bash detectado:**\n" +
-        "Por segurança do Android/iOS, o navegador não executa comandos diretamente no sistema.\n\n" +
-        "Para rodar no seu **Termux**:\n```bash\ncat << 'EOF' > script.sh\n" + codigo.slice(0, 2000) + "\nEOF\nchmod +x script.sh && ./script.sh\n```"
+        "Por segurança do navegador, não executo comandos diretamente no sistema.\n\n" +
+        "Para rodar no seu **Termux**:\n````bash\ncat << 'EOF' > script.sh\n" + codigo.slice(0, 4000) + "\nEOF\nchmod +x script.sh && ./script.sh\n````"
     };
   }
   if (outro === "python") {
     return {
       texto: "🐍 **Script Python detectado:**\n" +
-        "O navegador não tem interpretador Python nativo embutido aqui, mas no **Termux** você roda em 1 comando:\n```bash\ncat << 'EOF' > app.py\n" + codigo.slice(0, 2000) + "\nEOF\npython app.py\n```"
+        "O navegador não tem interpretador Python nativo embutido aqui, mas no **Termux** você roda em 1 comando:\n````bash\ncat << 'EOF' > app.py\n" + codigo.slice(0, 4000) + "\nEOF\npython app.py\n````"
     };
   }
 
-  if (ehHTML(codigo)) {
+  if (ehHTML(codigo) || (pediuPreview && !pareceModuloOuScriptJS(codigo))) {
     return {
       texto: "▶️ **App HTML/CSS/JS iniciado no Preview Isolado!** Teste direto abaixo ou toque em **⛶ Tela cheia**.",
       previewHtml: codigo,
@@ -248,17 +279,25 @@ async function executar(raw, ctx = {}) {
     };
   }
 
+  if (/\bexport\s+(?:const|let|function|default|\{)|\bimport\s+[^'"]+\s+from\s+['"]/i.test(codigo)) {
+    return {
+      texto: "📦 **Módulo ES (`import`/`export`) detectado:**\n" +
+        "Arquivos de módulo precisam ser importados dentro de uma página HTML com `<script type=\"module\">` — não rodam isolados via `new Function()`.\n\n" +
+        "Se quiser auditar erros de sintaxe nele, use `/revisar`."
+    };
+  }
+
   const res = await executarJS(codigo);
   if (!res.ok) {
     return {
       texto: "❌ **Erro ao executar JavaScript (" + (res.logs.length ? res.logs.length + " log(s) antes do erro" : "falha") + "):**\n\n" +
-        (res.logs.length ? "📋 **Console:**\n```txt\n" + res.logs.join("\n") + "\n```\n\n" : "") +
+        (res.logs.length ? "📋 **Console:**\n````txt\n" + res.logs.join("\n") + "\n````\n\n" : "") +
         "🚨 `" + res.erro + "`"
     };
   }
 
   const saida = [];
-  if (res.logs.length) saida.push("📋 **Console (`console.log`):**\n```txt\n" + res.logs.join("\n") + "\n```");
+  if (res.logs.length) saida.push("📋 **Console (`console.log`):**\n````txt\n" + res.logs.join("\n") + "\n````");
   if (res.retorno !== null) saida.push("↩️ **Retorno:** `" + res.retorno + "`");
   if (!saida.length) saida.push("✅ Código executado sem erros (nenhum `console.log` ou retorno exibido).");
 
