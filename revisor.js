@@ -1,6 +1,7 @@
-/* BACH AI 5.1 — REVISOR FIEL BLINDADO (Ortografia, Sílabas, Código e Avaliação de Sites)
-   Permite revisar textos, sílabas, códigos e analisar sites direto no chat,
-   com proteção contra SSRF/endereços internos em /site e limite anti-travamento. */
+/* BACH AI 5.5 — REVISOR FIEL BLINDADO (Ortografia, Sílabas, Código e Avaliação de Sites)
+ * Remove strings, template literals, regexes e comentários antes de auditar código JS,
+ * evitando falsos positivos em blocos de exemplo ou expressões regulares.
+ */
 
 const VOGAIS = "aáàâãeéêiíoóôõuúüy";
 const V_RE = new RegExp("[" + VOGAIS + "]", "i");
@@ -213,39 +214,114 @@ function revisarPortugues(texto) {
     "\n\n✨ **Sugestão corrigida:**\n“" + corrigido + "”";
 }
 
+function limparCodigoJS(src) {
+  let out = "";
+  let estado = "normal"; // normal | sq | dq | tpl | line | block | regex | regex_class
+  let prevToken = "";
+
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i];
+    const nxt = src[i + 1] || "";
+
+    if (estado === "line") {
+      if (c === "\n") { estado = "normal"; out += "\n"; }
+      continue;
+    }
+    if (estado === "block") {
+      if (c === "*" && nxt === "/") { estado = "normal"; out += " "; i++; continue; }
+      if (c === "\n") out += "\n";
+      continue;
+    }
+    if (estado === "sq" || estado === "dq") {
+      if (c === "\\") { i++; continue; }
+      if ((estado === "sq" && c === "'") || (estado === "dq" && c === '"')) {
+        estado = "normal";
+        out += " ";
+        prevToken = '"';
+      }
+      continue;
+    }
+    if (estado === "tpl") {
+      if (c === "\\") { i++; continue; }
+      if (c === "`") {
+        estado = "normal";
+        out += " ";
+        prevToken = "`";
+      } else if (c === "\n") {
+        out += "\n";
+      }
+      continue;
+    }
+    if (estado === "regex" || estado === "regex_class") {
+      if (c === "\\") { i++; continue; }
+      if (estado === "regex_class") {
+        if (c === "]") estado = "regex";
+      } else {
+        if (c === "[") estado = "regex_class";
+        else if (c === "/") { estado = "normal"; out += " "; prevToken = "/"; }
+        else if (c === "\n") { estado = "normal"; out += "\n"; }
+      }
+      continue;
+    }
+
+    if (c === "/" && nxt === "/") { estado = "line"; i++; continue; }
+    if (c === "/" && nxt === "*") { estado = "block"; i++; continue; }
+    if (c === "'") { estado = "sq"; continue; }
+    if (c === '"') { estado = "dq"; continue; }
+    if (c === "`") { estado = "tpl"; continue; }
+    if (c === "/" && (!prevToken || /[=({[,;:!&|?+\-*~^%<>]/.test(prevToken))) {
+      estado = "regex";
+      continue;
+    }
+
+    out += c;
+    if (!/\s/.test(c)) prevToken = c;
+  }
+
+  return out;
+}
+
 function revisarCodigoFiel(codigo) {
-  const src = String(codigo || "").slice(0, 60000);
-  const linhas = src.split("\n");
+  const src = String(codigo || "").slice(0, 120000);
+  const linhasBrutas = src.split("\n");
+  const ehHtmlReal = /^\s*(?:<!doctype\s+html|<html\b)/i.test(src);
+  const codigoLimpo = ehHtmlReal ? src : limparCodigoJS(src);
+  const linhasLimpas = codigoLimpo.split("\n");
   const erros = [];
 
-  linhas.forEach((l, idx) => {
+  linhasLimpas.forEach((l, idx) => {
     const n = idx + 1;
     if (/\bvar\s+/.test(l)) erros.push("• Linha " + n + ": usa `var` (prefira `let` ou `const`).");
     if (/[^=!<>]==[^=]/.test(l)) erros.push("• Linha " + n + ": usa `==` (prefira `===` para evitar bugs de tipo).");
     if (/\.innerHTML\s*=/.test(l)) erros.push("• Linha " + n + ": usa `.innerHTML =` (cuidado com XSS; prefira `.textContent` para textos).");
     if (/\beval\s*\(|new\s+Function\s*\(/.test(l)) erros.push("• Linha " + n + ": usa `eval`/`Function` (risco de segurança).");
-    if (/\bconsole\.log\(/.test(l)) erros.push("• Linha " + n + ": `console.log` de debug deixado no código.");
-    if (/TODO|FIXME/i.test(l)) erros.push("• Linha " + n + ": pendência `TODO/FIXME` aberta.");
+    if (/\bconsole\.log\s*\(/.test(l)) erros.push("• Linha " + n + ": `console.log` de debug deixado no código.");
   });
 
-  const abreCh = (src.match(/\{/g) || []).length, fechaCh = (src.match(/\}/g) || []).length;
+  linhasBrutas.forEach((l, idx) => {
+    if (/\/\/.*\b(?:TODO|FIXME)\b|\/\*[\s\S]*\b(?:TODO|FIXME)\b/.test(l)) {
+      erros.push("• Linha " + (idx + 1) + ": pendência `TODO/FIXME` aberta em comentário.");
+    }
+  });
+
+  const abreCh = (codigoLimpo.match(/\{/g) || []).length, fechaCh = (codigoLimpo.match(/\}/g) || []).length;
   if (abreCh !== fechaCh) erros.push("• Estrutura: chaves `{}` desbalanceadas (" + abreCh + " abrem, " + fechaCh + " fecham).");
 
-  const abrePar = (src.match(/\(/g) || []).length, fechaPar = (src.match(/\)/g) || []).length;
+  const abrePar = (codigoLimpo.match(/\(/g) || []).length, fechaPar = (codigoLimpo.match(/\)/g) || []).length;
   if (abrePar !== fechaPar) erros.push("• Estrutura: parênteses `()` desbalanceados (" + abrePar + " abrem, " + fechaPar + " fecham).");
 
-  if (/<html/i.test(src) && !/name=["']viewport["']/i.test(src)) {
+  if (ehHtmlReal && !/name=["']viewport["']/i.test(src)) {
     erros.push("• HTML: falta `<meta name=\"viewport\" ...>` para funcionar bem no celular.");
   }
-  if (/localStorage\./.test(src) && !/try\s*\{/.test(src)) {
+  if (/localStorage\./.test(codigoLimpo) && !/try\s*\{/.test(codigoLimpo)) {
     erros.push("• Armazenamento: usa `localStorage` sem `try/catch` (pode quebrar em aba anônima).");
   }
-  if (/fetch\(/.test(src) && !/catch/.test(src)) {
+  if (/\bfetch\s*\(/.test(codigoLimpo) && !/\bcatch\b/.test(codigoLimpo)) {
     erros.push("• Rede: usa `fetch()` sem tratar erro com `catch`.");
   }
 
-  return "💻 **AUDITORIA DE CÓDIGO (" + linhas.length + " linhas):**\n\n" +
-    (erros.length ? erros.slice(0, 18).join("\n") : "✅ Nenhum erro estrutural ou má prática óbvia encontrada!") +
+  return "💻 **AUDITORIA DE CÓDIGO (" + linhasBrutas.length + " linhas):**\n\n" +
+    (erros.length ? erros.slice(0, 18).join("\n") : "✅ Nenhum erro estrutural ou má prática encontrada!") +
     (erros.length > 18 ? "\n... e mais " + (erros.length - 18) + " aviso(s)." : "");
 }
 
