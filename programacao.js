@@ -1,31 +1,33 @@
-/* BACH AI 5.5 - PROGRAMAÇÃO + HUMOR + FALLBACK CONVERSACIONAL INTELIGENTE
-   - Não dispara tutoriais de programação no meio de conversas comuns.
-   - Substitui respostas robóticas de fallback por compreensão real de relatos, planos,
-     desabafos, opiniões e contexto emocional da sessão. */
+/* BACH AI 5.5 - PROGRAMAÇÃO + HUMOR + SÍNTESE CONVERSACIONAL (ESTILO CLAUDE)
+ * - Não dispara tutoriais de programação no meio de conversas comuns.
+ * - Detector rigoroso de digitação aleatória/teclas soltas (incluindo múltiplas teclas e pontuação).
+ * - Substitui bordões robóticos ("Tô ligada, Rizik!") por respostas naturais, diretas,
+ *   articuladas e conscientes do contexto anterior.
+ */
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9+# ]+/g, " ").replace(/\s+/g, " ").trim();
 const pick = a => a[Math.floor(Math.random() * a.length)];
 
 const TOPICOS = [
-  { amb: true, k: ["variavel", "variaveis", "const", "let"], t: "📦 Variável é uma caixinha com nome que guarda um valor.\n\nJavaScript:\nlet idade = 20;\nconst nome = \"Ana\";\n\nPython:\nidade = 20\nnome = \"Ana\"\n\nDica: use const quando o valor não vai mudar." },
-  { amb: true, k: ["funcao", "funcoes", "function", "def"], t: "⚙️ Função é um bloco de código com nome que você pode reutilizar.\n\nJavaScript:\nfunction soma(a, b) {\n  return a + b;\n}\nsoma(2, 3); // 5\n\nPython:\ndef soma(a, b):\n    return a + b" },
-  { amb: true, k: ["loop", "loops", "laco", "repeticao", "for", "while"], t: "🔁 Loop repete um código várias vezes.\n\nJavaScript:\nfor (let i = 0; i < 5; i++) {\n  console.log(i);\n}\n\nPython:\nfor i in range(5):\n    print(i)\n\nUse while quando não sabe quantas vezes vai repetir." },
-  { amb: true, k: ["condicional", "condicionais", "if", "else", "se senao"], t: "🔀 Condicional decide o que fazer conforme uma condição.\n\nJavaScript:\nif (idade >= 18) {\n  console.log(\"Maior\");\n} else {\n  console.log(\"Menor\");\n}\n\nPython:\nif idade >= 18:\n    print(\"Maior\")\nelse:\n    print(\"Menor\")" },
-  { amb: true, k: ["array", "arrays", "lista", "listas", "vetor"], t: "📋 Array (ou lista) guarda vários valores em ordem.\n\nJavaScript:\nconst frutas = [\"maçã\", \"uva\"];\nfrutas.push(\"pera\");\nfrutas[0]; // maçã\n\nPython:\nfrutas = [\"maçã\", \"uva\"]\nfrutas.append(\"pera\")" },
-  { amb: true, k: ["objeto", "objetos", "dicionario", "dict", "json"], t: "🗂️ Objeto (JS) ou dicionário (Python) guarda dados com nome.\n\nJavaScript:\nconst pessoa = { nome: \"Ana\", idade: 20 };\npessoa.nome; // Ana\nJSON.stringify(pessoa); // vira texto\n\nPython:\npessoa = {\"nome\": \"Ana\", \"idade\": 20}" },
-  { amb: true, k: ["classe", "classes", "orientacao a objetos", "poo", "oop"], t: "🏗️ Classe é um molde para criar objetos.\n\nclass Pessoa {\n  constructor(nome) { this.nome = nome; }\n  falar() { return \"Oi, sou \" + this.nome; }\n}\nnew Pessoa(\"Ana\").falar();" },
-  { amb: false, k: ["javascript", "js"], t: "🟨 JavaScript é a linguagem da web: faz sites ficarem interativos e roda no navegador (e no servidor, com Node.js). A BACH AI é feita com ele! Comece por variáveis, funções, arrays e manipular a página (DOM)." },
-  { amb: false, k: ["python"], t: "🐍 Python é uma linguagem simples de ler, ótima para começar, automação, dados e IA. Exemplo:\n\nnome = input(\"Seu nome: \")\nprint(\"Olá,\", nome)" },
-  { amb: false, k: ["html"], t: "🧱 HTML é a estrutura da página.\n\n<!DOCTYPE html>\n<html>\n<head><title>Meu site</title></head>\n<body>\n  <h1>Olá!</h1>\n  <button id=\"b\">Clique</button>\n</body>\n</html>" },
-  { amb: true, k: ["css", "estilo", "estilizar"], t: "🎨 CSS é a aparência da página (cores, tamanhos, posição).\n\nbutton {\n  background: #7864ed;\n  color: white;\n  border-radius: 12px;\n  padding: 12px 16px;\n}" },
-  { amb: false, k: ["api", "apis", "fetch", "requisicao"], t: "🌐 API é um endereço que devolve dados para o seu programa.\n\nJavaScript:\nconst r = await fetch(\"https://api.github.com\");\nconst dados = await r.json();\n\nPython:\nimport requests\ndados = requests.get(url).json()\n\nÉ assim que a BACH busca o clima!" },
-  { amb: false, k: ["git", "github", "commit"], t: "🌿 Git guarda o histórico do seu código.\n\ngit init\ngit add .\ngit commit -m \"primeira versão\"\ngit push\n\nGitHub é o site onde você guarda e publica esse código (e dá para hospedar sites no GitHub Pages)." },
-  { amb: false, k: ["sql", "banco de dados", "database", "mysql"], t: "🗄️ SQL conversa com bancos de dados.\n\nSELECT nome FROM usuarios WHERE idade >= 18;\nINSERT INTO usuarios (nome, idade) VALUES ('Ana', 20);" },
-  { amb: false, k: ["recursao", "recursiva"], t: "🪞 Recursão é uma função que chama a si mesma, com uma condição de parada.\n\nfunction fatorial(n) {\n  if (n <= 1) return 1;\n  return n * fatorial(n - 1);\n}\nfatorial(5); // 120" },
-  { amb: false, k: ["algoritmo", "algoritmos", "logica de programacao"], t: "🧩 Algoritmo é uma receita de passos para resolver um problema. Dica: antes de codar, escreva os passos em português, depois traduza para código." },
-  { amb: true, k: ["bug", "bugs", "erro no codigo", "debug", "depurar", "nao funciona"], t: "🐛 Para caçar bugs:\n1) Leia a mensagem de erro (ela diz a linha).\n2) Use console.log para ver os valores.\n3) Teste uma parte de cada vez.\n4) Copie o erro e pesquise.\n\nCole o código aqui e eu leio as funções dele!" },
-  { amb: false, k: ["criar uma ia", "criar ia", "fazer uma ia", "construir uma ia", "criar inteligencia artificial", "criar um chatbot", "criar chatbot"], t: "🤖 Você já está fazendo uma — a BACH! Passos:\n1) Entrada e saída (chat).\n2) Cérebro: regras + memória que aprende.\n3) Busca de informação (pesquisa).\n4) Ler arquivos, fotos e vídeos.\n5) Evoluir: busca por contexto e raciocínio próprio.\n\nQual parte quer melhorar agora?" },
-  { amb: false, k: ["aprender a programar", "como programar", "comecar a programar", "aprender programacao", "o que e programacao"], t: "💻 Programar é dar instruções para o computador.\n\nRoteiro: 1) lógica e variáveis, 2) condições e loops, 3) funções, 4) listas e objetos, 5) um projeto pequeno (como esta IA!).\n\nPergunte: \"o que é função\", \"exemplo de loop\", \"o que é API\"..." }
+  { amb: true, k: ["variavel", "variaveis", "const", "let"], t: "📦 Variável é um nome associado a um valor na memória.\n\nJavaScript:\nlet idade = 20;\nconst nome = \"Ana\";\n\nPython:\nidade = 20\nnome = \"Ana\"\n\nPrefira `const` quando a referência não vai mudar." },
+  { amb: true, k: ["funcao", "funcoes", "function", "def"], t: "⚙️ Função é um bloco reutilizável que recebe entradas e devolve um resultado.\n\nJavaScript:\nfunction soma(a, b) {\n  return a + b;\n}\n\nPython:\ndef soma(a, b):\n    return a + b" },
+  { amb: true, k: ["loop", "loops", "laco", "repeticao", "for", "while"], t: "🔁 Loop repete um bloco enquanto uma condição valer.\n\nJavaScript:\nfor (let i = 0; i < 5; i++) {\n  console.log(i);\n}\n\nPython:\nfor i in range(5):\n    print(i)" },
+  { amb: true, k: ["condicional", "condicionais", "if", "else", "se senao"], t: "🔀 Condicional escolhe o fluxo conforme uma condição booleana.\n\nJavaScript:\nif (idade >= 18) {\n  console.log(\"Maior\");\n} else {\n  console.log(\"Menor\");\n}" },
+  { amb: true, k: ["array", "arrays", "lista", "listas", "vetor"], t: "📋 Array (ou lista) organiza vários valores em sequência.\n\nJavaScript:\nconst frutas = [\"maçã\", \"uva\"];\nfrutas.push(\"pera\");\n\nPython:\nfrutas = [\"maçã\", \"uva\"]\nfrutas.append(\"pera\")" },
+  { amb: true, k: ["objeto", "objetos", "dicionario", "dict", "json"], t: "🗂️ Objeto (JS) ou dicionário (Python) guarda pares chave → valor.\n\nJavaScript:\nconst pessoa = { nome: \"Ana\", idade: 20 };\nJSON.stringify(pessoa);" },
+  { amb: true, k: ["classe", "classes", "orientacao a objetos", "poo", "oop"], t: "🏗️ Classe define um molde de dados e comportamentos.\n\nclass Pessoa {\n  constructor(nome) { this.nome = nome; }\n  falar() { return \"Oi, sou \" + this.nome; }\n}" },
+  { amb: false, k: ["javascript", "js"], t: "🟨 JavaScript é a linguagem nativa dos navegadores (e roda no servidor com Node.js). É a base da BACH AI: dominar funções, arrays, DOM e `async/await` resolve a maior parte dos projetos web." },
+  { amb: false, k: ["python"], t: "🐍 Python prioriza legibilidade e é muito forte em automação, ciência de dados e IA:\n\nnome = input(\"Seu nome: \")\nprint(f\"Olá, {nome}\")" },
+  { amb: false, k: ["html"], t: "🧱 HTML estrutura o conteúdo da página (títulos, parágrafos, botões e formulários), enquanto CSS cuida do visual e JS da interatividade." },
+  { amb: true, k: ["css", "estilo", "estilizar"], t: "🎨 CSS controla cores, tipografia, espaçamento e responsividade (Flexbox e Grid)." },
+  { amb: false, k: ["api", "apis", "fetch", "requisicao"], t: "🌐 API é a ponte de dados entre cliente e servidor. Em JS, `fetch()` busca ou envia JSON de forma assíncrona com `try/catch`." },
+  { amb: false, k: ["git", "github", "commit"], t: "🌿 Git versiona alterações do código; GitHub hospeda o repositório remoto e publica sites estáticos com GitHub Pages." },
+  { amb: false, k: ["sql", "banco de dados", "database", "mysql"], t: "🗄️ SQL consulta e altera tabelas relacionais com comandos como `SELECT`, `INSERT`, `UPDATE` e `JOIN`." },
+  { amb: false, k: ["recursao", "recursiva"], t: "🪞 Recursão é uma função que chama a si mesma até atingir um caso base de parada." },
+  { amb: false, k: ["algoritmo", "algoritmos", "logica de programacao"], t: "🧩 Algoritmo é uma sequência clara e finita de passos para transformar uma entrada em saída esperada." },
+  { amb: true, k: ["bug", "bugs", "erro no codigo", "debug", "depurar", "nao funciona"], t: "🐛 Para isolar um bug rápido:\n1. Leia o erro exato e a linha.\n2. Reduza o caso ao menor trecho que ainda falha.\n3. Confira valores intermediários antes do ponto da falha.\n\nSe quiser, cole o trecho aqui que eu reviso." },
+  { amb: false, k: ["criar uma ia", "criar ia", "fazer uma ia", "construir uma ia", "criar inteligencia artificial", "criar um chatbot", "criar chatbot"], t: "🤖 Uma assistente como a BACH junta cinco camadas: memória contínua, interpretação de intenção, execução segura de ferramentas, recuperação em arquivos (RAG) e busca na web quando falta fato atualizado." },
+  { amb: false, k: ["aprender a programar", "como programar", "comecar a programar", "aprender programacao", "o que e programacao"], t: "💻 Comece pela lógica (variáveis, condições, loops e funções), pratique criando ferramentas pequenas do dia a dia e leia erros sem pressa." }
 ];
 
 function responder(texto) {
@@ -33,7 +35,6 @@ function responder(texto) {
   const t = " " + norm(raw) + " ";
   const palavras = t.trim().split(/\s+/).filter(Boolean);
 
-  // Não dispara tutorial se for apenas uma conversa casual citando algo ("odeio python", "meu amigo programa")
   const ehPerguntaOuPedido = /\?$/.test(raw) ||
     /\b(o que e|oque e|como funciona|como usar|como fazer|explica|explique|exemplo|aprender|comecar|sintaxe|pra que serve|para que serve|ensina|ajuda)\b/.test(t) ||
     palavras.length <= 2;
@@ -51,26 +52,14 @@ function responder(texto) {
 }
 
 const PIADAS = [
-  { c: "dev", t: "Por que o programador confunde Halloween com Natal?\n\n…Porque 31 OCT = 25 DEC. 🎃🎄" },
-  { c: "dev", t: "A esposa do programador pede: “Compre um pão. Se tiver ovos, traga 6.”\n\n…Ele volta com 6 pães. “Tinha ovos!” 🍞" },
-  { c: "dev", t: "Qual a diferença entre um programador e um mágico?\n\n…O mágico faz o problema desaparecer. O programador faz ele aparecer só em produção. 🎩" },
-  { c: "dev", t: "Qual é o esporte radical favorito do programador?\n\n…Fazer deploy na sexta-feira às 17h. 🪂" },
-  { c: "dev", t: "Como se chama um programador sem café?\n\n…Um erro de sintaxe com pernas. ☕" },
-  { c: "dev", t: "— Seu código tem comentários?\n— Tem: “não mexe aqui”, “não sei por que funciona” e “TODO: arrumar (2019)”. 🙈" },
-  { c: "dev", t: "Meu código funciona e eu não sei por quê.\nMeu código quebrou e eu também não sei por quê.\n\n…Equilíbrio. ☯️" },
-  { c: "dev", t: "Existem 10 tipos de pessoas no mundo:\n\n…as que entendem binário e as que não. 😎" },
-  { c: "dev", t: "O que o HTML disse ao CSS?\n\n…Sem você eu seria só texto. 💅" },
-  { c: "dev", t: "O programador foi ao médico: “Doutor, estou ouvindo vozes!”\n— E o que elas dizem?\n— Que isso já foi resolvido no Stack Overflow. 🩺" },
-  { c: "geral", t: "O que o tomate foi fazer no banco?\n\n…Tirar extrato. 🍅" },
-  { c: "geral", t: "O que o zero disse para o oito?\n\n…Bonito cinto! 8️⃣" },
-  { c: "geral", t: "Por que o livro de matemática ficou triste?\n\n…Porque tinha muitos problemas. 📘" },
-  { c: "geral", t: "O que a aranha faz na internet?\n\n…Fica na web. 🕷️" },
-  { c: "geral", t: "Por que o computador foi ao médico?\n\n…Estava com vírus. 🦠" },
-  { c: "geral", t: "Qual é o cúmulo da paciência?\n\n…Sentar na beira da estrada e esperar o tempo passar. ⏳" },
-  { c: "geral", t: "É pavê ou pra comê? 🍰\n\n(Piada de tiozão, eu sei. Mas funciona em toda ceia.)" },
-  { c: "geral", t: "O que o oceano disse para a praia?\n\n…Nada, só deu uma onda. 🌊" },
-  { c: "geral", t: "Por que a galinha atravessou a rua?\n\n…Para provar ao pato que dava. 🐔" },
-  { c: "geral", t: "O que é um pontinho verde na tela da reunião online?\n\n…Alguém que diz “estou só ouvindo” e foi lavar a louça. 🟢" }
+  { c: "dev", t: "Por que o programador confunde Halloween com Natal?\n\nPorque 31 OCT = 25 DEC." },
+  { c: "dev", t: "— Seu código tem comentários?\n— Tem: “não mexe aqui”, “não sei por que funciona” e “TODO: arrumar (2019)”." },
+  { c: "dev", t: "Existem 10 tipos de pessoas no mundo: as que entendem binário e as que não." },
+  { c: "dev", t: "O que o HTML disse ao CSS?\n\nSem você eu seria só texto." },
+  { c: "geral", t: "O que o zero disse para o oito?\n\nBonito cinto!" },
+  { c: "geral", t: "Por que o livro de matemática ficou triste?\n\nPorque tinha muitos problemas." },
+  { c: "geral", t: "O que o tomate foi fazer no banco?\n\nTirar extrato." },
+  { c: "geral", t: "Qual é o cúmulo da paciência?\n\nSentar na beira da estrada e esperar o tempo passar." }
 ];
 let saco = [], jaContou = false;
 let ruidosSeguidos = 0;
@@ -98,49 +87,64 @@ function humor(texto) {
       (jaContou && /^(outra|mais uma|outra piada|mais uma piada|manda outra|de novo|outra melhor|outra ai|mais|quero outra|outra por favor)$/.test(t))) {
     const cat = /(programa|dev|codigo|computador)/.test(t) ? "dev" : /(tiozao|trocadilho|geral)/.test(t) ? "geral" : null;
     jaContou = true;
-    return pick(["Lá vai! 😄", "Prepara que vem aí:", "Essa é boa:", "Ouve essa:"]) + "\n\n" + proximaPiada(cat) + "\n\n(Quer outra? É só dizer “outra”.)";
+    return proximaPiada(cat) + "\n\n(Se quiser outra, peça “outra”.)";
   }
 
   if (/^(k+a+k+a+|k+s+k+s+|s+k+s+k+|j+k+|k{3,}|haha+|rs+|rsrs+|hehe+)$/.test(t.replace(/\s+/g, ""))) {
-    return pick(["😂 Essa foi boa até pra mim!", "Rindo aqui também! 😄", "Kkkkkk 😄 Manda a próxima!"]);
+    return pick(["Haha, boa! Manda a próxima.", "Ri aqui também. Pode continuar."]);
   }
   if (/(voce e engracada|voce e legal|voce e inteligente|gostei de voce)/.test(t)) {
-    return pick(["Para, que meu processador esquenta! 🥵💜", "Obrigada! Estou ficando melhor a cada atualização. 😄"]);
+    return "Obrigada! Gosto quando a conversa flui bem assim.";
   }
   return null;
 }
 
-const CURTAS_VALIDAS = new Set([
-  "oi", "ok", "ei", "ue", "ai", "ui", "eu", "tu", "vc", "pq", "oq", "qm", "hj",
-  "td", "nd", "mt", "tb", "ta", "to", "ne", "ja", "so", "fe", "pe", "ar", "hi",
-  "app", "bug", "pix", "cep", "cpf", "imc", "bts", "sol", "lua", "ceu", "mar",
-  "rio", "som", "luz", "cor", "dia", "dor", "paz", "bom", "mal", "ovo", "rei",
-  "lei", "sim", "nao", "oxe", "uai", "opa", "eai", "blz", "vlw", "obg", "tmj",
-  "sla", "rlx", "vdd", "ctz", "dnv", "mds", "pqp", "web", "bot", "dev", "top",
-  "gif", "pdf", "zip", "sql", "css", "php", "xml", "txt", "ram", "cpu", "ssd",
-  "rgb", "pi", "dna", "pib", "api", "git"
-]);
+const CURTAS_VALIDAS = new Set((
+  "ai ui ei oi ok ue au eu tu vc vcs pq oq oqe qm hj td nd mt mto tb tbm tmb ta to ne ja so fe pe ar hi " +
+  "app bug pix cep cpf imc bts sol lua ceu mar rio som luz cor dia dor paz bom mal bem ovo rei lei ser ter ver dar " +
+  "ir vir por com sem sob ate mas nem ou se que quem como onde ali ca la va me te nos vos meu minha seu sua " +
+  "oxe uai opa eai eita vish vixi aff mds pqp crlh vsf kct obg obgd obgda vlw vlws blz blza tmj flw sla rlx vdd ctz dnv " +
+  "web bot dev top gif pdf zip sql css php xml txt ram cpu ssd rgb pi dna pib api git js py ts html json " +
+  "sim nao ss nn qro qria fz fzr cmg ctg dms pfv pfvr suav tlg tlgd nois gnt vamo bora " +
+  "tal tao dor flor pao cha sal mel gol voo mae pai tio tia avo irma irmao " +
+  "rua lar bar par cor voz vez mes ano hora hoje ontem agora tudo nada algo cada todo outro mesmo " +
+  "ela ele nos voce mim ti si lhe um uma uns umas dois tres dez cem mil onu " +
+  "frio calor fome sede sono medo odio amor raiva triste feliz calma"
+).split(" "));
 
-const CLUSTERS_INI = new Set([
-  "bl","br","ch","cl","cr","dr","fl","fr","gl","gr","gu","kn","ph","pl","pr",
-  "ps","qu","sh","sk","sl","sm","sn","sp","st","sw","th","tr","vr","wh"
-]);
+const CLUSTERS_INI = new Set("bl br ch cl cr dr fl fr gl gr gu kn ph pl pr ps qu sh sk sl sm sn sp st sw th tr vr wh".split(" "));
+const EN_OR_TECH = new Set("ok okay web wifi show rock punk funk byte link bike kiwi play xbox kpop wiki sony copy type sync york work word week wait want what when will with keep kind king know look make take like book good time year way why who how you yes hey bye new now day boy toy key sky try dry fly cry gym spy".split(" "));
+
+function tokenRuido(w, hasWeirdPunct = false) {
+  if (!w) return true;
+  if (hasWeirdPunct && w.length <= 2) return true;
+  if (CURTAS_VALIDAS.has(w)) return false;
+  if (/^\d+$/.test(w) || w.length <= 2) return true;
+  if (!/[aeiou]/.test(w)) return true;
+  if (/\d/.test(w) && /[a-z]/.test(w) && w.length <= 7) return true;
+  if (/[bcdfghjklmnpqrstvwxyz]{3,}/.test(w) && !/(str|scr|spr|ntr|ndr|mbr|mpr|ngr|nch)/.test(w)) return true;
+  if (/^[bcdfghjklmnpqrstvwxyz]{2}/.test(w) && !CLUSTERS_INI.has(w.slice(0, 2))) return true;
+  if (/[bcdfghjklmnpqrstvwxyz]{2}$/.test(w) && !/(ns|rs|ls|st|nt|nd|rd|ld|rk|ck|ng|sh|th|ch|pt)$/.test(w)) return true;
+  if (/[bcdfghjklmnpqrstvwxyz]$/.test(w) && !/[lmnrsxz]$/.test(w) && w.length <= 6) return true;
+  if (/[kyw]/.test(w) && w.length <= 6 && !EN_OR_TECH.has(w)) return true;
+  if (w.length <= 4 && (/^(?:iu|uo|oiu|aei)/.test(w) || (w.length <= 3 && /[bcdfghjklmnpqrstvwxyz]u$/.test(w)))) return true;
+  if (hasWeirdPunct && w.length <= 4) return true;
+  return false;
+}
 
 function ehTeclaOuNumeroSolto(raw) {
   const s = String(raw || "").trim();
-  const n = norm(s).replace(/\s+/g, "");
-  if (!n) return true;
-  if (/^\d+$/.test(n)) return true;
+  if (!s) return true;
+  const n = norm(s);
+  if (!n || /^[\d\s]+$/.test(n)) return true;
 
-  if (!s.includes(" ")) {
-    if (CURTAS_VALIDAS.has(n)) return false;
-    if (n.length <= 2) return true;
-    if (!/[aeiou]/.test(n)) return true;
-    if (/\d/.test(n) && /[a-z]/.test(n) && n.length <= 7) return true;
-    if (/[bcdfghjklmnpqrstvwxyz]{3,}/.test(n) && !/(str|scr|spr|ntr|ndr|mbr|mpr|ngr|nch)/.test(n)) return true;
-    if (/^[bcdfghjklmnpqrstvwxyz]{2}/.test(n) && !CLUSTERS_INI.has(n.slice(0, 2))) return true;
-    if (/[bcdfghjklmnpqrstvwxyz]{2}$/.test(n) && !/(ns|rs|ls|st|nt|nd|rd|ld|rk|ck|ng|sh|th|ch|pt)$/.test(n)) return true;
-    if (/[bcdfghjklmnpqrstvwxyz]$/.test(n) && !/[lmnrsxz]$/.test(n) && n.length <= 6) return true;
+  const hasWeirdPunct = /[;[\]~´`\\/=_+*<>{}|]|\.{2,}|^\.|^[.,]|,[a-z]|[a-z],[.,;]?$/i.test(s);
+  const toks = n.split(/\s+/).filter(Boolean);
+
+  if (toks.length === 1) return tokenRuido(toks[0], hasWeirdPunct);
+  if (toks.length <= 3) {
+    if (toks.every(tk => tokenRuido(tk, hasWeirdPunct))) return true;
+    if (hasWeirdPunct && toks.every(tk => tk.length <= 2)) return true;
   }
   return false;
 }
@@ -151,7 +155,7 @@ const STOP_TEMA = new Set(
 );
 
 function extrairNucleo(t) {
-  return norm(t).split(" ").filter(w => w.length >= 3 && !STOP_TEMA.has(w)).slice(0, 4).join(" ");
+  return norm(t).split(" ").filter(w => w.length >= 3 && !STOP_TEMA.has(w)).slice(0, 5).join(" ");
 }
 
 function escolherInedita(opcoes, ctx = {}) {
@@ -167,22 +171,16 @@ function escolherInedita(opcoes, ctx = {}) {
 
 function desconhecido(t = "", ctx = {}) {
   const raw = String(t || "").trim();
-  const nome = ctx?.nome ? ", " + ctx.nome : "";
 
   if (ehTeclaOuNumeroSolto(raw)) {
     ruidosSeguidos++;
-    const amostra = raw.slice(0, 20);
-    if (ruidosSeguidos >= 3) {
+    if (ruidosSeguidos >= 2) {
       return escolherInedita([
-        "Tá só testando ou batendo no teclado, né" + nome + "? 😄 Quando quiser conversar de verdade é só mandar!",
-        "Tô vendo que você tá só apertando teclas soltas (`" + amostra + "`) — fico por aqui te esperando!",
-        "Beleza, tô ligada aqui! Quando quiser falar de algum assunto ou pedir algo, manda a frase completa."
+        "Parece que você está testando o teclado (`" + raw.slice(0, 18) + "`). Fico por aqui quando quiser mandar algo.",
+        "Recebi só teclas soltas (`" + raw.slice(0, 18) + "`). Quando quiser conversar ou testar algo de verdade, é só escrever."
       ], ctx);
     }
-    return escolherInedita([
-      "Chegou só `" + amostra + "` aqui — não forma uma palavra ou comando. O que você queria dizer?",
-      "Recebi `" + amostra + "`, mas parece tecla solta. Se foi sem querer, manda a frase completa!"
-    ], ctx);
+    return "Recebi `" + raw.slice(0, 20) + "`, que não forma uma palavra ou comando. O que você queria dizer?";
   }
 
   ruidosSeguidos = 0;
@@ -191,83 +189,61 @@ function desconhecido(t = "", ctx = {}) {
   const em = ctx?.session?.emotion || ctx?.mood || "neutro";
   const sit = ctx?.session?.situation?.resumo || "";
 
-  // 1) Se a pessoa está triste / passou por algo difícil (ex.: perdeu emprego), mantém empatia real na conversa
-  if (em === "triste" || em === "cansado" || em === "ansioso") {
-    const gancho = sit ? " (especialmente com isso de " + sit + ")" : "";
+  // Só ativa tom acolhedor se a frase atual realmente tiver peso emocional ou >= 3 palavras dentro do mesmo fio
+  const temSinalEmocionalAtual = /\b(triste|mal|chatead|cansad|exaust|ansios|sozinh|desanimad|dificil|pesado|demitid|mandad|emprego|raiva|odio|problema|desabaf|choro|medo)\b/.test(n);
+  if ((em === "triste" || em === "cansado" || em === "ansioso") && (temSinalEmocionalAtual || (raw.split(/\s+/).length >= 4 && !/^(vc|voce|eu|ele|ela|oi|ola)\b/.test(n)))) {
+    const gancho = sit ? " considerando o que você contou (" + sit + ")" : "";
     return escolherInedita([
-      "Tô te acompanhando" + nome + gancho + ". Pode ir soltando no seu ritmo — o que mais tá pesando na sua cabeça agora?",
-      "Entendo você" + nome + ". Nessas horas não tem resposta mágica mesmo, mas tô aqui pra conversar de verdade com você. Como você tá lidando com isso hoje?",
-      "Faz sentido você se sentir assim" + nome + gancho + ". Quer desabafar mais um pouco ou prefere que a gente mude de assunto pra esfriar a cabeça?"
+      "Estou te ouvindo" + gancho + ". O que está pesando mais para você nesse momento — o que já aconteceu ou a incerteza do que fazer em seguida?",
+      "Faz sentido sentir isso" + gancho + ". Se quiser organizar os próximos passos com calma ou só colocar pra fora sem filtro, podemos ir por onde você preferir."
     ], ctx);
   }
 
-  // 2) Se o usuário está criticando / frustrado com a IA
   if (ctx?.mood === "frustrado" || /\b(erra\w*|falh\w*|bug\w*|burr\w*|mds|seja certo|respondeu|nao entendeu)\b/.test(n)) {
     return escolherInedita([
-      "Peguei que essa resposta anterior não bateu" + nome + ". Me manda em uma frase direta o que você quer falar ou fazer agora.",
-      "Essa fugiu do que você queria" + nome + " — se quiser me mostrar o erro, usa `↩ Responder` na mensagem ou `/auditar`!"
+      "Essa resposta anterior realmente não acertou o ponto. Me diga em uma frase direta o que você esperava receber aqui.",
+      "Entendi que fugi do que você queria. Se quiser apontar direto na mensagem, use `↩ Responder` nela ou `/auditar`."
     ], ctx);
   }
 
-  // 3) Relato de acontecimento / história ("aí aconteceu...", "eu fiz...", "fui...")
-  if (/^(?:ai|e ai|entao|depois|hoje|ontem|eu|ela|ele|a gente|nois|nós)\b/.test(n) && raw.split(/\s+/).length >= 3) {
+  if (/^(?:ai|e ai|entao|depois|hoje|ontem|eu|ela|ele|a gente|nois|nos)\b/.test(n) && raw.split(/\s+/).length >= 3) {
     if (/\b(comprei|ganhei|consegui|passei|fui|assisti|joguei|terminei|comecei|fiz|aprendi|encontrei|vi|achei)\b/.test(n)) {
       return escolherInedita([
-        "Sério" + nome + "? Conta o resto dessa história — o que rolou depois?",
-        "Eita, e como foi isso aí" + nome + "? Deu bom no final?"
+        "Interessante — e como isso se desenrolou depois?",
+        "Boa! E valeu a pena no resultado final ou deu algum trabalho?"
       ], ctx);
     }
     if (/\b(perdi|quebrou|estragou|briguei|briga|falhou|dificil|complicado|puxado|corrido|problema|preocupad|medo|estress|chato|triste|ruim|foda|merda|bosta)\b/.test(n)) {
       return escolherInedita([
-        "Poxa" + nome + ", que situação chata… Como você tá resolvendo isso agora?",
-        "Complicado passar por isso" + nome + ". Quer desabafar o que aconteceu ou pensar numa saída juntos?"
+        "Situação chata mesmo. Você já vê uma saída prática para resolver isso ou ainda está avaliando as opções?",
+        "Entendi o peso disso. Quer destrinchar o que aconteceu para pensarmos no próximo passo?"
       ], ctx);
     }
-    return escolherInedita([
-      "Tô acompanhando" + nome + "! Continua — e o que aconteceu depois disso?",
-      "Entendi" + nome + ". E como você tá vendo essa situação agora?"
-    ], ctx);
+    return "Estou acompanhando. O que veio logo depois disso?";
   }
 
-  // 4) Planos, vontades e necessidades ("quero...", "preciso...", "tô pensando em...")
   if (/^(?:eu\s+)?(?:quero|queria|preciso|to pensando em|estou pensando em|vou|pretendo)\b/.test(n)) {
-    const foco = nucleo ? " sobre **" + nucleo + "**" : "";
+    const foco = nucleo ? " em **" + nucleo + "**" : "";
     return escolherInedita([
-      "Boa" + nome + "! O que tá faltando pra você dar o primeiro passo" + foco + "?",
-      "Interessante" + nome + " — quer organizar isso passo a passo comigo ou trocar ideia sobre prós e contras?"
+      "Faz sentido querer avançar" + foco + ". Qual é o principal obstáculo hoje — tempo, clareza de por onde começar ou alguma dúvida técnica?",
+      "Certo. Se quiser, podemos quebrar esse objetivo" + foco + " em passos pequenos para você começar hoje mesmo."
     ], ctx);
   }
 
-  // 5) Pergunta aberta direcionada para a conversa (em vez de dizer "não entendi")
   if (/\?\s*$/.test(raw)) {
-    return escolherInedita([
-      "Boa pergunta" + nome + " — depende muito do contexto do que você tá vivendo agora. Me dá só mais um detalhe do cenário pra eu opinar de verdade!",
-      "Você me fez pensar aqui" + nome + " 🤔 — tá perguntando isso por curiosidade ou porque tá acontecendo algo parecido aí?"
-    ], ctx);
+    return nucleo
+      ? "Sobre **" + nucleo + "**, a melhor resposta depende do contexto exato em que você está usando isso. Me dê só mais um detalhe do cenário para eu responder de forma útil — ou, se preferir que eu busque dados atuais na web, peça `pesquise sobre " + nucleo + "`."
+      : "Sua pergunta ficou aberta demais sem um tema claro. Me diga o contexto em uma frase que eu respondo direto.";
   }
 
-  // 6) Continuação de conversa sobre a última pergunta não genérica da BACH
-  const qBot = String(ctx?.session?.lastBotQuestion || "");
-  const qBotGenerica = !qBot || /quer continuar nesse assunto|não ficou claro|O que foi\?|Me diga rapidinho|Qual comando ou pergunta/i.test(qBot);
-  if (!qBotGenerica && raw.split(/\s+/).length <= 8) {
-    return escolherInedita([
-      "Tô ligada" + nome + "! E o que mais você pensa sobre isso?",
-      "Anotado" + nome + " — quer continuar puxando esse fio ou mudar pra outro papo?"
-    ], ctx);
-  }
-
-  // 7) Comentário livre com tema identificável
   if (nucleo && nucleo.length >= 3) {
     return escolherInedita([
-      "Peguei a ideia sobre **" + nucleo + "**" + nome + "! Você quer bater papo e trocar opinião sobre isso ou quer que eu pesquise algum detalhe específico?",
-      "Sobre **" + nucleo + "**" + nome + ": me conta o que tá rolando com isso pra eu entrar no papo direito!"
+      "Entendi que você está falando sobre **" + nucleo + "**, mas ainda não ficou claro se você quer uma opinião, uma explicação prática ou uma pesquisa na internet. Qual caminho prefere?",
+      "Sobre **" + nucleo + "**: me diga o que exatamente você quer saber ou resolver com isso para eu ir direto ao ponto."
     ], ctx);
   }
 
-  return escolherInedita([
-    "Tô acompanhando" + nome + ", só faltou um tiquinho de contexto pra eu responder na mosca. Me fala em uma frase o que tá rolando!",
-    "Peguei metade da ideia" + nome + " — me dá só mais um detalhe do assunto que a gente segue o papo!"
-  ], ctx);
+  return "Não ficou claro o suficiente o que você quer fazer com essa mensagem. Pode reformular em uma frase completa?";
 }
 
 export const Prog = { responder, humor, desconhecido, ehTeclaOuNumeroSolto };
