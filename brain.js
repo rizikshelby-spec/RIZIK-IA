@@ -1,8 +1,8 @@
-/* BACH AI 5.4 - CÉREBRO 3.1 (Memória em 3 Camadas + Resumo do Aprendizado + Busca Semântica)
-   - Camada 1 (Curto Prazo): sessionState em sessionStorage (emoção, situação, fio da conversa).
-   - Camada 2 (Estruturada): perfil completo (nome, cidade, idade, profissão, turno, gostos, projetos).
-   - Camada 3 (Semântica): matching com radicais em português + Levenshtein em ensinamentos e notas.
-   - Responde naturalmente a "O que você aprendeu?" listando ensinamentos, sinônimos, notas e perfil. */
+/* BACH AI 5.5 - CÉREBRO 3.2 (Memória em 3 Camadas + Decaimento Emocional Natural)
+ * - Camada 1 (Curto Prazo): sessionState em sessionStorage (emoção com decaimento natural, situação, fio da conversa).
+ * - Camada 2 (Estruturada): perfil completo (nome, cidade, idade, profissão, turno, gostos, projetos).
+ * - Camada 3 (Semântica): matching com radicais em português + Levenshtein em ensinamentos e notas.
+ */
 
 const KEY = "rizik_brain_v1";
 const KEY_SESSION = "bach_session_state_v1";
@@ -26,7 +26,7 @@ const BASE = {
     interactions: 0
   },
   topics: [],
-  version: 12
+  version: 13
 };
 
 function limparObjPlano(src, maxValLen = 500) {
@@ -49,7 +49,7 @@ function load() {
         ...BASE,
         ...s,
         name: "BACH AI",
-        version: 12,
+        version: 13,
         facts: limparObjPlano(s.facts, 400),
         examples: Array.isArray(s.examples) ? s.examples : [],
         synonyms: limparObjPlano(s.synonyms, 80),
@@ -83,6 +83,7 @@ function defaultSession() {
   return {
     emotion: "neutro",
     emotionAt: 0,
+    neutralStreak: 0,
     activeThread: null,
     situation: null,
     lastEvents: [],
@@ -98,6 +99,7 @@ function loadSession() {
       return {
         ...defaultSession(),
         ...s,
+        neutralStreak: Number.isFinite(s.neutralStreak) ? s.neutralStreak : 0,
         lastEvents: Array.isArray(s.lastEvents) ? s.lastEvents.slice(-10) : []
       };
     }
@@ -115,8 +117,9 @@ function saveSession() {
 }
 
 function getSessionState() {
-  if (sessionState.emotion !== "neutro" && sessionState.emotionAt && (Date.now() - sessionState.emotionAt) > 25 * 60 * 1000) {
+  if (sessionState.emotion !== "neutro" && sessionState.emotionAt && (Date.now() - sessionState.emotionAt) > 12 * 60 * 1000) {
     sessionState.emotion = "neutro";
+    sessionState.neutralStreak = 0;
     saveSession();
   }
   return {
@@ -131,6 +134,7 @@ function updateSessionState(patch = {}) {
   if (typeof patch.emotion === "string") {
     sessionState.emotion = patch.emotion;
     sessionState.emotionAt = Date.now();
+    sessionState.neutralStreak = 0;
   }
   if (patch.activeThread !== undefined) sessionState.activeThread = patch.activeThread;
   if (patch.situation !== undefined) {
@@ -172,6 +176,12 @@ function normalize(t) {
     .replace(/\bcvs\b/g, "conversar")
     .replace(/\bnd\b/g, "nada")
     .replace(/\bq\b/g, "que")
+    .replace(/\b(obgd|obg|obgda)\b/g, "obrigado")
+    .replace(/\b(vlw|vlws)\b/g, "valeu")
+    .replace(/\bmelho\b/g, "melhor")
+    .replace(/\bmuinto\b/g, "muito")
+    .replace(/\bss+\b/g, "sim")
+    .replace(/\bnn+\b/g, "nao")
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -199,11 +209,7 @@ function lev(a, b) {
   for (let i = 1; i <= m; i++) {
     const cur = [i];
     for (let j = 1; j <= n; j++) {
-      cur[j] = Math.min(
-        prev[j] + 1,
-        cur[j - 1] + 1,
-        prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
-      );
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
     }
     prev = cur;
   }
@@ -343,15 +349,11 @@ function searchMemory(query) {
 
   for (const ex of data.examples) {
     const s = similarity(q, applySyn(ex.question));
-    if (s >= 0.45) {
-      resultados.push({ camada: "aprendizado", score: s, texto: ex.question + " → " + ex.answer });
-    }
+    if (s >= 0.45) resultados.push({ camada: "aprendizado", score: s, texto: ex.question + " → " + ex.answer });
   }
   for (const n of data.notes) {
     const s = similarity(q, applySyn(n.text));
-    if (s >= 0.4) {
-      resultados.push({ camada: "nota", score: s, texto: n.text });
-    }
+    if (s >= 0.4) resultados.push({ camada: "nota", score: s, texto: n.text });
   }
   return resultados.sort((a, b) => b.score - a.score).slice(0, 4);
 }
@@ -363,8 +365,8 @@ function detectTone(raw) {
   const n = normalize(s);
   const rindo = /😂|🤣|😄|😆|😜|🤪|\b(k{3,}|ha{2,}h?a?|rsrs+|hehe+|hue+)\b/i.test(s);
   const brincadeira = /\b(piada|charada|brincar|diverte|engracado|zoeira|humor)\b/.test(n);
-  const frustrado = /\b(burro|burra|idiota|inutil|lixo|errou|errado|errada|nada a ver|nada haver|nao entende|nao entendeu|nunca entende|pqp|crlh|merda|porra|chato|chata|ruim|horrivel|droga|para de errar|muitos erros|esperava melhoras|tudo errado|que odio|odio disso|saco cheio|que saco|ta dificil|nao quero testar|q pergunta)\b/.test(n);
-  const triste = /\b(triste|mal|ansioso|ansiosa|chorando|deprimido|deprimida|cansado|cansada|desanimado|desanimada|chateado|chateada|exausto|exausta|sozinho|sozinha|solidao|morrer|suicid|fui mandado|mandaram|demitido|demitida|perdi o)\b/.test(n);
+  const frustrado = /\b(burro|burra|idiota|inutil|lixo|errou|errado|errada|nada a ver|nada haver|nao entende|nao entendeu|nunca entende|pqp|crlh|merda|porra|chato|chata|ruim|horrivel|droga|para de errar|muitos erros|esperava melhoras|tudo errado|que odio|odio disso|saco cheio|que saco|nao quero testar|q pergunta)\b/.test(n);
+  const triste = /\b(triste|mal|ansioso|ansiosa|chorando|deprimido|deprimida|cansado|cansada|desanimado|desanimada|chateado|chateada|exausto|exausta|sozinho|sozinha|solidao|morrer|suicid|fui mandado|mandaram embora|demitido|demitida|perdi o emprego)\b/.test(n);
   const serio = /\b(codigo|erro|bug|problema|configuracao|trabalho|curriculo|revisar|contrato|golpe|imc|medico|resumo|estudar|turno)\b/.test(n);
 
   if (triste) return "triste";
@@ -395,11 +397,7 @@ function extractSituationalContext(raw) {
       : sitAtual.turnoNovo
         ? `foi colocado no turno do ${sitAtual.turnoNovo}`
         : `trabalhava no turno da ${sitAtual.turnoAntigo}`;
-    updateSessionState({
-      activeThread: "trabalho_turno",
-      situation: sitAtual,
-      addEvent: s
-    });
+    updateSessionState({ activeThread: "trabalho_turno", situation: sitAtual, addEvent: s });
     return;
   }
 
@@ -414,22 +412,18 @@ function extractSituationalContext(raw) {
   }
 
   if (/\b(que odio|odio|raiva|revoltado|revoltada|nao aguento|saco cheio)\b/.test(n)) {
-    updateSessionState({
-      emotion: sessionState.emotion === "triste" ? "triste" : "frustrado",
-      addEvent: s
-    });
+    updateSessionState({ emotion: sessionState.emotion === "triste" ? "triste" : "frustrado", addEvent: s });
     return;
   }
 
   if (/\b(estou bem|to bem|melhorei|fiquei feliz|to feliz|animad[oa])\b/.test(n)) {
-    updateSessionState({
-      emotion: "animado",
-      addEvent: s
-    });
+    updateSessionState({ emotion: "animado", addEvent: s });
   }
 }
 
 function updateTone(raw) {
+  const s = String(raw || "").trim();
+  const n = normalize(s);
   const instant = detectTone(raw);
   let score = Number(data.profile.humorScore || 0);
 
@@ -444,9 +438,23 @@ function updateTone(raw) {
   save();
 
   extractSituationalContext(raw);
-  if (instant === "triste") updateSessionState({ emotion: "triste" });
-  else if (instant === "frustrado" && sessionState.emotion !== "triste") updateSessionState({ emotion: "frustrado" });
-  else if (instant === "descontraido") updateSessionState({ emotion: "animado" });
+
+  if (instant === "triste") {
+    updateSessionState({ emotion: "triste" });
+  } else if (instant === "frustrado" && sessionState.emotion !== "triste") {
+    updateSessionState({ emotion: "frustrado" });
+  } else if (instant === "descontraido" || /^(obrigado|obrigada|valeu|tchau|boa noite|bom dia|boa tarde)\b/.test(n)) {
+    updateSessionState({ emotion: "neutro" });
+  } else if (instant === "neutro" || instant === "serio") {
+    if (sessionState.emotion !== "neutro") {
+      sessionState.neutralStreak = (sessionState.neutralStreak || 0) + 1;
+      if (sessionState.neutralStreak >= 3 || s.startsWith("/")) {
+        sessionState.emotion = "neutro";
+        sessionState.neutralStreak = 0;
+      }
+      saveSession();
+    }
+  }
 
   const mood =
     instant === "frustrado" ? "frustrado" :
@@ -517,7 +525,7 @@ function captureUserMemory(original) {
   if (m && !/^(te|voce|vc|ele|ela|que|quando|como|se|saber|ver|perguntar|disso|isso)\b/i.test(m[1])) {
     const item = m[1].trim().replace(/[.!]+$/, "");
     if (pushUnique(data.profile.likes, item)) {
-      return `Legal! Vou lembrar que você gosta de ${item}. 💜`;
+      return `Anotado — vou lembrar que você gosta de ${item}.`;
     }
   }
 
@@ -525,7 +533,7 @@ function captureUserMemory(original) {
   if (m && !/^(disso|isso|nada|de nada|que)\b/i.test(m[1])) {
     const item = m[1].trim().replace(/[.!]+$/, "");
     if (pushUnique(data.profile.dislikes, item)) {
-      return `Anotado! Vou lembrar que você não curte ${item}. 📝`;
+      return `Certo, vou lembrar que você não curte ${item}.`;
     }
   }
 
@@ -534,14 +542,14 @@ function captureUserMemory(original) {
   if (m && m[1].split(/\s+/).length <= 5 && !naoCidade.test(normalize(m[1]))) {
     data.profile.city = m[1].trim().replace(/[.!]+$/, "").slice(0, 45);
     save();
-    return `Que massa! Guardei que você é de ${data.profile.city}. 📍`;
+    return `Guardei que você é de ${data.profile.city}.`;
   }
 
   m = raw.match(/^(?:eu\s+)?tenho\s+(\d{1,2})\s+anos$/i);
   if (m) {
     data.profile.age = Number(m[1]);
     save();
-    return `Anotado! Guardei que você tem ${data.profile.age} anos. 🎂`;
+    return `Anotado: ${data.profile.age} anos.`;
   }
 
   m = raw.match(/^(?:eu\s+)?(?:trabalho como|sou|minha profiss[aã]o [eé])\s+(?:um\s+|uma\s+)?([A-Za-zÀ-ÿ\s]{3,40})$/i);
@@ -550,7 +558,7 @@ function captureUserMemory(original) {
     if (prof.split(/\s+/).length <= 4) {
       data.profile.profession = prof;
       save();
-      return `Legal! Guardei que você atua como ${prof}. 💼`;
+      return `Guardei que você atua como ${prof}.`;
     }
   }
 
@@ -558,7 +566,7 @@ function captureUserMemory(original) {
   if (m && !/^(nada|isso|testando|tentando)\b/i.test(m[1])) {
     const proj = m[1].trim().replace(/[.!]+$/, "");
     if (pushUnique(data.profile.projects, proj, 15)) {
-      return `Show! Vou lembrar que você está trabalhando/estudando ${proj}. 🚀`;
+      return `Legal — anotei que você está trabalhando em ${proj}.`;
     }
   }
 
@@ -570,7 +578,7 @@ function captureUserMemory(original) {
       data.profile.favorites[cat] = val;
       save();
     }
-    return `Guardei! Seu ${cat} favorito é ${val}. ⭐`;
+    return `Guardei: seu ${cat} favorito é ${val}.`;
   }
 
   return null;
@@ -622,39 +630,33 @@ function analyzeText(txt) {
   const code = /(\bconst\b|\bfunction\b|=>|<\/?[a-z]+>|\bimport\b|\bexport\b|\breturn\b)/.test(txt);
   return "Recebi um texto grande: " + words + " palavras e " + txt.length + " caracteres." +
     (code ? " Parece código de programação." : "") +
-    "\n\nPosso resumir, explicar o funcionamento, montar uma cadeia de uso, pesquisar trechos com `/rag` ou revisar o código.";
+    "\n\nPosso resumir, explicar o funcionamento, pesquisar trechos com `/rag` ou revisar o código.";
 }
 
 const HELP =
-  "Posso te ajudar de várias formas 😊\n\n" +
-  "💬 Conversar e aprender\n" +
-  "• ensine: pergunta => resposta\n" +
-  "• corrija: pergunta => nova resposta\n" +
-  "• esqueça: pergunta\n" +
-  "• sinônimo: gíria = palavra\n" +
-  "• meu nome é ... / eu gosto de ... / moro em ...\n\n" +
-  "🎨 Visual e Modos\n" +
-  "• Use o menu ☰ ou peça: “tema vermelho”, “tema azul”, “tema neon”...\n" +
-  "• Use os 10 modos no topo (Automático, Raciocínio, Pesquisa, Programação, Visão...)\n\n" +
-  "🔎 Pesquisar, arquivos e traduzir\n" +
-  "• pesquise sobre ... / `/rag pergunta` nos seus arquivos salvos\n" +
-  "• escreva um e-mail / plano de estudos / diferença entre X e Y\n" +
-  "• o que significa ... / como se diz ... em inglês / clima em (sua cidade)\n\n" +
-  "🛠️ Ferramentas rápidas\n" +
-  "• /ajuda • /app pomodoro • /calc • /converter • /juros • /fisica • /golpe • /quiz";
+  "Posso te ajudar de várias formas:\n\n" +
+  "💬 **Conversar e ensinar**\n" +
+  "• `ensine: pergunta => resposta` • `corrija: pergunta => nova resposta`\n" +
+  "• `esqueça: pergunta` • `sinônimo: gíria = palavra`\n" +
+  "• `meu nome é ...` / `eu gosto de ...` / `moro em ...`\n\n" +
+  "🔎 **Pesquisar, arquivos e traduzir**\n" +
+  "• `pesquise sobre ...` / `/rag pergunta` nos seus arquivos salvos\n" +
+  "• `o que significa ...` / `como se diz ... em inglês` / `clima em Cidade`\n\n" +
+  "🛠️ **Ferramentas rápidas**\n" +
+  "• `/ajuda` • `/app pomodoro` • `/calc` • `/converter` • `/revisar` • `/executar`";
 
 function buildLearnedSummary() {
   const syns = Object.entries(data.synonyms || {});
   const out = ["🧠 **O QUE EU JÁ APRENDI ATÉ AGORA:**\n"];
 
   if (data.examples.length) {
-    out.push("📚 **Respostas que você me ensinou (" + data.examples.length + "):**");
+    out.push("📚 **Respostas ensinadas (" + data.examples.length + "):**");
     for (const ex of data.examples.slice(-8).reverse()) {
       out.push("• “" + ex.question + "” → " + String(ex.answer).slice(0, 90) + (ex.answer.length > 90 ? "…" : ""));
     }
     out.push("");
   } else {
-    out.push("📚 **Respostas ensinadas:** ainda nenhuma (você pode ensinar com `ensine: pergunta => resposta`).\n");
+    out.push("📚 **Respostas ensinadas:** nenhuma ainda (use `ensine: pergunta => resposta`).\n");
   }
 
   if (syns.length) {
@@ -674,31 +676,28 @@ function buildMemorySummary() {
   const p = data.profile;
   const sess = getSessionState();
   const parts = [];
-  parts.push("**Camada 1 — Curto Prazo (Sessão Atual):**");
-  parts.push("• Clima/emoção atual: " + (sess.emotion || "neutro"));
-  if (sess.situation?.resumo) parts.push("• Situação citada agora: " + sess.situation.resumo);
+  parts.push("**Camada 1 — Sessão Atual:**");
+  parts.push("• Tom atual: " + (sess.emotion || "neutro"));
+  if (sess.situation?.resumo) parts.push("• Situação citada: " + sess.situation.resumo);
   if (sess.lastEvents?.length) parts.push("• Eventos recentes: " + sess.lastEvents.slice(-3).join(" | "));
 
-  parts.push("\n**Camada 2 — Memória Estruturada (Perfil):**");
+  parts.push("\n**Camada 2 — Perfil:**");
   if (nome) parts.push("• Nome: " + nome);
   if (p.age) parts.push("• Idade: " + p.age + " anos");
   if (p.city) parts.push("• Cidade: " + p.city);
   if (p.profession) parts.push("• Profissão: " + p.profession);
   if (p.workShift) parts.push("• Turno / trabalho citado: " + p.workShift);
-  if (p.likes.length) parts.push("• Coisas que você gosta: " + p.likes.join(", "));
-  if (p.dislikes.length) parts.push("• Coisas que você não curte: " + p.dislikes.join(", "));
+  if (p.likes.length) parts.push("• Gostos: " + p.likes.join(", "));
+  if (p.dislikes.length) parts.push("• Não curte: " + p.dislikes.join(", "));
   if (p.projects.length) parts.push("• Projetos/estudos: " + p.projects.join(", "));
   const favs = Object.entries(p.favorites || {});
   if (favs.length) parts.push("• Favoritos: " + favs.map(([k, v]) => k + " = " + v).join("; "));
-  const estilo = p.humorScore >= 1.2 ? "descontraído / bem-humorado" : p.humorScore <= -1.2 ? "direto / sério" : "equilibrado";
-  parts.push("• Estilo percebido: " + estilo);
 
   parts.push("\n**Camada 3 — Memória Semântica & Tópicos:**");
   parts.push("• Respostas ensinadas: " + data.examples.length + " • Notas: " + data.notes.length);
-  if (data.topics.length) parts.push("• Assuntos que já conversamos (" + data.topics.length + "): " + data.topics.slice(-10).map(x => x.topic).join(", "));
-  if (data.notes.length) parts.push("• Últimas notas: " + data.notes.slice(-5).map(n => n.text).join(" | "));
+  if (data.topics.length) parts.push("• Assuntos recentes (" + data.topics.length + "): " + data.topics.slice(-10).map(x => x.topic).join(", "));
 
-  return "🧠 **MINHA MEMÓRIA EM 3 CAMADAS SOBRE VOCÊ:**\n\n" + parts.join("\n");
+  return "🧠 **MEMÓRIA EM 3 CAMADAS:**\n\n" + parts.join("\n");
 }
 
 function importarMemoriaSegura(d) {
@@ -706,18 +705,14 @@ function importarMemoriaSegura(d) {
 
   if (Array.isArray(d.examples)) {
     for (const e of d.examples.slice(0, 300)) {
-      if (e && typeof e.question === "string" && typeof e.answer === "string") {
-        learn(e.question, e.answer);
-      }
+      if (e && typeof e.question === "string" && typeof e.answer === "string") learn(e.question, e.answer);
     }
   }
-
   Object.assign(data.facts, limparObjPlano(d.facts, 400));
 
   if (d.synonyms && typeof d.synonyms === "object" && !Array.isArray(d.synonyms)) {
     for (const k of Object.keys(d.synonyms)) {
-      if (PROIBIDAS.has(k)) continue;
-      if (typeof d.synonyms[k] === "string") learnSynonym(k, d.synonyms[k]);
+      if (!PROIBIDAS.has(k) && typeof d.synonyms[k] === "string") learnSynonym(k, d.synonyms[k]);
     }
   }
 
@@ -731,15 +726,9 @@ function importarMemoriaSegura(d) {
   }
 
   if (d.profile && typeof d.profile === "object" && !Array.isArray(d.profile)) {
-    if (Array.isArray(d.profile.likes)) {
-      d.profile.likes.filter(x => typeof x === "string").forEach(x => pushUnique(data.profile.likes, x));
-    }
-    if (Array.isArray(d.profile.dislikes)) {
-      d.profile.dislikes.filter(x => typeof x === "string").forEach(x => pushUnique(data.profile.dislikes, x));
-    }
-    if (Array.isArray(d.profile.projects)) {
-      d.profile.projects.filter(x => typeof x === "string").forEach(x => pushUnique(data.profile.projects, x, 15));
-    }
+    if (Array.isArray(d.profile.likes)) d.profile.likes.filter(x => typeof x === "string").forEach(x => pushUnique(data.profile.likes, x));
+    if (Array.isArray(d.profile.dislikes)) d.profile.dislikes.filter(x => typeof x === "string").forEach(x => pushUnique(data.profile.dislikes, x));
+    if (Array.isArray(d.profile.projects)) d.profile.projects.filter(x => typeof x === "string").forEach(x => pushUnique(data.profile.projects, x, 15));
     if (typeof d.profile.city === "string") data.profile.city = d.profile.city.slice(0, 45);
     if (typeof d.profile.profession === "string") data.profile.profession = d.profile.profession.slice(0, 80);
     if (typeof d.profile.workShift === "string") data.profile.workShift = d.profile.workShift.slice(0, 80);
@@ -764,7 +753,7 @@ function think(message) {
       return R(p.answer, "autocorrected");
     }
     if (/^(nao|n|nope)$/.test(t)) {
-      return R("Ok! Me ensine com: ensine: pergunta => resposta 🧠", "declined");
+      return R("Certo. Se quiser ensinar a resposta certa: `ensine: pergunta => resposta`.", "declined");
     }
   }
 
@@ -772,7 +761,7 @@ function think(message) {
   if (m) {
     if (!learn(m[1], m[2])) return R("Não foi possível salvar esse conteúdo na memória.", "learning");
     clearPendingError();
-    return R("Aprendi! 🧠 Guardei essa resposta na memória e já vou usar daqui pra frente.", "learning");
+    return R("Aprendi! Guardei essa resposta na memória e já vou usar daqui pra frente.", "learning");
   }
 
   m = original.match(/^(?:esque[cç]a|apague)\s*:\s*(.+)$/i);
@@ -786,11 +775,11 @@ function think(message) {
     const ladoA = m[1].split(",").map(normalize).filter(Boolean);
     const b = normalize(m[2]);
     if (!ladoA.length || !b || b.includes(" ") || ladoA.some(a => a.includes(" ") || PROIBIDAS.has(a)) || PROIBIDAS.has(b)) {
-      return R("Use palavras simples. Ex: sinônimo: blz = beleza ou sinônimos: top, massa, daora = legal", "synonym");
+      return R("Use palavras simples. Ex: `sinônimo: blz = beleza`", "synonym");
     }
     ladoA.forEach(a => { data.synonyms[a] = b; });
     save();
-    return R(`Entendi! Agora ${ladoA.map(x => `"${x}"`).join(", ")} significa "${b}" pra mim. 📚`, "synonym");
+    return R(`Entendi: ${ladoA.map(x => `"${x}"`).join(", ")} passa a significar "${b}".`, "synonym");
   }
 
   m = original.match(/^(?:meu nome [eé]|me chamo|pode me chamar de)\s+(.+)$/i);
@@ -803,7 +792,7 @@ function think(message) {
     const nome = limpo ? limpo.charAt(0).toUpperCase() + limpo.slice(1) : "";
     if (nome) {
       remember("userName", nome);
-      return R(`Prazer, ${nome}! Vou lembrar do seu nome sempre que você voltar.`, "name-set");
+      return R(`Prazer, ${nome}. Vou lembrar do seu nome nas próximas conversas.`, "name-set");
     }
   }
 
@@ -813,13 +802,13 @@ function think(message) {
     data.notes.push({ text: m[1].trim().slice(0, 300), at: Date.now() });
     data.notes = data.notes.slice(-200);
     save();
-    return R("Anotado! 📝", "note");
+    return R("Anotado.", "note");
   }
   if (/^(o que voce lembra|oque voce lembra|minhas notas)$/.test(t)) {
     return R(
       data.notes.length
-        ? "Eu lembro:\n" + data.notes.slice(-10).map((n, i) => (i + 1) + ". " + n.text).join("\n")
-        : "Ainda não tenho notas. Use: lembre: algo",
+        ? "Notas guardadas:\n" + data.notes.slice(-10).map((n, i) => (i + 1) + ". " + n.text).join("\n")
+        : "Ainda não há notas salvas. Use `lembre: algo`.",
       "notes"
     );
   }
@@ -832,7 +821,7 @@ function think(message) {
     try {
       const d = JSON.parse(m[1]);
       if (!importarMemoriaSegura(d)) return R("Esse backup não está válido.", "import");
-      return R("Memória importada com sucesso! 🧠", "import");
+      return R("Memória importada com sucesso.", "import");
     } catch {
       return R("Esse backup não está válido. Copie o texto completo.", "import");
     }
@@ -842,7 +831,7 @@ function think(message) {
     const s = getStats();
     const mInfo = getMood();
     return R(
-      `🧠 Respostas aprendidas: ${s.examples}\nSinônimos: ${s.synonyms}\nFatos: ${s.facts}\nNotas: ${s.notes}\nAssuntos lembrados: ${data.topics.length}\nEstilo de tom percebido: ${mInfo.mood} (${mInfo.score})`,
+      `🧠 Respostas aprendidas: ${s.examples}\nSinônimos: ${s.synonyms}\nFatos: ${s.facts}\nNotas: ${s.notes}\nAssuntos lembrados: ${data.topics.length}\nTom atual: ${mInfo.mood}`,
       "stats"
     );
   }
@@ -859,12 +848,8 @@ function think(message) {
 
   const intent = classify(original);
 
-  if (intent === "created") {
-    return R("Fui criada por Rizik em **2026** e sigo recebendo atualizações constantes! 🚀", "identity");
-  }
-  if (intent === "identity") {
-    return R("Sou a BACH AI! 🧠 Fui criada por Rizik para ajudar todo mundo de graça — 100% própria, com memória em 3 camadas, leitura de fotos/vídeos/códigos, temas e pesquisa na internet.", intent);
-  }
+  if (intent === "created") return R("Fui criada por Rizik em 2026 e sigo recebendo atualizações constantes.", "identity");
+  if (intent === "identity") return R("Sou a BACH AI 🧠, criada por Rizik para rodar leve e gratuita com motor próprio, memória em 3 camadas, leitura de mídia/códigos e pesquisa na web.", intent);
 
   const { item, score } = bestExample(original);
   if (item && score >= 0.85) {
@@ -878,41 +863,39 @@ function think(message) {
   }
 
   const nome = recall("userName");
-  const { mood } = getMood();
   switch (intent) {
     case "greeting":
       return R(pick([
-        nome ? `Olá, ${nome}! Como você está?` : "Olá! Sou a BACH AI 🧠. Como você está?",
-        nome ? `Oi, ${nome}! Em que posso ajudar hoje?` : "Oi! Em que posso ajudar?"
+        nome ? `Olá, ${nome}. Como você está hoje?` : "Olá! Como você está hoje?",
+        nome ? `Oi, ${nome}. Em que posso ajudar?` : "Oi! Em que posso ajudar?"
       ]), intent);
     case "encouragement":
-      return R(mood === "descontraido" ? "Bora! 🚀 O que vamos fazer agora?" : "Certo, pode mandar o que você precisa.", intent);
+      return R("Certo — o que vamos fazer agora?", intent);
     case "positive":
-      return R(mood === "descontraido" ? "Show! 🙌" : "Ótimo!", intent);
+      return R("Ótimo.", intent);
     case "reciprocal":
-      return { handled: false, intent, text: null };
     case "wellbeing":
       return { handled: false, intent, text: null };
     case "thanks":
-      return R("Por nada! Sempre que precisar, estou aqui.", intent);
+      return R("Por nada! Se precisar de mais alguma coisa, é só chamar.", intent);
     case "goodbye":
-      return R("Até logo! Tudo que conversamos continua salvo aqui.", intent);
+      return R("Até logo. O que conversamos continua salvo aqui.", intent);
     case "capabilities":
-      return R("Posso conversar acompanhando seu estilo e situação, lembrar em 3 camadas do começo ao fim, buscar nos seus arquivos (`/rag`), mudar temas, criar apps (`/app`), traduzir idiomas, ler fotos/vídeos/códigos e pesquisar na internet.", intent);
+      return R("Converso mantendo o fio da conversa, lembro do seu perfil e contexto, crio apps (`/app`), executo JS (`/executar`), reviso textos e códigos (`/revisar`), traduzo idiomas, leio fotos/vídeos e pesquiso na internet.", intent);
     case "canread":
-      return R("Sim! Leio textos, códigos, links, fotos (inclusive prints em modo escuro) e vídeos.", intent);
+      return R("Sim — leio textos, códigos, links, fotos (incluindo OCR em prints) e vídeos.", intent);
     case "time":
       return R("Agora são " + new Date().toLocaleTimeString("pt-BR") + ".", intent);
     case "date":
       return R("Hoje é " + new Date().toLocaleDateString("pt-BR") + ".", intent);
     case "name":
-      return R(nome ? "Seu nome é **" + nome + "**." : "Ainda não sei seu nome. Diga: meu nome é ...", intent);
+      return R(nome ? "Seu nome é **" + nome + "**." : "Ainda não sei seu nome. Se quiser que eu lembre, diga `meu nome é ...`.", intent);
     case "city":
-      return R(data.profile.city ? "Você me disse que é de " + data.profile.city + ". 📍" : "Ainda não sei onde você mora. Pode me contar!", intent);
+      return R(data.profile.city ? "Você me disse que é de " + data.profile.city + "." : "Ainda não sei onde você mora.", intent);
     case "age":
-      return R(data.profile.age ? "Você me disse que tem " + data.profile.age + " anos. 🎂" : "Ainda não sei sua idade.", intent);
+      return R(data.profile.age ? "Você me disse que tem " + data.profile.age + " anos." : "Ainda não sei sua idade.", intent);
     case "likes":
-      return R(data.profile.likes.length ? "Você me contou que gosta de: " + data.profile.likes.join(", ") + "." : "Ainda não sei do que você gosta. Me conta!", intent);
+      return R(data.profile.likes.length ? "Você comentou que gosta de: " + data.profile.likes.join(", ") + "." : "Ainda não sei do que você gosta.", intent);
     case "learnedSummary":
       return R(buildLearnedSummary(), "memorySummary");
     case "memorySummary":
