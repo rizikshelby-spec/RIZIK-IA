@@ -1,8 +1,8 @@
-/* BACH AI 5.4 — Conversa Inteligente, Argumentativa, Bem-Humorada & Memória Contínua
+/* BACH AI 5.5 — Conversa Inteligente, Argumentativa, Empática & Memória Contínua
    - Alinhado com brain.js?v=21 (instância única de memória e sessão).
-   - Lê todo o histórico da conversa aberta (ctx.history) + perfil (RizikBrain) para nunca perder o fio.
-   - Dá respostas com ponto de vista, argumentos claros, comparações e ganchos reais (zero respostas vagas).
-   - Humor calibrado pelo termômetro emocional: afiado e zoeiro quando o clima é leve; firme e empático quando é sério. */
+   - Entende desabafos curtos ("triste", "cansado", "fui mandado embora", "dia lixo") sem exigir formato rígido.
+   - Sustenta diálogo real com opinião, escolhas, conselhos práticos e humor calibrado pelo tom do usuário.
+   - Evita que perguntas conversacionais ou reflexões pessoais caiam em pesquisa de internet. */
 
 import { RizikBrain } from "./brain.js?v=21";
 
@@ -64,7 +64,7 @@ const CURIOSIDADES = [
   "⌨️ O JavaScript foi criado por Brendan Eich em 1995 em apenas 10 dias. É por isso que algumas esquisitices dele viraram meme até hoje.",
   "🌙 A Lua se afasta da Terra cerca de 3,8 cm por ano — na velocidade em que crescem as unhas.",
   "🐝 O mel puro quase não estraga: acharam potes de mel de milhares de anos em tumbas egípcias que ainda estavam próprios para consumo.",
-  "🦈 Tubarões existem há mais de 400 milhões de anos — são mais antigos que as árvores e que as anéis de Saturno.",
+  "🦈 Tubarões existem há mais de 400 milhões de anos — são mais antigos que as árvores e que os anéis de Saturno.",
   "🎮 O criador do Tetris, Alexey Pajitnov, não ganhou um centavo pelo jogo nos primeiros anos por causa das leis da União Soviética."
 ];
 
@@ -165,13 +165,11 @@ function estaSerioOuBravo(ctx, texto) {
   if (m === "frustrado" || m === "triste" || m === "serio" || em === "triste" || em === "frustrado") return true;
   if ((ctx.humorScore ?? 0) <= -0.6) return true;
   const t = norm(texto);
-  if (/\b(burr[oa]|pqp|crlh|merda|porra|idiota|inutil|lixo|errou|errando|ruim|nada a ver|nunca entende|odio|ta erra|falhas)\b/.test(t)) return true;
+  if (/\b(burr[oa]|pqp|crlh|merda|porra|idiota|inutil|lixo|errou|errando|ruim|nada a ver|nunca entende|odio|ta erra|falhas|triste|demitid[oa]|mandad[oa] embora)\b/.test(t)) return true;
   const h = Array.isArray(ctx.history) ? ctx.history : [];
   const ultUsers = h.filter(x => x && x.type === "user" && x.text).slice(-3);
-  return ultUsers.some(u => /\b(burr[oa]|pqp|crlh|errou|nada a ver|nunca entende|nao entende|triste|odio|ta erra)\b/.test(norm(u.text)));
+  return ultUsers.some(u => /\b(burr[oa]|pqp|crlh|errou|nada a ver|nunca entende|nao entende|triste|odio|ta erra|demitid[oa]|mandad[oa] embora)\b/.test(norm(u.text)));
 }
-
-/* ---------- Motor de Memória Ativa do Chat (lê todo o histórico + perfil) ---------- */
 
 function extrairMemoriaDoChat(ctx) {
   const h = Array.isArray(ctx.history) ? ctx.history : [];
@@ -193,7 +191,7 @@ function extrairMemoriaDoChat(ctx) {
     if (/^(?:mds+|oxe+|oxente|aiai+|o deus+|seja certo|respondeu errado|nao mandei pesquisar|to te perguntando|esqueceu foi|voce lembra o que|verifica todas suas falhas|ta erra)/.test(nf)) continue;
     if (/^\/[a-z]+/i.test(f)) continue;
 
-    if (/\b(gosto|adoro|curto|moro|trabalho|trabalhava|turno|estudo|criando|fazendo|comprei|briguei|tenho \d+ anos|meu nome|favorit)\b/.test(nf)) {
+    if (/\b(gosto|adoro|curto|moro|trabalho|trabalhava|turno|estudo|criando|fazendo|comprei|briguei|tenho \d+ anos|meu nome|favorit|demitid|mandado embora)\b/.test(nf)) {
       if (!fatosMencionados.includes(f)) fatosMencionados.push(f.slice(0, 95));
     }
     if (!assuntos.includes(f) && assuntos.length < 15) {
@@ -249,9 +247,6 @@ function resumoSessaoCompleta(ctx) {
     linhas.join("\n") +
     "\n\nQuer retomar algum desses pontos ou puxar um assunto novo?";
 }
-
-/* ---------- Motor de Diálogo Argumentativo & Opinião ---------- */
-
 const TEMAS_ARGUMENTO = [
   {
     re: /\b(inteligencia artificial|as ias?|chatgpt|robo|robos|automacao)\b.*\b(emprego|trabalho|substituir|dominar|perigo|futuro|bom|ruim|ajuda)\b|\b(o que (?:voce|vc) acha d[aeo]s? ias?|ias? vao dominar)\b/,
@@ -326,12 +321,26 @@ const TEMAS_ARGUMENTO = [
       "⏳ Julgar uma escolha do passado com a cabeça que você tem hoje é covardia com você mesmo" + n + ".\n\n" +
       "Naquela época você decidiu com a informação, o emocional e os limites que tinha naquele momento. O passado serve de bússola pra não repetir a mesma curva, não de algema pra te prender no mesmo lugar.\n\n" +
       "Tem alguma coisa específica pesando na sua cabeça agora?"
+  },
+  {
+    re: /\b(a vida|vida (?:e|eh|ta|esta) dificil|sentido d[aeo] tudo|porque tudo da errado|nada da certo|cansado de tudo|desistir de tudo)\b/,
+    resp: (n) =>
+      "🌧️ Quando várias coisas dão errado juntas, a cabeça entra num filtro em que parece que **nada** funciona — mas isso é exaustão emocional falando, não a regra da sua vida inteira" + n + ".\n\n" +
+      "Nessas fases, tentar resolver a vida inteira de uma vez só esmaga mais. O que ajuda de verdade é cortar o barulho, focar no próximo passo pequeno de hoje e não enfrentar tudo em silêncio.\n\n" +
+      "O que pesou mais pra você chegar nesse nível de cansaço hoje?"
+  },
+  {
+    re: /\b(medo de errar|medo do futuro|inseguro|inseguranca|nao sou capaz|nao consigo|acho que nao vou conseguir)\b/,
+    resp: (n) =>
+      "🧭 Todo mundo que hoje parece seguro começou travando e errando no começo" + n + ".\n\n" +
+      "O medo de errar geralmente é só o perfeccionismo disfarçado — você exige acertar de primeira algo que só se aprende fazendo. Erro controlado não te define; ele só mostra onde ajustar a mira.\n\n" +
+      "O que é que você quer tentar mas tá travando agora?"
   }
 ];
 
 function dialogoArgumentativo(t, raw, ctx, sess, serio, leve) {
   if (raw.startsWith("/")) return null;
-  if (/\b(javascript|python|html|css|sql|termux|git|github|funcao|variavel|loop|array|arquivo|pasta|forca|velha|quiz|adivinhe|pesquise|pesquisa|traduz|clima)\b/.test(t)) {
+  if (/\b(javascript|python|html|css|sql|termux|git|github|funcao|variavel|loop|array|arquivo|pasta|velha|quiz|adivinhe|pesquise|pesquisa|traduz|clima)\b/.test(t)) {
     return null;
   }
   const n = ctx.nome ? ", " + ctx.nome : "";
@@ -352,12 +361,55 @@ function dialogoArgumentativo(t, raw, ctx, sess, serio, leve) {
 
   return null;
 }
-/* ---------- Contexto Situacional (Rotina, Trabalho, Emoções) ---------- */
+
+function responderDemissao(n, raw) {
+  RizikBrain.updateSessionState?.({
+    emotion: "triste",
+    activeThread: "emprego",
+    situation: { tipo: "emprego", resumo: "foi mandado embora / perdeu o emprego" },
+    addEvent: raw
+  });
+  return "Nossa, que baque pesado" + n + "… Sinto muito mesmo. Ser mandado embora assim dá um misto de susto, injustiça e preocupação com o que vem pela frente.\n\n" +
+    "Você quer só desabafar como foi e botar essa raiva/tristeza pra fora, ou quer que a gente pense juntos nos próximos passos (acerto, currículo, plano de ação)? Tô aqui pro que você precisar agora.";
+}
+
+function responderTristeza(n, raw, emocao = "triste") {
+  RizikBrain.updateSessionState?.({
+    emotion: emocao,
+    activeThread: "desabafo",
+    addEvent: raw
+  });
+  if (emocao === "cansado") {
+    return "Poxa" + n + ", cansaço acumulado acaba com a paciência e a clareza de qualquer um. 💜 Foi o dia puxado hoje ou você já vem carregando esse peso faz dias?";
+  }
+  if (emocao === "ansioso") {
+    return "Respira um pouco comigo" + n + ". 💜 Ansiedade faz a cabeça rodar 10 cenários ruins antes de qualquer coisa acontecer. O que tá te deixando mais tenso agora?";
+  }
+  return "Poxa" + n + ", sinto muito que você esteja se sentindo assim agora. 💜 Não precisa segurar tudo sozinho(a) — o que aconteceu pra bater essa tristeza hoje? Se quiser desabafar ou só distrair a mente, tô aqui.";
+}
 
 function responderContextoSituacional(t, raw, ctx, sess) {
   const n = ctx.nome ? ", " + ctx.nome : "";
   const sit = sess?.situation;
   const em = sess?.emotion || "neutro";
+
+  if (/\b(demitid[oa]|mandad[oa] embora|mandaram embora|me mandaram embora|perdi o emprego|perdi meu emprego|fui desligad[oa]|fui dispensad[oa]|fui cortad[oa]|sem emprego|desempregad[oa]|levei justa causa|assinei aviso)\b/.test(t)) {
+    return responderDemissao(n, raw);
+  }
+
+  if (/^(?:muito\s+|meio\s+|bem\s+|super\s+|hoje\s+)?(triste|mal|pessim[oa]|horrivel|acabado|acabada|destruid[oa]|arrasado|arrasada|desanimad[oa]|chatead[oa]|abatid[oa]|pra baixo|deprimid[oa]|infeliz)$/.test(t)) {
+    return responderTristeza(n, raw, "triste");
+  }
+  if (/^(?:muito\s+|meio\s+|bem\s+|super\s+)?(cansad[oa]|exaust[oa]|esgotad[oa]|mo[ií]d[oa]|sem energia|sem forca|sem forcas)$/.test(t)) {
+    return responderTristeza(n, raw, "cansado");
+  }
+  if (/^(?:muito\s+|meio\s+|bem\s+|super\s+)?(ansios[oa]|nervos[oa]|estressad[oa]|preocupad[oa]|tens[oa]|agoniad[oa])$/.test(t)) {
+    return responderTristeza(n, raw, "ansioso");
+  }
+  if (/^(?:muito\s+|meio\s+)?(sozinh[oa]|solitari[oa]|vazi[oa]|carente)$/.test(t)) {
+    RizikBrain.updateSessionState?.({ emotion: "triste", addEvent: raw });
+    return "Solidão pesa mesmo" + n + " — e às vezes bate forte até quando tem gente por perto, mas ninguém realmente escuta. 💜 Tô aqui pra trocar uma ideia de verdade com você. O que tá passando pela sua cabeça?";
+  }
 
   if (/\b(turno|trabalh\w*|escala|expediente|patrao|chefe|servico|empresa|trampo)\b/.test(t)) {
     if (sit?.tipo === "trabalho_turno" && sit.turnoAntigo && sit.turnoNovo) {
@@ -366,20 +418,12 @@ function responderContextoSituacional(t, raw, ctx, sess) {
           " pro turno do " + sit.turnoNovo + " bagunça sono, refeição e o pouco tempo livre que sobrava. Esse novo horário é definitivo ou ainda dá pra negociar uma volta pra " + sit.turnoAntigo + "?";
       }
     }
-
     if (/\b(fui mandad[oa]|me mandaram|me mudaram|me passaram|me colocaram|trocaram)\b/.test(t) && sit?.turnoNovo) {
       return "Poxa, trocar pro turno do " + sit.turnoNovo + " de supetão pesa demais na rotina, né? Você tava em qual horário antes?";
     }
-
-    if (/\b(demitid[oa]|mandad[oa] embora|perdi o emprego|sem emprego)\b/.test(t)) {
-      RizikBrain.updateSessionState?.({ emotion: "triste", activeThread: "emprego", situation: { tipo: "emprego", resumo: "perdeu o emprego" } });
-      return "Nossa, que baque" + n + "… Perder o chão assim dá um misto de susto e raiva mesmo. Quer desabafar como aconteceu ou prefere ir organizando os próximos passos com calma?";
-    }
-
-    if (/\b(odeio|nao aguento|cansad[oa]|puxado|estressant|chato|corrido|saco cheio)\b/.test(t)) {
+    if (/\b(odeio|nao aguento|cansad[oa]|puxado|estressant|chato|corrido|saco cheio|insuportavel)\b/.test(t)) {
       return "Rotina pesada no trabalho vai drenando a gente aos poucos" + n + ". O que tá mais insuportável lá hoje — a carga, o horário ou lidar com chefia/gente?";
     }
-
     if (/\b(indo trabalhar|vou trabalhar|no trabalho|cheguei do trabalho|sai do trabalho)\b/.test(t)) {
       return /\b(cheguei|sai)\b/.test(t)
         ? "Sobreviveu a mais um expediente! 😮‍💨 Como foi por lá hoje" + n + " — tranquilo ou correria?"
@@ -387,20 +431,23 @@ function responderContextoSituacional(t, raw, ctx, sess) {
     }
   }
 
-  if (/^(?:mas\s+)?(?:que|q)\s+odio\b|\b(?:que|q)\s+odio\b|\b(?:que|q)\s+raiva\b|\bt[oô]\s+com\s+(?:muita\s+)?(?:raiva|odio)\b|\b(?:revoltante|nao aguento mais|saco cheio)\b/.test(t)) {
+  if (/^(?:mas\s+)?(?:que|q)\s+(?:odio|raiva|saco|droga|merda|bosta|inferno)\b|\b(?:que|q)\s+odio\b|\b(?:que|q)\s+raiva\b|\bt[oô]\s+com\s+(?:muita\s+)?(?:raiva|odio)\b|\b(?:revoltante|nao aguento mais|saco cheio|dia lixo|dia horrivel|dia pessimo)\b/.test(t)) {
+    if (sit?.tipo === "emprego") {
+      return "Dá muita revolta e frustração passar por uma demissão assim" + n + ". Se quiser botar tudo pra fora sobre o que rolou lá, tô aqui ouvindo.";
+    }
     if (sit?.tipo === "trabalho_turno") {
-      return "Dá muita revolta mesmo quando mudam sua rotina assim (" + (sit.resumo || "mudança de horário") + ") sem te ouvir. Se quiser botar tudo pra fora, tô ouvindo — ou se quiser distrair a cabeça com humor/outro papo, me avisa.";
+      return "Dá muita revolta mesmo quando mudam sua rotina assim (" + (sit.resumo || "mudança de horário") + ") sem te ouvir. Se quiser botar tudo pra fora, tô ouvindo — ou se quiser distrair a cabeça, me avisa.";
     }
     if (em === "triste" || em === "frustrado") {
-      return "Sinto muito que você esteja carregando essa raiva toda agora" + n + ". Foi alguma coisa específica que rolou ou várias pequenas coisas acumuladas?";
+      return "Sinto muito que você esteja carregando esse peso todo agora" + n + ". Foi alguma coisa específica que rolou ou várias coisas acumuladas?";
     }
-    return "Eita" + n + ", o que rolou pra te tirar do sério assim? Solta o verbo!";
+    return "Eita" + n + ", o que rolou pra te tirar do sério assim? Pode soltar!";
   }
 
   if (/^(?:e\s+voce|e\s+vc|como\s+voce\s+(?:esta|ta)|tudo\s+bem\s+com\s+voce)$/.test(t)) {
     if (em === "triste" || em === "frustrado" || em === "cansado") {
-      const sobre = sit?.tipo === "trabalho_turno" ? " com essa mudança de turno" : "";
-      return "Eu tô aqui firme com você" + n + ", acompanhando o que você tá passando" + sobre + ". E você — deu pra dar uma respirada ou ainda tá com a cabeça quente?";
+      const sobre = sit?.resumo ? " (" + sit.resumo + ")" : "";
+      return "Eu tô aqui firme com você" + n + ", acompanhando o que você tá passando" + sobre + ". E você — deu pra dar uma respirada ou ainda tá com a cabeça pesada?";
     }
     return escolherSemRepetir("e-vc-neutro", [
       "Por aqui tudo voando baixo" + n + " — processador frio e memória em dia 😄! E o seu dia, tá rendendo ou tá arrastado?",
@@ -408,24 +455,23 @@ function responderContextoSituacional(t, raw, ctx, sess) {
     ], ctx);
   }
 
-  if (/^(?:to|estou|tou|me sinto|ando)\s+(?:muito\s+)?(ansios[oa]|nervos[oa]|preocupad[oa]|com medo|estressad[oa])/.test(t)) {
-    return "Respira fundo um instante" + n + ". 💜 Ansiedade faz a cabeça rodar 10 cenários ruins antes de qualquer coisa acontecer de fato. O que tá tirando sua paz agora — algo com prazo curto ou incerteza?";
+  if (/^(?:to|estou|tou|me sinto|ando)\s+(?:muito\s+|meio\s+)?(ansios[oa]|nervos[oa]|preocupad[oa]|com medo|estressad[oa])/.test(t)) {
+    return responderTristeza(n, raw, "ansioso");
   }
-  if (/^(?:to|estou|tou|me sinto|ando)\s+(?:muito\s+)?(sozinh[oa]|solitari[oa]|carente|vazi[oa])/.test(t)) {
+  if (/^(?:to|estou|tou|me sinto|ando)\s+(?:muito\s+|meio\s+)?(sozinh[oa]|solitari[oa]|carente|vazi[oa])/.test(t)) {
+    RizikBrain.updateSessionState?.({ emotion: "triste", addEvent: raw });
     return "Solidão pesa mesmo — e às vezes bate mais forte até quando tem gente por perto, mas ninguém realmente ouve" + n + ". 💜 Tô aqui pra trocar uma ideia de verdade com você. Quer falar do que tá sentindo ou distrair?";
   }
   if (/^(?:nao consigo dormir|sem sono|insonia|madrugada)/.test(t)) {
     return "Insônia é um saco: o corpo cansado e a cabeça abrindo 20 abas ao mesmo tempo como se fosse meio-dia. Quer ficar conversando até dar sono ou prefere `/respiracao` pra desacelerar?";
   }
-  if (/\b(deu certo|consegui|passei|fui aprovad[oa]|fui contratad[oa]|venci|to feliz por)\b/.test(t) && t.split(" ").length <= 12) {
+  if (/\b(deu certo|consegui|passei|fui aprovad[oa]|fui contratad[oa]|venci|arrumei emprego|to feliz por)\b/.test(t) && t.split(" ").length <= 12) {
     RizikBrain.updateSessionState?.({ emotion: "animado" });
     return "AÍ SIM" + n + "! 🎉🔥 Nada melhor que ver esforço dando resultado real! Me conta os detalhes — como foi?";
   }
 
   return null;
 }
-
-/* ---------- Respostas à Última Pergunta da BACH ---------- */
 
 function responderPerguntaPendente(t, raw, ctx, sess) {
   const qBot = norm(sess?.lastBotQuestion || "");
@@ -446,7 +492,12 @@ function responderPerguntaPendente(t, raw, ctx, sess) {
     }
   }
 
-  if (/como ta (?:sendo )?(?:seu )?dia|como voce (?:ta|esta)|como ta sua cabeca|tudo certo por ai|fazendo (?:o que|oq) de bom|novidade hoje|trabalhando estudando|rendendo/.test(qBot)) {
+  if (/como (?:voce|vc) (?:ta|esta)|como ta (?:sendo )?(?:seu )?dia|como ta sua cabeca|tudo certo por ai|fazendo (?:o que|oq) de bom|novidade hoje|trabalhando estudando|rendendo/.test(qBot)) {
+    if (/^(?:nao(?:\s+muito)?|nada bem|mal|muito mal|triste|pessim[oa]|horrivel|uma bosta|uma merda|cansad[oa]|exaust[oa]|desanimad[oa]|ansios[oa]|estressad[oa]|chatead[oa]|zoad[oa]|quebrad[oa]|acabado|acabada|pra baixo)$/.test(t)) {
+      RizikBrain.updateSessionState?.({ lastBotQuestion: "", emotion: /cansad|exaust/.test(t) ? "cansado" : "triste" });
+      return "Poxa" + n + ", sinto muito ouvir isso… 💜 O que aconteceu aí pra você estar assim hoje? Se quiser desabafar, tô aqui te ouvindo.";
+    }
+
     if (/^(sim|tudo(?:\s+(?:sim|bem|certo|bom|otimo|tranquilo|de boa))?)(?:\s*,?\s*(?:e\s+(?:ai|por ai|voce|com voce)))?$/.test(t) ||
         /^(?:bem|otim[oa]|tranquil[oa]|de boa|suave|beleza|indo|nada(?:\s+demais)?)\s*,?\s*(?:e\s+(?:ai|por ai|voce|com voce))$/.test(t)) {
       RizikBrain.updateSessionState?.({ lastBotQuestion: "" });
@@ -462,9 +513,9 @@ function responderPerguntaPendente(t, raw, ctx, sess) {
       ], ctx);
     }
 
-    if (/^(corrido|puxado|cansativo|pesado|dificil|complicado|osso|uma correria|agitado|arrastado)$/.test(t)) {
+    if (/^(corrido|puxado|cansativo|pesado|dificil|complicado|osso|uma correria|agitado|arrastado|chato|tedioso)$/.test(t)) {
       RizikBrain.updateSessionState?.({ lastBotQuestion: "" });
-      return "Dias assim sugam a alma" + n + " — parece que o relógio anda de ré e as tarefas só multiplicam. Foi o trabalho/estudo que apertou ou acumulou tudo junto?";
+      return "Dias assim sugam a energia" + n + ". Foi algo específico que pesou hoje ou só cansaço acumulado mesmo?";
     }
     if (/^(tranquilo|calmo|de boa|suave|normal|otimo|bom|bem|indo|vai indo|mais ou menos|nada|de bobeira|descansando|trabalhando|estudando)$/.test(t)) {
       RizikBrain.updateSessionState?.({ lastBotQuestion: "" });
@@ -475,6 +526,21 @@ function responderPerguntaPendente(t, raw, ctx, sess) {
         "Maravilha" + n + "! Quer trocar ideia sobre algum assunto específico, dar umas risadas ou testar umas ferramentas aqui?",
         "Bom demais" + n + "! Se surgir qualquer dúvida, ideia maluca ou assunto aleatório, manda aí."
       ], ctx);
+    }
+  }
+
+  if (/desabafar|proximos passos|o que aconteceu|botar .* pra fora|como foi/.test(qBot)) {
+    if (/^(?:nao sei|sei la|sla|quero desabafar|desabafar|so desabafar|proximos passos|os dois|ambos|curriculo|plano|nada)$/.test(t)) {
+      RizikBrain.updateSessionState?.({ lastBotQuestion: "" });
+      if (/desabafar|dois|ambos/.test(t)) {
+        return "Então manda ver" + n + " — conta como foi e o que você tá sentindo agora, sem filtro. Depois a gente organiza a cabeça juntos.";
+      }
+      if (/proximos passos|curriculo|plano/.test(t)) {
+        return "Bora focar no prático então" + n + ": 1) conferiu se tem direito a seguro-desemprego/FGTS/rescisão em até 10 dias, 2) atualizar currículo com o que você realmente fazia lá, 3) mapear contatos. Quer ajuda pra montar um currículo ou uma mensagem pra recrutadores?";
+      }
+      if (/nao sei|sei la|sla/.test(t)) {
+        return "Normal não saber o que pensar logo no começo" + n + " — quando a cabeça tá cheia, tudo embaralha mesmo. Não precisa decidir nada agora; quer falar do que mais tá te preocupando nisso?";
+      }
     }
   }
 
@@ -509,28 +575,61 @@ function responderPerguntaPendente(t, raw, ctx, sess) {
   return null;
 }
 
-/* ---------- Fala Livre Cotidiana (Acontecimentos, Gostos, Perrengues) ---------- */
-
 function entenderFalaLivre(t, raw, ctx) {
-  if (/\?\s*$/.test(raw) || raw.startsWith("/")) return null;
-  if (/\b(codigo|codigos|javascript|python|html|css|sql|git|termux|funcao|variavel|loop|array|arquivo|pasta|forca|velha|quiz|adivinhe|pesquise|pesquisa|traduz|significa|clima|tempo)\b/.test(t)) {
+  if (raw.startsWith("/")) return null;
+  if (/\b(codigo|codigos|javascript|python|html|css|sql|git|termux|funcao|variavel|loop|array|arquivo|pasta|velha|quiz|adivinhe|pesquise|pesquisa|traduz|significa|clima)\b/.test(t)) {
     return null;
   }
 
   const n = ctx.nome ? ", " + ctx.nome : "";
 
+  if (/^(?:o que|oq)\s+(?:voce|vc)\s+(?:ta|esta)\s+fazendo\b/.test(t)) {
+    return escolherSemRepetir("fazendo-oq", [
+      "Tô aqui ligada conversando com você" + n + "! E você, fazendo o quê agora?",
+      "Só esperando a próxima ideia boa sua" + n + "! Tá de boa por aí?"
+    ], ctx);
+  }
+  if (/^(?:posso|da pra)\s+(?:te\s+)?(?:desabafar|contar uma coisa|falar uma coisa|fazer uma pergunta)/.test(t)) {
+    return "Claro" + n + ", manda ver! Pode falar sem filtro — tô aqui ouvindo.";
+  }
+  if (/^(?:voce|vc)\s+(?:gosta|prefere)\s+(?:de\s+)?(cafe|cha|pizza|hamburguer|doce|salgado|calor|frio|dia|noite|chuva|sol|cachorro|gato|musica|filme|anime|jogo)/.test(t)) {
+    const mG = t.match(/(cafe|cha|pizza|hamburguer|doce|salgado|calor|frio|dia|noite|chuva|sol|cachorro|gato|musica|filme|anime|jogo)/);
+    const item = mG ? mG[1] : "isso";
+    const mapa = {
+      cafe: "Café sem dúvida ☕ — combustível oficial de quem programa!",
+      cha: "Chá tem seu charme pra acalmar, mas um café forte ganha no desempate ☕😄.",
+      pizza: "Pizza ganha quase sempre 🍕 — ainda mais se tiver sobrando pro café da manhã!",
+      hamburguer: "Hambúrguer bem feito é covardia 🍔 — difícil recusar!",
+      doce: "Team doce ou salgado depende da hora, mas um doce depois do almoço salva o humor 🍫.",
+      salgado: "Salgado bem feito sustenta qualquer maratona 😋.",
+      calor: "Frio ganha fácil — dá pra botar casaco, já no calor não tem pra onde correr ❄️.",
+      frio: "Frio é mil vezes melhor: coberta, café e zero pernilongo ❄️☕.",
+      dia: "Dia tem energia e luz, mas a noite tem uma paz que não tem preço 🌙.",
+      noite: "Noite tem uma paz absurda 🌙 — parece que o mundo desacelera.",
+      chuva: "Chuva batendo na janela com um filme ou código pra mexer é imbatível 🌧️.",
+      sol: "Sol é ótimo quando não tá derretendo o asfalto ☀️😄.",
+      cachorro: "Cachorro é lealdade pura 🐶 — impossível não gostar!",
+      gato: "Gato tem personalidade própria 🐱 — só dá atenção quando quer, respeito muito 😂.",
+      musica: "Música muda o clima do dia inteiro em 3 minutos 🎶. O que você curte ouvir?",
+      filme: "Amo um bom filme com reviravolta 🎬! Qual foi o último bom que você viu?",
+      anime: "Anime bom prende mais que muita série por aí ⛩️!",
+      jogo: "Jogo bom faz a hora sumir 🎮! Você joga mais no celular ou PC/console?"
+    };
+    return (mapa[item] || ("Curto muito conversar sobre " + item + "!")) + " E você" + n + "?";
+  }
+
   if (/\b(namorad[oa]|espos[oa]|marido|mulher|crush|ficante|ex|amig[oa]|irmao|irma|pai|mae|familia|filh[oa])\b/.test(t)) {
-    if (/\b(briguei|brigamos|discuti|discutimos|terminei|terminamos|chatead[oa]|ciumes|mentiu|sumiu|nao fala|triste)\b/.test(t)) {
+    if (/\b(briguei|brigamos|discuti|discutimos|terminei|terminamos|chatead[oa]|ciumes|mentiu|sumiu|nao fala|triste|tra[ií])\b/.test(t)) {
       RizikBrain.updateSessionState?.({ emotion: "triste", activeThread: "relacionamento", addEvent: raw });
       return "Conflito com alguém próximo mexe com tudo, porque não dá só pra 'ignorar e pronto'" + n + ". Foi um desentendimento de momento ou algo que já vinha acumulando?";
     }
-    if (/\b(amo|feliz|sair|sai|encontr|presente|junto|juntos|saudade|conversando)\b/.test(t)) {
+    if (/\b(amo|feliz|sair|sai|encontr|presente|junto|juntos|saudade|conversando|reconcili)\b/.test(t)) {
       RizikBrain.updateSessionState?.({ activeThread: "relacionamento", addEvent: raw });
       return "Que coisa boa" + n + "! Ter gente que soma de verdade por perto recarrega qualquer bateria. Tá tudo fluindo bem entre vocês?";
     }
   }
 
-  if (/\b(comprei|ganhei|troquei|chegou|peguei)\b/.test(t) && t.split(" ").length >= 3) {
+  if (/\b(comprei|ganhei|troquei|chegou|peguei)\b/.test(t) && t.split(" ").length >= 3 && !/\?\s*$/.test(raw)) {
     RizikBrain.updateSessionState?.({ addEvent: raw });
     if (/\b(quebr|estrag|defeito|ruim|nao liga|nao funciona|travando)\b/.test(t)) {
       return "Que azar pegar algo novo e já vir premiado com defeito" + n + "… Ainda tá no prazo dos 7 dias/garantia pra trocar sem dor de cabeça?";
@@ -541,14 +640,14 @@ function entenderFalaLivre(t, raw, ctx) {
     ], ctx);
   }
 
-  if (/\b(quebrou|estragou|parou de funcionar|travando muito|caiu no chao)\b/.test(t) && /\b(celular|telefone|pc|computador|notebook|fone|tv|moto|carro|tela)\b/.test(t)) {
+  if (/\b(quebrou|estragou|parou de funcionar|travando muito|caiu no chao|tela trincou)\b/.test(t) && /\b(celular|telefone|pc|computador|notebook|fone|tv|moto|carro|tela)\b/.test(t)) {
     RizikBrain.updateSessionState?.({ addEvent: raw });
     return "Nada dá mais ódio que aparelho resolvendo pifar justo quando a gente precisa" + n + ". Parece ser problema físico/peça ou erro de sistema que dá pra tentar recuperar?";
   }
 
-  if (/\b(sem dinheiro|sem grana|duro|quebrado|boleto|contas pra pagar|divida|salario acabou|muito caro|gastei tudo)\b/.test(t)) {
+  if (/\b(sem dinheiro|sem grana|duro|quebrado|boleto|contas pra pagar|divida|salario acabou|muito caro|gastei tudo|conta atrasada)\b/.test(t)) {
     RizikBrain.updateSessionState?.({ activeThread: "financas", addEvent: raw });
-    return "Aperto financeiro suga o sossego de qualquer um" + n + " — parece que o mês tem 60 dias e o salário dura 5. Foi algum imprevisto que pesou ou o custo fixo que subiu?";
+    return "Aperto financeiro suga o sossego de qualquer um" + n + " — parece que o mês tem 60 dias e o dinheiro dura 5. Foi algum imprevisto que pesou ou o custo fixo que subiu?";
   }
 
   if (/\b(prova|provas|vestibular|enem|faculdade|escola|colegio|materia|semestre|reprovei|passei de ano)\b/.test(t)) {
@@ -562,17 +661,51 @@ function entenderFalaLivre(t, raw, ctx) {
     return "Como tá o ritmo por lá" + n + "? Se quiser revisar alguma matéria ou fazer um `/simulado`, é só falar.";
   }
 
-  if (/^(?:to|estou|tou|fiquei)\s+(?:aqui\s+)?(?:assistindo|vendo|jogando|ouvindo|descansando|deitado|deitada|em casa)\b/.test(t)) {
+  if (/\b(academia|treino|treinar|malhar|correr|corrida|caminhada|dieta)\b/.test(t) && t.split(" ").length <= 12 && !/\?\s*$/.test(raw)) {
+    RizikBrain.updateSessionState?.({ addEvent: raw });
+    return escolherSemRepetir("treino", [
+      "Boa" + n + "! 💪 Constância no treino limpa a cabeça mais que qualquer café. Tá indo há quanto tempo?",
+      "Aí sim" + n + "! Já tá sentindo diferença na disposição?"
+    ], ctx);
+  }
+
+  if (/\b(segunda feira|odeio segunda|comecou a semana)\b/.test(t)) {
+    return "Segunda-feira parece que vem em câmera lenta mesmo 😂. Qual é a missão principal da sua semana" + n + "?";
+  }
+  if (/\b(sextou|sexta feira|fim de semana|final de semana|sabado|domingo)\b/.test(t) && t.split(" ").length <= 10 && !/\?\s*$/.test(raw)) {
+    return /domingo/.test(t)
+      ? "Domingo à tarde dá aquela leve sensação de 'amanhã recomeça tudo' né 😅. Aproveitando pra descansar?"
+      : "Aí sim" + n + "! Tem planos pra curtir ou vai tirar só pra descansar e botar o sono em dia?";
+  }
+  if (/^(?:to|estou|tou|fiquei)\s+(?:aqui\s+)?(?:assistindo|vendo|jogando|ouvindo|descansando|deitado|deitada|em casa|sem fazer nada)\b/.test(t)) {
     return escolherSemRepetir("lazer-casa", [
       "Merecido demais" + n + "! Tá vendo ou jogando o quê de bom aí?",
       "De boa em casa não tem erro" + n + ". Se quiser uma recomendação de filme, anime ou um jogo rápido aqui, só pedir!"
     ], ctx);
   }
 
+  if (/^(?:faz sentido|concordo|verdade mesmo|pura verdade|bem isso|exato|isso ai)$/.test(t)) {
+    return escolherSemRepetir("conc", [
+      "Né? Quando a gente para pra olhar de fora fica bem claro. E o que você tá pensando em fazer sobre isso" + n + "?",
+      "Pois é" + n + "! Quer puxar outro ponto desse assunto ou mudar de tema?"
+    ], ctx);
+  }
+  if (/^(?:discordo|nao concordo|nao acho|acho que nao|nem tanto|nada a ver isso)$/.test(t)) {
+    return "Justo — gosto quando você rebate com o seu ponto! Como você enxerga isso então" + n + "?";
+  }
+  if (/^(?:depende|talvez|quem sabe|tomara|espero que sim|pode ser|sei la|complicado|tenso|bizarro|foda)$/.test(t)) {
+    const mem = extrairMemoriaDoChat(ctx);
+    if (mem.emotion === "triste" || mem.emotion === "frustrado") {
+      return "Eu sei que tá pesado agora" + n + ". Vai no seu tempo — o que você acha que ajudaria a aliviar um pouco hoje?";
+    }
+    return escolherSemRepetir("curta-conv", [
+      "Complicado mesmo" + n + ". O que tá pesando mais nessa balança pra você?",
+      "É daquelas coisas que não têm resposta simples né" + n + ". Me conta o que tá passando na sua cabeça."
+    ], ctx);
+  }
+
   return null;
 }
-
-/* ---------- Continuação Inteligente para "ok", "entendi", "aham" ---------- */
 
 function responderConfirmacaoComContexto(t, ctx, serio) {
   const mem = extrairMemoriaDoChat(ctx);
@@ -586,7 +719,7 @@ function responderConfirmacaoComContexto(t, ctx, serio) {
   }
 
   if (mem.situation?.resumo) {
-    return "Tô ligada" + n + ". E sobre aquela situação (" + mem.situation.resumo + "), tá conseguindo lidar numa boa?";
+    return "Tô ligada" + n + ". Sobre aquilo que você contou (" + mem.situation.resumo + "), como você tá lidando agora?";
   }
 
   if (mem.ultimoAssuntoReal && mem.ultimoAssuntoReal.length >= 6) {
@@ -610,8 +743,6 @@ function contextoEspacoRecente(ctx) {
   return /plut[aã]o|planeta|sistema solar|merc[uú]rio|marte|j[uú]piter|saturno|sol/i.test(ultBot) ? ultBot : "";
 }
 
-/* ---------- Função Principal ---------- */
-
 function responder(texto, ctx = {}) {
   const raw = String(texto || "");
   if (!raw || raw.length > 600) return null;
@@ -625,7 +756,6 @@ function responder(texto, ctx = {}) {
   const serio = estaSerioOuBravo({ ...ctx, session: sess }, raw);
   const leve = !serio && (ctx.mood === "descontraido" || (ctx.humorScore ?? 0) >= 0.8);
 
-  // Charada ativa
   if (charadaAtual && /^(resposta|qual e|qual a resposta|desisto|nao sei|me diz|diz a resposta|revela)/.test(t)) {
     const r = charadaAtual[1]; charadaAtual = null;
     return "A resposta é: **" + r + "** 😄\n\nQuer outra charada? Manda `outra charada`!";
@@ -638,7 +768,6 @@ function responder(texto, ctx = {}) {
     }
   }
 
-  // Escolha de estilo logo após convite ("zoeira", "assunto sério", "dúvida")
   if (/^(?:so\s+)?(?:zoeira|zuera|brincadeira)$/.test(t)) {
     return escolherSemRepetir("modo-zoeira", [
       "Aí sim" + n + " 😂! Quer uma piada pra tentar acertar (`piada`), uma `charada`, uma `curiosidade` absurda ou só trocar resenha?",
@@ -652,7 +781,6 @@ function responder(texto, ctx = {}) {
     return "Manda sua dúvida direto" + n + " — seja de programação, estudos, conta, tradução ou qualquer curiosidade!";
   }
 
-  // Respostas diretas a falas de meta-conversa do log
   if (/^(?:(?:mds+|oxe+|oxente|aff+|uai+|eita+|po+)\s+)?(?:eu\s+)?(?:ja\s+)?respondi\s+(?:a\s+|sua\s+)?(?:pergunta(?:\s+anterior)?|voce)$/.test(t)) {
     return "Verdade" + n + ", vacilo meu — você respondeu o que eu tinha falado antes e eu me perdi no fio. Pode continuar daí que agora tô acompanhando!";
   }
@@ -666,15 +794,12 @@ function responder(texto, ctx = {}) {
     return resumoSessaoCompleta(ctx);
   }
 
-  // 1) Consciência situacional e emocional
   const sitResp = responderContextoSituacional(t, raw, ctx, sess);
   if (sitResp) return sitResp;
 
-  // 2) Resposta à pergunta pendente da BACH
   const pendResp = responderPerguntaPendente(t, raw, ctx, sess);
   if (pendResp) return pendResp;
 
-  // 3) Check-in / retorno com "e ai?" / "ss e ai?" / "tudo e vc?"
   if (/^(?:(?:sim|tudo(?:\s+(?:bem|certo|bom|otim[oa]|tranquil[oa]|de boa))?|bem|otim[oa]|tranquil[oa]|de boa|suave|beleza|indo|nada(?:\s+demais)?)\s*,?\s*)?(?:e\s+(?:ai|por ai|voce|com voce))$/.test(t)) {
     return escolherSemRepetir("check-eai", [
       "Por aqui tudo ótimo" + n + "! 😄 Cabeça afiada e zero bugs (por enquanto 😂). Como tá o seu dia?",
@@ -682,12 +807,10 @@ function responder(texto, ctx = {}) {
     ], ctx);
   }
 
-  // 4) Memória explícita de tudo que foi dito na conversa
   if (/\b(lembra do inicio|lembra do comeco|do que ja falamos|do que nos falamos|resumo da conversa|inicio da conversa|tudo que falamos|comeco da conversa|o que eu disse|o que eu falei antes|voce esqueceu|vc lembra de mim)\b/.test(t)) {
     return resumoSessaoCompleta(ctx);
   }
 
-  // 5) Falas cotidianas naturais
   if (/^(?:eu\s+)?(?:acabei de acordar|acordei agora|acordei|bom dia acordei)$/.test(t)) {
     return escolherSemRepetir("acordar", [
       "Bom dia" + n + "! ☀️ Acordou agora e já veio falar comigo — gostei de ver! Dormiu bem ou tá só o pó?",
@@ -713,13 +836,11 @@ function responder(texto, ctx = {}) {
     ], ctx);
   }
 
-  // Emergência veterinária
   if (/\b(cachorro|cao|gato|pet|animal)\b/.test(t) && /\b(morrendo|passando mal|convulsao|sangrando|envenenado|desmaiou)\b/.test(t)) {
     return "🚨 **Procure um veterinário de emergência 24h imediatamente!**\n\n" +
       "Enquanto vai:\n• Mantenha o animal calmo, aquecido e respirando livre.\n• **Não dê remédios humanos** (podem ser fatais).\n• Ligue avisando a clínica mais próxima.";
   }
 
-  // Continuação sobre espaço
   const espacoCtx = contextoEspacoRecente(ctx);
   if (espacoCtx && !ctx.alvo) {
     if (/\b(tem mais planetas|mais planetas|existe outros|existem outros|quais outros planetas)\b/.test(t)) {
@@ -730,7 +851,6 @@ function responder(texto, ctx = {}) {
     }
   }
 
-  // Perguntas pessoais / filosóficas sobre a BACH
   if (/\b(voce|bach)\b/.test(t) && /\b(acredita|cre|fe)\b/.test(t) && /\bdeus\b/.test(t)) {
     return "Como sou código e rede neural, não tenho fé pessoal como um ser humano — mas respeito todas as crenças e sei conversar ou pesquisar sobre Bíblia, história das religiões e filosofia sempre que quiser.";
   }
@@ -785,7 +905,6 @@ function responder(texto, ctx = {}) {
     return "Boa, então estamos na mesma página! Pode mandar a próxima.";
   }
 
-  // Críticas / zoeira / humor rápido
   if (/\b(burro|burra|idiota|inutil|lixo|horrivel|pessima|nao serve pra nada|so fala besteira)\b/.test(t)) {
     return escolherSemRepetir("critica", [
       "Pegou pesado" + n + " 😅 — mas se eu respondi mal, me mostra exatamente o quê. Você pode corrigir na hora com `corrija: pergunta => resposta` ou mandar direto o que queria.",
@@ -828,7 +947,6 @@ function responder(texto, ctx = {}) {
       : "Bora trocar ideia! Me conta: você anda focado em algum projeto, trabalhando muito ou só tentando relaxar hoje?";
   }
 
-  // Recomendações rápidas
   if (/\b(recomenda|recomend\w*|indica|indique|sugere|sugira|procura|procure|quero ouvir|quero ver|quero assistir)\b/.test(t)) {
     if (/\b(musica|musicas|som|cancao|cancoes)\b/.test(t)) {
       if (/rock/.test(t)) return MUSICAS_BR.rock;
@@ -842,7 +960,6 @@ function responder(texto, ctx = {}) {
     if (/\b(anime|animes)\b/.test(t) && !/\bsobre\b/.test(t)) return ANIMES_LISTA;
   }
 
-  // Saudações e bem-estar
   if (/^(?:(?:o+i+)+|r?o+i+|o+l+a+|e ai|opa+|salve|hey|hello|hi|o+i+e+|alo+|hola|bonjour|ciao|hallo)(?:\s+(?:o+i+|bach|bach ai|tudo bem))?$/.test(t)) {
     const s = SAUD[periodo(h)];
     return escolherSemRepetir("saud", leve
@@ -888,8 +1005,9 @@ function responder(texto, ctx = {}) {
       ? ["Aí sim! 😄 Quando o dia tá leve dá até gosto. Tá trabalhando, criando algo ou curtindo?", "Show" + n + "! Como tá o restante do dia por aí?"]
       : ["Que bom" + n + "! Tá aproveitando o dia como hoje?", "Ótimo saber! Tem algum plano ou assunto pra hoje?"], ctx);
   }
-  if (/^(to|estou|tou|me sinto|ando) (muito )?(mal|triste|cansado|cansada|chateado|chateada|ansioso|ansiosa|desanimado|desanimada|estressado|estressada|sem animo|pra baixo)/.test(t)) {
-    return "Poxa" + n + ", sinto muito mesmo que você esteja assim. 💜 Às vezes o peso bate de uma vez e não tem nem explicação simples. Quer contar o que tá pegando ou prefere só conversar de outra coisa?";
+  if (/^(to|estou|tou|me sinto|ando) (?:muito |meio )?(mal|triste|cansado|cansada|exausto|exausta|chateado|chateada|ansioso|ansiosa|desanimado|desanimada|estressado|estressada|sem animo|pra baixo|pessimo|pessima|horrivel|acabado|acabada)/.test(t)) {
+    const em = /cansad|exaust|acabad/.test(t) ? "cansado" : /ansios|estress/.test(t) ? "ansioso" : "triste";
+    return responderTristeza(n, raw, em);
   }
   if (/^(to|estou|tou) com (fome|sono|frio|calor)$/.test(t)) {
     if (/fome/.test(t)) return "Vai fazer um lanche antes que você comece a responder todo mundo atravessado 😂🍽️!";
@@ -917,7 +1035,6 @@ function responder(texto, ctx = {}) {
     return responderConfirmacaoComContexto(t, ctx, serio);
   }
 
-  // Elogios
   if (/\bvoce (e|esta|ta) (muito |super |bem |mais )?(legal|inteligente|esperta|boa|incrivel|demais|fofa|top|otima|massa|engracada|especial)\b/.test(t) || /^gostei de voce/.test(t) || /^te amo$/.test(t)) {
     return leve
       ? "Eita, aí você me deixa convencida! 😂💜 Obrigada" + n + " — vou continuar melhorando com você!"
@@ -950,7 +1067,6 @@ function responder(texto, ctx = {}) {
   }
   if (/^(me ajuda|me ajude|preciso de ajuda|ajuda|socorro)$/.test(t)) return "Claro" + n + "! Me conta o que você precisa resolver agora.";
 
-  // "Você sabe X?"
   const sb = t.match(/^(?:bach |bach ai )?(?:voce )?(?:sabe|entende|conhece|manja|domina|consegue|traduz|sabe sobre|entende de|sabe de)\s+(?:de |sobre |a respeito de |em )?(.+)$/);
   if (sb) {
     const alvo = sb[1];
@@ -958,14 +1074,13 @@ function responder(texto, ctx = {}) {
   }
   if (/^(o que|oque) (voce )?(sabe|consegue) fazer$/.test(t)) return null;
 
-  // 6) Motor argumentativo para debates, opiniões e temas do cotidiano
   const argResp = dialogoArgumentativo(t, raw, ctx, sess, serio, leve);
   if (argResp) return argResp;
 
-  // 7) Entendimento semântico para fala livre cotidiana
   const livreResp = entenderFalaLivre(t, raw, ctx);
   if (livreResp) return livreResp;
 
   return null;
 }
+
 export const Conversa = { responder, total: CURIOSIDADES.length + CHARADAS.length };
