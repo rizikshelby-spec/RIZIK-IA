@@ -1,3 +1,4 @@
+
 /* BACH AI 5.4 — ARQUIVOS 3.0 (IndexedDB Ilimitado + RAG BM25 Local + OCR Blindado)
  * - Guarda textos/códigos completos (até 500 KB por arquivo, 200 arquivos) no IndexedDB.
  * - Mantém espelho compatível no localStorage para /pastas, /mover e /basedados.
@@ -594,3 +595,4 @@ export const Arquivos = {
   buscarRAG,
   total: () => obterTodos().length
 };
+
