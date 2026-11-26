@@ -1,8 +1,12 @@
-/* BACH AI 5.3 - CÉREBRO AVANÇADO BLINDADO (Citações Inteligentes, Argumentos, Humor & Memória)
-   NLU natural, tratamento direto de mensagens citadas (ctx.alvo) sem limite curto de palavras,
-   meta-diálogo humano, conselhos contextuais, comparação de sites, controle de apps criados,
-   tom adaptativo, temas, senhas, recomendações e escrita. */
+/* BACH AI 5.5 - CÉREBRO AVANÇADO BLINDADO
+   - NLU natural com tratamento rico de citações (↩ Responder), inclusive explicações e cópia de blocos.
+   - Responde dilemas, escolhas ("X ou Y?") e perguntas conversacionais abertas sem vazar para pesquisa na web.
+   - Evita falsas trocas de tema visual ("tema da conversa", "cor do céu", etc.).
+   - Facilita reenvio/cópia de código recente sem cortar blocos com crases internas. */
+
 import { AutoGuard } from "./autoguard.js?v=2";
+
+const BT = "\x60\x60\x60";
 
 const norm = t => String(t || "").slice(0, 1200).toLowerCase().normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "")
@@ -224,7 +228,8 @@ const COMPARACOES = {
   "html|css": "⚖️ **HTML vs CSS:**\n• **HTML** é a estrutura (títulos, textos, botões).\n• **CSS** é o visual (cores, tamanhos, animações).\n👉 Trabalham juntos em toda página web.",
   "ssd|hd": "⚖️ **SSD vs HD:**\n• **HD:** disco mecânico; mais barato, porém lento.\n• **SSD:** memória flash; muito mais rápido e silencioso.",
   "alcool|etanol|gasolina": "⚖️ **Etanol vs Gasolina:**\nDivida o preço do etanol pelo da gasolina. Se der **até 0,70**, o etanol costuma compensar.",
-  "debito|credito": "⚖️ **Débito vs Crédito:**\n• **Débito:** sai na hora e evita dívida.\n• **Crédito:** concentra na fatura e parcela, mas exige pagar em dia para fugir de juros."
+  "debito|credito": "⚖️ **Débito vs Crédito:**\n• **Débito:** sai na hora e evita dívida.\n• **Crédito:** concentra na fatura e parcela, mas exige pagar em dia para fugir de juros.",
+  "android|iphone|ios": "⚖️ **Android vs iPhone:**\n• **Android:** mais liberdade de arquivos, variedade de preços, Termux e personalização.\n• **iPhone (iOS):** integração estável, câmera consistente e boa revenda — porém sistema mais fechado."
 };
 
 const CONHECIMENTO_PRATICO = [
@@ -234,10 +239,12 @@ const CONHECIMENTO_PRATICO = [
    "💰 **Método 50-30-20:**\n• **50%** necessidades essenciais.\n• **30%** lazer e desejos.\n• **20%** reserva de emergência e investimentos."],
   [/\b(como fazer(?: uma)? redacao|estrutura(?: da)? redacao|dicas? de redacao|modelo de dissertacao|como escrever bem)\b/,
    "✍️ **Estrutura de Redação (ENEM):**\n1. **Introdução:** tema + tese + 2 argumentos.\n2. **D1 e D2:** defenda os argumentos com repertório e consequências.\n3. **Conclusão:** Quem + O quê + Como + Para quê + Detalhamento."],
-  [/\b(dicas? de curriculo|como fazer(?: um)? curriculo|dicas? de entrevista|preparar para entrevista|conseguir(?: um)? emprego)\b/,
-   "💼 **Dicas de Currículo e Entrevista:**\n• Currículo em 1–2 páginas com resultados reais.\n• Na entrevista use o método **STAR** (Situação, Tarefa, Ação, Resultado)."],
+  [/\b(dicas? de curriculo|como fazer(?: um)? curriculo|dicas? de entrevista|preparar para entrevista|conseguir(?: um)? emprego|arrumar emprego|procurar emprego)\b/,
+   "💼 **Dicas de Currículo e Entrevista:**\n• Currículo direto em 1–2 páginas destacando o que você resolveu na prática (não só lista de cargos).\n• Atualize LinkedIn/contatos avisando que está disponível.\n• Na entrevista use o método **STAR** (Situação, Tarefa, Ação, Resultado)."],
   [/\b(direitos? do consumidor|procon|direito de arrependimento|prazo(?: de)? garantia|reembolso compra online)\b/,
-   "⚖️ **Direitos básicos (CDC Brasil):**\n• Compras online: **7 dias corridos** para devolução e reembolso total.\n• Defeito: 30 dias (não duráveis) ou 90 dias (duráveis) de garantia legal."]
+   "⚖️ **Direitos básicos (CDC Brasil):**\n• Compras online: **7 dias corridos** para devolução e reembolso total.\n• Defeito: 30 dias (não duráveis) ou 90 dias (duráveis) de garantia legal."],
+  [/\b(fui demitido|mandado embora|direitos trabalhistas|acerto rescisao|seguro desemprego|aviso previo)\b.*\b(direito|direitos|receber|acerto|rescisao|fgts|quanto|o que fazer)\b/,
+   "📋 **Checklist básico em caso de demissão sem justa causa (CLT Brasil):**\n• Saldo de salário dos dias trabalhados + aviso prévio (trabalhado ou indenizado)\n• 13º proporcional + férias vencidas/proporcionais + 1/3\n• Saque do FGTS + multa de 40% sobre o saldo\n• Guias para Seguro-Desemprego (se cumprir o tempo mínimo).\n*Prazo legal para pagamento da rescisão: até 10 dias corridos.*"]
 ];
 
 function extrairSitesAvaliados(history) {
@@ -290,6 +297,32 @@ function detectarAppRecente(history) {
   return null;
 }
 
+function extrairUltimoCodigoDoHistorico(history) {
+  const h = Array.isArray(history) ? history : [];
+  for (let i = h.length - 1; i >= 0; i--) {
+    const linhas = String(h[i]?.text || "").split(/\r?\n/);
+    let inicio = -1, lang = "txt";
+    for (let j = 0; j < linhas.length; j++) {
+      const ln = linhas[j].trim();
+      if (inicio < 0 && ln.startsWith(BT)) {
+        inicio = j;
+        lang = ln.slice(3).trim() || "txt";
+      }
+    }
+    if (inicio >= 0) {
+      let fim = -1;
+      for (let j = linhas.length - 1; j > inicio; j--) {
+        if (linhas[j].trim() === BT) { fim = j; break; }
+      }
+      if (fim > inicio + 1) {
+        const code = linhas.slice(inicio + 1, fim).join("\n").trim();
+        if (code.length > 15) return { lang, code };
+      }
+    }
+  }
+  return null;
+}
+
 async function buscarSeriesTVMaze(termo) {
   const c = new AbortController();
   const id = setTimeout(() => c.abort(), 8000);
@@ -323,13 +356,15 @@ function detectarTemaPedido(t) {
   if (/^(?:muda|mudar|troca|trocar|escolhe|escolher)(?:\s+de)?\s+tema(?:\s+se\s+(?:voce\s+)?quiser|\s+aleatorio)?$/.test(t)) {
     return girar("auto-tema", TODOS_TEMAS);
   }
-  if (/\b(significa|significado|por que|porque|qual e a cor|qual a cor|bandeira|arco iris|ceu|mar|sol|sangue|planta)\b/.test(t) &&
-      !/\b(tema|aparencia|visual|interface)\b/.test(t)) {
+  if (/\b(significa|significado|por que|porque|qual e a cor|qual a cor|bandeira|arco iris|ceu|mar|sol|sangue|planta|redacao|conversa|poco|texto|assunto)\b/.test(t) &&
+      !/\b(tema do site|tema do app|tema da tela|aparencia|interface)\b/.test(t)) {
     return null;
   }
-  const pedeTema = /\b(tema|aparencia|visual|interface|muda|mudar|troca|trocar|coloca|colocar|bota|botar|deixa|deixar|ativa|ativar|fundo)\b/.test(t) ||
+  const pedeTema = /\b(tema|aparencia|visual|interface)\b/.test(t) ||
+    /\b(?:muda|mudar|troca|trocar|coloca|colocar|bota|botar|deixa|deixar|ativa|ativar)\b.*\b(tema|cor|fundo|visual|tela)\b/.test(t) ||
     /\bcor\s+(?:do\s+site|da\s+tela|do\s+chat|do\s+fundo|para)\b/.test(t);
-  if (!pedeTema && t.split(" ").length > 2) return null;
+  if (!pedeTema) return null;
+
   if (/\bvermelh[oa]\b/.test(t)) return "vermelho";
   if (/\brox[oa]\b/.test(t)) return "roxo";
   if (/\bazul\b/.test(t)) return "azul";
@@ -339,7 +374,6 @@ function detectarTemaPedido(t) {
   if (/\bneon|cyberpunk|colorid[oa]\b/.test(t)) return "neon";
   return null;
 }
-
 function gerarEscrita(t, raw) {
   const s = String(raw || "").slice(0, 800);
   const mEmail = s.match(/(?:escrev[ae]|faz|faca|crie|cria|monte|monta|redija)\s+(?:um\s+|uma\s+)?(e-?mail|mensagem|carta|aviso|convite|texto|redacao|historia|conto|legenda|bio|poema|roteiro)\s*(?:sobre|de|para|com o tema)?\s*(.+)?/i);
@@ -403,6 +437,13 @@ function responderSobreCitacao(t, raw, ctx) {
   const trecho = alvo.replace(/\s+/g, " ").slice(0, 110);
   const retic = alvo.length > 110 ? "..." : "";
 
+  if (/\b(copia|copiar|manda de novo|manda inteiro|codigo)\b/.test(t)) {
+    return {
+      texto: "Aqui está o trecho citado pronto para copiar em um toque:\n\n" + BT + "txt\n" + alvo + "\n" + BT,
+      origem: "📋 cópia da mensagem citada"
+    };
+  }
+
   if (/\b(bach ai|criada por rizik|ajudar todo mundo de graca|memoria continua)\b/.test(alvoNorm)) {
     if (/\b(e isso e bom|isso e bom|e bom|presta|vale a pena|legal|top|massa)\b/.test(t)) {
       return {
@@ -418,7 +459,6 @@ function responderSobreCitacao(t, raw, ctx) {
     }
   }
 
-  // Novo: explicação contextual de uma falha/apologia ("quando eu digo isso a referente a sua resposta", etc.)
   if (/\b(referente|sua resposta|sua pergunta|quando (?:eu )?digo|quando disse|eu disse isso|tava respondendo|estava respondendo|era resposta|foi resposta|respondi voce)\b/.test(t)) {
     if (/desculpa por ter pesquisado|o que voce esperava dessa mensagem|saiu do alvo|fugido do assunto/.test(alvoNorm)) {
       return {
@@ -434,7 +474,7 @@ function responderSobreCitacao(t, raw, ctx) {
 
   if (/^(?:e |mas )?(?:isso|isto|ele|ela)\s+(?:e|eh|ta|esta)?\s*(?:bom|boa|ruim|verdade|serio|certo|normal)$/.test(t) ||
       /^(?:serio|jura|mesmo|como assim|por que|porque|nao entendi|gostei|legal|daora|interessante|nao concordo|explica|discordo|verdade|concordo)$/.test(t) ||
-      (/\b(isso|disso|nisso|essa parte|esse trecho|sua resposta|sua fala|vc disse|voce disse)\b/.test(t) && t.split(" ").length <= 14)) {
+      (/\b(isso|disso|nisso|essa parte|esse trecho|sua resposta|sua fala|vc disse|voce disse)\b/.test(t) && t.split(" ").length <= 16)) {
     if (/\b(bom|boa|legal|gostei|daora|interessante|verdade|concordo)\b/.test(t)) {
       return {
         texto: "Sobre **“" + trecho + retic + "”** — pois é, faz sentido quando você olha na prática. Quer que eu aprofunde algum argumento daí ou seguimos pro próximo ponto?",
@@ -456,6 +496,41 @@ function responderSobreCitacao(t, raw, ctx) {
   return null;
 }
 
+function resolverEscolhaOuDilema(t, raw, nomeUser) {
+  if (raw.startsWith("/")) return null;
+  if (/\b(converter|km|metros|kg|gramas|celsius|fahrenheit|pesquise|codigo)\b/.test(t)) return null;
+
+  const mDuv = t.match(/^(?:to|estou|tou)\s+em\s+duvida\s+(?:se|entre)\s+(.+)$/) ||
+    t.match(/^(?:voce acha que )?(?:eu\s+)?(?:devo|vale a pena|e melhor)\s+(.+?)\s+ou\s+(.+)$/);
+  if (mDuv) {
+    if (mDuv[2]) {
+      const op1 = mDuv[1].trim(), op2 = mDuv[2].trim();
+      return {
+        texto: "⚖️ Entre **" + op1 + "** e **" + op2 + "**" + nomeUser + ":\n\n" +
+          "• Olha primeiro qual dos dois tem **menor risco se der errado** e qual te deixa mais perto do que você quer daqui a 6 meses.\n" +
+          "• Se os dois empatam na lógica, escolhe o que te dá mais paz de cabeça hoje.\n\n" +
+          "Qual tá pesando mais pro seu lado nesse momento?",
+        origem: "🧠 apoio à decisão"
+      };
+    }
+    return {
+      texto: "🤔 Quando a dúvida aperta sobre **" + mDuv[1].trim() + "**" + nomeUser + ", ajuda listar o pior cenário realista de cada lado. Qual opção te dá mais medo de se arrepender depois?",
+      origem: "🧠 apoio à decisão"
+    };
+  }
+
+  const mOu = t.match(/^(?:voce prefere|qual e melhor|melhor)\s+([a-z0-9\s]{2,25})\s+ou\s+([a-z0-9\s]{2,25})$/);
+  if (mOu && !/\b(site|link)\b/.test(t)) {
+    const a = mOu[1].trim(), b = mOu[2].trim();
+    return {
+      texto: "⚖️ Entre **" + a + "** e **" + b + "**: cada um ganha num cenário — **" + a + "** costuma levar vantagem na praticidade, e **" + b + "** no conforto/resultado. Se você tiver que escolher um hoje, vai em qual" + nomeUser + "?",
+      origem: "💬 conversa"
+    };
+  }
+
+  return null;
+}
+
 async function responder(raw, ctx = {}) {
   const s = String(raw || "");
   if (!s || s.length > 1200) return null;
@@ -465,13 +540,27 @@ async function responder(raw, ctx = {}) {
   const serio = ctx.mood === "frustrado" || ctx.mood === "serio" || ctx.mood === "triste" || (ctx.humorScore ?? 0) <= -0.6;
   const temPerguntaPendente = Boolean(ctx.session?.lastBotQuestion);
 
-  // -1) Resposta direta quando o usuário cita (↩ Responder) uma mensagem específica
   if (ctx.alvo) {
     const respCit = responderSobreCitacao(t, s, ctx);
     if (respCit) return respCit;
   }
 
-  // 0) Diagnóstico e Rollback do AutoGuard
+  if (/\b(copia|copiar|manda|reenvia|me da|mostra)\b.*\b(codigo|codigos|script|html)\b/.test(t) &&
+      !/\.[a-z]{2,4}\b/i.test(s) &&
+      !/\b(cria|crie|faz|faca|escrev|gerar|gera|explica|revisa|erro|como)\b/.test(t) &&
+      t.split(" ").length <= 12) {
+    if (ctx.ultimoArquivo?.texto && ctx.ultimoArquivo.texto.length > 40) {
+      return { usarMenteTexto: true };
+    }
+    const codHist = extrairUltimoCodigoDoHistorico(ctx.history);
+    if (codHist) {
+      return {
+        texto: "📋 Aqui está o último código completo para você copiar sem cortes:\n\n" + BT + codHist.lang + "\n" + codHist.code + "\n" + BT,
+        origem: "📋 cópia de código"
+      };
+    }
+  }
+
   if (/^\/?(diagnostico|saude|relatorio de erros|autoavaliacao|monitoramento)$/i.test(t)) {
     return { texto: AutoGuard.diagnose(), origem: "🛡️ autoguard" };
   }
@@ -488,8 +577,7 @@ async function responder(raw, ctx = {}) {
     };
   }
 
-  // 0.1) Meta-diálogo
-  if (/\b(so queria (?:ter )?um dialogo|queria (?:ter )?um dialogo|dialogo bom|conversar direito|conversa normal|sem testar|nao quero testar|nao quero comando|para de mandar comando|para de perguntar|muito vaga|sem argumento|respostas vagas)\b/.test(t) ||
+  if (/\b(so queria (?:ter )?um dialogo|queria (?:ter )?um dialogo|dialogo bom|conversar direito|conversa normal|sem testar|nao quero testar|nao quero comando|para de mandar comando|para de perguntar|muito vaga|sem argumento|respostas vagas|muito robo|parece robo|parece um robo)\b/.test(t) ||
       /^(?:que|q)\s+pergunta\s+(?:cara|e essa|nada a ver|bosta)$/.test(t)) {
     if (/nao quero testar/.test(t)) {
       return {
@@ -497,9 +585,9 @@ async function responder(raw, ctx = {}) {
         origem: "💬 diálogo"
       };
     }
-    if (/vaga|argumento/.test(t)) {
+    if (/robo|vaga|argumento/.test(t)) {
       return {
-        texto: "Anotado" + nomeUser + "! Sem resposta genérica de robô — manda um tema, uma treta do dia ou uma pergunta de opinião que eu argumento com você ponto a ponto!",
+        texto: "Justo" + nomeUser + " — sem resposta automática de manual nem pergunta solta. Manda o que tá rolando com você hoje, uma treta ou uma opinião polêmica que a gente conversa de igual pra igual!",
         origem: "💬 diálogo"
       };
     }
@@ -515,13 +603,11 @@ async function responder(raw, ctx = {}) {
     };
   }
 
-  // 0.2) Comparação contextual entre os 2 últimos sites/links avaliados no histórico
   if (/\b(entre essas duas|entre esses dois|qual e a melhor|qual e o melhor|qual das duas|qual dos dois|qual dessas|qual desses)\b/.test(t)) {
     const compSites = compararUltimosSites(ctx.history);
     if (compSites) return { texto: compSites, origem: "⚖️ comparação de sites" };
   }
 
-  // 0.3) Controle contextual do último app gerado
   if (/^(?:pode\s+)?(?:parar|para|pausar|pausa|zerar|resetar)(?:\s+(?:o\s+)?(?:time|timer|tempo|cronometro|app|relogio))?$/.test(t)) {
     const appRec = detectarAppRecente(ctx.history);
     if (appRec) {
@@ -536,8 +622,7 @@ async function responder(raw, ctx = {}) {
     };
   }
 
-  // 0.4) Conselhos / "o que eu faço?" contextualizado
-  if (/^(?:o que eu faco|oque eu faco|me da um conselho|preciso de um conselho|qual o melhor caminho)$/.test(t)) {
+  if (/^(?:o que eu faco|oque eu faco|me da um conselho|preciso de um conselho|qual o melhor caminho|nao sei o que fazer)$/.test(t)) {
     const sit = ctx.session?.situation?.resumo;
     if (sit) {
       return {
@@ -551,14 +636,15 @@ async function responder(raw, ctx = {}) {
     };
   }
 
-  // 0.5) Pedido rápido de senha
+  const dilema = resolverEscolhaOuDilema(t, s, nomeUser);
+  if (dilema) return dilema;
+
   if (/^(?:vamos\s+(?:de|se)\s+senha|senha|gera\w*\s+senha|manda\s+uma\s+senha|me\s+da\s+uma\s+senha|quero\s+uma\s+senha)$/.test(t) ||
       /^\/senha(?:\s+(\d{1,2}))?$/i.test(s.trim())) {
     const tam = (s.match(/\d{1,2}/) || [])[0] || 14;
     return { texto: senhaRapida(tam), origem: "🔐 utilidades" };
   }
 
-  // 1) Troca de temas visuais pelo chat
   const temaPedido = detectarTemaPedido(t);
   if (temaPedido) {
     if (temaPedido.ignora) {
@@ -573,7 +659,6 @@ async function responder(raw, ctx = {}) {
     return { tema: temaPedido };
   }
 
-  // 2) Perguntas sobre a própria BACH / Criador / Autocorreção
   if (/\b(voce|bach)\b/.test(t) && /\b(serve|servir|presta|funciona|utilidade|objetivo|capacidade)\b/.test(t)) {
     return {
       texto: "Eu sou a **BACH AI** 🧠, criada por Rizik! Sirvo para:\n• Conversar com argumento, humor e memória contínua de tudo que falamos.\n• Ler fotos, prints escuros, vídeos e revisar/encadear códigos.\n• Criar apps (`/app`), rodar scripts (`/executar`) e avaliar sites (`/site`).\n• Recomendar filmes por gênero, séries, animes e músicas.\n• Pesquisar na internet, traduzir idiomas, calcular e gerar senhas.",
@@ -601,7 +686,6 @@ async function responder(raw, ctx = {}) {
     };
   }
 
-  // 3) Pedidos de idioma e falas soltas
   if (/^(?:me\s+)?(?:respond[ae]|fal[ae]|escrev[ae]|convers[ae])\s+(?:so\s+)?em\s+portugues$/.test(t)) {
     return {
       texto: "Já estou falando em português com você" + nomeUser + ". Se quiser traduzir algum texto de foto ou mensagem, toque em **↩ Responder** nele e mande **“só traduz”**.",
@@ -646,7 +730,6 @@ async function responder(raw, ctx = {}) {
     };
   }
 
-  // 4) Feedback de erro / frustração
   if (/\b(nao foi|nao era|falou errado|disse errado|respondeu errado|entendeu errado|errando|ta errado|esta errado|vc ainda erra|voce ainda erra|so erra|voce e burro|burro|burra|nada a ver|nada aver|nada haver|erros atrais|erros atras|da erro|dando erro|para de dizer que travou|travou foi|pergutar mais|chutar o que|chutar oq|nao mandei pesquisar|nao pedi pesquisa|nao pedi pra pesquisar|nao era pra pesquisar|para de pesquisar|so pesquisa|o que (?:voce )?nao entendeu|senha bosta|chatao|pqp bach|o droga)\b/.test(t) ||
       /^(te |quero |vou |vamos te |irei te )?(corrigir|arrumar|consertar|ensinar)( ta)?$/.test(t) ||
       /\b(arrumo tudo|arrumo voce|irei te consertar|para que fui criala)\b/.test(t)) {
@@ -662,7 +745,6 @@ async function responder(raw, ctx = {}) {
     };
   }
 
-  // 5) Respostas curtas de acompanhamento
   if (/^(porque nao|porque nao pode|como assim|perguntar o que|oque perguntar|ah ta claro)$/.test(t)) {
     if (ctx.ultimoBot && /calendário|lançamentos futuros/i.test(ctx.ultimoBot)) {
       return {
@@ -674,7 +756,7 @@ async function responder(raw, ctx = {}) {
   }
 
   if (!temPerguntaPendente && /^(?:aham|ahan|uhum|ok|okay|ta\s*bom|tabom|blz|beleza|ata|entendi|tendi|saquei|fechou|suave|de boa|firmeza|show|top|pode crer)(?:\s+(?:tabom|ta\s*bom|entao|ne|blz|ok|po))*$/.test(t)) {
-    return null; // Deixa o Conversa.responder responder com base no último assunto do histórico!
+    return null;
   }
 
   if (/\b(ta feio|ta osso|ta dificil|ta complicado|que coisa)\b/.test(t) && t.split(" ").length <= 7) {
@@ -694,7 +776,6 @@ async function responder(raw, ctx = {}) {
     };
   }
 
-  // 6) Conversa solta e gírias
   if (/^(conversa comigo|vamos conversar|bora conversar|fala comigo|fale comigo)$/.test(t)) {
     return {
       texto: semRepetir("conv-solta", [
@@ -722,14 +803,12 @@ async function responder(raw, ctx = {}) {
     };
   }
 
-  // 7) Pergunta curta dependente de contexto
   if (/^(para que serve|serve para que|ele faz o que|ela faz o que|isso faz o que|como isso funciona|como funciona|me da um exemplo|da um exemplo)$/.test(t)) {
     if (ctx.ultimoArquivo?.texto) return { usarMenteTexto: true };
     if (ctx.ultimoTema) return { pesquisarTema: ctx.ultimoTema + " para que serve como funciona" };
     return { texto: "Para que serve o quê exatamente? Cole um código/texto ou me diga o nome do assunto.", origem: "🧠 contexto" };
   }
 
-  // 8) Recomendações inteligentes por gênero
   const pedeRec = /\b(recomenda\w*|indica\w*|suger\w*|lista\w*|melhores|bons|boas|quero assistir|quero ouvir|procura|manda|mandar)\b/.test(t);
   const genMusica = detectarGeneroMusica(t);
   if (genMusica && (pedeRec || t.split(" ").length <= 4)) {
@@ -772,7 +851,6 @@ async function responder(raw, ctx = {}) {
     };
   }
 
-  // 9) Comparações, Conhecimento Prático, Planos e Escrita
   const mComp = t.match(/(?:diferenca entre|compar\w* entre|pros e contras de|vantagens e desvantagens de)\s+(.+?)\s+e\s+(.+)/) ||
                 t.match(/^(.+?)\s+(?:vs|versus)\s+(.+)$/);
   if (mComp) {
