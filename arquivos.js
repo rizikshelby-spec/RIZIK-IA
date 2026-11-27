@@ -1,9 +1,7 @@
-
-/* BACH AI 5.4 — ARQUIVOS 3.0 (IndexedDB Ilimitado + RAG BM25 Local + OCR Blindado)
+/* BACH AI 5.5 — ARQUIVOS 3.1 (IndexedDB Ilimitado + RAG BM25 + Cópia 100% Completa)
  * - Guarda textos/códigos completos (até 500 KB por arquivo, 200 arquivos) no IndexedDB.
- * - Mantém espelho compatível no localStorage para /pastas, /mover e /basedados.
+ * - /abrir entrega o conteúdo completo sem corte de 3.200 caracteres e com cerca dinâmica de crases.
  * - Inclui busca semântica por trechos (/rag pergunta) 100% própria em JS.
- * - Preserva proteção contra SVG ativo, limites de mídia e Prototype Pollution.
  */
 
 const KEY = "bach_arquivos_v1";
@@ -34,6 +32,14 @@ const tokensRag = t => norm(t)
   .filter(w => (w.length >= 2 || /^\d+$/.test(w)) && !STOP_RAG.has(w))
   .map(stemPt);
 
+function wrapCodeFence(code, lang = "txt") {
+  const s = String(code || "");
+  const runs = s.match(/`{3,}/g) || [];
+  const maxRun = runs.reduce((m, r) => Math.max(m, r.length), 2);
+  const fence = "`".repeat(maxRun + 1);
+  return fence + (lang || "txt") + "\n" + s + "\n" + fence;
+}
+
 function limparRotulo(val, fallback, maxLen = 60) {
   const s = String(val || "").replace(/[\x00-\x1f\r\n]/g, " ").trim().slice(0, maxLen);
   if (!s || PROIBIDAS.has(s.toLowerCase())) return fallback;
@@ -51,7 +57,6 @@ function loadLS() {
 
 function saveLS(lista) {
   try {
-    // Espelho compacto no localStorage (últimos 40 arquivos com prévia de até 4 KB)
     const compacto = lista.slice(-40).map(x => ({
       id: x.id,
       nome: x.nome,
@@ -151,7 +156,6 @@ async function sincronizarCacheInicial() {
     cacheMemoria = mesclado;
     saveLS(mesclado);
 
-    // Migra itens que só estavam no localStorage para o IndexedDB
     const idsIdb = new Set(itensIdb.map(x => x.id));
     for (const item of mesclado) {
       if (!idsIdb.has(item.id)) idbPut(item);
@@ -164,7 +168,6 @@ async function sincronizarCacheInicial() {
 sincronizarCacheInicial();
 
 function obterTodos() {
-  // Sincroniza eventuais alterações externas de pasta feitas por mente.js no localStorage
   const ls = loadLS();
   if (ls.length) {
     const mapaLs = new Map(ls.map(x => [x.id, x]));
@@ -220,6 +223,12 @@ function achar(termo) {
   return lista.find(x => normNome(x.nome) === t) ||
     lista.find(x => normNome(x.nome).includes(t)) ||
     lista.find(x => t.includes(normNome(x.nome)));
+}
+
+function obterTextoCompleto(nome) {
+  const a = achar(nome);
+  if (!a) return null;
+  return a.texto || a.resumo || "";
 }
 
 function listar() {
@@ -336,6 +345,16 @@ function buscarRAG(pergunta, limite = 3) {
   return ranqueado.sort((a, b2) => b2.score - a.score).slice(0, limite);
 }
 
+function detectarLang(a) {
+  const n = String(a.nome || "").toLowerCase();
+  if (/\.html?$/.test(n) || /^\s*<!doctype\s+html|<html\b/i.test(a.texto || "")) return "html";
+  if (/\.css$/.test(n)) return "css";
+  if (/\.py$/.test(n)) return "py";
+  if (/\.json$/.test(n)) return "json";
+  if (/\.js$/.test(n) || /Códigos/i.test(a.pasta || "")) return "js";
+  return "txt";
+}
+
 function comando(texto) {
   const t = String(texto || "").trim();
   if (/^(\/arquivos|meus arquivos)$/i.test(t)) return listar();
@@ -345,8 +364,10 @@ function comando(texto) {
   if (m) {
     const a = achar(m[1]);
     if (!a) return "Não achei esse arquivo. Veja os nomes com /arquivos";
-    return "📄 " + a.nome + " (" + a.pasta + " • " + (a.texto?.length || 0) + " chars)\n\n" +
-      (a.texto ? a.texto.slice(0, 3200) + (a.texto.length > 3200 ? "\n\n[... use /rag pergunta para consultar partes específicas]" : "") : a.resumo);
+    const conteudo = a.texto || a.resumo || "";
+    const lang = detectarLang(a);
+    return "📄 **" + a.nome + "** (" + a.pasta + " • " + conteudo.length + " caracteres completos)\n\n" +
+      wrapCodeFence(conteudo, lang);
   }
 
   if (/^\/(apagar|excluir)\s*$/i.test(t)) return "Diga o nome do arquivo depois de /apagar. Ex.: /apagar pesquisa filme\nVeja os nomes com /arquivos";
@@ -593,6 +614,6 @@ export const Arquivos = {
   listar,
   lerMidia,
   buscarRAG,
+  obterTextoCompleto,
   total: () => obterTodos().length
 };
-
