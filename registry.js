@@ -1,4 +1,4 @@
-/* BACH AI 5.4 — Orquestrador Central dos Departamentos, 10 Modos Reais & Watchdog AutoGuard
+/* BACH AI 5.5 — Orquestrador Central dos Departamentos, 10 Modos Reais & Watchdog AutoGuard
  * 100% BACH AI própria (sem IAs externas).
  */
 
@@ -87,7 +87,8 @@ const AJUDA_FERRAMENTAS = {
   "/dado": "🎲 Use `/dado 20`, `d20` ou `joga um dado`.",
   "/sortear": "🎯 Use `/sortear pizza, lanche, sushi` ou `sorteia de 1 a 100`.",
   "/cpf": "✅ Use `/cpf 000.000.000-00` para validar os dígitos matemáticos ou peça `manda um cpf de teste`.",
-  "/contar": "📊 Use `/contar seu texto aqui` para contar palavras, caracteres e tempo de leitura."
+  "/contar": "📊 Use `/contar seu texto aqui` para contar palavras, caracteres e tempo de leitura.",
+  "/cadeia": "🧠 **Execução em cadeia (`/cadeia`):**\nSepare de 2 a 4 passos com `;` para eu resolver tudo em sequência.\nEx.: `/cadeia 10+5*2 ; converter 10 km para m ; /senha 12`"
 };
 
 function loadSettings() {
@@ -116,7 +117,7 @@ function enabled(id) {
 }
 
 function listModules() {
-  return "🧠 BACH AI 5.4 — DEPARTAMENTOS (" + DEPARTMENTS.length + ")\n\n" +
+  return "🧠 BACH AI 5.5 — DEPARTAMENTOS (" + DEPARTMENTS.length + ")\n\n" +
     DEPARTMENTS.map(d => {
       const flag = d.control ? (enabled(d.id) ? "🟢" : "⚪") : "🔹";
       return flag + " " + d.name + "\n   ID: " + d.id + " • " + d.status + "\n   " + d.skills;
@@ -232,10 +233,14 @@ function adaptarEntradaPorModo(raw, mode = "auto") {
 
 function executarPassosEmCadeia(raw, context = {}) {
   const mode = context.mode || "auto";
-  if (mode !== "raciocinio" && !/^\/cadeia\s+/i.test(raw)) return null;
+  const ehCmdCadeia = /^\/cadeia\b/i.test(raw);
+  if (mode !== "raciocinio" && !ehCmdCadeia) return null;
 
-  const corpo = raw.replace(/^\/cadeia\s+/i, "").trim();
+  const corpo = raw.replace(/^\/cadeia\s*/i, "").trim();
   const partes = corpo.split(/\s*;\s*|\s+e\s+depois\s+/i).map(x => x.trim()).filter(Boolean);
+  if (ehCmdCadeia && partes.length < 2) {
+    return { texto: AJUDA_FERRAMENTAS["/cadeia"], origem: "🧠 raciocínio em cadeia" };
+  }
   if (partes.length < 2 || partes.length > 4) return null;
 
   const saidas = [];
