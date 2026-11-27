@@ -133,7 +133,7 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 13px;border:1px
   <div class="htop">
     <button id="btnDrawer" aria-label="Abrir menu">☰</button>
     <div class="hbrand">
-      <div class="htitle"><h2>BACH AI 🧠</h2><span id="verBadge" title="Sobre e novidades">v5.4</span></div>
+      <div class="htitle"><h2>BACH AI 🧠</h2><span id="verBadge" title="Sobre e novidades">v5.5</span></div>
       <div id="status">Carregando...</div>
     </div>
   </div>
@@ -208,7 +208,7 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 13px;border:1px
     <button class="dbtn" data-d="sobre">ℹ️ Sobre o App &amp; Atualizações</button>
     <div class="dinfo">
       <b>Criador:</b> Rizik<br>
-      <b>Versão:</b> 5.4 (2026)<br>
+      <b>Versão:</b> 5.5 (2026)<br>
       100% Própria • Rede Neural + RAG IndexedDB + memória em 3 camadas.
     </div>
   </aside>
@@ -357,7 +357,7 @@ const [
 const RizikBrain = mBrain.RizikBrain || { think: () => ({ handled: false }), learn: () => {}, remember: () => {}, recall: () => null, logTopic: () => {}, getRecentTopics: () => [], getProfile: () => ({}), getStats: () => ({ examples: 0, synonyms: 0, facts: 0, notes: 0 }), searchMemory: () => [], updateTone: () => ({ mood: "neutro", score: 0 }), getMood: () => ({ mood: "neutro", score: 0, humorAllowed: false }), getSessionState: () => ({}), updateSessionState: () => ({}), resetSessionState: () => {} };
 const Saber = mSaber.Saber || { urlsEm: () => [], isCode: () => false, lerTexto: t => t, buscarConhecimento: () => null, summarize: () => [], pesquisaProfunda: async () => { throw new Error("saber.js indisponível"); }, lerLink: async () => { throw new Error("saber.js indisponível"); } };
 const Prog = mProg.Prog || { humor: () => null, responder: () => null, desconhecido: () => "Não entendi isso." };
-const Arquivos = mArq.Arquivos || { comando: () => null, salvar: a => ({ nome: a.nome || "arquivo", pasta: a.pasta || "Textos" }), lerMidia: async () => { throw new Error("arquivos.js indisponível"); }, buscarRAG: () => [], total: () => 0 };
+const Arquivos = mArq.Arquivos || { comando: () => null, salvar: a => ({ nome: a.nome || "arquivo", pasta: a.pasta || "Textos" }), lerMidia: async () => { throw new Error("arquivos.js indisponível"); }, buscarRAG: () => [], obterTextoCompleto: () => null, total: () => 0 };
 const Mente = mMente.Mente || { jogando: () => false, responder: () => null, setTexto: () => {}, setMidia: () => {}, pasta: p => p, pergunta: () => false, tema: () => "", lembrarTema: () => {}, limparTema: () => {}, stats: () => ({}) };
 const Fatos = mFatos.Fatos || { responder: () => null, sobreMim: () => null, sobreVoce: () => false, enumerar: () => null, resumir: () => null, total: 0 };
 const Conversa = mConv.Conversa || { responder: () => null };
@@ -365,7 +365,7 @@ const Dic = mDic.Dic || { detectar: () => null, consultar: async () => null };
 const Historico = mHist.Historico || { salvarAtual: () => {}, listar: () => ({ pagina: 1, paginas: 1, totalPaginas: 1, total: 0, atual: "", itens: [] }), abrir: () => null, nova: () => {}, apagar: () => null, limparTudo: () => {}, idAtual: () => "" };
 const Base = mBase.Base || { montar: async () => { throw new Error("base.js indisponível"); }, importar: () => 0 };
 const SkillRouter = mReg.SkillRouter || { handle: () => null, instructions: () => "", modePrompt: () => "" };
-const LLM = mLLM.LLM || { hasModel: () => false, command: () => null, label: () => "BACH AI 5.4 (Motor Próprio)", getConfig: () => ({ model: "BACH-AI-5.4-Nativa", reasoningDepth: "normal" }) };
+const LLM = mLLM.LLM || { hasModel: () => false, command: () => null, label: () => "BACH AI 5.5 (Motor Próprio)", getConfig: () => ({ model: "BACH-AI-5.5-Nativa", reasoningDepth: "normal" }) };
 const CerebroAvancado = mAv.CerebroAvancado || { responder: async () => null };
 const AutoCorretor = mAuto.AutoCorretor || { ehReclamacao: () => false, tratarExclamacao: () => null, processarSeguimentoDeCorrecao: () => null, registrarFalhaPublica: () => {}, analisarEPreparar: () => null, formatarChat: h => JSON.stringify(h), auditarChat: () => "Módulo autocorretor.js não carregado." };
 const Revisor = mRev.Revisor || { detectarPedidoDireto: () => null, avaliarSite: async () => "revisor.js não carregado.", revisarCodigoFiel: () => null, revisarPortugues: () => null };
@@ -387,13 +387,18 @@ try {
 const $ = id => document.getElementById(id);
 const chat = $("chat"), entrada = $("entrada"), botao = $("enviar"), status = $("status"), hist = $("hist"), sobreEl = $("sobre"), errosModal = $("errosModal");
 const HISTORY_KEY = "bach_chat_history_v1", KEY_TEMA = "bach_theme_v1", KEY_CRIADOR = "bach_creator_v1", KEY_ADM_HASH = "bach_adm_hash_v1", KEY_VER = "bach_last_version";
-const DEFAULT_ADM_HASH = ""; // Cole aqui o hash SHA-256 exibido por /admsenha para liberar /adm em outros aparelhos
-const APP_VER = "5.4", APP_CRIADA = "2026", APP_ATUALIZADA = "25/11/2026";
+const DEFAULT_ADM_HASH = "";
+const APP_VER = "5.5", APP_CRIADA = "2026", APP_ATUALIZADA = "26/11/2026";
 const LONGO = 700;
 const BT = String.fromCharCode(96).repeat(3);
-const RE_CERCA_ALL = new RegExp(BT, "g");
-const RE_CERCA_SPLIT = new RegExp(BT + "([\\w+-]*)[ \\t]*\\n?([\\s\\S]*?)" + BT, "g");
 const RE_BLOCO_RM = new RegExp(BT + "[\\s\\S]*?" + BT, "g");
+function wrapFence(code, lang = "txt") {
+  const s = String(code || "");
+  const runs = s.match(/`{3,}/g) || [];
+  const maxRun = runs.reduce((m, r) => Math.max(m, r.length), 2);
+  const f = "`".repeat(maxRun + 1);
+  return f + (lang || "txt") + "\n" + s + "\n" + f;
+}
 
 const TEMAS = {
   roxo:     { nome: "💜 Roxo",     bg:"#0d0e1a", panel:"rgba(20,22,38,.90)", panel2:"rgba(14,16,30,.96)", border:"rgba(138,118,255,.32)", accent:"#8266ff", accent2:"#e056fd", bot:"rgba(22,25,46,.78)", user:"rgba(88,58,205,.54)", orb1:"#8c6eff", orb2:"#ff4fd8", glow:"rgba(140,110,255,.65)" },
@@ -504,11 +509,17 @@ function registrarErroPublico(tipo, entrada, resposta, motivo) {
 }
 
 const statusPadrao = () => "BACH AI • " + (NOMES_MODOS[modoAtual] || "🤖 Automático") + (modoCriador ? " • 👑 Criador" : "");
-
-const salvarHist = () => {
+  const salvarHist = () => {
   try {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-100).map(h => ({ ...h, text: String(h.text).slice(0, 6000) }))));
-  } catch (e) { console.warn(e); }
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-80).map((h, idx, arr) => ({
+      ...h,
+      text: String(h.text).slice(0, idx >= arr.length - 12 ? 120000 : 8000)
+    }))));
+  } catch {
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-40).map(h => ({ ...h, text: String(h.text).slice(0, 12000) }))));
+    } catch (e2) { console.warn(e2); }
+  }
   try { Historico.salvarAtual(history); } catch (e) { console.warn(e); }
 };
 
@@ -541,23 +552,50 @@ function cartao(titulo, conteudo, arquivo, aberto, previa) {
   c.append(top, d); return c;
 }
 
+function extrairSegmentosMensagem(txtBruto) {
+  const linhas = String(txtBruto || "").split(/\r?\n/);
+  const segs = [];
+  let bufTxt = [], bufCode = [], emCodigo = false, fenceLen = 3, lang = "";
+
+  for (const ln of linhas) {
+    const trim = ln.trim();
+    if (!emCodigo) {
+      const mAbre = trim.match(/^(`{3,})([\w+-]*)$/);
+      if (mAbre) {
+        if (bufTxt.length) { segs.push({ tipo: "texto", val: bufTxt.join("\n") }); bufTxt = []; }
+        emCodigo = true; fenceLen = mAbre[1].length; lang = (mAbre[2] || "").toLowerCase();
+      } else {
+        bufTxt.push(ln);
+      }
+    } else {
+      const mFecha = trim.match(/^(`{3,})$/);
+      if (mFecha && mFecha[1].length >= fenceLen) {
+        segs.push({ tipo: "codigo", lang, val: bufCode.join("\n") });
+        bufCode = []; emCodigo = false; fenceLen = 3; lang = "";
+      } else {
+        bufCode.push(ln);
+      }
+    }
+  }
+  if (emCodigo) bufTxt.push("`".repeat(fenceLen) + lang, ...bufCode);
+  if (bufTxt.length) segs.push({ tipo: "texto", val: bufTxt.join("\n") });
+  return segs;
+}
+
 function montar(texto, tipo, cit = "") {
   const w = mk("div", "msg " + tipo);
   if (cit) w.appendChild(mk("div", "cit", "↩ " + cit));
-  const txtBruto = String(texto);
-  const cercas = (txtBruto.match(RE_CERCA_ALL) || []).length;
-  const p = cercas % 2 === 0 ? txtBruto.split(RE_CERCA_SPLIT) : [txtBruto];
-  for (let i = 0; i < p.length; i += 3) {
-    const t = p[i].trim();
-    if (t) {
+  for (const seg of extrairSegmentosMensagem(texto)) {
+    if (seg.tipo === "texto") {
+      const t = seg.val.trim();
+      if (!t) continue;
       if (t.length > (tipo === "user" ? LONGO : 3500)) {
         const n = t.split(/\n/).length;
         w.appendChild(cartao("📄 Texto longo • " + t.split(/\s+/).length + " palavras, " + n + " linhas", t, "texto-bach.txt", false));
       } else w.appendChild(mk("div", "t", t));
-    }
-    if (i + 2 < p.length) {
-      const lang = (p[i + 1] || "").toLowerCase(), code = p[i + 2].replace(/\n$/, ""), n = code.split("\n").length;
-      w.appendChild(cartao("💻 " + (lang || "código") + " • " + n + " linhas", code, "bach-codigo." + (EXT[lang] || "txt"), n <= 18));
+    } else {
+      const code = seg.val.replace(/\n$/, ""), n = code.split("\n").length;
+      w.appendChild(cartao("💻 " + (seg.lang || "código") + " • " + n + " linhas", code, "bach-codigo." + (EXT[seg.lang] || "txt"), n <= 18));
     }
   }
   return w;
@@ -745,14 +783,14 @@ function abrirSobre() {
     "<b>Versão atual:</b> v" + escHtml(APP_VER) + " (atualizada em " + escHtml(APP_ATUALIZADA) + ")<br>" +
     "<b>Ano de criação:</b> " + escHtml(APP_CRIADA) + "<br>" +
     "<b>Criador:</b> Rizik<br>" +
-    "<b>Motor:</b> " + escHtml(LLM.label ? LLM.label() : "BACH AI 5.4 (100% Própria)");
+    "<b>Motor:</b> " + escHtml(LLM.label ? LLM.label() : "BACH AI 5.5 (100% Própria)");
 
   const nov = mk("div", "scard");
   nov.innerHTML =
     "<b>✨ Novidades da v" + escHtml(APP_VER) + ":</b><br>" +
-    "• <b>Rede Neural 3.0 (384→64→12):</b> 16 sinais linguísticos + treino sem travar a tela<br>" +
-    "• <b>IndexedDB + RAG BM25 (`/rag`):</b> guarda arquivos completos sem corte de 16 KB<br>" +
-    "• <b>10 Modos Reais:</b> Matemática, Aprendizado, Criatividade, Raciocínio em cadeia (`/cadeia`)<br>" +
+    "• <b>Rede Neural 3.0 (384→64→12):</b> 16 sinais linguísticos + treino estável<br>" +
+    "• <b>IndexedDB + RAG BM25 (`/rag`):</b> guarda e copia arquivos completos sem cortes<br>" +
+    "• <b>Conversa Natural & Contexto:</b> respostas articuladas e buscas atualizadas sob demanda<br>" +
     "• <b>Editor ADM Seguro:</b> valida sintaxe JS/HTML antes de subir e permite `/desfazer_edicao`";
 
   const dados = mk("div", "scard");
@@ -888,17 +926,17 @@ async function pesquisaProfunda(q, fundo = true, salvarArquivo = false) {
     console.error(e);
     if (e.message === "irrelevante" && deuFato) return;
     if (e.message === "sem-dados-futuros") {
-      falar("Não consigo prever uma lista completa de lançamentos futuros do próximo mês sem um calendário específico. 🎬 Se quiser, posso te recomendar ótimos filmes ou animes agora mesmo — é só pedir: “me recomenda filmes de ação” ou “me recomenda animes”!");
+      falar("Não consigo prever uma lista completa de lançamentos futuros do próximo mês sem um calendário específico. Se quiser recomendações atuais, peça `filmes recentes` ou `animes da temporada`.");
       return;
     }
     if (e.message === "meta-referencia") {
       registrarErroPublico("meta-referencia", q, "meta-referencia", "referência à resposta da IA");
-      falar("Acho que você está falando sobre algo que eu mesma disse! 🤔 Me diga o assunto com outras palavras ou use ↩ Responder no balão.");
+      falar("Parece que você está falando sobre algo que eu mesma disse. Me diga o assunto com outras palavras ou use ↩ Responder na mensagem.");
       return;
     }
     const msgErr = e.message === "irrelevante"
-      ? "Não achei resultados confiáveis para “" + temaLimpo + "”. Tente perguntar com outras palavras! 🔍"
-      : "Não consegui consultar a internet agora. No modo local continuo respondendo normalmente!";
+      ? "Não achei resultados confiáveis para “" + temaLimpo + "”. Tente perguntar com outras palavras."
+      : "Não consegui consultar a internet agora. No modo local continuo respondendo normalmente.";
     registrarErroPublico("pesquisa-falhou", q, msgErr, e.message || "erro");
     NLUNeural.marcarFalha(q);
     falar(msgErr);
@@ -971,15 +1009,14 @@ async function processarArquivo(f, silenciosoSeTexto = false) {
     falar("Não consegui abrir esse arquivo. " + (e.message || ""));
   } finally { busy(false); }
 }
-
-function novaConversa() {
+  function novaConversa() {
   Voz.parar();
   Historico.nova(); history = []; try { localStorage.removeItem(HISTORY_KEY); } catch {}
   ultimoArquivo = null; ultimaImagem = null; ultimaMidiaInfo = null; ultimoTema = null;
   Mente.limparTema?.();
   RizikBrain.resetSessionState?.();
   chat.innerHTML = ""; hist.classList.remove("aberto");
-  falar("Nova conversa! 🧹 A anterior ficou guardada no histórico. Tudo que eu aprendi sobre você continua salvo!", "bot", "", true);
+  falar("Nova conversa! 🧹 A anterior ficou guardada no histórico. Tudo que eu aprendi sobre você continua salvo.", "bot", "", true);
 }
 function abrirConversa(id) {
   const msgs = Historico.abrir(id); if (!msgs) return;
@@ -1123,7 +1160,8 @@ const parecePerguntaGeral = (raw, tn) => {
   if (/\?\s*$/.test(String(raw)) && tn.split(" ").length >= 2) return true;
   return /^(?:qual|quais|quem|como|onde|quando|porque|por que|quanto|quantos|quantas|o que|de qual|em qual|sera que|existe|existem|para que serve)\b/.test(tn) && tn.split(" ").length >= 3;
 };
-  async function rotear(texto) {
+
+async function rotear(texto) {
   const cmd = texto.toLowerCase().trim();
   const tn = sn(texto);
 
@@ -1183,7 +1221,11 @@ const parecePerguntaGeral = (raw, tn) => {
     return;
   }
 
-  if (ehComandoCurto && /^(?:sai|sair)\s+do\s+adm$/i.test(tn)) {
+  if (ehComandoCurto && /^(?:\/?sai(?:r)?\s+(?:do\s+)?adm|\/sairadm)\b/i.test(texto.trim())) {
+    if (!modoCriador) {
+      falar("👤 Você já está no modo usuário comum.", "bot", "👤 usuário");
+      return;
+    }
     modoCriador = false;
     try { localStorage.removeItem(KEY_CRIADOR); } catch {}
     EditorADM.resetar();
@@ -1240,7 +1282,7 @@ const parecePerguntaGeral = (raw, tn) => {
     if (!modoCriador) { falar("🔒 O comando `/importarbase` é exclusivo de administrador.", "bot", "🔒 adm"); return; }
     falar("📥 Escolha o arquivo .json que você baixou com /basedados."); $("seletorBase").click(); return;
   }
-  if (/^\/(auditar|erros)\b/.test(cmd) ||
+  if (/^\/(auditar|erros|erro)\b/.test(cmd) ||
       /^(?:auditar|ver|verifica\w*|mostra\w*|analis\w*|list\w*|ach\w*|encontr\w*)(?:\s+todas?)?(?:\s+as?)?(?:\s+suas?)?\s+(?:erros|falhas|bugs)(?:\s+do\s+chat)?$/i.test(tn)) {
     rodarAuditoria();
     return;
@@ -1249,7 +1291,8 @@ const parecePerguntaGeral = (raw, tn) => {
 
   if (ExecutorSandbox.detectarPedido(texto)) {
     passo("▶️ Executando em sandbox isolado...");
-    const ex = await ExecutorSandbox.executar(texto, { ultimoArquivo });
+    const arqCompleto = ultimoArquivo?.nome ? { nome: ultimoArquivo.nome, texto: Arquivos.obterTextoCompleto?.(ultimoArquivo.nome) || ultimoArquivo.texto } : ultimoArquivo;
+    const ex = await ExecutorSandbox.executar(texto, { ultimoArquivo: arqCompleto });
     falar(ex.texto, "bot", "▶️ sandbox");
     if (ex.previewHtml) {
       chat.appendChild(ExecutorSandbox.criarCardPreview(ex.previewHtml, ex.previewTitle));
@@ -1358,7 +1401,6 @@ const parecePerguntaGeral = (raw, tn) => {
       }
     }
   }
-
   passo("🧠 Consultando minhas 3 camadas de memória...");
   const r = RizikBrain.think(texto);
   if (r.intent === "longtext") {
@@ -1394,16 +1436,16 @@ const parecePerguntaGeral = (raw, tn) => {
   if (perguntaMidiaLocal && (ultimaMidiaInfo || ultimoArquivo)) {
     if (ultimoArquivo?.texto) {
       const querCodigo = /\b(codigo|copiar|bloco|txt)\b/.test(tn);
+      const txtCheio = Arquivos.obterTextoCompleto?.(ultimoArquivo.nome) || ultimoArquivo.texto;
       falar(querCodigo
-        ? "📝 Texto de **" + ultimoArquivo.nome + "** pronto para copiar:\n\n" + BT + "txt\n" + ultimoArquivo.texto.slice(0, 3000) + "\n" + BT
-        : "📝 Texto encontrado em **" + ultimoArquivo.nome + "**:\n\n“" + ultimoArquivo.texto.slice(0, 2000) + "”",
+        ? "📝 Texto completo de **" + ultimoArquivo.nome + "** pronto para copiar:\n\n" + wrapFence(txtCheio, "txt")
+        : "📝 Texto encontrado em **" + ultimoArquivo.nome + "**:\n\n“" + txtCheio.slice(0, 4000) + "”",
         "bot", "👁️ leitura direta");
       return;
     }
     if (ultimaMidiaInfo) { falar(ultimaMidiaInfo.resumo, "bot", "👁️ análise de mídia"); return; }
   }
 
-  // Busca semântica RAG nos arquivos salvos (Modo Documentos ou menção explícita a arquivos/documentos)
   if ((modoAtual === "documentos" || /\b(nos meus arquivos|no meu arquivo|no documento|nos documentos|no texto que enviei|no arquivo que mandei)\b/.test(tn)) &&
       Arquivos.buscarRAG && Arquivos.total?.() > 0 && !/^(resume|resuma|explica|explique|revisa)/.test(tn)) {
     const ragHits = Arquivos.buscarRAG(texto, 3);
@@ -1575,9 +1617,11 @@ const parecePerguntaGeral = (raw, tn) => {
   }
 
   const desc = Prog.desconhecido(texto, ctxConversa(tomInfo));
-  RizikBrain.setPendingError?.(texto, desc);
-  NLUNeural.marcarFalha(texto);
-  registrarErroPublico("nao-entendeu", texto, desc, "nenhum módulo reconheceu");
+  if (!Prog.ehTeclaOuNumeroSolto?.(texto)) {
+    RizikBrain.setPendingError?.(texto, desc);
+    NLUNeural.marcarFalha(texto);
+    registrarErroPublico("nao-entendeu", texto, desc, "nenhum módulo reconheceu");
+  }
   falar(desc);
 }
 
@@ -1751,7 +1795,7 @@ if (falhas.length) {
   falar("⚠️ Alguns módulos não carregaram no GitHub: " + falhas.join(", ") + "\nConfira os nomes ou cole esses arquivos inteiros.", "bot", "⚠️ diagnóstico", true);
 } else if (!history.length) {
   const nomeSalvo = RizikBrain.recall("userName");
-  falar((nomeSalvo ? "Que bom te ver de volta, **" + nomeSalvo + "**! 💜 " : "Olá! ") + "Sou a **BACH AI** 🧠 (v" + APP_VER + "), 100% própria com Rede Neural 3.0, RAG em IndexedDB e memória em 3 camadas. Digite `/ajuda` para ver tudo ou `/neural status`!", "bot", "", true);
+  falar((nomeSalvo ? "Olá, **" + nomeSalvo + "**! " : "Olá! ") + "Sou a **BACH AI** 🧠 (v" + APP_VER + "), com motor próprio, Rede Neural 3.0, RAG em IndexedDB e memória em 3 camadas. Digite `/ajuda` para ver os comandos ou mande o que você precisa.", "bot", "", true);
 }
 </script>
 </body>
