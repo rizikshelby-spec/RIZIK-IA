@@ -1,5 +1,5 @@
-/* BACH AI - HISTÓRICO 1.1
-   Guarda as conversas com controle seguro de cota para não travar a memória do navegador. */
+/* BACH AI 5.5 - HISTÓRICO 1.2
+   Guarda as conversas preservando códigos recentes (até 40 KB) e reduzindo graciosamente só se a cota acabar. */
 
 const KEY = "bach_sessoes_v1", KEY_ATUAL = "bach_conv_atual";
 export const PAGINAS = 10, POR_PAGINA = 10, MAXIMO = PAGINAS * POR_PAGINA;
@@ -23,7 +23,16 @@ function gravar(lista) {
       localStorage.setItem(KEY, JSON.stringify(l));
       return true;
     } catch {
-      l = l.slice(0, -1);
+      if (l.length > 1) {
+        l = l.slice(0, -1);
+      } else {
+        l = [{
+          ...l[0],
+          msgs: (l[0].msgs || []).slice(-25).map(m => ({ ...m, text: String(m.text || "").slice(0, 4000) }))
+        }];
+        try { localStorage.setItem(KEY, JSON.stringify(l)); return true; }
+        catch { return false; }
+      }
     }
   }
   return false;
@@ -62,13 +71,14 @@ function salvarAtual(msgs) {
     }
     return;
   }
+  const recentes = util.slice(-50);
   const item = {
     id,
     titulo: titulo(util),
     em: Date.now(),
-    msgs: util.slice(-50).map(m => ({
+    msgs: recentes.map((m, idx) => ({
       type: m.type === "user" ? "user" : "bot",
-      text: String(m.text).slice(0, 1500),
+      text: String(m.text).slice(0, idx >= recentes.length - 12 ? 40000 : 3000),
       ...(m.cit ? { cit: String(m.cit).slice(0, 160) } : {})
     }))
   };
