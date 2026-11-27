@@ -1,8 +1,8 @@
-/* BACH AI 5.4 — NLU NEURAL & AUTO-APRENDIZADO CONTÍNUO
+/* BACH AI 5.5 — NLU NEURAL & AUTO-APRENDIZADO CONTÍNUO
  * 100% BACH AI própria (sem IAs externas).
- * - Alinhado com rede_neural.js?v=3 e brain.js?v=21 (instância única na memória).
- * - Roteia todas as 12 intenções da Rede Neural com validação de contexto.
- * - Cruza perguntas com a base interna (SaberesPro + Fatos) antes de acionar pesquisa web.
+ * - Alinhado com rede_neural.js?v=3 e brain.js?v=21.
+ * - Roteia todas as 12 intenções da Rede Neural com validação contextual.
+ * - Não registra teclas soltas/ruído como falha nem polui a nuvem.
  */
 
 import { RedeNeural, INTENCOES } from "./rede_neural.js?v=3";
@@ -55,11 +55,8 @@ function ehEntradaSensivel(texto) {
 }
 
 function getCloudUrl() {
-  try {
-    return urlNuvemSegura(localStorage.getItem(K_CLOUD) || DEFAULT_CLOUD_URL);
-  } catch {
-    return urlNuvemSegura(DEFAULT_CLOUD_URL);
-  }
+  try { return urlNuvemSegura(localStorage.getItem(K_CLOUD) || DEFAULT_CLOUD_URL); }
+  catch { return urlNuvemSegura(DEFAULT_CLOUD_URL); }
 }
 
 function setCloudUrl(url) {
@@ -75,7 +72,6 @@ function setCloudUrl(url) {
 function enviarParaNuvem({ tipo = "evento", entrada = "", intencao = "", motivo = "" }) {
   const base = getCloudUrl();
   if (!base || ehEntradaSensivel(entrada)) return;
-
   const agora = Date.now();
   if (agora - ultimoEnvioNuvem < 2000) return;
   ultimoEnvioNuvem = agora;
@@ -95,38 +91,40 @@ function enviarParaNuvem({ tipo = "evento", entrada = "", intencao = "", motivo 
   } catch {}
 }
 
-const CURTAS_VALIDAS = new Set([
-  "oi", "ok", "ei", "ue", "ai", "hi", "eu", "tu", "vc", "pq", "oq", "qm",
-  "hj", "td", "nd", "oxe", "uai", "opa", "sim", "nao", "bom", "mal", "sol", "lua", "ss"
-]);
+const CURTAS_VALIDAS = new Set(
+  ("oi ok ei ue ai hi eu tu vc pq oq qm hj td nd ox e uai opa sim nao bom mal sol lua ss obg obgd obgda vlw vlws blz blza mto qro").split(" ")
+);
 const CLUSTERS_INI = new Set([
   "bl","br","ch","cl","cr","dr","fl","fr","gl","gr","gu","kn","ph","pl","pr",
   "ps","qu","sh","sk","sl","sm","sn","sp","st","sw","th","tr","vr","wh"
 ]);
 
+function tokenRuido(w, hasWeirdPunct = false) {
+  if (!w) return true;
+  if (hasWeirdPunct && w.length <= 2) return true;
+  if (CURTAS_VALIDAS.has(w)) return false;
+  if (/^\d+$/.test(w) || w.length <= 2) return true;
+  if (!/[aeiou]/i.test(w)) return true;
+  if (/\d/.test(w) && /[a-z]/i.test(w) && w.length <= 7) return true;
+  if (/[bcdfghjklmnpqrstvwxyz]{3,}/i.test(w) && !/(str|scr|spr|ntr|ndr|mbr|mpr|ngr|nch)/i.test(w)) return true;
+  if (/^[bcdfghjklmnpqrstvwxyz]{2}/i.test(w) && !CLUSTERS_INI.has(w.slice(0, 2))) return true;
+  if (/[bcdfghjklmnpqrstvwxyz]{2}$/i.test(w) && !/(ns|rs|ls|st|nt|nd|rd|ld|rk|ck|ng|sh|th|ch|pt)$/i.test(w)) return true;
+  if (/[bcdfghjklmnpqrstvwxyz]$/i.test(w) && !/[lmnrsxz]$/i.test(w) && w.length <= 6) return true;
+  if (/[kyw]/i.test(w) && w.length <= 6 && !/^(ok|okay|web|wifi|show|rock|punk|funk|byte|link|bike|play|kpop|wiki)$/i.test(w)) return true;
+  if (w.length <= 4 && (/^(?:iu|uo|oiu|aei)/i.test(w) || (w.length <= 3 && /[bcdfghjklmnpqrstvwxyz]u$/i.test(w)))) return true;
+  if (hasWeirdPunct && w.length <= 4) return true;
+  return false;
+}
+
 function ehRuidoOuTeclaSolta(raw) {
-  const limpo = String(raw || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s]/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  if (!limpo) return true;
-  if (/^\d+$/.test(limpo)) return true;
-
-  const palavras = limpo.split(" ").filter(Boolean);
-  if (palavras.length === 1) {
-    const w = palavras[0].toLowerCase();
-    if (CURTAS_VALIDAS.has(w)) return false;
-    if (w.length <= 2) return true;
-    if (!/[aeiou]/i.test(w)) return true;
-    if (/\d/.test(w) && /[a-z]/i.test(w) && w.length <= 7) return true;
-    if (/[bcdfghjklmnpqrstvwxyz]{3,}/i.test(w) && !/(str|scr|spr|ntr|ndr|mbr|mpr|ngr|nch)/i.test(w)) return true;
-    if (/^[bcdfghjklmnpqrstvwxyz]{2}/i.test(w) && !CLUSTERS_INI.has(w.slice(0, 2))) return true;
-    if (/[bcdfghjklmnpqrstvwxyz]{2}$/i.test(w) && !/(ns|rs|ls|st|nt|nd|rd|ld|rk|ck|ng|sh|th|ch|pt)$/i.test(w)) return true;
-    if (/[bcdfghjklmnpqrstvwxyz]$/i.test(w) && !/[lmnrsxz]$/i.test(w) && w.length <= 6) return true;
-  }
+  const s = String(raw || "").trim();
+  if (!s) return true;
+  const limpo = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/gi, " ").replace(/\s+/g, " ").trim().toLowerCase();
+  if (!limpo || /^[\d\s]+$/.test(limpo)) return true;
+  const hasWeirdPunct = /[;[\]~´`\\/=_+*<>{}|]|\.{2,}|^\.|^[.,]|,[a-z]|[a-z],[.,;]?$/i.test(s);
+  const toks = limpo.split(" ").filter(Boolean);
+  if (toks.length === 1) return tokenRuido(toks[0], hasWeirdPunct);
+  if (toks.length <= 3 && toks.every(tk => tokenRuido(tk, hasWeirdPunct))) return true;
   return false;
 }
 
@@ -139,10 +137,7 @@ function marcarFalha(texto) {
 
 function registrarSucessoAposFalha(textoAtual, intencaoCerta) {
   if (!ultimaFalha) return false;
-  if ((Date.now() - ultimaFalha.at) > 3 * 60 * 1000) {
-    ultimaFalha = null;
-    return false;
-  }
+  if ((Date.now() - ultimaFalha.at) > 3 * 60 * 1000) { ultimaFalha = null; return false; }
   const falhaTxt = ultimaFalha.texto;
   ultimaFalha = null;
 
@@ -184,7 +179,6 @@ function decidir(texto, ctx = {}) {
   const pred = RedeNeural.predict(raw);
   const conf = pred.confidence;
   const intent = pred.intent;
-  const nome = ctx.nome ? ", " + ctx.nome : "";
   const serio = ctx.mood === "frustrado" || ctx.mood === "serio" || ctx.mood === "triste";
 
   const localPro = SaberesPro?.handle?.(raw);
@@ -198,26 +192,18 @@ function decidir(texto, ctx = {}) {
   switch (intent) {
     case "saudacao":
       if (palavras.length > 5 || /\?/.test(raw)) return null;
-      return {
-        intent,
-        confidence: conf,
-        texto: serio
-          ? "Olá" + nome + ". Como você está agora?"
-          : "Oi" + nome + "! Tudo certo por aí?"
-      };
+      return { intent, confidence: conf, texto: serio ? "Olá. Como você está agora?" : "Oi! Tudo certo por aí?" };
 
     case "habilidades":
       if (!/\b(sabe|faz|entende|serve|func|consegue|capacidad|criou|criada|limite|neural)\b/.test(tn)) return null;
       return {
         intent,
         confidence: conf,
-        texto: "Eu converso mantendo o contexto, crio apps (`/app`), rodo JS (`/executar`), reviso textos e códigos (`/revisar`), traduzo idiomas, analiso fotos e pesquiso na web — tudo 100% no meu próprio motor. Digite `/ajuda` para ver a lista!"
+        texto: "Converso mantendo contexto, crio apps (`/app`), executo JS (`/executar`), reviso textos e códigos (`/revisar`), traduzo idiomas, analiso fotos/vídeos e pesquiso na web. Digite `/ajuda` para ver tudo."
       };
 
     case "pesquisa":
-      if (palavras.length >= 2 && parecePedidoInformacional(raw, tn)) {
-        return { intent, confidence: conf, pesquisar: raw };
-      }
+      if (palavras.length >= 2 && parecePedidoInformacional(raw, tn)) return { intent, confidence: conf, pesquisar: raw };
       return null;
 
     case "criar_app":
@@ -227,69 +213,37 @@ function decidir(texto, ctx = {}) {
 
     case "termux_dev":
       if (!/\b(termux|terminal|bash|script|pkg|apt|chmod|python|javascript|js|git|css|html|codigo)\b/.test(tn)) return null;
-      return {
-        intent,
-        confidence: conf,
-        texto: "💻 Para Termux/Bash, use `/termux` para abrir o guia completo — ou cole o código/erro que você quer analisar aqui!"
-      };
+      return { intent, confidence: conf, texto: "Para Termux/Bash use `/termux`, ou cole o código/erro aqui que eu analiso." };
 
     case "reclamacao":
       if (palavras.length > 14) return null;
       RizikBrain.setPendingError?.(raw, ctx.ultimoBot || "");
-      return {
-        intent,
-        confidence: conf,
-        texto: "Percebi que essa resposta não bateu com o que você queria" + nome + ". Me diz em uma frase direta o que você esperava (ou use **↩ Responder** na mensagem certa) que eu aprendo na hora!"
-      };
+      return { intent, confidence: conf, texto: "Essa resposta não acertou o que você queria. Me diga em uma frase direta o que você esperava (ou use **↩ Responder** na mensagem)." };
 
     case "humor_jogo":
       if (/\bnao\b/.test(tn) || !/\b(piada|forca|velha|quiz|charada|jogar|adivinhe|rir|engracado)\b/.test(tn)) return null;
-      return {
-        intent,
-        confidence: conf,
-        texto: "🎮 Quer jogar **forca**, **velha**, **adivinhe** ou **quiz**? É só mandar o nome do jogo (ou `piada`!)."
-      };
+      return { intent, confidence: conf, texto: "Quer jogar **forca**, **velha**, **adivinhe** ou **quiz**? É só mandar o nome do jogo (ou `piada`)." };
 
     case "utilidades":
       if (!/\b(senha|cpf|dado|moeda|sorte|clima|previsao|tempo|imc|agua|juros|converter|golpe)\b/.test(tn) || palavras.length > 7) return null;
-      return {
-        intent,
-        confidence: conf,
-        texto: "🧰 Ferramentas rápidas: `/senha 16`, `/cpf`, `/dado 20`, `/moeda`, `/sortear A, B`, `/imc 70 1.75` ou `clima em Cidade`."
-      };
+      return { intent, confidence: conf, texto: "Ferramentas rápidas: `/senha 16`, `/cpf`, `/dado 20`, `/moeda`, `/sortear A, B`, `/imc 70 1.75` ou `clima em Cidade`." };
 
     case "traducao_texto":
       if (!/\b(traduz|significa|sinonimo|antonimo|revisa|silaba|ortografia|ingles|espanhol|frances|japones)\b/.test(tn)) return null;
-      return {
-        intent,
-        confidence: conf,
-        texto: "🌍 Para traduzir ou revisar: use `como se diz X em inglês`, `/revisar seu texto`, `/silabas palavra` ou responda (↩) a uma mensagem dizendo **“traduz”**."
-      };
+      return { intent, confidence: conf, texto: "Para traduzir ou revisar: use `como se diz X em inglês`, `/revisar seu texto`, `/silabas palavra` ou responda (↩) a uma mensagem dizendo `traduz`." };
 
     case "recomendacao":
       if (!/\b(filme|serie|anime|musica|rock|rap|sertanejo|mpb|terror|acao|drama|comedia)\b/.test(tn) ||
           !/\b(recomend|indic|suger|bom|boas|assistir|ouvir|melhores)\b/.test(tn)) return null;
-      return {
-        intent,
-        confidence: conf,
-        texto: "🎬🎵 Posso recomendar **filmes**, **séries**, **animes** ou **músicas**. Qual estilo você prefere agora?"
-      };
+      return { intent, confidence: conf, texto: "Posso recomendar **filmes**, **séries**, **animes** ou **músicas**. Qual estilo prefere?" };
 
     case "memoria_eu":
       if (!/\b(meu nome|lembra|sobre mim|de mim|moro|anos|gosto|conversamos|falamos|aprendeu|aprendido|ensinei)\b/.test(tn)) return null;
-      return {
-        intent,
-        confidence: conf,
-        texto: RizikBrain.think("o que voce aprendeu")?.text || "Ainda estou guardando nossas informações — me conte seu nome ou o que você gosta!"
-      };
+      return { intent, confidence: conf, texto: RizikBrain.think("o que voce aprendeu")?.text || "Ainda estou montando sua memória — pode me contar seu nome ou do que você gosta." };
 
     case "conversa_geral":
-      if (palavras.length <= 8 && /\b(entendi|beleza|valeu|obrigado|tchau|aham|uhum|ok)\b/.test(tn)) {
-        return {
-          intent,
-          confidence: conf,
-          texto: serio ? "Certo" + nome + ". Pode continuar." : "Tô acompanhando" + nome + "! Pode mandar a próxima."
-        };
+      if (palavras.length <= 8 && /\b(entendi|beleza|valeu|obrigado|obgd|tchau|aham|uhum|ok)\b/.test(tn)) {
+        return { intent, confidence: conf, texto: serio ? "Certo. Pode continuar." : "Certo — pode mandar a próxima." };
       }
       return null;
 
@@ -312,16 +266,10 @@ function comando(raw, isAdm) {
   }
 
   if (!isAdm) return "🔒 Apenas o administrador pode configurar a URL da nuvem.";
-
-  if (/^(off|desligar)$/i.test(arg)) {
-    setCloudUrl("");
-    return "🔌 Conexão com a nuvem desligada neste aparelho.";
-  }
+  if (/^(off|desligar)$/i.test(arg)) { setCloudUrl(""); return "🔌 Conexão com a nuvem desligada neste aparelho."; }
 
   const segura = urlNuvemSegura(arg);
-  if (!segura) {
-    return "Envie uma URL **HTTPS** válida e pública (não pode ser `http://` nem endereço local). Ex.: `/nuvem https://bach-nuvem.seuuser.workers.dev`";
-  }
+  if (!segura) return "Envie uma URL **HTTPS** válida e pública (ex.: `/nuvem https://bach-nuvem.seuuser.workers.dev`).";
 
   setCloudUrl(segura);
   return "✅ Nuvem conectada (`" + getCloudUrl() + "`)! Para funcionar no celular de todos os visitantes, cole essa mesma URL em `DEFAULT_CLOUD_URL` dentro de `nlu_neural.js`.";
