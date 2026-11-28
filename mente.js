@@ -1,7 +1,7 @@
-/* BACH AI 5.6 — MENTE 4.0 (Buscas Naturais de Jogos/Tutoriais + Contexto Completo)
- * - Libera perguntas naturais do dia a dia sem precisar de "?" ("como baixar gta para celular", "qual melhor...", "quem ganhou...", "receita de...").
- * - Corrige bloqueio excessivo em frases comuns contendo "meu/minha/quer".
- * - Mantém cerca dinâmica de crases, inspeção de módulos, pastas, apps e jogos no chat.
+/* BACH AI 5.7 — MENTE 4.1 (Anti-Pesquisa-Maluca + Buscas Cotidianas Precisas)
+ * - Bloqueia reações/perguntas de conversa ("Entendi só isso?", "E quando chega?") de dispararem buscas aleatórias na Wikipédia.
+ * - Libera tutoriais práticos ("como cortar...", "como pegar...", "como baixar...") mesmo sem "?".
+ * - Só usa ctx.tema em continuação quando há pronome de referência real ("isso", "dele", "essa").
  */
 
 import { Saber } from "./saber.js?v=15";
@@ -16,8 +16,7 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 function wrapCodeFence(code, lang = "txt") {
   const s = String(code || "");
   const runs = s.match(/`{3,}/g) || [];
-  const maxRun = runs.reduce((m, r) => Math.max(m, r.length), 2);
-  const f = "`".repeat(maxRun + 1);
+  const f = "`".repeat(runs.reduce((m, r) => Math.max(m, r.length), 2) + 1);
   return f + (lang || "txt") + "\n" + s + "\n" + f;
 }
 
@@ -42,9 +41,10 @@ const VOCAB = {
   n: "nao", naum: "nao", nn: "nao", s: "sim", ss: "sim", eh: "e",
   kd: "cade", qnd: "quando", qdo: "quando", cm: "como", cmo: "como",
   qto: "quanto", qtos: "quantos", qtas: "quantas", ctg: "contigo",
-  add: "adicionar", app: "app", apps: "app", cel: "celular", pc: "computador", net: "internet",
-  zap: "whatsapp", wpp: "whatsapp", yt: "youtube", insta: "instagram", face: "facebook",
+  add: "adicionar", app: "app", apps: "app", cel: "celular", celukar: "celular", pc: "computador", net: "internet",
+  zap: "whatsapp", wpp: "whatsapp", whatzapp: "whatsapp", yt: "youtube", insta: "instagram", face: "facebook",
   cod: "codigo", progamacao: "programacao", programaçao: "programacao", codigo: "codigo",
+  abaixo: "baixar", abaixa: "baixar", abaixar: "baixar",
   iries: "iris", bash: "bach", bax: "bach", arcoiris: "arco iris", sao: "sao",
   ola: "ola", oii: "oi", oiii: "oi", oie: "oi", roi: "oi", roii: "oi", roiii: "oi",
   eae: "e ai", eai: "e ai", flw: "falou", bora: "bora",
@@ -59,17 +59,17 @@ const BASE_LEX = (
   "mundo noticia noticias hoje agora ontem amanha semana mes ano seculo tempo clima chuva calor frio sol lua estrela terra planeta universo galaxia marte " +
   "pais cidade estado capital brasil mundo pessoa gente homem mulher crianca jovem adulto idoso amigo amiga familia pai mae irmao irma filho filha " +
   "casa apartamento quarto cozinha sala rua bairro escola faculdade universidade trabalho emprego empresa dinheiro banco salario preco compra venda " +
-  "comida agua cafe leite pao arroz feijao carne frango peixe fruta banana maca laranja doce bolo pizza lanche suco cerveja vinho chocolate cacau receita " +
+  "comida agua cafe leite pao arroz feijao carne frango peixe fruta banana maca laranja doce bolo pizza lanche suco cerveja vinho chocolate cacau receita receitas macarrao " +
   "animal cachorro gato cavalo passaro peixe pato leao tigre urso lobo macaco cobra tubarao baleia dinossauro inseto planta arvore flor floresta pinguim galinha " +
   "cores azul verde vermelho amarelo preto branco rosa roxo laranja marrom cinza dourado prateado pintar pintura quadro quadros desenho desenhar " +
   "tema temas esfera bolinha transparente modulo modulos melhorar risos musica cantar dancar instrumento violao guitarra piano bateria banda show album letra " +
   "filme filmes serie series anime animes desenho desenhos livro livros historia conto novela cinema ator atriz diretor lancamento estreia trailer sinopse critica nota " +
   "jogo jogos game games console computador celular internet site pagina rede social aplicativo programa codigo codigos algoritmo dado dados banco servidor nuvem " +
-  "baixar instalar download configurar atualizar formatar desbloquear rodar gta minecraft roblox fortnite " +
+  "baixar instalar download configurar atualizar formatar desbloquear rodar gta minecraft roblox fortnite atestado cortar pegar " +
   "erro bug falha problema solucao texto textos resumo explicar explicacao significa significado diferenca exemplo pergunta resposta ajuda ajudar " +
   "aprender ensinar estudar escrever falar ouvir ler ver assistir pensar lembrar esquecer memoria comecar terminar continuar tentar conseguir " +
   "criar fazer construir montar editar apagar excluir salvar abrir fechar buscar procurar pesquisar encontrar saber entender conhecer distancia " +
-  "esporte futebol basquete volei tenis corrida natacao luta campeonato copa time jogador jogadores gol campeao " +
+  "esporte futebol basquete volei tenis corrida natacao luta campeonato copa time jogador jogadores gol campeao brasileirao " +
   "carro moto bicicleta aviao onibus trem navio viagem turismo hotel mapa estrada transito " +
   "hospital medico doenca saude remedio vacina corpo cabeca olho boca mao pe coracao cerebro sangue gravidez gestacao dormir dormi acordar " +
   "amor feliz felicidade triste tristeza raiva medo susto calma paz alegria saudade sonho esperanca natal sereia sereias formula " +
@@ -110,7 +110,7 @@ function lev(a, b) {
 function corrigir(w) {
   if (w.length < 5 || /\d|\s/.test(w)) return w;
   if (/(?:ando|endo|indo|mente|inho|inha|coes|sao)$/.test(w)) return w;
-  if (/^(passe|passa|passar|passou|arroz|manda|mande|pede|pedir|quero|prece|pesse|lancou|lanca|lancar|estreou|saiu|presta|recomenda|indica|bugado|bugada|fazem|travou|arrumo|consertar|entende|entendeu|mandei|responde|respondeu|pergunto|perguntando|consciencia|sobreviver|melhore|melhora|melhor|melhores|repetindo|repetir|dormi|dormir|acordar|gravidez|natal|sereia|sereias|formula|criado|criada|fruta|membros|episodios|trabalhava|mandado|dialogo|falasse|queria|esqueceu|esqueci|lembra|lembro|verifica|falhas|zoeira|certo|embora|demitido|demitida|tristeza|desanimado|ansioso|cansado|atualizado|recentes|baixar|instalar|jogar|jogador|jogadores|celular|iphone|android|computador|receita|comprei|ganhou|venceu|existe|existem)$/.test(w)) return w;
+  if (/^(passe|passa|passar|passou|arroz|manda|mande|pede|pedir|quero|prece|pesse|lancou|lanca|lancar|estreou|saiu|presta|recomenda|indica|bugado|bugada|fazem|travou|arrumo|consertar|entende|entendeu|entendi|mandei|responde|respondeu|pergunto|perguntando|consciencia|sobreviver|melhore|melhora|melhor|melhores|repetindo|repetir|dormi|dormir|acordar|gravidez|natal|sereia|sereias|formula|criado|criada|fruta|membros|episodios|trabalhava|mandado|dialogo|falasse|queria|esqueceu|esqueci|lembra|lembro|verifica|falhas|zoeira|certo|embora|demitido|demitida|tristeza|desanimado|ansioso|cansado|atualizado|recentes|baixar|instalar|jogar|jogador|jogadores|celular|iphone|android|computador|receita|receitas|comprei|ganhou|venceu|existe|existem|atestado|cortar|pegar|fofocas|chega|chegando|lanches|macarrao)$/.test(w)) return w;
   const L = lexico();
   if (L.has(w)) return w;
   const max = 1;
@@ -171,7 +171,7 @@ function tema(t) {
   for (let k = 0; k < 4; k++) {
     x = x.replace(CMD, "").replace(PERG, "").replace(ART, "").replace(SUF, "").trim();
   }
-  if (/^(isso|aquilo|ele|ela|eles|elas|esse|essa|este|esta|falar|falasse|queria|perguntei|aqui|travou|rir|audio|opa|oxe|ue|entende|digo|disse|falo|falei|mandei|pergunto|perguntando|tipo|bom|boa|cara|mano|odio|testar|dialogo|esqueceu|esqueci|lembra|lembro|foi|certo|errado|zoeira|falhas|verifica|embora|triste|mal|cansado|ansioso|desanimado|passa|atualizado)$/.test(x)) return "";
+  if (/^(isso|aquilo|ele|ela|eles|elas|esse|essa|este|esta|falar|falasse|queria|perguntei|aqui|travou|rir|audio|opa|oxe|ue|entende|entendi|digo|disse|falo|falei|mandei|pergunto|perguntando|tipo|bom|boa|cara|mano|odio|testar|dialogo|esqueceu|esqueci|lembra|lembro|foi|certo|errado|zoeira|falhas|verifica|embora|triste|mal|cansado|ansioso|desanimado|passa|atualizado|chega|chegando)$/.test(x)) return "";
   return x;
 }
 
@@ -213,9 +213,7 @@ function persist() {
   try {
     localStorage.setItem(KC, JSON.stringify({ ...base, texto: ctx.texto ? ctx.texto.slice(0, 200000) : null }));
   } catch {
-    try {
-      localStorage.setItem(KC, JSON.stringify({ ...base, texto: ctx.texto ? ctx.texto.slice(0, 40000) : null }));
-    } catch {}
+    try { localStorage.setItem(KC, JSON.stringify({ ...base, texto: ctx.texto ? ctx.texto.slice(0, 40000) : null })); } catch {}
   }
 }
 
@@ -251,19 +249,16 @@ function limparNomePasta(raw) {
 function comandoPasta(t) {
   let m = t.match(/^\/pasta(?:\s+(.+))?$/i);
   if (m) {
-    if (!m[1]) return ctx.pasta ? "📂 Pasta atual: " + ctx.pasta + "\nPara sair: /pasta sair" : "Nenhuma pasta escolhida. Use: /pasta Estudos/IA (pode criar pastas dentro de pastas com /).";
+    if (!m[1]) return ctx.pasta ? "📂 Pasta atual: " + ctx.pasta + "\nPara sair: /pasta sair" : "Nenhuma pasta escolhida. Use: /pasta Estudos/IA.";
     if (/^sair$/i.test(m[1].trim())) { ctx.pasta = null; persist(); return "Voltei para as pastas automáticas."; }
     const pLimpa = limparNomePasta(m[1]);
     if (!pLimpa) return "Nome de pasta inválido.";
     ctx.pasta = pLimpa; persist();
-    return "📂 Pasta atual: " + ctx.pasta + "\nTudo que eu guardar agora (textos, pesquisas, arquivos) vai para ela.";
+    return "📂 Pasta atual: " + ctx.pasta;
   }
   if (/^\/pastas$/i.test(t)) {
     const c = Object.create(null);
-    lf().forEach(a => {
-      const p = String(a?.pasta || "Textos");
-      c[p] = (c[p] || 0) + 1;
-    });
+    lf().forEach(a => { const p = String(a?.pasta || "Textos"); c[p] = (c[p] || 0) + 1; });
     const k = Object.keys(c).sort();
     return k.length ? "📂 Suas pastas:\n" + k.map(x => "• " + x + " (" + c[x] + ")").join("\n") : "Ainda não há pastas. Use /pasta Nome.";
   }
@@ -283,35 +278,25 @@ function comandoPasta(t) {
 function inspecionarModulosNoCodigo(t, nome) {
   const achados = new Set();
   for (const m of t.matchAll(/loadMod\(\s*["']([^"']+)["']/g)) achados.add(m[1]);
-  for (const m of t.matchAll(/\bimport\s+[\s\S]{1,120}?\s+from\s+["']([^"']+)["']/g)) {
-    achados.add(m[1].split("/").pop().split("?")[0]);
-  }
-  for (const m of t.matchAll(/import\(\s*["']([^"']+)["']/g)) {
-    const clean = m[1].split("/").pop().split("?")[0];
-    if (clean && !clean.includes("${")) achados.add(clean);
-  }
+  for (const m of t.matchAll(/\bimport\s+[\s\S]{1,120}?\s+from\s+["']([^"']+)["']/g)) achados.add(m[1].split("/").pop().split("?")[0]);
+  for (const m of t.matchAll(/import\(\s*["']([^"']+)["']/g)) { const clean = m[1].split("/").pop().split("?")[0]; if (clean && !clean.includes("${")) achados.add(clean); }
   const lista = [...achados];
-  if (!lista.length) {
-    return "🔍 Analisei **" + (nome || "o arquivo") + "**, mas não encontrei importações explícitas de outros módulos (`import` ou `loadMod`).";
-  }
-  return "📦 **Módulos encontrados dentro de `" + (nome || "arquivo") + "` (" + lista.length + "):**\n\n" +
-    lista.map((m, i) => (i + 1) + ". `" + m + "`").join("\n");
+  if (!lista.length) return "🔍 Analisei **" + (nome || "o arquivo") + "**, mas não encontrei importações explícitas (`import` ou `loadMod`).";
+  return "📦 **Módulos encontrados dentro de `" + (nome || "arquivo") + "` (" + lista.length + "):**\n\n" + lista.map((m, i) => (i + 1) + ". `" + m + "`").join("\n");
 }
 
 function revisar(t) {
   const p = [];
-  if (/localStorage\.getItem/.test(t) && !/try\s*\{/.test(t)) p.push("Usa localStorage sem try/catch (pode quebrar em modo privado).");
+  if (/localStorage\.getItem/.test(t) && !/try\s*\{/.test(t)) p.push("Usa localStorage sem try/catch.");
   if (/fetch\(/.test(t) && !/catch/.test(t)) p.push("Faz fetch sem tratar erro (catch).");
   if (/\bvar\s/.test(t)) p.push("Usa var; prefira let/const.");
-  if (/[^=!]==[^=]/.test(t)) p.push("Usa == ; prefira === para comparar.");
-  if (/\beval\s*\(|new\s+Function\s*\(/.test(t)) p.push("Usa eval/Function dinâmica (risco de segurança).");
+  if (/[^=!]==[^=]/.test(t)) p.push("Usa == ; prefira ===.");
+  if (/\beval\s*\(|new\s+Function\s*\(/.test(t)) p.push("Usa eval/Function dinâmica.");
   const a = (t.match(/\{/g) || []).length, b = (t.match(/\}/g) || []).length;
   if (a !== b) p.push("Chaves desbalanceadas: " + a + " “{” e " + b + " “}”.");
   const x = (t.match(/\(/g) || []).length, y = (t.match(/\)/g) || []).length;
   if (x !== y) p.push("Parênteses desbalanceados: " + x + " “(” e " + y + " “)”.");
-  if (/\bTODO\b|\bFIXME\b/.test(t)) p.push("Tem TODO/FIXME pendentes.");
-  return "🔍 Revisão rápida do código (" + t.split("\n").length + " linhas):\n" + (p.length ? p.map(s => "• " + s).join("\n") : "• Não achei problemas óbvios.") +
-    "\n\n💡 Para auditoria que ignora strings e comentários, use `/revisar`.";
+  return "🔍 Revisão rápida (" + t.split("\n").length + " linhas):\n" + (p.length ? p.map(s => "• " + s).join("\n") : "• Não achei problemas óbvios.") + "\n\n💡 Use `/revisar` para auditoria completa.";
 }
 
 function cadeiaCodigoLocal(t) {
@@ -319,82 +304,51 @@ function cadeiaCodigoLocal(t) {
   for (const m of t.matchAll(/function\s+([A-Za-z_$][\w$]*)/g)) funcs.add(m[1]);
   for (const m of t.matchAll(/(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\(?[^=;(]*\)?\s*=>/g)) funcs.add(m[1]);
   for (const m of t.matchAll(/\bdef\s+([A-Za-z_]\w*)/g)) funcs.add(m[1]);
-
   const exportsMatch = t.match(/export\s+const\s+([A-Za-z_$][\w$]*)/) || t.match(/export\s+\{\s*([^}]+)\}/);
   const expNome = exportsMatch ? exportsMatch[1].trim() : "Modulo";
   const arq = (ctx.nome || "modulo.js").replace(/\s+/g, "-").toLowerCase();
   const listaFuncs = [...funcs].slice(0, 12);
-
-  const blocoExemplo = "import { " + expNome + " } from \"./" + (arq.endsWith(".js") ? arq : arq + ".js") + "\";\n\n" +
-    "// Fluxo encadeado usando o código enviado:\n" +
-    "async function executarFluxo(entrada) {\n" +
-    "  // Funções internas detectadas: " + (listaFuncs.join(", ") || "bloco direto") + "\n" +
-    "  console.log(\"Módulo carregado:\", " + expNome + ");\n" +
-    "  return " + expNome + ";\n" +
-    "}";
-
-  return "🔗 **Cadeia de uso para “" + (ctx.nome || "seu código") + "”:**\n\n" +
-    "Funções encontradas (" + funcs.size + "): " + (listaFuncs.join(" → ") || "nenhuma função nomeada") + "\n\n" +
-    "Aqui está um modelo pronto para copiar e encadear no seu projeto:\n\n" +
-    wrapCodeFence(blocoExemplo, "js") +
-    "\n\n💡 Se quiser copiar o código original inteiro de volta, diga “manda o código de novo”.";
+  const blocoExemplo = "import { " + expNome + " } from \"./" + (arq.endsWith(".js") ? arq : arq + ".js") + "\";\n\nasync function executarFluxo() {\n  // Funções detectadas: " + (listaFuncs.join(", ") || "bloco direto") + "\n  return " + expNome + ";\n}";
+  return "🔗 **Cadeia de uso para “" + (ctx.nome || "seu código") + "”:**\n\nFunções encontradas (" + funcs.size + "): " + (listaFuncs.join(" → ") || "nenhuma") + "\n\n" + wrapCodeFence(blocoExemplo, "js");
 }
 
 function explicarCodigoLocal(t) {
   const linhas = t.split("\n").length;
   const partes = [];
-  if (/<!doctype html>|<html|<head|<body|<style|<script/i.test(t)) partes.push("• Monta uma página web completa (HTML com estrutura da tela, estilos CSS e lógica em JavaScript).");
-  if (/\bimport\b/.test(t)) partes.push("• Importa funções, módulos ou dados de outros arquivos.");
-  if (/\bexport\b/.test(t)) partes.push("• Exporta funções/objetos para serem usados em outros módulos.");
-  if (/localStorage/.test(t)) partes.push("• Salva e carrega dados localmente no navegador (localStorage).");
-  if (/fetch\(/.test(t)) partes.push("• Faz chamadas na internet/APIs usando fetch().");
-  if (/addEventListener|onclick|onkeydown|onchange/.test(t)) partes.push("• Reage a ações do usuário na tela (cliques, envio de arquivos, teclado, voz).");
-  if (/RegExp|\.test\(|\.match\(|\.replace\(/.test(t)) partes.push("• Usa expressões regulares (regex) para interpretar frases, limpar texto ou procurar padrões.");
-  if (/try\s*\{[\s\S]*catch/.test(t)) partes.push("• Usa blocos try/catch para evitar que erros quebrem o app.");
-  if (/async\s+function|await\s+/.test(t)) partes.push("• Executa tarefas assíncronas (async/await), esperando respostas da rede ou leitura de arquivos sem travar a tela.");
-  if (/if\s*\(/.test(t)) partes.push("• Toma decisões com condicionais (if/else) para escolher qual resposta ou ação executar.");
-  if (/\b(for|while)\s*\(|\.forEach\(|\.map\(|\.filter\(/.test(t)) partes.push("• Percorre listas ou repete ações com loops e métodos de array.");
-
+  if (/<!doctype html>|<html|<head|<body|<style|<script/i.test(t)) partes.push("• Monta uma página web completa (HTML + CSS + JS).");
+  if (/\bimport\b/.test(t)) partes.push("• Importa módulos externos.");
+  if (/\bexport\b/.test(t)) partes.push("• Exporta funções/objetos para outros arquivos.");
+  if (/localStorage/.test(t)) partes.push("• Salva dados no navegador (localStorage).");
+  if (/fetch\(/.test(t)) partes.push("• Faz requisições de rede (fetch).");
+  if (/addEventListener|onclick|onkeydown|onchange/.test(t)) partes.push("• Reage a eventos da tela.");
+  if (/async\s+function|await\s+/.test(t)) partes.push("• Executa tarefas assíncronas (async/await).");
   const leitura = Saber.lerTexto(t);
-  return "🧠 Explicação de **" + ctx.nome + "** (" + linhas + " linhas):\n\n" +
-    leitura +
-    (partes.length ? "\n\n⚙️ O que esses códigos fazem na prática:\n" + partes.join("\n") : "") +
-    "\n\n💡 Diga “/revisar” para auditar, “cadeia de códigos” para ligar em outro arquivo ou “copiar código” para pegar inteiro.";
+  return "🧠 Explicação de **" + ctx.nome + "** (" + linhas + " linhas):\n\n" + leitura + (partes.length ? "\n\n⚙️ Na prática:\n" + partes.join("\n") : "");
 }
 
 function resumirTextoAtual(t) {
   const r = Saber.summarize(t, 4);
-  if (r.length) return "📝 **Resumo de " + (ctx.nome || "arquivo recente") + ":**\n• " + r.join("\n• ");
+  if (r.length) return "📝 **Resumo de " + (ctx.nome || "arquivo") + ":**\n• " + r.join("\n• ");
   const linhas = String(t).split(/\n+/).map(l => l.trim()).filter(l => l.length > 3);
-  if (linhas.length) {
-    return "📝 **Resumo do conteúdo lido em " + (ctx.nome || "arquivo") + ":**\n• " + linhas.slice(0, 6).join("\n• ");
-  }
-  return Saber.lerTexto(t);
+  return linhas.length ? "📝 **Resumo:**\n• " + linhas.slice(0, 6).join("\n• ") : Saber.lerTexto(t);
 }
 
 function formatarCodigoParaCopiar(t) {
   const lang = /^\s*<!doctype\s+html|<html\b/i.test(t) ? "html" : Saber.isCode(t) ? "js" : "txt";
   const textoLimpo = String(t || "").slice(0, 500000);
-  return "📄 **" + (ctx.nome || "código") + "** (" + textoLimpo.split("\n").length + " linhas — completo para copiar):\n\n" +
-    wrapCodeFence(textoLimpo, lang);
+  return "📄 **" + (ctx.nome || "código") + "** (" + textoLimpo.split("\n").length + " linhas — completo):\n\n" + wrapCodeFence(textoLimpo, lang);
 }
 
 function sobreTexto(p) {
   const t = ctx.texto, cod = Saber.isCode(t);
-  if (has(p, /\b(modulos?|quantos modulos|quais modulos)\b/) && cod) {
-    return inspecionarModulosNoCodigo(t, ctx.nome);
-  }
-  if (has(p, /\b(copiar|copia|manda|reenvia)\b/) && cod) {
-    return formatarCodigoParaCopiar(t);
-  }
-  if (has(p, /escrito|diz|leia|aqui|foto|imagem|print/) && !has(p, /resum/)) {
-    return "📝 Texto lido em **" + (ctx.nome || "arquivo recente") + "**:\n\n“" + t.slice(0, 4000) + "”";
-  }
+  if (has(p, /\b(modulos?|quantos modulos|quais modulos)\b/) && cod) return inspecionarModulosNoCodigo(t, ctx.nome);
+  if (has(p, /\b(copiar|copia|manda|reenvia)\b/) && cod) return formatarCodigoParaCopiar(t);
+  if (has(p, /escrito|diz|leia|aqui|foto|imagem|print/) && !has(p, /resum/)) return "📝 Texto lido em **" + (ctx.nome || "arquivo") + "**:\n\n“" + t.slice(0, 4000) + "”";
   if (cod && has(p, /cadeia|ligar|importar|como usar|estrutura|fluxo/)) return cadeiaCodigoLocal(t);
   if (has(p, /resum/)) return resumirTextoAtual(t);
   if (cod && has(p, /erro|problema|bug|revis|melhor|conserta|arruma/)) return revisar(t);
   if (cod && has(p, /explic|o que faz|faz o que|fazem o que|o que fazem|para que serve|pra que serve|entend|como funciona|o que e/)) return explicarCodigoLocal(t);
-  return "📄 " + ctx.nome + "\n" + Saber.lerTexto(t) + "\n\nPosso também: explicar em detalhes, montar uma cadeia de uso, resumir, enviar inteiro para copiar ou revisar o código.";
+  return "📄 " + ctx.nome + "\n" + Saber.lerTexto(t);
 }
 const BT = "\x60\x60\x60";
 
@@ -433,17 +387,11 @@ function jogar(p, raw) {
   if (/^\/(?!sair\b)/i.test(String(raw || "").trim())) return null;
   const j = ctx.jogo, w = p.trim();
   const rawClean = normSimples(raw).replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
-  if (/^(sair|parar|desistir|chega|nao quero|nao vou jogar|cancela|cancelar)$/.test(rawClean) ||
-      /^(sair|parar|desistir|chega|nao quero)$/.test(w)) {
-    ctx.jogo = null;
-    return "Jogo encerrado. Quando quiser, é só dizer: jogar ...";
+  if (/^(sair|parar|desistir|chega|nao quero|nao vou jogar|cancela|cancelar)$/.test(rawClean) || /^(sair|parar|desistir|chega|nao quero)$/.test(w)) {
+    ctx.jogo = null; return "Jogo encerrado. Quando quiser, é só dizer: jogar ...";
   }
-  if (/^(?:jogar\s+)?(forca|jogo da velha|velha|adivinhe(?:\s+(?:o|um)\s+numero)?|quiz)$/.test(rawClean) && !/força/i.test(raw)) {
-    return iniciar(" " + rawClean + " ");
-  }
-  if (/\b(oxe|oxente|uai|pqp|crlh|mds|meu ovo|porra|merda|burr[oa])\b/.test(rawClean)) {
-    return "Se não quiser jogar agora, digite `sair` para encerrar o jogo.";
-  }
+  if (/^(?:jogar\s+)?(forca|jogo da velha|velha|adivinhe(?:\s+(?:o|um)\s+numero)?|quiz)$/.test(rawClean) && !/força/i.test(raw)) return iniciar(" " + rawClean + " ");
+  if (/\b(oxe|oxente|uai|pqp|crlh|mds|meu ovo|porra|merda|burr[oa])\b/.test(rawClean)) return "Se não quiser jogar agora, digite `sair` para encerrar o jogo.";
   if (rawClean.split(/\s+/).length > 2) return null;
   if (j.t === "forca") {
     const ch = rawClean.length === 1 && /[a-z]/.test(rawClean) ? rawClean : w;
@@ -454,7 +402,7 @@ function jogar(p, raw) {
       if (rawClean === j.p) j.ok = [...j.p]; else j.er.push(rawClean.slice(0, 6) + "…");
     } else return "Mande uma letra (ou digite `sair`).";
     if (j.p.split("").every(c => j.ok.includes(c))) { ctx.jogo = null; return "🎉 Acertou! A palavra era “" + j.p + "”."; }
-    if (j.er.length >= 6) { ctx.jogo = null; return "💀 Perdeu! A palavra era “" + j.p + "”. Diga “jogar forca” para outra."; }
+    if (j.er.length >= 6) { ctx.jogo = null; return "💀 Perdeu! A palavra era “" + j.p + "”."; }
     return forca(j);
   }
   if (j.t === "velha") {
@@ -474,7 +422,7 @@ function jogar(p, raw) {
     const k = "abc".indexOf(rawClean[0]); if (k < 0 || rawClean.length > 2) return "Responda com a, b ou c (ou `sair`).";
     const q = QUIZ[j.i], ok = k === q[2]; if (ok) j.pts++;
     const fb = ok ? "✅ Certo!" : "❌ Errado. Era: " + q[1][q[2]];
-    if (++j.i >= QUIZ.length) { ctx.jogo = null; return fb + "\n\n🏁 Fim! Você fez " + j.pts + "/" + QUIZ.length + " pontos."; }
+    if (++j.i >= QUIZ.length) { ctx.jogo = null; return fb + "\n\n🏁 Fim! " + j.pts + "/" + QUIZ.length + " pontos."; }
     return fb + "\n\n" + perg(j.i);
   }
   return null;
@@ -493,23 +441,23 @@ function criar(p) {
   const k = has(p, /velha/) ? "velha" : has(p, /calculadora/) ? "calculadora" : has(p, /tarefa|todo|lista/) ? "tarefas" : has(p, /adivinh|numero/) ? "adivinhacao" : has(p, /site|pagina|tela|landing/) ? "pagina" : null;
   if (!k) return "Sei montar prontos: jogo da velha, calculadora, lista de tarefas, adivinhe o número, pomodoro, bloco de notas, controle de gastos e cobrinha (ou use `/app tema`)!";
   const [nome, cod] = TEMPLATES[k];
-  return "Aqui está o arquivo " + nome + ". Cole num arquivo com esse nome e abra no navegador (ou teste aqui mesmo com `/preview`!):\n\n" + wrapCodeFence(cod, "html");
+  return "Aqui está o arquivo " + nome + ". Cole num arquivo com esse nome e abra no navegador (ou teste aqui com `/preview`!):\n\n" + wrapCodeFence(cod, "html");
 }
 
 const PASSOS = [
   ["index.html: a tela do chat (campo, botão e área de mensagens)", "Crie um input, um botão e uma div. Ao clicar, pegue o texto, mostre na div e chame uma função responder(texto).\n\n" + BT + "html\n<div id=\"chat\"></div>\n<input id=\"i\"><button id=\"b\">Enviar</button>\n<script>\nb.onclick = () => {\n  chat.innerHTML += \"<p>\" + i.value + \"</p>\";\n  i.value = \"\";\n};\n</script>\n" + BT],
   ["brain.js: o cérebro (regras e intenção)", "Crie normalize(texto) (minúsculas, sem acento), uma lista de regras {padrão, resposta} e think(msg), que devolve a resposta da primeira regra que bater ou null.\n\n" + BT + "js\nconst regras = [{ p: /oi|ola/, r: \"Olá!\" }];\nexport const think = m => (regras.find(x => x.p.test(m)) || {}).r || null;\n" + BT],
-  ["Memória: guardar o que ela aprende", "Use localStorage.setItem com JSON.stringify e carregue com JSON.parse dentro de try/catch. O comando ensine: pergunta => resposta guarda pares pergunta/resposta."],
-  ["saber.js: pesquisar e resumir", "Faça fetch na API da Wikipédia (api.php?action=query&origin=*), pegue o texto e escolha as frases que têm as palavras da pergunta."],
-  ["arquivos.js: pastas", "Salve objetos {nome, pasta, texto} numa lista no localStorage. /arquivos lista agrupando por pasta; nomes como Estudos/IA criam pastas dentro de pastas."],
-  ["mente.js: contexto", "Guarde o último texto e o último assunto. Assim ela entende “esse texto”, “mais”, “detalhe” e “passo 3”."],
-  ["Evoluir", "Adicione TF-IDF (palavras raras valem mais) para achar a resposta mais parecida, mais exemplos ensinados e modos especializados."]
+  ["Memória: guardar o que ela aprende", "Use localStorage.setItem com JSON.stringify e carregue com JSON.parse dentro de try/catch."],
+  ["saber.js: pesquisar e resumir", "Faça fetch na API da Wikipédia e DuckDuckGo/Jina e escolha as frases mais relevantes."],
+  ["arquivos.js: pastas", "Salve objetos {nome, pasta, texto} numa lista no IndexedDB/localStorage."],
+  ["mente.js: contexto", "Guarde o último texto e o último assunto para continuações naturais."],
+  ["Evoluir", "Use BM25 + Rede Neural para entender intenções e aprender com reformulações."]
 ];
-const GUIA = "🤖 Como fazer uma IA do zero (o caminho da BACH):\n\n" + PASSOS.map((x, i) => (i + 1) + ") " + x[0]).join("\n") + "\n\nOrdem: 1 → 2 → 3, teste, e só depois 4 a 7.\nDiga “passo 1” (ou só o número) para ver o que colar.";
+const GUIA = "🤖 Como fazer uma IA do zero:\n\n" + PASSOS.map((x, i) => (i + 1) + ") " + x[0]).join("\n") + "\n\nDiga “passo 1” (ou só o número) para ver o código.";
 
 /* ---------- programação ---------- */
 const LING = { javascript: "JavaScript", js: "JavaScript", python: "Python", html: "HTML", css: "CSS", sql: "SQL" };
-const ROTEIRO = "🗺️ Roteiro: 1) variáveis e tipos, 2) condicionais, 3) loops, 4) funções, 5) arrays e objetos, 6) DOM e eventos (JS), 7) fetch/API e async, 8) um projeto pequeno. Depois: classes, módulos, testes e Git.\nPergunte por qualquer um (ex.: “o que é função?”). Diga “mais” para o nível avançado.";
+const ROTEIRO = "🗺️ Roteiro: 1) variáveis, 2) condicionais, 3) loops, 4) funções, 5) arrays/objetos, 6) DOM, 7) fetch/API, 8) projeto prático.";
 const ASSUNTOS = "variáveis, condicionais, loops, funções, arrays, objetos/JSON, classes, async/await, DOM, fetch/API, closures, recursão, algoritmos, regex, Git, SQL, HTML, CSS, Python, Termux, módulos, localStorage, debug, testes, jogos, apps e IA";
 
 const FRACA = new Set("for let var if map get post py ui def then this select join click clique evento eventos cores estilo lista listas jogo jogos game app aplicativo interface teste testes testar bug bugs dict tag tags estrutura scope push pull se senao repeticao laco classe objeto modulo modulos variavel funcao erro erros memoria salvar dados site pagina".split(" "));
@@ -522,13 +470,10 @@ function achaTopico(p) {
   let best = null, sc = 0;
   KB.forEach((e, i) => {
     let s = 0;
-    for (const k of e[0].split("|")) {
-      if (p.includes(" " + k + " ")) s += FRACA.has(k) ? 0.5 : k.length > 3 ? 2 : 1;
-    }
+    for (const k of e[0].split("|")) if (p.includes(" " + k + " ")) s += FRACA.has(k) ? 0.5 : k.length > 3 ? 2 : 1;
     if (s > sc) { sc = s; best = i; }
   });
-  if (sc >= 2 || (sc >= 1.5 && temLing)) return best;
-  return null;
+  return (sc >= 2 || (sc >= 1.5 && temLing)) ? best : null;
 }
 
 const ACAO_TELA = /\b(cliquei|clique|cliquem|clicar|clica|cliquei nisso|toquei|toca|tocar|apertei|aperta|apertar|botao|menu|aba|tela|opcao|entra nele|entra no site|veja os modulos|quantos modulos|repetindo|repetir)\b/;
@@ -538,9 +483,7 @@ function topico(i, p) {
   const tituloBruto = KB[i][0].split("|")[0];
   const assunto = tituloBruto.charAt(0).toUpperCase() + tituloBruto.slice(1);
   ctx.assuntos = (ctx.assuntos || []).filter(a => a !== assunto);
-  ctx.assuntos.push(assunto);
-  ctx.assuntos = ctx.assuntos.slice(-10);
-  persist();
+  ctx.assuntos.push(assunto); ctx.assuntos = ctx.assuntos.slice(-10); persist();
   return b + "\n\n" + wrapCodeFence(ex, i === 17 ? "python" : "js") + (fundo ? "\n\n" + av : "\n\nDiga “mais” para o nível avançado ou “outro exemplo”.");
 }
 function seguimento(p, w) {
@@ -548,17 +491,17 @@ function seguimento(p, w) {
   if (u.t === "guia") {
     const n = (w.match(/^(?:passo\s*)?(\d)$/) || w.match(/^passo (\d)/) || [])[1];
     if (n && PASSOS[n - 1]) return "📌 Passo " + n + " — " + PASSOS[n - 1][0] + "\n\n" + PASSOS[n - 1][1];
-    if (has(p, /^ ?(detalh\w*|mais|explica\w*|continue|sim|quero|pode) ?$/)) return "Qual passo? Diga “passo 1” até “passo 7”.\n\n" + PASSOS.map((x, i) => (i + 1) + ") " + x[0]).join("\n");
+    if (has(p, /^ ?(detalh\w*|mais|explica\w*|continue|sim|quero|pode) ?$/)) return "Qual passo? Diga “passo 1” até “passo 7”.";
   }
   if (u.t === "prog" && KB[u.i]) {
     if (has(p, /^ ?(mais|avancado|avancada|aprofunda|aprofundar|detalhe|detalhes|detalhar|explica melhor|continue|continua|e mais|sim|quero) ?$/)) return KB[u.i][3];
-    if (has(p, /^ ?(exemplo|outro exemplo|mostra|mostre|codigo|me mostra) ?$/)) return wrapCodeFence(KB[u.i][2], "js") + "\nTente mudar os valores e ver o que acontece.";
+    if (has(p, /^ ?(exemplo|outro exemplo|mostra|mostre|codigo|me mostra) ?$/)) return wrapCodeFence(KB[u.i][2], "js");
   }
   return null;
 }
 function ajudaProg() {
   ctx.esperando = "prog"; persist();
-  return "Claro! Me diga o que você quer:\n• aprender um assunto (ex.: “o que é função?” ou “termux”)\n• executar um script JS (`/executar ...`)\n• criar um app completo (`/app pomodoro`)\n\nLinguagens: JavaScript, Python, HTML, CSS, SQL, Bash/Termux e Luau.";
+  return "Claro! Me diga o que você quer:\n• aprender um assunto (ex.: “o que é função?” ou “termux”)\n• executar um script JS (`/executar ...`)\n• criar um app completo (`/app pomodoro`)";
 }
 
 /* ---------- principal ---------- */
@@ -569,18 +512,14 @@ function responder(msg, opts = {}) {
   if (mv) {
     const k = normSimples(mv[1]);
     if (!k || PROIBIDAS.has(k)) return { texto: "Palavra inválida para vocabulário.", origem: "📚 vocabulário" };
-    ctx.vocab[k] = prep(mv[2]).trim().slice(0, 80);
-    persist();
-    return { texto: "📚 Aprendi: “" + k + "” = “" + ctx.vocab[k] + "”.\nAgora entendo isso em qualquer frase.", origem: "📚 vocabulário" };
+    ctx.vocab[k] = prep(mv[2]).trim().slice(0, 80); persist();
+    return { texto: "📚 Aprendi: “" + k + "” = “" + ctx.vocab[k] + "”.", origem: "📚 vocabulário" };
   }
-  if (/^\/palavras$/i.test(raw)) {
-    return { texto: "📚 Sei " + (Object.keys(VOCAB).length + Object.keys(ctx.vocab).length) + " gírias/abreviações e " + lexico().size + " palavras no dicionário base.\nEnsine mais: /palavra tbm = também", origem: "📚 vocabulário" };
-  }
+  if (/^\/palavras$/i.test(raw)) return { texto: "📚 Sei " + (Object.keys(VOCAB).length + Object.keys(ctx.vocab).length) + " gírias/abreviações e " + lexico().size + " palavras.", origem: "📚 vocabulário" };
   if (raw.length > 260) return null;
   const p = prep(raw), w = p.trim();
 
   if (ctx.jogo) { const r = jogar(w, raw); if (r) return { texto: r, origem: "🎮 jogo" }; }
-
   if (ctx.texto && has(p, /\b(entra nele|entra no site|quantos modulos|quais modulos|veja os modulos|lista os modulos|modulos tem)\b/)) {
     return { texto: inspecionarModulosNoCodigo(ctx.texto, ctx.nome), origem: "📦 análise de módulos" };
   }
@@ -594,39 +533,27 @@ function responder(msg, opts = {}) {
   const ehRejeicaoOuDuvida = has(p, / (fora|lixo|longe|nada|nem|nao|o que|qual|como|porque|sem|minha|meu|essa|esse|coisa|roupa|casa|gente) /);
   const querJogar = has(p, / (jogar|joguinho|brincar) /) || /^(?:vamos|bora|quero)\s+jogo$/.test(w);
   const nomeJogoExplicito = (ehForcaReal && w.split(" ").length <= 3) || ehVelhaReal || (/^(?:jogar\s+)?(?:quiz|adivinhe(?:\s+o\s+numero)?)$/.test(w));
-
-  if ((querJogar || nomeJogoExplicito) && !criarV && !ehRejeicaoOuDuvida) {
-    return { texto: iniciar(p), origem: "🎮 jogos" };
-  }
+  if ((querJogar || nomeJogoExplicito) && !criarV && !ehRejeicaoOuDuvida) return { texto: iniciar(p), origem: "🎮 jogos" };
 
   if (criarV && has(p, / (ia|inteligencia artificial|chatbot|bot) /)) return { texto: (ctx.ultimo = { t: "guia" }, persist(), GUIA), origem: "🤖 guia" };
   if (has(p, /(como|onde) (comeco|comecar|faco|fazer).*(ia|chatbot)/)) return { texto: (ctx.ultimo = { t: "guia" }, persist(), GUIA), origem: "🤖 guia" };
 
   const m = p.match(/ (?:escreve|escreva|redija|faz|faca|crie|cria) (?:um |uma )?(?:texto|redacao|artigo|resumo) (?:sobre|de|do|da) (.+)/);
   if (m && !has(p, / (livro|filme|serie|historia|conto|desenho|novela|anime) /)) return { pesquisa: m[1].trim(), fundo: true };
-  if (has(p, / (email|carta) /) && criarV) {
-    const t = (p.match(/ sobre (.+)/) || [])[1] || "[assunto]";
-    return { texto: "✉️ Modelo:\n\nAssunto: " + t + "\n\nOlá,\n\nEspero que esteja bem. Escrevo para tratar de " + t + ".\n\n[explique seu pedido em 2 ou 3 frases]\n\nFico à disposição e agradeço desde já.\n\nAtenciosamente,\n[seu nome]", origem: "✍️ escrita" };
-  }
 
   if (has(p, / (exclu\w*|apag\w*|deleta\w*) /) && has(p, / (isso|esse texto|esse arquivo|ele|este) /)) {
-    if (!ctx.nome) return { texto: "Não tenho nenhum arquivo recente guardado pra apagar. Veja os nomes com /arquivos e use /apagar nome.", origem: "📂 arquivos" };
+    if (!ctx.nome) return { texto: "Não tenho nenhum arquivo recente guardado pra apagar.", origem: "📂 arquivos" };
     return { apagar: ctx.nome };
   }
 
   if ((has(p, / (manda|mande|envia|reenvia|repete|coloca|copia|copiar|da|me da) /) && has(p, / (codigo|codigos|texto|arquivo) /) && !has(p, / (cria|crie|faz|faca|novo|outro) /)) ||
       (has(p, / (manda|mande|envia|reenvia|repete|coloca) /) && has(p, / (isso|ele) /) && has(p, / (de novo|novamente|outra vez|ai|aqui|inteiro|completo) /))) {
-    if (!ctx.texto) return { texto: "Não tenho nenhum texto ou código guardado agora. Cole ou anexe de novo. 📎", origem: "🧠 contexto" };
+    if (!ctx.texto) return { texto: "Não tenho nenhum texto ou código guardado agora. 📎", origem: "🧠 contexto" };
     return { texto: formatarCodigoParaCopiar(ctx.texto), origem: "📄 cópia completa" };
   }
 
   if (ctx.ultimoMidia && (!ctx.texto) && has(p, / (esse|essa|esses|essas|este|nesse|nessa) /) && has(p, / (filme|video|cena|imagem|foto|pessoa|objeto|lugar) /)) {
-    return {
-      texto: ctx.ultimoMidia.tipo === "video"
-        ? "Nesse vídeo analisei duração, resolução, iluminação, cores e eventuais textos visíveis nos quadros."
-        : "Nessa imagem analisei dimensões, iluminação, cores e procurei texto escrito, mas não encontrei texto legível nela.",
-      origem: "🧠 contexto"
-    };
+    return { texto: ctx.ultimoMidia.tipo === "video" ? "Nesse vídeo analisei duração, resolução, cores e textos visíveis nos quadros." : "Nessa imagem analisei dimensões, cores e procurei texto escrito.", origem: "🧠 contexto" };
   }
 
   const mSubst = p.match(/ (?:esse|este|essa|esta) ([a-z]{3,}) /);
@@ -638,12 +565,12 @@ function responder(msg, opts = {}) {
 
   if (!outroAssunto && (PEDIDO_TEXTO_BARE.test(p) || (has(p, REF_ARQUIVO) && has(p, ACAO_ARQUIVO))) && (pedeExplicitoArq || ctx.ultimo?.t === "texto")) {
     if (ctx.texto) return { texto: sobreTexto(p), origem: "📖 leitura do seu arquivo" };
-    if (ctx.ultimoMidia) return { texto: "Na última mídia (“" + ctx.ultimoMidia.nome + "”) não encontrei texto legível para explicar.", origem: "🧠 contexto" };
+    if (ctx.ultimoMidia) return { texto: "Na última mídia (“" + ctx.ultimoMidia.nome + "”) não encontrei texto legível.", origem: "🧠 contexto" };
     if (ctx.tema && !opts?.alvo) return { pesquisarTema: ctx.tema, fundo: true };
-    return { texto: "O que você quer que eu explique ou resuma? Cole o texto/código aqui, envie uma foto pelo + ou me diga o assunto.", origem: "🧠 contexto" };
+    return { texto: "Cole o texto/código aqui ou diga o assunto que você quer que eu explique.", origem: "🧠 contexto" };
   }
 
-  if (!opts?.alvo && ctx.tema && ctx.ultimo?.t === "tema" && (outroAssunto || has(p, / (essa|essas|esse|esses|isso|isto|disso|dele|dela|deles|delas|nisso|aquilo|ele|ela|eles|elas) /)) && (pergunta(raw) || has(p, / (faz|fazem|serve|servem|significa|come|sobrevive|vive|mora) /))) {
+  if (!opts?.alvo && ctx.tema && ctx.ultimo?.t === "tema" && has(p, / (essa|essas|esse|esses|isso|isto|disso|dele|dela|deles|delas|nisso|aquilo|ele|ela|eles|elas) /) && (pergunta(raw) || has(p, / (faz|fazem|serve|servem|significa|come|sobrevive|vive|mora) /))) {
     const PR = new Set("essa essas esse esses isso isto disso dele dela deles delas nisso aquilo ele ela eles elas faz fazem fazer serve servem o que e sao por para qual quais como me explica bom boa ruim legal presta melhor pior serio verdade certo errado atualizado".split(" "));
     const seen = new Set(prep(ctx.tema).split(" ")), novo = p.trim().split(" ").filter(x => !PR.has(x) && !seen.has(x) && x.length > 2);
     if (novo.length) return { pesquisa: ctx.tema + " " + novo.join(" "), fundo: true };
@@ -651,21 +578,16 @@ function responder(msg, opts = {}) {
 
   if (has(p, /(o que (a gente |nos |voce )?(falou|falamos|conversou|conversamos|vimos)|do que falamos)/)) {
     if (!ctx.assuntos.length && !ctx.texto) return null;
-    return {
-      texto: (ctx.assuntos.length ? "🧠 Lembro que falamos neste chat de:\n• " + ctx.assuntos.join("\n• ") : "Ainda não falamos sobre código neste chat.") +
-        (ctx.texto ? "\n\nE guardei o texto “" + ctx.nome + "”." : ""),
-      origem: "🧠 memória"
-    };
+    return { texto: (ctx.assuntos.length ? "🧠 Falamos neste chat de:\n• " + ctx.assuntos.join("\n• ") : "Ainda não falamos sobre código neste chat.") + (ctx.texto ? "\n\nArquivo guardado: “" + ctx.nome + "”." : ""), origem: "🧠 memória" };
   }
 
-  for (const [k, r] of ERROS) if (new RegExp(k, "i").test(raw)) return { texto: "🛠️ " + r + "\n\nSe quiser, cole o código e eu reviso.", origem: "🐛 erros comuns" };
+  for (const [k, r] of ERROS) if (new RegExp(k, "i").test(raw)) return { texto: "🛠️ " + r, origem: "🐛 erros comuns" };
 
   const rb = p.match(/ resum\w* (?:de |do |da )?(?:um |uma |o |a )?(livro|filme|serie|historia|conto|desenho|novela|anime) (?:de |do |da |chamado |chamada )?(.+)/);
   if (rb) { lembrarTema(rb[2].trim()); return { pesquisa: rb[2].trim() + " sinopse", fundo: true }; }
 
   if (has(p, / (noticia|noticias|novidades|novidade|manchete|manchetes|acontecendo) /) && !has(p, / (minha|meu|contar|boa|ruim) /)) {
-    ctx.tema = "noticias";
-    return { noticias: true, q: has(p, / brasil /) ? "ultimas noticias do brasil hoje" : "ultimas noticias do mundo hoje" };
+    ctx.tema = "noticias"; return { noticias: true, q: has(p, / brasil /) ? "ultimas noticias do brasil hoje" : "ultimas noticias do mundo hoje" };
   }
 
   const ti = ACAO_TELA.test(p) ? null : achaTopico(p);
@@ -679,30 +601,27 @@ function responder(msg, opts = {}) {
     const x = cap[1].trim();
     if (has(p, / (programar|codigo|codar|jogar|resumir|pesquisar|escrever|criar|calcular|ler|traduzir|rir) /) && !has(p, / (quadro|desenho|musica|carro|cozinhar|dancar|cantar) /)) {
       if (/\brir\b/.test(x)) return { texto: "Haha claro! Manda `piada` ou `/humor`.", origem: "😄 humor" };
-      return { texto: "Sim! Sei programar, Termux, criar apps (`/app`), rodar scripts (`/executar`), jogar, resumir, revisar, recomendar filmes/animes/músicas, pesquisar, traduzir e ler fotos/vídeos.", origem: "🧠 minhas habilidades" };
+      return { texto: "Sim! Sei programar, Termux, criar apps (`/app`), rodar scripts (`/executar`), jogar, resumir, revisar, buscar mídias livres, pesquisar e traduzir.", origem: "🧠 minhas habilidades" };
     }
     const tmCap = tema(x) || x;
     if (tmCap.length >= 2 && pergunta(raw)) { lembrarTema(tmCap); return { pesquisa: tmCap, fundo: true }; }
   }
 
-  if (pergunta(raw) && !has(p, / (voce|horas|hora|dia|data|bach|meu nome|seu nome|digo|disse|falei|mandei|entende|entendeu|pergunto|perguntando|esqueceu|esqueci|lembra|lembro|certo|errado|respondeu|zoeira|falhas|verifica) /)) {
+  if (pergunta(raw) && !has(p, / (voce|horas|hora|dia|data|bach|meu nome|seu nome|digo|disse|falei|mandei|entende|entendeu|entendi|pergunto|perguntando|esqueceu|esqueci|lembra|lembro|certo|errado|respondeu|zoeira|falhas|verifica|fofocas|chega) /)) {
     const tm = tema(raw);
-    if (tm.length >= 2) {
-      lembrarTema(tm);
-      return { pesquisa: raw, fundo: true };
-    }
+    if (tm.length >= 2) { lembrarTema(tm); return { pesquisa: raw, fundo: true }; }
   }
 
   if (ctx.esperando === "prog") { ctx.esperando = null; if (w.split(" ").length <= 3 && w.length > 3) return { pesquisa: w + " programação", fundo: false }; }
   return null;
 }
 
-const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo|vamos falar sobre|falar sobre o que|nao foi isso|travou foi|sabe rir|velho do ceu|conversa comigo|opa o que|oxe o que|entende o que|eu falo de|nao mandei|como assim|porque nao|eu que pergunto|to te perguntando|consciencia|fazendo pesquisa|nao entendeu|nao entende|acertei|que humor ruim|melhore|sentiu o que|blz o que|jogar voce fora|vai ficar repetindo|dormi bem|e isso e bom|isso e bom|e bom|serio mesmo|ta bem|ta bravo|ta brava|aconteceu algo|que pergunta|q pergunta|e agora|nao e|ne|esqueceu foi|seja certo|vc lembra|voce lembra|ta erra|posso desabafar|o que eu faco|oque eu faco|o que voce acha|voce gosta|voce prefere|tudo bem ai|como foi la|vai ficar tudo bem|sair adm|obgd)/;
+const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo|vamos falar sobre|falar sobre o que|nao foi isso|travou foi|sabe rir|velho do ceu|conversa comigo|opa o que|oxe o que|entende o que|eu falo de|nao mandei|como assim|porque nao|eu que pergunto|to te perguntando|consciencia|fazendo pesquisa|nao entendeu|nao entende|acertei|que humor ruim|melhore|sentiu o que|blz o que|jogar voce fora|vai ficar repetindo|dormi bem|e isso e bom|isso e bom|e bom|serio mesmo|ta bem|ta bravo|ta brava|aconteceu algo|que pergunta|q pergunta|e agora|nao e|ne|esqueceu foi|seja certo|vc lembra|voce lembra|ta erra|posso desabafar|o que eu faco|oque eu faco|o que voce acha|voce gosta|voce prefere|tudo bem ai|como foi la|vai ficar tudo bem|sair adm|obgd|entendi so isso|so isso|e quando chega|quando chega|tabom|ta bom|sei sei|faltou foi tudo|bem ate|meu dia esta bem|sabe gerar fofocas|aaaaa+h+)/;
 
-const BLOQUEIO_PESQUISA_CONV = /\b(pergunto|perguntando|digo|disse|falei|mandei|entende|entendeu|pesquisando|fazendo pesquisa|queria que|falasse|dialogo|testar|esqueceu|esqueci|lembra|lembro|respondeu|desabafar|sentindo|triste|cansado|ansioso|mandado embora|demitido|faco agora|adm|rizik)\b/;
+const BLOQUEIO_PESQUISA_CONV = /\b(pergunto|perguntando|digo|disse|falei|mandei|entende|entendeu|entendi|pesquisando|fazendo pesquisa|queria que|falasse|dialogo|testar|esqueceu|esqueci|lembra|lembro|respondeu|desabafar|sentindo|triste|cansado|ansioso|mandado embora|demitido|faco agora|adm|rizik|repetindo|repete|fofocas|chega)\b/;
 
 const PALAVRAS_CONVERSA_SEM_TEMA = new Set(
-  "a o as os um uma e eh de do da em no na por para com sem que se isso isto aquilo ele ela eles elas esse essa este esta bom boa ruim legal serio verdade certo errado agora sim nao tudo nada aqui ali ne oxe uai ue cara mano vei po vc voce eu meu minha seu sua foi era sou esqueceu esqueci lembra lembro sabia disse falou respondeu perguntando pergunto seja verifica falhas zoeira assim la ai aqui hoje ontem amanha".split(" ")
+  "a o as os um uma e eh de do da em no na por para com sem que se isso isto aquilo ele ela eles elas esse essa este esta bom boa ruim legal serio verdade certo errado agora sim nao tudo nada aqui ali ne oxe uai ue cara mano vei po vc voce eu meu minha seu sua foi era sou esqueceu esqueci lembra lembro sabia disse falou respondeu perguntando pergunto seja verifica falhas zoeira assim la ai aqui hoje ontem amanha entendi chega chegando so".split(" ")
 );
 
 const pergunta = t => {
@@ -712,12 +631,13 @@ const pergunta = t => {
   if (has(p, BLOQUEIO_PESQUISA_CONV)) return false;
   if (has(p, / (eu|comigo|mim|voce|vc|nos|gente) /) && !has(p, / (baixar|instalar|celular|pc|computador|jogo|app|fazer|receita) /)) return false;
 
-  if (has(p, /^ ?(o que (?:e|sao|foi|significa|fazer|aconteceu|acontece|causa|provoca)|quem (?:e|foi|sao|ganhou|venceu|criou|inventou|descobriu|escreveu|canta|atua|joga)|quais (?:sao|os|as|melhores|piores)|qual (?:e|a|o|foi|sao|melhor|pior|maior|menor|diferenca)|quantos|quantas|quanto (?:custa|vale|mede|pesa|tempo|fica)|onde (?:fica|esta|baixar|instalar|assistir|comprar|encontrar|mora|surgiu)|quando (?:foi|sera|aconteceu|lanca|estreia|comecou|terminou|surgiu)|como (?:baixar|instalar|fazer|jogar|usar|criar|configurar|resolver|tirar|ganhar|atualizar|formatar|desbloquear|funciona|funcionam|surgiu|comecou|preparar|limpar|consertar|chegar|saber)|por que|porque|para que serve|me explica|explique|explica|fale sobre|fala sobre|historia d[aeo]|receita d[aeo]|diferenca entre|melhores (?:jogos|filmes|series|animes|celulares|apps)|baixar |instalar |download )/)) {
+  if (has(p, /^ ?(o que (?:e|sao|foi|significa|fazer|aconteceu|acontece|causa|provoca)|quem (?:e|foi|sao|ganhou|venceu|criou|inventou|descobriu|escreveu|canta|atua|joga)|quais (?:sao|os|as|melhores|piores)|qual (?:e|a|o|foi|sao|melhor|pior|maior|menor|diferenca)|quantos|quantas|quanto (?:custa|vale|mede|pesa|tempo|fica)|onde (?:fica|esta|baixar|instalar|assistir|comprar|encontrar|mora|surgiu)|quando (?:foi|sera|aconteceu|lanca|estreia|comecou|terminou|surgiu)|como (?:baixar|instalar|fazer|jogar|usar|criar|configurar|resolver|tirar|pegar|conseguir|cortar|ganhar|atualizar|formatar|desbloquear|funciona|funcionam|surgiu|comecou|preparar|limpar|consertar|chegar|saber)|por que|porque|para que serve|me explica|explique|explica|fale sobre|fala sobre|historia d[aeo]|receita d[aeo]|receitas d[aeo]|diferenca entre|melhores (?:jogos|filmes|series|animes|celulares|apps)|baixar |instalar |download )/)) {
     const termosReais = palavras.filter(w => w.length >= 2 && !PALAVRAS_CONVERSA_SEM_TEMA.has(w) && !/^(o|que|e|sao|foi|significa|quem|quais|qual|de|em|com|quantos|quantas|quanto|onde|fica|esta|quando|aconteceu|como|funciona|fazer|faco|posso|surgiu|por|porque|para|serve|me|explica|explique|fale|fala|sobre|historia|da|do|baixar|instalar)$/.test(w));
     return termosReais.length >= 1;
   }
 
   if (/\?\s*$/.test(String(t)) && palavras.length >= 2) {
+    if (/^(?:entendi|sei|tabom|ta|aham|uhum|oxe|uai|ue|sera|serio|mesmo|vc|voce|e\s+quando|sabe\s+gerar)\b/.test(p.trim())) return false;
     const termosReais = palavras.filter(w => w.length >= 3 && !PALAVRAS_CONVERSA_SEM_TEMA.has(w));
     return termosReais.length >= 2;
   }
