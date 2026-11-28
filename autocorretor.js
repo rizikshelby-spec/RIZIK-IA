@@ -1,7 +1,6 @@
-/* BACH AI 5.6 — AUTOCORRETOR REAL BLINDADO, TOM ADAPTATIVO & APRENDIZADO CONTÍNUO
- * - Alinhado com brain.js?v=21.
- * - Reconhece reclamações naturais ("vc piorou", "tudo esta errado", "perde o foco", "tu buga").
- * - Nunca solta respostas mecânicas quando a mensagem anterior também era reclamação.
+/* BACH AI 5.7 — AUTOCORRETOR NATURAL & TOM ADAPTATIVO
+ * - Corrige bug de maiúscula + letras repetidas ("Aaaaaah" -> "ah", "Oooooh" -> "oh", "Hummmm" -> "hum").
+ * - Reconhece reclamações naturais e preserva o fio da conversa sem respostas robóticas.
  */
 
 import { RizikBrain } from "./brain.js?v=21";
@@ -50,7 +49,8 @@ const norm = t => String(t || "").slice(0, 600).toLowerCase().normalize("NFD")
   .replace(/\s+/g, " ")
   .trim();
 
-const reduzirRepetidas = t => String(t || "").slice(0, 600).replace(/([a-zA-ZÀ-ÿ])\1{2,}/g, "$1");
+// Converte para minúsculo ANTES de reduzir letras repetidas ("Aaaaaah" -> "ah")
+const reduzirRepetidas = t => String(t || "").slice(0, 600).toLowerCase().replace(/([a-zà-ÿ])\1{2,}/g, "$1");
 
 const RE_RECLAMACAO = /^(?:erro|errou)$|\b(voce errou|vc errou|vc erro|voce erro|errou|e errou ainda|para de errar|esses erros|nesses erros|erros atrais|erros atras|tudo errado|tudo esta errado|tudo ta errado|ta erra(?:do)?\s+(?:vc|voce)?\s*todo|erra(?:ndo)?\s+(?:tudo|todo|toda)|(?:vc|voce)\s+(?:todo|tudo)\s+errad[oa]|(?:vc|voce|tu)\s+piorou|piorou\s+(?:muito|agora|demais)|(?:tu|voce|vc)\s+buga|bugando|perde(?:u)?\s+o\s+foco|nao foi isso|nao era isso|fugiu do assunto|saiu do assunto|mudou de assunto|nada a ver|nada aver|nada haver|nao entende|nao entendeu|nunca entende|nao capta|respondeu errado|falou errado|disse errado|ta errado|esta errado|nao mandei pesquisar|nao pedi pesquisa|nao pedi pra pesquisar|nao era pra pesquisar|nao mandei vc falar|nao pedi isso|nem disse isso|texto do nada|isso ta errado|fazendo pesquisa|fazer pesquisa agora|para de pesquisar|so pesquisa|o que (?:voce )?nao entendeu|senha bosta|chatao|pqp bach|o droga|voce e burro|voce e burra)\b/;
 
@@ -84,9 +84,7 @@ function usuarioEstaIrritadoOuSerio(history = [], textoAtual = "") {
   if (moodInfo.mood === "frustrado" || moodInfo.mood === "serio" || moodInfo.score <= -0.8) return true;
 
   const ultimasUser = (Array.isArray(history) ? history : [])
-    .filter(m => m && m.type === "user" && m.text)
-    .slice(-4)
-    .map(m => String(m.text));
+    .filter(m => m && m.type === "user" && m.text).slice(-4).map(m => String(m.text));
 
   for (const u of ultimasUser) {
     const t = RizikBrain.detectTone?.(u);
@@ -97,18 +95,14 @@ function usuarioEstaIrritadoOuSerio(history = [], textoAtual = "") {
 
 function registrarFalhaPublica({ tipo = "nao-entendeu", entrada = "", resposta = "", motivo = "" }) {
   if (ehEntradaSensivel(entrada)) return;
-  if (errosAdmMod?.registrar) {
-    errosAdmMod.registrar({ tipo, entrada, resposta, motivo });
-    return;
-  }
+  if (errosAdmMod?.registrar) { errosAdmMod.registrar({ tipo, entrada, resposta, motivo }); return; }
   try {
     const K = "bach_adm_erros_v1";
     const parsed = JSON.parse(localStorage.getItem(K) || "[]");
     const arr = Array.isArray(parsed) ? parsed : [];
     arr.push({
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      at: Date.now(),
-      tipo: String(tipo).slice(0, 40),
+      at: Date.now(), tipo: String(tipo).slice(0, 40),
       entrada: redigirSegredos(entrada).slice(0, 300),
       resposta: redigirSegredos(resposta).slice(0, 240),
       motivo: redigirSegredos(motivo).slice(0, 140)
@@ -139,18 +133,18 @@ function tratarExclamacao(texto, history = []) {
   if (semGiria && ehRisada(semGiria) && limpo.split(" ").length <= 5) {
     return serioOuBravo
       ? "Entendi. Me diga como posso te ajudar agora."
-      : girar("ris-ok", ["Haha, boa! Manda a próxima.", "Rindo junto. Pode mandar a próxima."]);
+      : girar("ris-ok", ["Haha, boa! Manda a próxima.", "Rindo junto 😄 Pode mandar a próxima."]);
   }
 
-  if (/^(?:ah+|oh+|eh+|ih+|uh+|uai+|eita+|nossa+|vixi+|vish+|socorro+|meu deus+|o deus+|deus+|caramba+|misericordia+|aff+s?|mds+|ave+|aiai+|ai+|oxi+|oxe+)(?:\s+(?:ah+|oh+|deus+|meu deus+|o deus+|nossa+|eita+|senhor+|socorro+|ave+|mds+))*$/.test(limpo)) {
+  if (/^(?:a+h+|o+h+|e+h+|i+h+|u+h+|h+u+m+|h+m+|uai+|eita+|nossa+|vixi+|vish+|socorro+|meu deus+|o deus+|deus+|caramba+|misericordia+|aff+s?|mds+|ave+|aiai+|ai+|oxi+|oxe+)(?:\s+(?:a+h+|o+h+|deus+|meu deus+|o deus+|nossa+|eita+|senhor+|socorro+|ave+|mds+))*$/.test(limpo)) {
     return serioOuBravo
       ? girar("exc-serio", [
-          "O que não saiu certo? Me diga direto o que você queria fazer agora.",
-          "Percebi que algo falhou aqui. Qual mensagem ou pergunta você quer tentar?"
+          "Parece que algo não saiu como você queria — me diga direto o que precisa agora que eu ajusto!",
+          "Percebi a frustração aí. Qual pergunta ou tarefa você quer tentar agora?"
         ])
       : girar("exc-leve", [
-          "O que foi? Se algo ficou estranho, me avisa.",
-          "Uai, o que aconteceu? Pode mandar direto o que queria."
+          "O que foi? Se quiser perguntar algo ou mudar de assunto, é só falar.",
+          "Uai, o que aconteceu? Pode mandar direto o que você queria."
         ]);
   }
 
@@ -186,7 +180,7 @@ function registrarCorrecao(pergunta, motivo, acao) {
 }
 
 function ehMensagemDeDesculpaBot(txt) {
-  return /O que não saiu certo\?|Percebi que algo falhou|Desculpa por ter fugido|Me diga em uma frase direta|Me diga em poucas palavras|Realmente não acertei|Essa resposta saiu fora/i.test(String(txt || ""));
+  return /O que não saiu certo\?|Percebi que algo falhou|Desculpa por ter fugido|Me diga em uma frase direta|Me diga em poucas palavras|Realmente não acertei|Essa resposta saiu fora|Parece que algo não saiu/i.test(String(txt || ""));
 }
 
 function encontrarAlvoMarcado(history, textoMarcado) {
@@ -203,10 +197,7 @@ function encontrarAlvoMarcado(history, textoMarcado) {
           let respBotReal = String(m.text);
           if (ehMensagemDeDesculpaBot(respBotReal)) {
             for (let k = j + 1; k < history.length; k++) {
-              if (history[k] && history[k].type !== "user" && history[k].text) {
-                respBotReal = String(history[k].text);
-                break;
-              }
+              if (history[k] && history[k].type !== "user" && history[k].text) { respBotReal = String(history[k].text); break; }
             }
           }
           return { pergunta: String(u.text), cit: u.cit || "", respostaBot: respBotReal };
@@ -220,19 +211,14 @@ function encontrarAlvoMarcado(history, textoMarcado) {
 
 function encontrarPerguntaAnterior(history) {
   if (!Array.isArray(history) || !history.length) return null;
-
   for (let i = history.length - 1; i >= 0; i--) {
     const m = history[i];
     if (!m || m.type !== "user" || !m.text) continue;
     const txt = String(m.text).trim();
     if (!txt || ehRuidoParaAlvo(txt)) continue;
-
     let respBot = "";
     for (let j = i + 1; j < history.length; j++) {
-      if (history[j] && history[j].type !== "user" && history[j].text) {
-        respBot = String(history[j].text);
-        break;
-      }
+      if (history[j] && history[j].type !== "user" && history[j].text) { respBot = String(history[j].text); break; }
     }
     return { pergunta: txt, cit: m.cit || "", respostaBot: respBot };
   }
@@ -261,9 +247,7 @@ function processarSeguimentoDeCorrecao(texto, history = []) {
     if (ultUser) {
       const a = norm(ultUser.text).split(" ");
       const b = norm(limpoAst).split(" ");
-      if (a.length === 1 && b.length === 1 && a[0] !== b[0] && a[0].length >= 2 && b[0].length >= 2) {
-        RizikBrain.learnSynonym?.(a[0], b[0]);
-      }
+      if (a.length === 1 && b.length === 1 && a[0] !== b[0] && a[0].length >= 2 && b[0].length >= 2) RizikBrain.learnSynonym?.(a[0], b[0]);
     }
     return { tipo: "direto", texto: "Entendi a correção (“" + limpoAst + "”). Pode continuar." };
   }
@@ -276,10 +260,7 @@ function processarSeguimentoDeCorrecao(texto, history = []) {
   if (aguardandoPosErro && ehExplicacaoContextual) {
     const pergOriginal = pend?.question || "";
     RizikBrain.clearPendingError?.();
-    return {
-      tipo: "direto",
-      texto: "Entendi agora — você estava respondendo à minha fala anterior" + (pergOriginal ? " com **“" + pergOriginal + "”**" : "") + " e eu perdi o fio. Pode continuar daqui."
-    };
+    return { tipo: "direto", texto: "Entendi agora — você estava respondendo à minha fala anterior" + (pergOriginal ? " com **“" + pergOriginal + "”**" : "") + " e eu perdi o fio. Pode continuar daqui." };
   }
 
   const mFala = raw.match(/^(?:eu\s+)?(?:queria|esperava|gostaria)\s+(?:que\s+(?:vc|voce|você)\s+)?(?:falasse|dissesse|respondesse|fizesse|fosse)\s+([\s\S]+)$/i) ||
@@ -289,13 +270,9 @@ function processarSeguimentoDeCorrecao(texto, history = []) {
     const esperado = mFala[1].trim().replace(/^["“']|["”']$/g, "");
     const pergOriginal = pend?.question || "";
     RizikBrain.clearPendingError?.();
-
     if (pergOriginal && !ehPerguntaMuitoGenericaParaSalvar(pergOriginal) && esperado.length >= 2) {
       RizikBrain.learn?.(pergOriginal, esperado);
-      return {
-        tipo: "direto",
-        texto: "Anotado! Da próxima vez que mandarem **“" + pergOriginal + "”**, eu já respondo: **“" + esperado + "”**."
-      };
+      return { tipo: "direto", texto: "Anotado! Da próxima vez que mandarem **“" + pergOriginal + "”**, eu já respondo: **“" + esperado + "”**." };
     }
     return { tipo: "direto", texto: "Entendi — você esperava uma resposta direta tipo **“" + esperado + "”**." };
   }
@@ -304,21 +281,16 @@ function processarSeguimentoDeCorrecao(texto, history = []) {
   if (aguardandoPosErro && mExp) {
     const intencao = mExp[1].trim();
     RizikBrain.clearPendingError?.();
-
     if (/^(?:pesquis|procur|busc)/.test(intencao)) {
       const temaLimpo = intencao.replace(/^(?:voce\s+)?(?:pesquis\w*|procur\w*|busc\w*)\s*(?:sobre)?\s*/, "").trim();
       const query = temaLimpo.length >= 3 ? temaLimpo : (pend?.question || "");
       if (query) return { tipo: "pesquisar", query, aviso: "Entendi! Vou pesquisar sobre **“" + query + "”**:" };
     }
-
     if (intencao.length >= 3 && !/^(?:isso|aquilo|nada)$/.test(intencao)) {
-      if (pend?.question && !ehPerguntaMuitoGenericaParaSalvar(pend.question)) {
-        RizikBrain.learn?.(pend.question, intencao);
-      }
+      if (pend?.question && !ehPerguntaMuitoGenericaParaSalvar(pend.question)) RizikBrain.learn?.(pend.question, intencao);
       return { tipo: "direto", texto: "Entendi! Guardei o que você esperava para não repetir esse erro." };
     }
   }
-
   return null;
 }
 
@@ -326,10 +298,7 @@ function analisarEPreparar(history, ctx = {}) {
   const alvoAnt = (ctx.alvo ? encontrarAlvoMarcado(history, ctx.alvo) : null) || encontrarPerguntaAnterior(history);
   if (!alvoAnt) {
     registrarCorrecao("(sem pergunta anterior)", "reclamacao-sem-alvo", "pediu-clareza");
-    return {
-      tipo: "direto",
-      texto: "Você tem razão — saí do alvo ali. Me diga direto o que queria saber ou conversar agora."
-    };
+    return { tipo: "direto", texto: "Você tem razão — saí do alvo ali. Me diga direto o que queria saber ou conversar agora." };
   }
 
   const orig = alvoAnt.pergunta;
@@ -340,22 +309,15 @@ function analisarEPreparar(history, ctx = {}) {
   if (/\bresum/.test(t) && /\bcodig/.test(t) && ctx.ultimoArquivo?.texto) {
     registrarCorrecao(orig, "faltou-resumo-com-codigo", "entregou-resumo-e-codigo");
     const linhas = ctx.ultimoArquivo.texto.split(/\n+/).map(x => x.trim()).filter(Boolean);
-    return {
-      tipo: "direto",
-      texto: "Desculpa! Antes mandei só o bloco para copiar e faltou o resumo.\n\n" +
-        "📝 **Resumo de " + ctx.ultimoArquivo.nome + ":**\n" +
-        linhas.slice(0, 5).map(l => "• " + l.slice(0, 110)).join("\n")
-    };
+    return { tipo: "direto", texto: "Desculpa! Faltou o resumo:\n\n📝 **Resumo de " + ctx.ultimoArquivo.nome + ":**\n" + linhas.slice(0, 5).map(l => "• " + l.slice(0, 110)).join("\n") };
   }
 
-  if (/\b(clima|tempo|chuva|chover|chovendo|previsao|calor|frio)\b/.test(t) &&
-      !/\b(tempo de|linha do tempo|passatempo|o que e tempo)\b/.test(t)) {
+  if (/\b(clima|tempo|chuva|chover|chovendo|previsao|calor|frio)\b/.test(t) && !/\b(tempo de|linha do tempo|passatempo|o que e tempo)\b/.test(t)) {
     registrarCorrecao(orig, "clima-nao-detectado", "reencaminhar-clima");
     return { tipo: "clima", pergunta: orig, aviso: "Vi que antes você perguntou sobre o tempo (**“" + orig + "”**). Consultando agora:" };
   }
 
-  if (/\b(traduz|traduza|traduzir|traducao|em portugues)\b/.test(t) &&
-      (alvoAnt.cit || ctx.ultimoArquivo?.texto)) {
+  if (/\b(traduz|traduza|traduzir|traducao|em portugues)\b/.test(t) && (alvoAnt.cit || ctx.ultimoArquivo?.texto)) {
     registrarCorrecao(orig, "traducao-alvo", "reencaminhar-traducao");
     return { tipo: "traducao", pergunta: orig, cit: alvoAnt.cit, aviso: "Entendi que você queria traduzir **“" + orig.slice(0, 60) + "”**:" };
   }
@@ -364,7 +326,7 @@ function analisarEPreparar(history, ctx = {}) {
     const pediuPesquisa = /\b(pesquis|procur|busc|quem foi|quem e|o que e|me explica|me fala|me fale)\b/.test(t);
     if (pediuPesquisa) {
       registrarCorrecao(orig, "pesquisa-resultado-ruim", "pediu-especificacao");
-      return { tipo: "direto", texto: "Entendi que o resultado da pesquisa sobre **“" + orig + "”** não ficou bom. O que exatamente estava faltando?" };
+      return { tipo: "direto", texto: "Entendi que o resultado sobre **“" + orig + "”** não ficou bom. O que exatamente estava faltando?" };
     }
     registrarCorrecao(orig, "pesquisa-indevida", "pediu-acao-direta");
     return { tipo: "direto", texto: "Desculpa por ter pesquisado sem você pedir. O que você esperava para **“" + orig + "”**?" };
@@ -376,17 +338,11 @@ function analisarEPreparar(history, ctx = {}) {
       return { tipo: "pesquisar", query: orig, aviso: "Entendi — buscando a resposta para **“" + orig + "”**:" };
     }
     registrarCorrecao(orig, "nao-entendeu-conversa", "explicou-motivo");
-    return {
-      tipo: "direto",
-      texto: "Fugiu do ponto em **“" + orig + "”** porque interpretei fora do contexto da conversa. Pode mandar a próxima ou me dizer direto o que queria ali."
-    };
+    return { tipo: "direto", texto: "Fugiu do ponto em **“" + orig + "”** porque interpretei fora do contexto. Pode mandar direto o que queria ali." };
   }
 
   registrarCorrecao(orig, "desvio-geral", "confirmou-contexto");
-  return {
-    tipo: "direto",
-    texto: "Você tem razão — essa resposta saiu fora do ponto. Me diga direto o que você queria saber ou conversar agora."
-  };
+  return { tipo: "direto", texto: "Você tem razão — essa resposta saiu fora do ponto. Me diga direto o que você queria saber ou conversar agora." };
 }
 
 function formatarChat(history) {
@@ -414,19 +370,11 @@ function auditarChat(history, isAdm = false) {
     const antUser = lista[i - 1]?.type === "user" ? String(lista[i - 1].text) : "";
 
     if (m.type !== "user") {
-      if (/Não captei bem|Não entendi direito|Não peguei bem|Fiquei na dúvida|Deu um erro inesperado|não ficou claro|Não ficou claro|Entendi que você está falando sobre/i.test(txt)) {
+      if (/Não captei bem|Não entendi direito|Não peguei bem|Fiquei na dúvida|Deu um erro inesperado|não ficou claro|Não ficou claro|Faltou contexto/i.test(txt)) {
         erros.push("• [" + num + "] Fallback ou erro de compreensão: “" + antUser.slice(0, 65) + "”");
       }
-      if (/Sobre “|Aqui está o resumo sobre|Pesquisei “|Já pesquisei isso/i.test(txt)) {
-        if (antUser && !/\b(pesquis|procur|busc|o que e|quem foi|qm foi|quem e|como funciona|me explica|distancia|historia|cor d)\b/i.test(norm(antUser))) {
-          erros.push("• [" + num + "] Pesquisa automática fora de hora para: “" + antUser.slice(0, 60) + "”");
-        }
-      }
-      if (/^📄\s+IMG_|^📝 Texto lido em \*\*IMG_/i.test(txt) && antUser && !/\b(foto|imagem|print|escrito|texto|codigo|ler|leia|resume)\b/i.test(norm(antUser))) {
-        erros.push("• [" + num + "] Vazou arquivo/foto antiga ao responder: “" + antUser.slice(0, 60) + "”");
-      }
       if (ultimaBot && txt === ultimaBot && txt.length > 25 && !/Nova conversa|Alguns módulos não carregaram/i.test(txt)) {
-        erros.push("• [" + num + "] Resposta idêntica repetida em sequência para: “" + antUser.slice(0, 50) + "”");
+        erros.push("• [" + num + "] Resposta repetida para: “" + antUser.slice(0, 50) + "”");
       }
       ultimaBot = txt;
     } else if (ehReclamacao(txt)) {
@@ -438,35 +386,16 @@ function auditarChat(history, isAdm = false) {
   let fails = [], corrs = [], admCount = 0;
   try { fails = JSON.parse(localStorage.getItem(K_FAIL) || "[]"); } catch {}
   try { corrs = JSON.parse(localStorage.getItem(K_CORR) || "[]"); } catch {}
-  if (isAdm) {
-    try { admCount = (JSON.parse(localStorage.getItem("bach_adm_erros_v1") || "[]")).length; } catch {}
-  }
+  if (isAdm) { try { admCount = (JSON.parse(localStorage.getItem("bach_adm_erros_v1") || "[]")).length; } catch {} }
 
   const out = [
     "🩺 **AUDITORIA FIEL DE ERROS DA BACH AI**",
-    "• Mensagens analisadas nesta conversa: " + lista.length,
-    "• Total de erros detectados no chat: " + erros.length
+    "• Mensagens analisadas: " + lista.length,
+    "• Erros detectados no chat: " + erros.length
   ];
-  if (isAdm) out.push("• Erros salvos na Central ADM: " + admCount);
-  out.push("• Auto-correções registradas: " + corrs.length);
-  out.push("• Registros técnicos (AutoGuard): " + fails.length);
-  out.push("");
-
-  if (erros.length) {
-    out.push("❌ **Erros encontrados:**");
-    out.push(...erros.slice(-30));
-    out.push("");
-  }
-  if (corrs.length) {
-    out.push("🔄 **Últimas auto-correções:**");
-    out.push(...corrs.slice(-5).map(c => "• [" + c.motivo + "] “" + c.pergunta + "”"));
-    out.push("");
-  }
-  if (fails.length) {
-    out.push("⚠️ **Últimos registros técnicos:**");
-    out.push(...fails.slice(-8).map(f => "• [" + f.module + "] " + (f.input || f.detail)));
-    out.push("");
-  }
+  if (isAdm) out.push("• Central ADM: " + admCount);
+  out.push("• Auto-correções: " + corrs.length + " • Técnicos: " + fails.length, "");
+  if (erros.length) out.push("❌ **Erros encontrados:**", ...erros.slice(-30), "");
   if (!erros.length && !fails.length) out.push("✅ Nenhuma falha detectada nesta conversa!");
   return out.join("\n");
 }
