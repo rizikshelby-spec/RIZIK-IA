@@ -1,7 +1,6 @@
-/* BACH AI 5.6 - PROGRAMAÇÃO + HUMOR + FALLBACK NATURAL (ESTILO CLAUDE)
- * - Remove o bordão robótico "Entendi que você está falando sobre **X**...".
- * - Mantém detector rigoroso de digitação aleatória/teclas soltas.
- * - Responde de forma curta, direta e humana quando algo realmente não fica claro.
+/* BACH AI 5.6 - PROGRAMAÇÃO + HUMOR + RESPOSTA NATURAL A LETRAS SOLTAS (ESTILO PRINTS)
+ * - Trata letras avulsas ("A", "D", "H", "J", "K", "T") no tom natural e acolhedor dos prints.
+ * - Mantém histórico curto das letras enviadas na sessão para responder de forma inteligente.
  */
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9+# ]+/g, " ").replace(/\s+/g, " ").trim();
@@ -62,6 +61,7 @@ const PIADAS = [
 ];
 let saco = [], jaContou = false;
 let ruidosSeguidos = 0;
+let letrasRecentes = [];
 
 const embaralhar = a => {
   for (let i = a.length - 1; i > 0; i--) {
@@ -107,7 +107,7 @@ const CURTAS_VALIDAS = new Set((
   "sim nao ss nn qro qria fz fzr cmg ctg dms pfv pfvr suav tlg tlgd nois gnt vamo bora " +
   "tal tao dor flor pao cha sal mel gol voo mae pai tio tia avo irma irmao " +
   "rua lar bar par cor voz vez mes ano hora hoje ontem agora tudo nada algo cada todo outro mesmo " +
-  "ela ele nos voce mim ti si lhe um uma uns umas dois tres dez cem mil onu " +
+  "ela ele nos voce mim ti si lhe um uma uns umas dois tres dez cem mil onu gta " +
   "frio calor fome sede sono medo odio amor raiva triste feliz calma"
 ).split(" "));
 
@@ -164,16 +164,36 @@ function desconhecido(t = "", ctx = {}) {
 
   if (ehTeclaOuNumeroSolto(raw)) {
     ruidosSeguidos++;
-    if (ruidosSeguidos >= 2) {
+    const letra = raw.replace(/[^a-zA-ZÀ-ÿ0-9]/g, "").toUpperCase() || raw.slice(0, 6);
+    if (/^[A-ZÀ-Ÿ0-9]{1,2}$/i.test(letra)) {
+      if (!letrasRecentes.includes(letra)) letrasRecentes.push(letra);
+      letrasRecentes = letrasRecentes.slice(-6);
+    }
+
+    if (ruidosSeguidos === 1) {
       return escolherInedita([
-        "Parece que você está testando o teclado (`" + raw.slice(0, 18) + "`). Fico por aqui quando quiser mandar algo.",
-        "Recebi só teclas soltas (`" + raw.slice(0, 18) + "`). Quando quiser conversar ou testar algo de verdade, é só escrever."
+        `“${letra}”? Pode detalhar um pouco mais o que você precisa? Estou aqui para ajudar.`,
+        `“${letra}”? Não entendi bem o que você precisa. Pode escrever com mais detalhes, por favor?`
       ], ctx);
     }
-    return "Recebi `" + raw.slice(0, 20) + "`, que não forma uma palavra ou comando. O que você queria dizer?";
+
+    if (ruidosSeguidos === 2) {
+      return `“${letra}”? Não entendi bem o que você precisa. Pode escrever com mais detalhes, por favor?`;
+    }
+
+    if (ruidosSeguidos === 3 && letrasRecentes.length >= 2) {
+      return `Oi! Percebi que você enviou só algumas letras soltas (${letrasRecentes.join(", ")}...). Está tudo bem? Se quiser conversar sobre alguma coisa específica, é só me contar. 😊`;
+    }
+
+    return escolherInedita([
+      "Oi de novo! Vou perguntar direto: você está testando o chat, ou tem algo em mente que gostaria de conversar? Fico à disposição de qualquer jeito.",
+      "Oi! Mais uma letra solta por aqui. Sem problema algum, mas para eu poder ajudar de verdade, preciso que me conte o que você precisa — pode ser uma pergunta, um texto para escrever, uma dúvida, o que for. O que você gostaria de fazer?",
+      "Oi! Ainda recebendo letras avulsas 🙂 Quando quiser mesmo começar uma conversa ou pedir alguma coisa, estou aqui!"
+    ], ctx);
   }
 
   ruidosSeguidos = 0;
+  letrasRecentes = [];
   const n = norm(raw);
   const em = ctx?.session?.emotion || ctx?.mood || "neutro";
   const sit = ctx?.session?.situation?.resumo || "";
