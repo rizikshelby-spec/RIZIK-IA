@@ -146,9 +146,9 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 13px;border:1px
   <button class="modo" data-modo="aprendizado">📚 Aprendizado</button>
   <button class="modo" data-modo="programacao">💻 Programação</button>
   <button class="modo" data-modo="matematica">🔢 Matemática</button>
-  <button class="modo" data-modo="visao">👁️ Imagens</button>
-  <button class="modo" data-modo="voz">🎙️ Voz</button>
-  <button class="modo" data-modo="criatividade">✍️ Criatividade</button>
+  <button class="modo" data-modo="visao">👁 Imagens</button>
+  <button class="modo" data-modo="voz">🎙 Voz</button>
+  <button class="modo" data-modo="criatividade">✍ Criatividade</button>
   <button class="modo" data-modo="documentos">📄 Documentos</button>
 </nav>
 
@@ -176,7 +176,7 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 13px;border:1px
   <button data-acao="auditar">🩺 Auditar erros do chat</button>
   <button data-acao="errosAdm" id="menuErrosAdm" hidden>🚨 Erros do Público (0)</button>
   <div class="msep"></div>
-  <button data-acao="sobre">ℹ️ Sobre a BACH AI</button>
+  <button data-acao="sobre">ℹ Sobre a BACH AI</button>
 </div>
 
 <div id="drawerBack">
@@ -205,7 +205,7 @@ textarea#entrada{flex:1;min-width:0;min-height:44px;padding:10px 13px;border:1px
     <div class="dsec">🎨 Temas e Cores (ou peça no chat!)</div>
     <div class="dtemas" id="listaTemas"></div>
 
-    <button class="dbtn" data-d="sobre">ℹ️ Sobre o App &amp; Atualizações</button>
+    <button class="dbtn" data-d="sobre">ℹ Sobre o App &amp; Atualizações</button>
     <div class="dinfo">
       <b>Criador:</b> Rizik<br>
       <b>Versão:</b> 5.5 (2026)<br>
@@ -402,7 +402,7 @@ function wrapFence(code, lang = "txt") {
 
 const TEMAS = {
   roxo:     { nome: "💜 Roxo",     bg:"#0d0e1a", panel:"rgba(20,22,38,.90)", panel2:"rgba(14,16,30,.96)", border:"rgba(138,118,255,.32)", accent:"#8266ff", accent2:"#e056fd", bot:"rgba(22,25,46,.78)", user:"rgba(88,58,205,.54)", orb1:"#8c6eff", orb2:"#ff4fd8", glow:"rgba(140,110,255,.65)" },
-  vermelho: { nome: "❤️ Vermelho", bg:"#16070b", panel:"rgba(34,12,18,.90)", panel2:"rgba(24,8,13,.96)",  border:"rgba(255,70,95,.34)",   accent:"#ff3555", accent2:"#ff7c43", bot:"rgba(38,14,22,.78)", user:"rgba(180,28,52,.54)", orb1:"#ff2a4b", orb2:"#ff8533", glow:"rgba(255,50,80,.65)" },
+  vermelho: { nome: "❤ Vermelho", bg:"#16070b", panel:"rgba(34,12,18,.90)", panel2:"rgba(24,8,13,.96)",  border:"rgba(255,70,95,.34)",   accent:"#ff3555", accent2:"#ff7c43", bot:"rgba(38,14,22,.78)", user:"rgba(180,28,52,.54)", orb1:"#ff2a4b", orb2:"#ff8533", glow:"rgba(255,50,80,.65)" },
   azul:     { nome: "💙 Azul",     bg:"#07101f", panel:"rgba(12,22,40,.90)", panel2:"rgba(8,16,32,.96)",  border:"rgba(55,165,255,.32)",  accent:"#2997ff", accent2:"#00e5ff", bot:"rgba(14,28,52,.78)", user:"rgba(22,98,195,.54)", orb1:"#2997ff", orb2:"#00f2fe", glow:"rgba(40,160,255,.65)" },
   verde:    { nome: "💚 Verde",    bg:"#06150f", panel:"rgba(10,30,22,.90)", panel2:"rgba(7,22,16,.96)",  border:"rgba(25,215,140,.32)",  accent:"#10d48e", accent2:"#7dff7a", bot:"rgba(12,38,28,.78)", user:"rgba(14,132,88,.54)",  orb1:"#0fd68c", orb2:"#4dff88", glow:"rgba(20,215,140,.6)" },
   rosa:     { nome: "🩷 Rosa",     bg:"#170713", panel:"rgba(34,12,30,.90)", panel2:"rgba(24,9,22,.96)",  border:"rgba(255,85,185,.34)",  accent:"#ff4db8", accent2:"#a66bff", bot:"rgba(40,16,36,.78)", user:"rgba(182,36,126,.54)", orb1:"#ff3ea5", orb2:"#a66bff", glow:"rgba(255,65,175,.65)" },
@@ -413,7 +413,7 @@ const TEMAS = {
 const NOMES_MODOS = {
   auto: "🤖 Automático", raciocinio: "🧠 Raciocínio", pesquisa: "🌐 Pesquisa",
   aprendizado: "📚 Aprendizado", programacao: "💻 Programação", matematica: "🔢 Matemática",
-  visao: "👁️ Imagens", voz: "🎙️ Voz", criatividade: "✍️ Criatividade", documentos: "📄 Documentos"
+  visao: "👁 Imagens", voz: "🎙 Voz", criatividade: "✍ Criatividade", documentos: "📄 Documentos"
 };
 
 let history = [], pensando = null, modoProfundo = false, lerAuto = false, modoAtual = "auto";
@@ -544,7 +544,7 @@ const EXT = { html: "html", js: "js", javascript: "js", css: "css", python: "py"
 function mk(tag, cls, txt) { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
 
 function cartao(titulo, conteudo, arquivo, aberto, previa) {
-  const c = mk("div", "cartao"), top = mk("div", "topo"), b1 = mk("button", "", "📋 Copiar"), b2 = mk("button", "", "⬇️ Baixar");
+  const c = mk("div", "cartao"), top = mk("div", "topo"), b1 = mk("button", "", "📋 Copiar"), b2 = mk("button", "", "⬇ Baixar");
   b1.onclick = () => copiar(conteudo, b1); b2.onclick = () => baixar(conteudo, arquivo);
   top.append(mk("span", "", titulo), b1, b2);
   const d = mk("details"); if (aberto) d.open = true;
@@ -642,7 +642,7 @@ function falar(texto, tipo = "bot", origem = "", forcar = false, cit = "") {
   history.push({ text: String(texto), type: tipo, ...(cit ? { cit } : {}) }); salvarHist();
   if (tipo === "bot") {
     ultimaOrigem = origem;
-    if (!/^⏹|^⚠️/.test(String(texto))) {
+    if (!/^⏹|^⚠/.test(String(texto))) {
       const semCod = String(texto).replace(RE_BLOCO_RM, "").replace(/https?:\/\/\S+/g, "").trim();
       const linhas = semCod.split(/\n+/).map(l => l.trim()).filter(Boolean);
       const perg = [...linhas].reverse().find(l => /\?/.test(l)) || "";
@@ -708,7 +708,7 @@ function abrirErrosADM(filtro = "") {
   top.append(mk("b", "", "🚨 Erros ADM (" + lista.length + ")"), busca, fechar);
 
   const bar = mk("div", "ebar");
-  const bSelAll = mk("button", "", "☑️ Selecionar todos");
+  const bSelAll = mk("button", "", "☑ Selecionar todos");
   const bDelSel = mk("button", "danger", "🗑 Excluir selecionados (" + selecionadosErr.size + ")");
   const bDelAll = mk("button", "danger", "🗑 Excluir tudo");
   const bCopiar = mk("button", "primary", "📋 Copiar erros");
@@ -762,7 +762,7 @@ function abrirErrosADM(filtro = "") {
     const ent = mk("div", "", "👤 " + e.entrada);
     info.append(cab, ent);
     if (e.resposta) info.append(mk("div", "edata", "🤖 " + e.resposta));
-    if (e.motivo) info.append(mk("div", "edata", "ℹ️ " + e.motivo));
+    if (e.motivo) info.append(mk("div", "edata", "ℹ " + e.motivo));
 
     const bDel = mk("button", "", "🗑");
     bDel.title = "Excluir este erro";
@@ -797,7 +797,7 @@ function abrirSobre() {
 
   const box = mk("div", "sbox"), top = mk("div", "htopo"), fechar = mk("button", "", "✕");
   fechar.onclick = () => sobreEl.classList.remove("aberto");
-  top.append(mk("b", "", "ℹ️ Sobre a BACH AI"), mk("span", "", ""), fechar);
+  top.append(mk("b", "", "ℹ Sobre a BACH AI"), mk("span", "", ""), fechar);
   top.children[1].style.flex = "1";
 
   const info = mk("div", "scard");
@@ -857,7 +857,7 @@ async function clima(cidade) {
     if (!l) throw new Error("Cidade não encontrada.");
     try { localStorage.setItem("bach_cidade", l.name); } catch {}
     RizikBrain.logTopic("clima em " + l.name);
-    passo("🌡️ Buscando a previsão de " + l.name + "...");
+    passo("🌡 Buscando a previsão de " + l.name + "...");
     const p = new URLSearchParams({
       latitude: l.latitude, longitude: l.longitude,
       current: "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m",
@@ -866,9 +866,9 @@ async function clima(cidade) {
     });
     const d = await (await requisicao("https://api.open-meteo.com/v1/forecast?" + p)).json(), c = d.current;
     const cond = k => k === 0 ? "Céu limpo" : [1, 2, 3].includes(k) ? "Nublado" : [45, 48].includes(k) ? "Neblina" : [51, 53, 55, 61, 63, 65, 80, 81, 82].includes(k) ? "Chuva ou garoa" : [95, 96, 99].includes(k) ? "Tempestade" : "Variável";
-    let r = "🌤️ CLIMA: " + l.name + "\n\nTemperatura: " + c.temperature_2m + "°C (sensação " + c.apparent_temperature + "°C)\nCondição: " + cond(c.weather_code) + "\nUmidade: " + c.relative_humidity_2m + "%\nVento: " + c.wind_speed_10m + " km/h\n\nPREVISÃO:\n";
+    let r = "🌤 CLIMA: " + l.name + "\n\nTemperatura: " + c.temperature_2m + "°C (sensação " + c.apparent_temperature + "°C)\nCondição: " + cond(c.weather_code) + "\nUmidade: " + c.relative_humidity_2m + "%\nVento: " + c.wind_speed_10m + " km/h\n\nPREVISÃO:\n";
     d.daily.time.forEach((x, i) => r += x + ": " + cond(d.daily.weather_code[i]) + ", " + d.daily.temperature_2m_min[i] + "°–" + d.daily.temperature_2m_max[i] + "°C, chuva " + d.daily.precipitation_probability_max[i] + "%\n");
-    falar(r, "bot", "🌤️ clima");
+    falar(r, "bot", "🌤 clima");
   } catch (e) { console.error(e); falar("Não consegui consultar o clima dessa cidade."); }
 }
 
@@ -938,7 +938,7 @@ async function pesquisaProfunda(q, fundo = true, salvarArquivo = false) {
   passo((usarFundo ? "🔎 Pesquisando a fundo: " : "🔎 Pesquisando: ") + temaLimpo);
   try {
     const r = await Saber.pesquisaProfunda(q, passo, usarFundo, { semLimite: modoCriador });
-    const tx = r.texto.replace(/\n\n💬 Em poucas palavras:[^\n]*/, "").replace(/\n\n🔍 Como cheguei nisso:[^\n]*/, "").replace(/\nℹ️[^\n]*/, "").replace(/\n\n💾 Guardei[^\n]*/, "").replace(/\n\n🚫 Não guardei[^\n]*/, "");
+    const tx = r.texto.replace(/\n\n💬 Em poucas palavras:[^\n]*/, "").replace(/\n\n🔍 Como cheguei nisso:[^\n]*/, "").replace(/\nℹ[^\n]*/, "").replace(/\n\n💾 Guardei[^\n]*/, "").replace(/\n\n🚫 Não guardei[^\n]*/, "");
     if (r.conf !== "baixa") { Mente.lembrarTema(temaLimpo); RizikBrain.logTopic(temaLimpo); }
     falar(tx, "bot", "🌐 internet, filtrada e resumida");
     if (salvarArquivo && r.conf === "alta" && temaLimpo.length >= 4) {
@@ -1180,6 +1180,7 @@ const sn = t => String(t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f
 
 const parecePerguntaGeral = (raw, tn) => {
   if (/\b(voce|vc|bach|bash|seu nome|sua idade|meu nome|esqueceu|esqueci|lembra|lembro|perguntando|pergunto|respondi|respondeu|certo|errado)\b/.test(tn)) return false;
+  if (/\b(19|20)\d{2}\b/.test(tn) && tn.split(" ").length <= 6) return true;
   if (/\?\s*$/.test(String(raw)) && tn.split(" ").length >= 2) return true;
   return /^(?:qual|quais|quem|como|onde|quando|porque|por que|quanto|quantos|quantas|o que|de qual|em qual|sera que|existe|existem|para que serve)\b/.test(tn) && tn.split(" ").length >= 3;
 };
@@ -1207,7 +1208,7 @@ async function rotear(texto) {
     }
     const h = await sha256Hex(novaSenha);
     if (!h) {
-      falar("⚠️ Seu navegador não suporta WebCrypto SHA-256 neste contexto.", "bot", "🔒 adm", true);
+      falar("⚠ Seu navegador não suporta WebCrypto SHA-256 neste contexto.", "bot", "🔒 adm", true);
       return;
     }
     try { localStorage.setItem(KEY_ADM_HASH, h); } catch {}
@@ -1224,7 +1225,7 @@ async function rotear(texto) {
     const tentativa = texto.trim().replace(/^\/adm\s*/i, "").trim();
     const hashSalvo = getAdmHash();
     if (!hashSalvo) {
-      falar("ℹ️ Nenhuma senha SHA-256 configurada ainda. No aparelho onde o ADM já estiver conectado, use `/admsenha SUA_SENHA` e cole o hash gerado em `DEFAULT_ADM_HASH`.", "bot", "🔒 adm", true);
+      falar("ℹ Nenhuma senha SHA-256 configurada ainda. No aparelho onde o ADM já estiver conectado, use `/admsenha SUA_SENHA` e cole o hash gerado em `DEFAULT_ADM_HASH`.", "bot", "🔒 adm", true);
       return;
     }
     const hTent = tentativa ? await sha256Hex(tentativa) : "";
@@ -1270,7 +1271,7 @@ async function rotear(texto) {
   if (cmdNeural) { falar(cmdNeural, "bot", "🧬 rede neural", true); return; }
 
   const cmdNuvem = NLUNeural.comando(texto, modoCriador);
-  if (cmdNuvem) { falar(cmdNuvem, "bot", "☁️ nuvem", true); return; }
+  if (cmdNuvem) { falar(cmdNuvem, "bot", "☁ nuvem", true); return; }
 
   const ehCmdEditor = /^\/(editar|trocareditor|editarmodulo|desfazer_edicao|tudotxt|pacotetotxt|pacotetxts?|modulos?txt|codigostxt)\b/i.test(texto.trim()) ||
     EditorADM.ehPedidoTudoTxt?.(texto) ||
@@ -1278,7 +1279,7 @@ async function rotear(texto) {
   if (ehCmdEditor) {
     const ed = await EditorADM.processar(texto, modoCriador, passo);
     if (ed) {
-      falar(ed.texto, "bot", "🛠️ editor adm", true);
+      falar(ed.texto, "bot", "🛠 editor adm", true);
       if (ed.arquivo && ed.codigo) {
         chat.appendChild(cartao("📦 " + ed.arquivo, ed.codigo, ed.arquivo, false, 1600));
         chat.scrollTop = chat.scrollHeight;
@@ -1288,7 +1289,7 @@ async function rotear(texto) {
   }
 
   if (/^\/ajuda\b/i.test(cmd)) {
-    falar(EditorADM.ajudaComandos(modoCriador), "bot", "⌨️ comandos");
+    falar(EditorADM.ajudaComandos(modoCriador), "bot", "⌨ comandos");
     return;
   }
 
@@ -1313,10 +1314,10 @@ async function rotear(texto) {
   if (/^(sobre|sobre a bach|versao|sobre o app)$/i.test(tn)) { abrirSobre(); return; }
 
   if (ExecutorSandbox.detectarPedido(texto)) {
-    passo("▶️ Executando em sandbox isolado...");
+    passo("▶ Executando em sandbox isolado...");
     const arqCompleto = ultimoArquivo?.nome ? { nome: ultimoArquivo.nome, texto: Arquivos.obterTextoCompleto?.(ultimoArquivo.nome) || ultimoArquivo.texto } : ultimoArquivo;
     const ex = await ExecutorSandbox.executar(texto, { ultimoArquivo: arqCompleto });
-    falar(ex.texto, "bot", "▶️ sandbox");
+    falar(ex.texto, "bot", "▶ sandbox");
     if (ex.previewHtml) {
       chat.appendChild(ExecutorSandbox.criarCardPreview(ex.previewHtml, ex.previewTitle));
       chat.scrollTop = chat.scrollHeight;
@@ -1406,7 +1407,7 @@ async function rotear(texto) {
         const cidSalva = (() => { try { return localStorage.getItem("bach_cidade"); } catch { return null; } })();
         const cidR = extrairClima(acao.pergunta) || cidSalva;
         if (cidR) return clima(cidR);
-        aguardaCidade = true; falar("De qual cidade? Me diga só o nome (ex.: Londrina) 🌤️"); return;
+        aguardaCidade = true; falar("De qual cidade? Me diga só o nome (ex.: Londrina) 🌤"); return;
       }
       if (acao.tipo === "traducao") {
         falar(acao.aviso, "bot", "🔄 autocorreção");
@@ -1464,10 +1465,10 @@ async function rotear(texto) {
       falar(querCodigo
         ? "📝 Texto completo de **" + ultimoArquivo.nome + "** pronto para copiar:\n\n" + wrapFence(txtCheio, "txt")
         : "📝 Texto encontrado em **" + ultimoArquivo.nome + "**:\n\n“" + txtCheio.slice(0, 4000) + "”",
-        "bot", "👁️ leitura direta");
+        "bot", "👁 leitura direta");
       return;
     }
-    if (ultimaMidiaInfo) { falar(ultimaMidiaInfo.resumo, "bot", "👁️ análise de mídia"); return; }
+    if (ultimaMidiaInfo) { falar(ultimaMidiaInfo.resumo, "bot", "👁 análise de mídia"); return; }
   }
 
   if ((modoAtual === "documentos" || /\b(nos meus arquivos|no meu arquivo|no documento|nos documentos|no texto que enviei|no arquivo que mandei)\b/.test(tn)) &&
@@ -1488,14 +1489,14 @@ async function rotear(texto) {
     /^(?:tem|vai|vem|est[aá]|ta|t[aá]|esta)\s+.{0,15}(?:chuva|chover|chovendo)(?:\s+(?:hoje|hj|agora|amanh[aã]|amanha))?\s*\??$/i.test(texto);
   if (pedeClimaSemCidade) {
     if (cidSalva) return clima(cidSalva);
-    aguardaCidade = true; falar("De qual cidade? Me diga só o nome (ex.: Londrina) 🌤️"); return;
+    aguardaCidade = true; falar("De qual cidade? Me diga só o nome (ex.: Londrina) 🌤"); return;
   }
   const cid = extrairClima(texto); if (cid) return clima(cid);
 
   if (modoAtual === "pesquisa") return pesquisaProfunda(extrairProfundo(texto) || extrairPesquisa(texto) || texto, true, true);
   if (modoAtual === "visao") {
-    if (!ultimaImagem && !ultimaMidiaInfo) { falar("👁️ Modo Imagens ativo: toque no + para enviar uma foto ou vídeo!"); return; }
-    falar(ultimaMidiaInfo?.resumo || "Envie uma foto pelo + para eu analisar.", "bot", "👁️ análise de imagem"); return;
+    if (!ultimaImagem && !ultimaMidiaInfo) { falar("👁 Modo Imagens ativo: toque no + para enviar uma foto ou vídeo!"); return; }
+    falar(ultimaMidiaInfo?.resumo || "Envie uma foto pelo + para eu analisar.", "bot", "👁 análise de imagem"); return;
   }
   if (modoAtual === "documentos") {
     if (!ultimoArquivo && !(Arquivos.total?.() > 0)) { falar("📄 Modo Documentos ativo: cole um texto longo, um link ou anexe um arquivo pelo +."); return; }
@@ -1574,7 +1575,7 @@ async function rotear(texto) {
     NLUNeural.registrarSucessoAposFalha(texto, mt.pesquisa ? "pesquisa" : "termux_dev");
     if (mt.noticias) return noticias(mt.q);
     if (mt.pesquisa) return pesquisaProfunda(mt.pesquisa, mt.fundo !== false, false);
-    if (mt.apagar) { const resAp = Arquivos.comando("/apagar " + mt.apagar); falar(resAp || "Não consegui apagar esse arquivo.", "bot", "🗑️ arquivos"); return; }
+    if (mt.apagar) { const resAp = Arquivos.comando("/apagar " + mt.apagar); falar(resAp || "Não consegui apagar esse arquivo.", "bot", "🗑 arquivos"); return; }
     falar(mt.texto, "bot", mt.origem || "🧠 minha mente"); return;
   }
 
@@ -1595,12 +1596,12 @@ async function rotear(texto) {
   if (/^\/[a-z0-9_-]+/i.test(texto.trim())) {
     const tok = texto.trim().split(/\s+/)[0].toLowerCase();
     if (/^\/(juda|ajud|ajda|ajdua|ajuda+)$/.test(tok)) {
-      falar("💡 Você digitou `" + tok + "` — abri o `/ajuda` pra você:\n\n" + EditorADM.ajudaComandos(modoCriador), "bot", "⌨️ comandos");
+      falar("💡 Você digitou `" + tok + "` — abri o `/ajuda` pra você:\n\n" + EditorADM.ajudaComandos(modoCriador), "bot", "⌨ comandos");
       return;
     }
-    const msgCmd = "⌨️ Não reconheci o comando `" + tok + "`. Digite `/ajuda` para ver todos os comandos.";
+    const msgCmd = "⌨ Não reconheci o comando `" + tok + "`. Digite `/ajuda` para ver todos os comandos.";
     registrarErroPublico("comando-invalido", texto, msgCmd, "comando / desconhecido");
-    falar(msgCmd, "bot", "⌨️ comandos");
+    falar(msgCmd, "bot", "⌨ comandos");
     return;
   }
 
@@ -1685,7 +1686,7 @@ async function enviar() {
     if (cmdGH) {
       alvo = null;
       falar(cmdGH.secret ? texto.split(/\s+/).slice(0, 2).join(" ") + " ••••••" : texto, "user", "", false, cit);
-      falar(cmdGH.texto, "bot", "⚙️ github adm", true);
+      falar(cmdGH.texto, "bot", "⚙ github adm", true);
       return;
     }
 
@@ -1693,7 +1694,7 @@ async function enviar() {
     if (cmdLLM) {
       alvo = null;
       falar(cmdLLM.secret ? texto.split(/\s+/)[0] + " ••••••" : texto, "user", "", false, cit);
-      falar(cmdLLM.text, "bot", "⚙️ motor próprio", true); status.textContent = statusPadrao(); return;
+      falar(cmdLLM.text, "bot", "⚙ motor próprio", true); status.textContent = statusPadrao(); return;
     }
   }
 
@@ -1811,12 +1812,12 @@ entrada.addEventListener("keydown", e => {
 
 aplicarTema(temaAtual);
 atualizarBadge();
-status.textContent = falhas.length ? "⚠️ Erro em: " + falhas[0] : statusPadrao();
+status.textContent = falhas.length ? "⚠ Erro em: " + falhas[0] : statusPadrao();
 ajustar();
 try { Historico.salvarAtual(history); } catch {}
 try { restaurar(); } catch (e) { console.warn(e); }
 if (falhas.length) {
-  falar("⚠️ Alguns módulos não carregaram no GitHub: " + falhas.join(", ") + "\nConfira os nomes ou cole esses arquivos inteiros.", "bot", "⚠️ diagnóstico", true);
+  falar("⚠ Alguns módulos não carregaram no GitHub: " + falhas.join(", ") + "\nConfira os nomes ou cole esses arquivos inteiros.", "bot", "⚠ diagnóstico", true);
 } else if (!history.length) {
   const nomeSalvo = RizikBrain.recall("userName");
   falar((nomeSalvo ? "Olá, **" + nomeSalvo + "**! " : "Olá! ") + "Sou a **BACH AI** 🧠 (v" + APP_VER + "), com motor próprio, Rede Neural 3.0, RAG em IndexedDB e memória em 3 camadas. Digite `/ajuda` para ver os comandos ou mande o que você precisa.", "bot", "", true);
