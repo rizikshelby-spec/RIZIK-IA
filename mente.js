@@ -1,7 +1,7 @@
-/* BACH AI 5.5 — MENTE 3.8 (Cópia Completa Sem Cortes + Cerca Dinâmica + Zero Falsos Modos)
- * - Remove o corte de 40 KB em ctx.texto durante a sessão e tenta persistir até 200 KB com fallback seguro.
- * - Usa cerca dinâmica de crases (wrapCodeFence) para nunca quebrar código copiado que contenha ```.
- * - Diferencia "força" de "forca" e bloqueia perguntas conversacionais/emocionais de caírem em pesquisa web.
+/* BACH AI 5.6 — MENTE 4.0 (Buscas Naturais de Jogos/Tutoriais + Contexto Completo)
+ * - Libera perguntas naturais do dia a dia sem precisar de "?" ("como baixar gta para celular", "qual melhor...", "quem ganhou...", "receita de...").
+ * - Corrige bloqueio excessivo em frases comuns contendo "meu/minha/quer".
+ * - Mantém cerca dinâmica de crases, inspeção de módulos, pastas, apps e jogos no chat.
  */
 
 import { Saber } from "./saber.js?v=15";
@@ -59,20 +59,21 @@ const BASE_LEX = (
   "mundo noticia noticias hoje agora ontem amanha semana mes ano seculo tempo clima chuva calor frio sol lua estrela terra planeta universo galaxia marte " +
   "pais cidade estado capital brasil mundo pessoa gente homem mulher crianca jovem adulto idoso amigo amiga familia pai mae irmao irma filho filha " +
   "casa apartamento quarto cozinha sala rua bairro escola faculdade universidade trabalho emprego empresa dinheiro banco salario preco compra venda " +
-  "comida agua cafe leite pao arroz feijao carne frango peixe fruta banana maca laranja doce bolo pizza lanche suco cerveja vinho chocolate cacau " +
+  "comida agua cafe leite pao arroz feijao carne frango peixe fruta banana maca laranja doce bolo pizza lanche suco cerveja vinho chocolate cacau receita " +
   "animal cachorro gato cavalo passaro peixe pato leao tigre urso lobo macaco cobra tubarao baleia dinossauro inseto planta arvore flor floresta pinguim galinha " +
   "cores azul verde vermelho amarelo preto branco rosa roxo laranja marrom cinza dourado prateado pintar pintura quadro quadros desenho desenhar " +
   "tema temas esfera bolinha transparente modulo modulos melhorar risos musica cantar dancar instrumento violao guitarra piano bateria banda show album letra " +
   "filme filmes serie series anime animes desenho desenhos livro livros historia conto novela cinema ator atriz diretor lancamento estreia trailer sinopse critica nota " +
   "jogo jogos game games console computador celular internet site pagina rede social aplicativo programa codigo codigos algoritmo dado dados banco servidor nuvem " +
+  "baixar instalar download configurar atualizar formatar desbloquear rodar gta minecraft roblox fortnite " +
   "erro bug falha problema solucao texto textos resumo explicar explicacao significa significado diferenca exemplo pergunta resposta ajuda ajudar " +
   "aprender ensinar estudar escrever falar ouvir ler ver assistir pensar lembrar esquecer memoria comecar terminar continuar tentar conseguir " +
   "criar fazer construir montar editar apagar excluir salvar abrir fechar buscar procurar pesquisar encontrar saber entender conhecer distancia " +
-  "esporte futebol basquete volei tenis corrida natacao luta campeonato copa time jogador gol " +
+  "esporte futebol basquete volei tenis corrida natacao luta campeonato copa time jogador jogadores gol campeao " +
   "carro moto bicicleta aviao onibus trem navio viagem turismo hotel mapa estrada transito " +
   "hospital medico doenca saude remedio vacina corpo cabeca olho boca mao pe coracao cerebro sangue gravidez gestacao dormir dormi acordar " +
   "amor feliz felicidade triste tristeza raiva medo susto calma paz alegria saudade sonho esperanca natal sereia sereias formula " +
-  "importante facil dificil grande pequeno alto baixo novo velho rapido devagar muito pouco tudo nada algum alguem ninguem " +
+  "importante facil dificil grande pequeno alto baixo novo velho rapido devagar muito pouco tudo nada algum alguem ninguem melhor melhores " +
   "sempre nunca depois antes durante porque quando quanto onde quem qual qualquer outro mesmo primeiro ultimo ultimas repetindo repetir " +
   "politica economia ciencia tecnologia cultura arte geografia matematica fisica quimica biologia filosofia psicologia direito " +
   "presidente governo eleicao lei guerra paz energia eletricidade bateria motor robo inteligencia artificial termux linux bash " +
@@ -109,7 +110,7 @@ function lev(a, b) {
 function corrigir(w) {
   if (w.length < 5 || /\d|\s/.test(w)) return w;
   if (/(?:ando|endo|indo|mente|inho|inha|coes|sao)$/.test(w)) return w;
-  if (/^(passe|passa|passar|passou|arroz|manda|mande|pede|pedir|quero|prece|pesse|lancou|lanca|lancar|estreou|saiu|presta|recomenda|indica|bugado|bugada|fazem|travou|arrumo|consertar|entende|entendeu|mandei|responde|respondeu|pergunto|perguntando|consciencia|sobreviver|melhore|melhora|repetindo|repetir|dormi|dormir|acordar|gravidez|natal|sereia|sereias|formula|criado|criada|fruta|membros|episodios|trabalhava|mandado|dialogo|falasse|queria|esqueceu|esqueci|lembra|lembro|verifica|falhas|zoeira|certo|embora|demitido|demitida|tristeza|desanimado|ansioso|cansado|atualizado|recentes)$/.test(w)) return w;
+  if (/^(passe|passa|passar|passou|arroz|manda|mande|pede|pedir|quero|prece|pesse|lancou|lanca|lancar|estreou|saiu|presta|recomenda|indica|bugado|bugada|fazem|travou|arrumo|consertar|entende|entendeu|mandei|responde|respondeu|pergunto|perguntando|consciencia|sobreviver|melhore|melhora|melhor|melhores|repetindo|repetir|dormi|dormir|acordar|gravidez|natal|sereia|sereias|formula|criado|criada|fruta|membros|episodios|trabalhava|mandado|dialogo|falasse|queria|esqueceu|esqueci|lembra|lembro|verifica|falhas|zoeira|certo|embora|demitido|demitida|tristeza|desanimado|ansioso|cansado|atualizado|recentes|baixar|instalar|jogar|jogador|jogadores|celular|iphone|android|computador|receita|comprei|ganhou|venceu|existe|existem)$/.test(w)) return w;
   const L = lexico();
   if (L.has(w)) return w;
   const max = 1;
@@ -165,7 +166,7 @@ function tema(t) {
   const CMD = /^(?:(?:pode|poderia|consegue|faz|faca|fazer|quero|gostaria)\s+)?(?:me\s+)?(?:explica|explique|explicar|fala|fale|falar|diz|diga|conta|conte|mostra|mostre|pesquisa|pesquise|pesquisar|procure|procura|procurar|busca|busque|buscar|indica|indique|recomenda|recomende)(?:\s+uma\s+pesquisa)?(?:\s+na\s+(?:internet|web|net)|no\s+google|\s+online)?(?:\s+pra\s+mim|\s+por\s+favor)?(?:\s+(?:sobre|de|por|a\s+respeito\s+de))?(?:\s+|$)/;
   const PERG = /^(?:o\s+que|quem|quais|qual|quantos|quantas|quanto|onde|quando|como|por\s+que|porque|para\s+que|sera\s+que)\s+(?:e|a|o|as|os|sao|foi|foram|era|eram|esta|estao|significa|significam|funciona|funcionam|aconteceu|existe|existem|fica|ficam|fazer|faco|faz|tem|vai|vao)?\s*/;
   const ART = /^(?:a|o|as|os|um|uma|uns|umas|de|do|da|dos|das|no|na|nos|nas|que|sobre|na\s+internet|na\s+web|no\s+google|por\s+favor|pra\s+mim)\s+/;
-  const SUF = /\s+(?:ja\s+lancou|lancou|vai\s+lancar|ja\s+saiu|vai\s+sair|e\s+bom|e\s+boa|sao\s+bons|sao\s+boas|vale\s+a\s+pena|presta|e\s+legal|sao\s+legais|legais|legal|bom|boa|melhor|melhores|hoje|agora|atualmente|por\s+favor)$/;
+  const SUF = /\s+(?:ja\s+lancou|lancou|vai\s+lancar|ja\s+saiu|vai\s+sair|e\s+bom|e\s+boa|sao\s+bons|sao\s+boas|vale\s+a\s+pena|presta|e\s+legal|sao\s+legais|legais|legal|bom|boa|hoje|agora|atualmente|por\s+favor)$/;
 
   for (let k = 0; k < 4; k++) {
     x = x.replace(CMD, "").replace(PERG, "").replace(ART, "").replace(SUF, "").trim();
@@ -506,7 +507,7 @@ const PASSOS = [
 ];
 const GUIA = "🤖 Como fazer uma IA do zero (o caminho da BACH):\n\n" + PASSOS.map((x, i) => (i + 1) + ") " + x[0]).join("\n") + "\n\nOrdem: 1 → 2 → 3, teste, e só depois 4 a 7.\nDiga “passo 1” (ou só o número) para ver o que colar.";
 
-/* ---------- programação (com proteção contra disparos fora de hora) ---------- */
+/* ---------- programação ---------- */
 const LING = { javascript: "JavaScript", js: "JavaScript", python: "Python", html: "HTML", css: "CSS", sql: "SQL" };
 const ROTEIRO = "🗺️ Roteiro: 1) variáveis e tipos, 2) condicionais, 3) loops, 4) funções, 5) arrays e objetos, 6) DOM e eventos (JS), 7) fetch/API e async, 8) um projeto pequeno. Depois: classes, módulos, testes e Git.\nPergunte por qualquer um (ex.: “o que é função?”). Diga “mais” para o nível avançado.";
 const ASSUNTOS = "variáveis, condicionais, loops, funções, arrays, objetos/JSON, classes, async/await, DOM, fetch/API, closures, recursão, algoritmos, regex, Git, SQL, HTML, CSS, Python, Termux, módulos, localStorage, debug, testes, jogos, apps e IA";
@@ -698,7 +699,7 @@ function responder(msg, opts = {}) {
 
 const SMALL = /(tudo bem|como vai|como voce|e voce|bom dia|boa tarde|boa noite|voce esta|voce e |que bom|tudo certo|vamos falar sobre|falar sobre o que|nao foi isso|travou foi|sabe rir|velho do ceu|conversa comigo|opa o que|oxe o que|entende o que|eu falo de|nao mandei|como assim|porque nao|eu que pergunto|to te perguntando|consciencia|fazendo pesquisa|nao entendeu|nao entende|acertei|que humor ruim|melhore|sentiu o que|blz o que|jogar voce fora|vai ficar repetindo|dormi bem|e isso e bom|isso e bom|e bom|serio mesmo|ta bem|ta bravo|ta brava|aconteceu algo|que pergunta|q pergunta|e agora|nao e|ne|esqueceu foi|seja certo|vc lembra|voce lembra|ta erra|posso desabafar|o que eu faco|oque eu faco|o que voce acha|voce gosta|voce prefere|tudo bem ai|como foi la|vai ficar tudo bem|sair adm|obgd)/;
 
-const BLOQUEIO_PESQUISA_CONV = /\b(eu|comigo|mim|voce|vc|nos|gente|meu|minha|seu|sua|pergunto|perguntando|digo|disse|falei|mandei|entende|entendeu|pesquisando|fazendo pesquisa|queria|falasse|dialogo|testar|esqueceu|esqueci|lembra|lembro|respondeu|desabafar|sentindo|triste|cansado|ansioso|mandado embora|demitido|acha|prefere|gosta|quer|faco agora|adm|rizik)\b/;
+const BLOQUEIO_PESQUISA_CONV = /\b(pergunto|perguntando|digo|disse|falei|mandei|entende|entendeu|pesquisando|fazendo pesquisa|queria que|falasse|dialogo|testar|esqueceu|esqueci|lembra|lembro|respondeu|desabafar|sentindo|triste|cansado|ansioso|mandado embora|demitido|faco agora|adm|rizik)\b/;
 
 const PALAVRAS_CONVERSA_SEM_TEMA = new Set(
   "a o as os um uma e eh de do da em no na por para com sem que se isso isto aquilo ele ela eles elas esse essa este esta bom boa ruim legal serio verdade certo errado agora sim nao tudo nada aqui ali ne oxe uai ue cara mano vei po vc voce eu meu minha seu sua foi era sou esqueceu esqueci lembra lembro sabia disse falou respondeu perguntando pergunto seja verifica falhas zoeira assim la ai aqui hoje ontem amanha".split(" ")
@@ -709,13 +710,14 @@ const pergunta = t => {
   const palavras = p.trim().split(" ").filter(Boolean);
   if (has(p, SMALL)) return false;
   if (has(p, BLOQUEIO_PESQUISA_CONV)) return false;
+  if (has(p, / (eu|comigo|mim|voce|vc|nos|gente) /) && !has(p, / (baixar|instalar|celular|pc|computador|jogo|app|fazer|receita) /)) return false;
 
-  if (has(p, /^ ?(o que e|o que sao|o que foi|o que significa|quem e|quem foi|quem sao|quais sao|quais os|quais as|qual e|qual a|qual o|qual foi|de qual|em qual|com qual|quantos|quantas|quanto|onde fica|onde esta|quando foi|quando aconteceu|como funciona|como surgiu|por que|porque|para que serve|me explica|explique|explica|fale sobre|fala sobre|historia de|historia do|historia da) /)) {
-    const termosReais = palavras.filter(w => w.length >= 2 && !PALAVRAS_CONVERSA_SEM_TEMA.has(w) && !/^(o|que|e|sao|foi|significa|quem|quais|qual|de|em|com|quantos|quantas|quanto|onde|fica|esta|quando|aconteceu|como|funciona|fazer|faco|posso|surgiu|por|porque|para|serve|me|explica|explique|fale|fala|sobre|historia|da|do)$/.test(w));
+  if (has(p, /^ ?(o que (?:e|sao|foi|significa|fazer|aconteceu|acontece|causa|provoca)|quem (?:e|foi|sao|ganhou|venceu|criou|inventou|descobriu|escreveu|canta|atua|joga)|quais (?:sao|os|as|melhores|piores)|qual (?:e|a|o|foi|sao|melhor|pior|maior|menor|diferenca)|quantos|quantas|quanto (?:custa|vale|mede|pesa|tempo|fica)|onde (?:fica|esta|baixar|instalar|assistir|comprar|encontrar|mora|surgiu)|quando (?:foi|sera|aconteceu|lanca|estreia|comecou|terminou|surgiu)|como (?:baixar|instalar|fazer|jogar|usar|criar|configurar|resolver|tirar|ganhar|atualizar|formatar|desbloquear|funciona|funcionam|surgiu|comecou|preparar|limpar|consertar|chegar|saber)|por que|porque|para que serve|me explica|explique|explica|fale sobre|fala sobre|historia d[aeo]|receita d[aeo]|diferenca entre|melhores (?:jogos|filmes|series|animes|celulares|apps)|baixar |instalar |download )/)) {
+    const termosReais = palavras.filter(w => w.length >= 2 && !PALAVRAS_CONVERSA_SEM_TEMA.has(w) && !/^(o|que|e|sao|foi|significa|quem|quais|qual|de|em|com|quantos|quantas|quanto|onde|fica|esta|quando|aconteceu|como|funciona|fazer|faco|posso|surgiu|por|porque|para|serve|me|explica|explique|fale|fala|sobre|historia|da|do|baixar|instalar)$/.test(w));
     return termosReais.length >= 1;
   }
 
-  if (/\?\s*$/.test(String(t)) && palavras.length >= 4) {
+  if (/\?\s*$/.test(String(t)) && palavras.length >= 2) {
     const termosReais = palavras.filter(w => w.length >= 3 && !PALAVRAS_CONVERSA_SEM_TEMA.has(w));
     return termosReais.length >= 2;
   }
