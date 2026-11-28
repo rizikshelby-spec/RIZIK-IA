@@ -1,7 +1,8 @@
-/* BACH AI 5.7 - CÉREBRO AVANÇADO ESTILO CLAUDE + MÍDIAS + CONHECIMENTO GERAL
- * - Responde no estilo natural e estruturado dos prints (tópicos claros, linguagem humana, pergunta de volta).
- * - Corrige "Que dia é hj?", "Amanhã é qual dia?", "Vc é Claude?", "Vc é baseado no quê?", textos/histórias originais, "PC barato pela net", "Jogos de futebol", "Mundo vai acabar?", "Mais inteligente do mundo".
- * - Buscador legal de fotos, áudios/músicas e vídeos/filmes livres no chat + orientação para comerciais.
+/* BACH AI 5.9 - CÉREBRO AVANÇADO (Contexto Real do Histórico + YouTube + Player Vídeo/Áudio + Estilo Claude)
+ * - Recupera o último assunto real do histórico quando o usuário diz "Mas eu falei", "Eu já falei", "Nem se procurar mais?".
+ * - Busca vídeos reais no YouTube ("abrir youtube ...", "abrir video de ...") e cria cartões clicáveis no chat.
+ * - Busca fotos, áudios/músicas e vídeos/filmes em acervo público com player e download no chat.
+ * - Implementa "Copiar" direto na última resposta ou citação, além de base de /global transparente.
  */
 
 import { AutoGuard } from "./autoguard.js?v=2";
@@ -78,7 +79,28 @@ function senhaRapida(n = 14) {
   return "🔐 **Senha forte gerada (" + tam + " caracteres):**\n\n`" + out + "`\n\nℹ️ Gerada localmente no seu aparelho (não salvo senhas).";
 }
 
-/* ---------- Buscador Legal de Mídias (Fotos, Áudios/Músicas, Vídeos/Filmes) ---------- */
+/* ---------- Recuperação de Contexto Real do Histórico ---------- */
+
+const RE_RUIDO_HIST = /^(?:ue+|uai+|oxe+|oxente|ah+|oh+|eh+|mas eu falei|eu ja falei|ja falei|vc que nao entende|voce que nao entende|vc nao entende|vc errando|voce errou|vc erra|burr[oa]|idiota|copiar|nem se vc procurar mais|eu to te respondendo.*|o deus|mds|pqp|crlh|tabom|ok|entendi|sei sei|k+a*s*k*.*|h+a+h+a+.*|r+s+r+s+.*)$/;
+
+function recuperarUltimoAssuntoReal(history) {
+  const h = Array.isArray(history) ? history : [];
+  for (let i = h.length - 1; i >= 0; i--) {
+    const m = h[i];
+    if (!m || m.type !== "user" || !m.text) continue;
+    const raw = String(m.text).trim();
+    const n = norm(raw);
+    if (!n || n.length <= 2 || RE_RUIDO_HIST.test(n) || ehEntradaSensivel(raw)) continue;
+    let respBot = "";
+    for (let j = i + 1; j < h.length; j++) {
+      if (h[j] && h[j].type !== "user" && h[j].text) { respBot = String(h[j].text); break; }
+    }
+    return { pergunta: raw, normPerg: n, respostaBot: respBot };
+  }
+  return null;
+}
+
+/* ---------- Buscador Legal de Mídias & YouTube ---------- */
 
 function urlHttpSegura(u) {
   try { const p = new URL(String(u || "").trim()); return (p.protocol === "https:" || p.protocol === "http:") ? p.href : null; }
@@ -91,8 +113,14 @@ async function fetchJson(url, ms = 10000) {
   catch { return null; } finally { clearTimeout(id); }
 }
 
-async function tentarBlobDownload(url, maxBytes = 12 * 1024 * 1024) {
-  const c = new AbortController(); const id = setTimeout(() => c.abort(), 12000);
+async function fetchText(url, ms = 11000) {
+  const c = new AbortController(); const id = setTimeout(() => c.abort(), ms);
+  try { const r = await fetch(url, { signal: c.signal }); return r.ok ? await r.text() : ""; }
+  catch { return ""; } finally { clearTimeout(id); }
+}
+
+async function tentarBlobDownload(url, maxBytes = 14 * 1024 * 1024) {
+  const c = new AbortController(); const id = setTimeout(() => c.abort(), 14000);
   try {
     const r = await fetch(url, { signal: c.signal });
     if (!r.ok) return null;
@@ -121,29 +149,42 @@ function injetarCardsMidiaNoChat(itens) {
       const tit = document.createElement("span");
       tit.textContent = item.titulo;
 
-      const btnBaixar = document.createElement("button");
-      btnBaixar.textContent = "⬇️ Baixar";
-      btnBaixar.onclick = async () => {
-        btnBaixar.disabled = true; btnBaixar.textContent = "⏳ Baixando...";
-        const blobUrl = await tentarBlobDownload(u);
-        if (blobUrl) {
-          const a = document.createElement("a"); a.href = blobUrl; a.download = item.arquivo || "midia-bach"; a.click();
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 8000);
-          btnBaixar.textContent = "✅ Baixado";
-        } else {
-          window.open(u, "_blank", "noopener,noreferrer");
-          btnBaixar.textContent = "↗️ Aberto";
-        }
-        setTimeout(() => { btnBaixar.disabled = false; btnBaixar.textContent = "⬇️ Baixar"; }, 2200);
-      };
+      if (item.kind !== "youtube") {
+        const btnBaixar = document.createElement("button");
+        btnBaixar.textContent = "⬇️ Baixar";
+        btnBaixar.onclick = async () => {
+          btnBaixar.disabled = true; btnBaixar.textContent = "⏳ Baixando...";
+          const blobUrl = await tentarBlobDownload(u);
+          if (blobUrl) {
+            const a = document.createElement("a"); a.href = blobUrl; a.download = item.arquivo || "midia-bach"; a.click();
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 8000);
+            btnBaixar.textContent = "✅ Baixado";
+          } else {
+            window.open(u, "_blank", "noopener,noreferrer");
+            btnBaixar.textContent = "↗️ Aberto";
+          }
+          setTimeout(() => { btnBaixar.disabled = false; btnBaixar.textContent = "⬇️ Baixar"; }, 2200);
+        };
+        top.append(tit, btnBaixar);
+      } else {
+        const btnAbrirYT = document.createElement("a");
+        btnAbrirYT.href = u;
+        btnAbrirYT.target = "_blank";
+        btnAbrirYT.rel = "noopener noreferrer";
+        btnAbrirYT.textContent = "▶️ Assistir ↗";
+        btnAbrirYT.style.cssText = "padding:5px 10px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:12px;font-weight:bold;text-decoration:none";
+        top.append(tit, btnAbrirYT);
+      }
 
-      const linkPagina = document.createElement("a");
-      linkPagina.href = urlHttpSegura(item.pagina || u) || u;
-      linkPagina.target = "_blank"; linkPagina.rel = "noopener noreferrer";
-      linkPagina.textContent = "Fonte ↗";
-      linkPagina.style.cssText = "color:var(--accent2);font-size:12px;font-weight:bold;text-decoration:none;padding:0 4px";
+      if (item.kind !== "youtube") {
+        const linkPagina = document.createElement("a");
+        linkPagina.href = urlHttpSegura(item.pagina || u) || u;
+        linkPagina.target = "_blank"; linkPagina.rel = "noopener noreferrer";
+        linkPagina.textContent = "Fonte ↗";
+        linkPagina.style.cssText = "color:var(--accent2);font-size:12px;font-weight:bold;text-decoration:none;padding:0 4px";
+        top.append(linkPagina);
+      }
 
-      top.append(tit, btnBaixar, linkPagina);
       card.appendChild(top);
 
       if (item.kind === "image") {
@@ -151,21 +192,24 @@ function injetarCardsMidiaNoChat(itens) {
         img.src = u; img.alt = item.titulo; img.loading = "lazy";
         img.style.cssText = "width:100%;max-height:280px;object-fit:contain;background:#080912;display:block";
         card.appendChild(img);
-      } else if (item.kind === "audio") {
+      } else if (item.kind === "audio" || item.kind === "video") {
+        const ehVid = item.kind === "video";
         const wrap = document.createElement("div");
         wrap.style.cssText = "padding:8px 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap";
         const btnOuvir = document.createElement("button");
-        btnOuvir.textContent = "▶️ Carregar player";
+        btnOuvir.textContent = ehVid ? "▶️ Carregar vídeo aqui" : "▶️ Carregar player";
         btnOuvir.style.cssText = "padding:6px 12px;font-size:12px;border-radius:8px;background:rgba(255,255,255,.12)";
         btnOuvir.onclick = async () => {
-          btnOuvir.disabled = true; btnOuvir.textContent = "⏳ Carregando áudio...";
-          const blobUrl = await tentarBlobDownload(u);
+          btnOuvir.disabled = true; btnOuvir.textContent = ehVid ? "⏳ Carregando vídeo..." : "⏳ Carregando áudio...";
+          const blobUrl = await tentarBlobDownload(u, 14 * 1024 * 1024);
           if (blobUrl) {
-            const au = document.createElement("audio");
-            au.controls = true; au.src = blobUrl; au.style.cssText = "width:100%;height:38px";
-            wrap.innerHTML = ""; wrap.appendChild(au); au.play().catch(() => {});
+            const el = document.createElement(ehVid ? "video" : "audio");
+            el.controls = true; el.src = blobUrl;
+            if (ehVid) { el.playsInline = true; el.style.cssText = "width:100%;max-height:280px;border-radius:10px"; }
+            else { el.style.cssText = "width:100%;height:38px"; }
+            wrap.innerHTML = ""; wrap.appendChild(el); el.play().catch(() => {});
           } else {
-            btnOuvir.textContent = "↗️ Abrir áudio no navegador";
+            btnOuvir.textContent = "↗️ Abrir no navegador";
             btnOuvir.disabled = false;
             btnOuvir.onclick = () => window.open(u, "_blank", "noopener,noreferrer");
           }
@@ -177,6 +221,26 @@ function injetarCardsMidiaNoChat(itens) {
     });
     chatEl.scrollTop = chatEl.scrollHeight;
   }, 50);
+}
+
+async function buscarVideosYouTube(busca) {
+  const txt = await fetchText("https://r.jina.ai/http://html.duckduckgo.com/html/?kl=br-pt&q=" + encodeURIComponent("site:youtube.com " + busca), 11000);
+  if (!txt) return [];
+  const ms = [...txt.matchAll(/^(?:#{1,4}\s+|[-*]\s+|\d+\.\s+)?(?<!!)\[([^\]]{3,160})\]\((https?:\/\/[^)\s]+)\)/gm)];
+  const out = [], seen = new Set();
+  for (const m of ms) {
+    let link = m[2];
+    try {
+      const u = new URL(link);
+      if (u.hostname.includes("duckduckgo.com")) link = u.searchParams.get("uddg") || link;
+    } catch {}
+    const seguro = urlHttpSegura(link);
+    if (!seguro || seen.has(seguro) || !/(?:youtube\.com\/watch|youtu\.be\/)/i.test(seguro)) continue;
+    seen.add(seguro);
+    out.push({ kind: "youtube", titulo: "📺 " + m[1].replace(/[#*_`\[\]]/g, "").slice(0, 52), url: seguro });
+    if (out.length >= 3) break;
+  }
+  return out;
 }
 
 async function buscarFotosWikimedia(termo) {
@@ -244,6 +308,16 @@ async function buscarVideosOuFilmesLivres(termo, ehFilme = false) {
 const FILMES_COMERCIAIS_RE = /\b(vingadores|avengers|homem aranha|spider man|batman|superman|avatar|titanic|deadpool|divertida mente|moana|frozen|harry potter|velozes e furiosos|john wick|interestelar|barbie|oppenheimer|coringa|joker|pantera negra|guardioes da galaxia|duna|wicked|gladiador|marvel|disney)\b/;
 
 async function tratarPedidoMidiaBaixar(t, raw) {
+  if (/\btorrent\b/i.test(t)) {
+    return {
+      texto: "⚖️ **Sobre torrents:**\n\n" +
+        "• **Não busco nem indico torrents piratas** de filmes, séries, jogos ou músicas protegidos por direitos autorais.\n" +
+        "• Um navegador no GitHub Pages também não tem motor BitTorrent embutido para baixar arquivos `.torrent` sozinho.\n" +
+        "• Para **mídias livres e legais** (domínio público / Creative Commons), posso buscar vídeos, filmes clássicos, áudios e fotos direto aqui no chat — ex.: `baixar filme chaplin` ou `baixar video nasa`!",
+      origem: "⚖️ mídia legal"
+    };
+  }
+
   const m = raw.match(/^(?:como\s+)?(?:baixa[r]?|abaixa[r]?|faz(?:er)?\s+download\s+d[eoa]s?|manda(?:r)?|pega(?:r)?|envia(?:r)?|quero(?:\s+baixar)?)\s+(?:um|uma|o|a|os|as|uns|umas)?\s*(fotos?|imagens?|imagem|wallpaper|m[uú]sicas?|msc|[áa]udios?|sons?|v[íi]deos?|filmes?|funk|sertanejo|rap|trap|rock|pagode|eletr[oô]nica)(?:\s+(?:dos|das|nos|nas|de|do|da|sobre|para|chamado|chamada))?\s*(.*)$/i);
   if (!m) {
     const mArt = raw.match(/^(?:baixa[r]?|abaixa[r]?)\s+(?:a\s+m[uú]sica\s+d[eo]\s+|som\s+d[eo]\s+)?(dj\s+\S+|mc\s+\S+|.+)$/i);
@@ -253,12 +327,9 @@ async function tratarPedidoMidiaBaixar(t, raw) {
     const audios = await buscarAudiosLivres(alvoTxt);
     if (audios.length) {
       injetarCardsMidiaNoChat(audios);
-      return { texto: "🎵 Encontrei **" + audios.length + " áudio(s)** livres para **“" + alvoTxt + "”** logo abaixo! *(Músicas comerciais de artistas ficam disponíveis para download offline nos apps Spotify, YouTube Music ou Deezer.)*", origem: "🎵 música" };
+      return { texto: "🎵 Encontrei **" + audios.length + " áudio(s)** livres para **“" + alvoTxt + "”** logo abaixo!", origem: "🎵 música" };
     }
-    return {
-      texto: "🎵 **“" + alvoTxt + "”** é música comercial protegida por direitos autorais, então não posso baixar o MP3 direto aqui.\n\nVocê consegue ouvir e baixar offline de forma oficial pelo **Spotify**, **YouTube Music**, **Deezer** ou **Apple Music**. Se quiser áudios livres para testar o player aqui no chat, tente `baixar audio de chuva` ou `baixar musica lo-fi`!",
-      origem: "🎵 música"
-    };
+    return { texto: "🎵 **“" + alvoTxt + "”** é música comercial protegida — para baixar offline legalmente, use **Spotify**, **YouTube Music**, **Deezer** ou **Apple Music**.", origem: "🎵 música" };
   }
 
   const tipoRaw = norm(m[1]);
@@ -274,10 +345,7 @@ async function tratarPedidoMidiaBaixar(t, raw) {
       injetarCardsMidiaNoChat(fotos);
       return { texto: "🖼️ Encontrei **" + fotos.length + " foto(s) livres** para **“" + busca + "”** (Wikimedia Commons). Veja abaixo e toque em **⬇️ Baixar**!", origem: "🖼️ fotos livres" };
     }
-    return {
-      texto: "🖼️ Não encontrei fotos livres para **“" + busca + "”** no Wikimedia Commons (ele guarda fotos reais/educacionais, não avatares ou artes de anime).\n\nTente termos como `baixar foto de leão`, `baixar foto da lua` ou `baixar foto de carro`!",
-      origem: "🖼️ fotos"
-    };
+    return { texto: "🖼️ Não encontrei fotos livres para **“" + busca + "”** no Wikimedia Commons. Tente termos como `baixar foto de leão` ou `baixar foto da lua`!", origem: "🖼️ fotos" };
   }
 
   if (/\b(musica|musicas|msc|audio|audios|som|sons|funk|sertanejo|rap|trap|rock|pagode|eletronica)\b/.test(tipoRaw)) {
@@ -285,28 +353,22 @@ async function tratarPedidoMidiaBaixar(t, raw) {
     const audios = await buscarAudiosLivres(busca);
     if (audios.length) {
       injetarCardsMidiaNoChat(audios);
-      return {
-        texto: "🎵 Encontrei **" + audios.length + " áudio(s) livres** para **“" + busca + "”**! Toque em **▶️ Carregar player** para ouvir ou **⬇️ Baixar**.\n\n*(Para músicas comerciais atuais como funk brasileiro/sertanejo, o download offline oficial é pelo **Spotify**, **YouTube Music** ou **Deezer**.)*",
-        origem: "🎵 áudios & músicas"
-      };
+      return { texto: "🎵 Encontrei **" + audios.length + " áudio(s) livres** para **“" + busca + "”**! Toque em **▶️ Carregar player** ou **⬇️ Baixar**.\n\n*(Músicas comerciais atuais ficam nos apps **Spotify**, **YouTube Music** ou **Deezer**.)*", origem: "🎵 áudios & músicas" };
     }
-    return {
-      texto: "🎵 Não achei áudios livres de **“" + busca + "”** em acervo público. Músicas comerciais protegidas por direitos autorais são baixadas offline oficialmente pelo **Spotify**, **YouTube Music**, **Deezer** ou **Apple Music**.",
-      origem: "🎵 música"
-    };
+    return { texto: "🎵 Não achei áudios livres de **“" + busca + "”** em acervo público. Músicas comerciais protegidas ficam disponíveis offline no **Spotify**, **YouTube Music** ou **Deezer**.", origem: "🎵 música" };
   }
 
   if (/\b(video|videos|filme|filmes)\b/.test(tipoRaw)) {
     const ehFilme = /filme/.test(tipoRaw);
     if (ehFilme && !termoBruto) {
       return {
-        texto: "🎬 Qual filme você procura?\n\n• **Filmes comerciais recentes:** o download offline oficial fica dentro dos apps **Netflix**, **Prime Video**, **Disney+**, **Max** ou **YouTube Filmes**.\n• **Filmes clássicos gratuitos (domínio público):** diga o nome (ex.: `baixar filme chaplin` ou `baixar filme nosferatu`) que eu busco o `.mp4` livre no Internet Archive!",
+        texto: "🎬 Qual filme você procura?\n\n• **Filmes comerciais recentes:** download offline oficial na **Netflix**, **Prime Video**, **Disney+**, **Max** ou **YouTube Filmes**.\n• **Filmes clássicos gratuitos (domínio público):** peça `baixar filme chaplin` ou `baixar filme nosferatu`!",
         origem: "🎬 filmes"
       };
     }
     if (ehFilme && FILMES_COMERCIAIS_RE.test(norm(termoBruto))) {
       return {
-        texto: "🎬 **“" + termoBruto + "”** é um filme comercial protegido por direitos autorais, então não existe download gratuito legal em `.mp4` aberto.\n\nPara assistir e **baixar offline com segurança**, procure o título no catálogo oficial da **Disney+**, **Netflix**, **Prime Video**, **Max** ou para aluguel/compra no **YouTube Filmes** / **Apple TV**.",
+        texto: "🎬 **“" + termoBruto + "”** é um filme comercial protegido por direitos autorais, então não existe download gratuito legal em `.mp4` aberto.\n\nPara assistir e **baixar offline com segurança**, use **Disney+**, **Netflix**, **Prime Video**, **Max** ou **YouTube Filmes**.",
         origem: "🎬 filmes"
       };
     }
@@ -314,20 +376,14 @@ async function tratarPedidoMidiaBaixar(t, raw) {
     const videos = await buscarVideosOuFilmesLivres(busca, ehFilme);
     if (videos.length) {
       injetarCardsMidiaNoChat(videos);
-      return {
-        texto: (ehFilme ? "🎬" : "🎥") + " Encontrei **" + videos.length + " arquivo(s) em domínio público** no Internet Archive para **“" + busca + "”**! Toque em **⬇️ Baixar** abaixo.",
-        origem: ehFilme ? "🎬 filmes livres" : "🎥 vídeos livres"
-      };
+      return { texto: (ehFilme ? "🎬" : "🎥") + " Encontrei **" + videos.length + " arquivo(s) em domínio público** para **“" + busca + "”**! Toque em **▶️ Carregar vídeo aqui** ou **⬇️ Baixar** abaixo.", origem: ehFilme ? "🎬 filmes livres" : "🎥 vídeos livres" };
     }
-    return {
-      texto: (ehFilme ? "🎬" : "🎥") + " Não encontrei arquivos gratuitos livres para **“" + busca + "”**.\n\nPara filmes comerciais, use o download offline dos apps oficiais (**Netflix**, **Prime Video**, **Disney+**, **Max**).",
-      origem: ehFilme ? "🎬 filmes" : "🎥 vídeos"
-    };
+    return { texto: (ehFilme ? "🎬" : "🎥") + " Não encontrei arquivos gratuitos livres para **“" + busca + "”**.", origem: ehFilme ? "🎬 filmes" : "🎥 vídeos" };
   }
   return null;
 }
 
-/* ---------- Extras: Datas, Hora Mundial, Receitas, Textos/Histórias ---------- */
+/* ---------- Extras: Datas, Hora Mundial, Receitas, Escrita ---------- */
 
 const DIAS_SEM = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
 function responderDataRapida(t) {
@@ -361,17 +417,16 @@ function horaMundial(t) {
   const entry = Object.entries(FUSOS).find(([k]) => m[1].includes(k));
   if (!entry) return null;
   const [nome, tz] = entry[1];
-  try {
-    return "🕒 Agora em **" + nome + "** são **" + new Intl.DateTimeFormat("pt-BR", { timeZone: tz, hour: "2-digit", minute: "2-digit", weekday: "long" }).format(new Date()) + "**.";
-  } catch { return null; }
+  try { return "🕒 Agora em **" + nome + "** são **" + new Intl.DateTimeFormat("pt-BR", { timeZone: tz, hour: "2-digit", minute: "2-digit", weekday: "long" }).format(new Date()) + "**."; }
+  catch { return null; }
 }
 
 const RECEITAS = [
-  [/\barroz\b/, "🍚 **Arroz soltinho rápido:**\n1. Refogue 1 dente de alho picado em 1 colher de óleo.\n2. Adicione 1 xícara de arroz lavado e mexa por 1 minuto.\n3. Coloque **2 xícaras de água quente** e 1 colher rasa de chá de sal.\n4. Cozinhe em fogo baixo semi-tampado até secar (~12–15 min) e descanse 5 min tampado."],
-  [/\bbrigadeiro\b/, "🍫 **Brigadeiro tradicional:**\n1. Misture 1 lata de leite condensado, 1 colher de sopa de manteiga e 3 colheres de sopa de chocolate em pó.\n2. Cozinhe em fogo baixo mexendo sempre até desgrudar do fundo (~8–10 min)."],
-  [/\bomelete\b/, "🍳 **Omelete simples:**\n1. Bata 2 ou 3 ovos com sal.\n2. Aqueça a frigideira com um fio de azeite, despeje os ovos, recheie a gosto e dobre ao meio."],
-  [/\bpanqueca\b/, "🥞 **Massa de panqueca:**\nBata 1 xícara de leite, 1 de farinha de trigo, 1 ovo, 1 colher de óleo e sal; doure uma concha por vez na frigideira."],
-  [/\bbolo simples|bolo de chocolate\b/, "🍰 **Bolo fofinho:**\nBata 3 ovos, 1 xícara de açúcar, 1/2 de óleo e 1 de leite; misture 2 xícaras de farinha (e 1/2 de chocolate, se quiser) + 1 colher de fermento e asse a **180 °C por ~35–40 min**."]
+  [/\barroz\b/, "🍚 **Arroz soltinho rápido:** refogue alho/cebola, junte 1 xícara de arroz, 2 de água quente + sal, fogo baixo semi-tampado (~12–15 min) e descanse 5 min."],
+  [/\bbrigadeiro\b/, "🍫 **Brigadeiro tradicional:** misture 1 lata de leite condensado, 1 colher de manteiga e 3 de chocolate em pó em fogo baixo mexendo até desgrudar do fundo (~8–10 min)."],
+  [/\bomelete\b/, "🍳 **Omelete simples:** bata 2–3 ovos com sal, doure em frigideira untada em fogo médio-baixo e recheie a gosto."],
+  [/\bpanqueca\b/, "🥞 **Massa de panqueca:** bata 1 xícara de leite, 1 de farinha, 1 ovo, 1 colher de óleo e sal; doure uma concha por vez."],
+  [/\bbolo simples|bolo de chocolate\b/, "🍰 **Bolo fofinho:** bata 3 ovos, 1 xícara de açúcar, 1/2 de óleo e 1 de leite; junte 2 de farinha (+ 1/2 chocolate em pó) e 1 colher de fermento; asse a **180 °C por ~35–40 min**."]
 ];
 
 function gerarEscrita(t, raw) {
@@ -381,28 +436,14 @@ function gerarEscrita(t, raw) {
   const tipo = norm(m[1]);
   const assunto = (m[2] || "uma aventura inesperada").replace(/^(?:de|do|da|sobre|para)\s+/i, "").replace(/[?!.]+$/, "").trim().slice(0, 120) || "uma aventura inesperada";
 
-  if (/email|carta/.test(tipo)) {
-    return "✉️ **Rascunho de E-mail sobre “" + assunto + "”:**\n\n**Assunto:** " + assunto.charAt(0).toUpperCase() + assunto.slice(1) + "\n\nOlá, [Nome],\n\nEspero que esteja tudo bem. Escrevo para tratar sobre **" + assunto + "** e alinhar os próximos passos.\n\nAtenciosamente,\n[Seu Nome]";
-  }
-  if (/mensagem|aviso|convite/.test(tipo)) {
-    return "💬 **Modelo de Mensagem:**\n\nOi, [Nome]! Tudo bem? Estou passando para falar sobre **" + assunto + "**. Quando puder, me dá um retorno.";
-  }
-  if (/legenda|bio/.test(tipo)) {
-    return "✨ **Legendas sobre “" + assunto + "”:**\n\n1. \"Um passo de cada vez na direção certa. (" + assunto + ")\"\n2. \"Foco no processo, consistência no resultado.\"";
-  }
-  if (/redacao/.test(tipo)) {
-    return "📝 **Esqueleto de Redação sobre “" + assunto + "”:**\n\n• **Introdução:** contextualize **" + assunto + "** e apresente sua tese.\n• **D1 e D2:** causas e impactos.\n• **Conclusão:** Quem + O quê + Como + Para quê.";
-  }
-  if (/texto/.test(tipo)) {
-    return "📝 **Texto sobre " + assunto + ":**\n\nQuando olhamos com atenção para **" + assunto + "**, percebemos que os pequenos detalhes do dia a dia fazem toda a diferença. Seja pela companhia, pela lealdade ou pelo aprendizado que trazem, é justamente na simplicidade que **" + assunto + "** transforma a nossa rotina para melhor.\n\nQuer que eu faça esse texto mais engraçado, poético ou informativo?";
-  }
-  if (/historia|conto|roteiro/.test(tipo)) {
-    return "📖 **História original — " + assunto + ":**\n\nNaquela noite, todas as luzes do bairro apagaram de repente, deixando apenas o brilho fraco de uma lanterna antiga na varanda. Enquanto os vizinhos tentavam entender o que havia acontecido, um som rítmico vinha do terreno vazio da esquina — como alguém batendo código Morse num portão de ferro. Ao se aproximar, a surpresa: não era um pedido de socorro, e sim o mapa de um lugar que ninguém no mapa da cidade sabia que existia.\n\nQuer que eu continue essa história ou invente outra de terror, ação ou comédia?";
-  }
+  if (/email|carta/.test(tipo)) return "✉️ **Rascunho de E-mail:**\n\n**Assunto:** " + assunto + "\n\nOlá, [Nome],\n\nEscrevo para tratar sobre **" + assunto + "**. Fico no aguardo.\n\nAtenciosamente,\n[Seu Nome]";
+  if (/mensagem|aviso|convite/.test(tipo)) return "💬 **Modelo de Mensagem:**\n\nOi, [Nome]! Tudo bem? Passando para falar sobre **" + assunto + "**.";
+  if (/legenda|bio/.test(tipo)) return "✨ **Legendas sobre “" + assunto + "”:**\n\n1. \"Um passo de cada vez na direção certa. (" + assunto + ")\"\n2. \"Foco no processo, consistência no resultado.\"";
+  if (/redacao/.test(tipo)) return "📝 **Estrutura de Redação:** Introdução (tema + tese) • D1/D2 (argumentos + repertório) • Conclusão (Quem + O quê + Como + Para quê).";
+  if (/texto/.test(tipo)) return "📝 **Texto sobre " + assunto + ":**\n\nQuando olhamos com atenção para **" + assunto + "**, percebemos que os pequenos detalhes do dia a dia fazem toda a diferença. Seja pela companhia, pela lealdade ou pelo aprendizado que trazem, é na simplicidade que **" + assunto + "** transforma nossa rotina para melhor.\n\nQuer que eu mude o estilo (engraçado, poético ou informativo)?";
+  if (/historia|conto|roteiro/.test(tipo)) return "📖 **História original — " + assunto + ":**\n\nNaquela noite, as luzes da rua apagaram de repente, deixando só o brilho de uma lanterna antiga na varanda. Um som rítmico vinha do portão da esquina — alguém batendo código Morse no ferro. Ao abrir, a surpresa: havia um mapa dobrado apontando para um lugar que não existia em nenhum registro da cidade.\n\nQuer que eu continue essa história ou crie outra?";
   return null;
 }
-
-/* ---------- Catálogos & Contexto ---------- */
 
 const FILMES_GENERO = {
   drama: ["Um Sonho de Liberdade (1994)", "À Espera de um Milagre (1999)", "À Procura da Felicidade (2006)", "Central do Brasil (1998)", "Parasita (2019)"],
@@ -437,27 +478,27 @@ const SERIES_GERAL = [
 ];
 
 const COMPARACOES = {
-  "javascript|python": "⚖️ **JavaScript vs Python:**\n• **JavaScript:** roda nativo no navegador, domina sites e apps web.\n• **Python:** leitura mais limpa, domina dados, IA e automação.",
-  "html|css": "⚖️ **HTML vs CSS:**\n• **HTML** é a estrutura; **CSS** é o visual (cores, tamanhos, animações).",
-  "ssd|hd": "⚖️ **SSD vs HD:**\n• **HD:** disco mecânico, mais lento.\n• **SSD:** memória flash, muito mais rápido.",
-  "alcool|etanol|gasolina": "⚖️ **Etanol vs Gasolina:** divida o preço do etanol pelo da gasolina. Se der **até 0,70**, o etanol compensa.",
-  "debito|credito": "⚖️ **Débito vs Crédito:** débito sai na hora sem juros; crédito concentra na fatura mas exige pagar o total em dia.",
-  "android|iphone|ios": "⚖️ **Android vs iPhone:** Android dá mais liberdade de arquivos/Termux; iPhone tem integração estável e boa revenda."
+  "javascript|python": "⚖️ **JavaScript vs Python:** JS roda nativo na web/sites; Python domina dados, IA e automação.",
+  "html|css": "⚖️ **HTML vs CSS:** HTML é a estrutura; CSS é o visual (cores, tamanhos, animações).",
+  "ssd|hd": "⚖️ **SSD vs HD:** HD é disco mecânico mais lento; SSD é memória flash muito mais rápida.",
+  "alcool|etanol|gasolina": "⚖️ **Etanol vs Gasolina:** divida o preço do etanol pelo da gasolina; até **0,70** costuma compensar.",
+  "debito|credito": "⚖️ **Débito vs Crédito:** débito sai na hora; crédito concentra na fatura mas exige pagar o total em dia.",
+  "android|iphone|ios": "⚖️ **Android vs iPhone:** Android dá mais liberdade de arquivos/Termux; iPhone tem integração estável."
 };
 
 const CONHECIMENTO_PRATICO = [
   [/\b(dicas? de produtividade|como vencer a procrastin|procrastinacao|estudar melhor|como estudar|dicas? de foco|como ter foco|como me concentrar)\b/,
-   "🎯 **Técnicas para focar e estudar melhor:**\n1. **Pomodoro:** 25 min focado + 5 min de pausa.\n2. **Estudo ativo:** explique o assunto em voz alta ou faça exercícios.\n3. **Regra dos 2 minutos:** se leva menos de 2 min, resolva agora."],
+   "🎯 **Foco e estudo:** Pomodoro (25/5 min) + estudo ativo (explicar em voz alta) + regra dos 2 minutos."],
   [/\b(50 30 20|organizar dinheiro|como economizar|orcamento pessoal|educacao financeira|como guardar dinheiro)\b/,
    "💰 **Método 50-30-20:** 50% essenciais, 30% lazer/desejos, 20% reserva e investimentos."],
   [/\b(como fazer(?: uma)? redacao|estrutura(?: da)? redacao|dicas? de redacao)\b/,
-   "✍️ **Estrutura de Redação (ENEM):**\n1. **Introdução:** tema + tese + 2 argumentos.\n2. **D1 e D2:** causas e impactos com repertório.\n3. **Conclusão:** Quem + O quê + Como + Para quê + Detalhamento."],
+   "✍️ **Redação ENEM:** Introdução (tema + tese) • D1/D2 (argumentos + repertório) • Conclusão (Quem + O quê + Como + Para quê)."],
   [/\b(dicas? de curriculo|como fazer(?: um)? curriculo|dicas? de entrevista|conseguir(?: um)? emprego|arrumar emprego)\b/,
-   "💼 **Dicas de Currículo e Entrevista:** mantenha em 1–2 páginas destacando resultados reais e use o método **STAR** na entrevista."],
+   "💼 **Currículo e Entrevista:** 1–2 páginas focadas em resultados reais e método **STAR** na entrevista."],
   [/\b(direitos? do consumidor|procon|direito de arrependimento|prazo(?: de)? garantia)\b/,
    "⚖️ **CDC Brasil:** compras online têm **7 dias corridos** para arrependimento e reembolso total."],
   [/\b(fui demitido|mandado embora|direitos trabalhistas|acerto rescisao|seguro desemprego)\b.*\b(direito|direitos|receber|acerto|rescisao|fgts)\b/,
-   "📋 **Demissão sem justa causa (CLT):** saldo de salário, aviso prévio, 13º proporcional, férias + 1/3, saque do FGTS + multa de 40% e guias do seguro-desemprego."]
+   "📋 **Demissão sem justa causa (CLT):** saldo de salário, aviso prévio, 13º, férias + 1/3, FGTS + multa 40% e guias do seguro-desemprego."]
 ];
 
 function extrairSitesAvaliados(history) {
@@ -469,8 +510,7 @@ function extrairSitesAvaliados(history) {
     const url = (txt.match(/AVALIAÇÃO DO SITE:\*\*\s*`([^`]+)`/) || [])[1];
     const nota = Number((txt.match(/\*\*Nota:\*\*\s*([\d.]+)\/10/) || [])[1] || 0);
     const ms = Number((txt.match(/\((\d+)\s*ms\)/) || [])[1] || 99999);
-    const pal = Number((txt.match(/\((\d+)\s*palavras\)/) || [])[1] || 0);
-    if (url) sites.push({ url, nota, ms, pal });
+    if (url) sites.push({ url, nota, ms });
   }
   return sites;
 }
@@ -479,11 +519,9 @@ function compararUltimosSites(history) {
   const sites = extrairSitesAvaliados(history);
   if (sites.length < 2) return null;
   const a = sites[sites.length - 2], b = sites[sites.length - 1];
-  const nome = u => { try { return new URL(u).hostname.replace(/^www\./, "") + new URL(u).pathname.slice(0, 22); } catch { return u.slice(0, 35); } };
-  const ver = a.nota !== b.nota
-    ? "🏆 **" + nome(a.nota > b.nota ? a.url : b.url) + "** teve melhor nota (**" + Math.max(a.nota, b.nota) + "/10**)."
-    : "⚖️ Empate em nota (**" + a.nota + "/10**).";
-  return "🔎 **Comparação dos sites:**\n1. " + nome(a.url) + " (" + a.nota + "/10 • " + a.ms + " ms)\n2. " + nome(b.url) + " (" + b.nota + "/10 • " + b.ms + " ms)\n\n" + ver;
+  const nome = u => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u.slice(0, 30); } };
+  const ver = a.nota !== b.nota ? "🏆 **" + nome(a.nota > b.nota ? a.url : b.url) + "** teve nota melhor (**" + Math.max(a.nota, b.nota) + "/10**)." : "⚖️ Empate (**" + a.nota + "/10**).";
+  return "🔎 **Comparação:**\n1. " + nome(a.url) + " (" + a.nota + "/10 • " + a.ms + " ms)\n2. " + nome(b.url) + " (" + b.nota + "/10 • " + b.ms + " ms)\n\n" + ver;
 }
 
 function detectarAppRecente(history) {
@@ -512,10 +550,7 @@ function extrairUltimoCodigoDoHistorico(history) {
         const mf = linhas[j].trim().match(/^(`{3,})$/);
         if (mf && mf[1].length >= fenceLen) { fim = j; break; }
       }
-      if (fim > inicio + 1) {
-        const code = linhas.slice(inicio + 1, fim).join("\n").trim();
-        if (code.length > 15) return { lang, code };
-      }
+      if (fim > inicio + 1) return { lang, code: linhas.slice(inicio + 1, fim).join("\n").trim() };
     }
   }
   return null;
@@ -524,11 +559,7 @@ function extrairUltimoCodigoDoHistorico(history) {
 async function buscarSeriesTVMaze(termo) {
   const arr = await fetchJson("https://api.tvmaze.com/search/shows?q=" + encodeURIComponent(termo), 8000);
   if (!Array.isArray(arr) || !arr.length) return null;
-  const linhas = arr.slice(0, 6).map((item, i) => {
-    const s = item.show;
-    return (i + 1) + ". " + s.name + (s.premiered ? " (" + s.premiered.slice(0, 4) + ")" : "") + (s.rating?.average ? " • Nota " + s.rating.average : "");
-  });
-  return { texto: "📺 **Séries encontradas para “" + termo + "”:**\n\n" + linhas.join("\n"), origem: "📺 catálogo de séries" };
+  return { texto: "📺 **Séries encontradas para “" + termo + "”:**\n\n" + arr.slice(0, 6).map((x, i) => (i + 1) + ". " + x.show.name + (x.show.premiered ? " (" + x.show.premiered.slice(0, 4) + ")" : "")).join("\n"), origem: "📺 catálogo de séries" };
 }
 
 const TODOS_TEMAS = ["roxo", "vermelho", "azul", "verde", "rosa", "dourado", "neon"];
@@ -538,8 +569,7 @@ function detectarTemaPedido(t) {
   if (/^(?:muda|mudar|troca|trocar|escolhe|escolher)(?:\s+de)?\s+tema(?:\s+se\s+(?:voce\s+)?quiser|\s+aleatorio)?$/.test(t)) return girar("auto-tema", TODOS_TEMAS);
   if (/\b(significa|significado|por que|porque|qual e a cor|qual a cor|bandeira|arco iris|ceu|mar|sol|sangue|planta|redacao|conversa|poco|texto|assunto)\b/.test(t) &&
       !/\b(tema do site|tema do app|tema da tela|aparencia|interface)\b/.test(t)) return null;
-  const pedeTema = /\b(tema|aparencia|visual|interface)\b/.test(t) ||
-    /\b(?:muda|mudar|troca|trocar|coloca|colocar|bota|botar|deixa|deixar|ativa|ativar)\b.*\b(tema|cor|fundo|visual|tela)\b/.test(t);
+  const pedeTema = /\b(tema|aparencia|visual|interface)\b/.test(t) || /\b(?:muda|mudar|troca|trocar|coloca|colocar|bota|botar|deixa|deixar|ativa|ativar)\b.*\b(tema|cor|fundo|visual|tela)\b/.test(t);
   if (!pedeTema) return null;
   if (/\bvermelh[oa]\b/.test(t)) return "vermelho";
   if (/\brox[oa]\b/.test(t)) return "roxo";
@@ -586,15 +616,24 @@ function responderSobreCitacao(t, raw, ctx) {
   if (/\b(copia|copiar|manda de novo|manda inteiro|codigo)\b/.test(t)) {
     return { texto: "Aqui está o trecho citado pronto para copiar:\n\n" + wrapCodeFence(alvo, "txt"), origem: "📋 cópia da citação" };
   }
+  if (/^(?:mas\s+)?(?:eu\s+)?(?:ja\s+)?(?:falei|disse|respondi|mandei)\b/.test(t) || /\b(nao leu|perdeu o fio|estava respondendo|to respondendo)\b/.test(t)) {
+    const ant = recuperarUltimoAssuntoReal(ctx.history);
+    if (ant) {
+      return {
+        texto: "Você tem razão — você tinha falado sobre **“" + ant.pergunta + "”**.\n\nQuer que eu busque na web mais detalhes sobre esse tema (sinopse, notícias ou onde assistir/ouvir oficialmente) ou prefere mudar de assunto?",
+        origem: "🧠 retomada de contexto"
+      };
+    }
+  }
   if (/\b(oq vc errou|o que voce errou|oque voce errou|qual erro)\b/.test(t)) {
     return {
-      texto: "Sobre **“" + trecho + retic + "”**: o problema é que a resposta anterior ficou genérica em vez de responder direto ao que você perguntou antes. Me diga em uma frase o assunto que você queria ver agora!",
+      texto: "Sobre **“" + trecho + retic + "”**: a resposta anterior ficou genérica em vez de seguir direto o que você tinha perguntado antes. Me diga em uma frase o assunto que você quer ver agora!",
       origem: "🔄 explicação"
     };
   }
   if (/^(?:e |mas )?(?:isso|isto|ele|ela)\s+(?:e|eh|ta|esta)?\s*(?:bom|boa|ruim|verdade|serio|certo|normal)$/.test(t) ||
       /^(?:serio|jura|mesmo|como assim|por que|porque|nao entendi|gostei|legal|daora|interessante|nao concordo|explica|discordo|verdade|concordo)$/.test(t)) {
-    return { texto: "Sobre **“" + trecho + retic + "”**: você quer que eu detalhe melhor algum ponto ou mude a abordagem?", origem: "💬 sobre a citação" };
+    return { texto: "Sobre **“" + trecho + retic + "”**: quer que eu detalhe melhor algum ponto ou mude a abordagem?", origem: "💬 sobre a citação" };
   }
   return null;
 }
@@ -604,10 +643,7 @@ function resolverEscolhaOuDilema(t, raw) {
   const mDuv = t.match(/^(?:to|estou|tou)\s+em\s+duvida\s+(?:se|entre)\s+(.+)$/) ||
     t.match(/^(?:voce acha que )?(?:eu\s+)?(?:devo|vale a pena|e melhor)\s+(.+?)\s+ou\s+(.+)$/);
   if (mDuv && mDuv[2]) {
-    return {
-      texto: "⚖️ Entre **" + mDuv[1].trim() + "** e **" + mDuv[2].trim() + "**, vale pesar:\n• **Custo de reversão:** qual é mais fácil ajustar se der errado?\n• **Ganho em 6 meses:** qual aproxima mais do que você quer?\n• **Desgaste imediato:** qual gera menos estresse hoje?\n\nQuer me contar o contexto pra analisarmos juntos?",
-      origem: "🧠 apoio à decisão"
-    };
+    return { texto: "⚖️ Entre **" + mDuv[1].trim() + "** e **" + mDuv[2].trim() + "**, vale pesar custo de reversão, ganho em 6 meses e desgaste imediato. Quer detalhar o contexto?", origem: "🧠 apoio à decisão" };
   }
   return null;
 }
@@ -627,21 +663,86 @@ async function responder(raw, ctx = {}) {
     if (respCit) return respCit;
   }
 
+  // 1) "Copiar" sozinho (copia última resposta ou explica como copiar tudo)
+  if (/^(?:copiar|copia|me da pra copiar)$/.test(t)) {
+    const alvoCopiar = ctx.alvo || ctx.ultimoBot;
+    if (alvoCopiar) {
+      return {
+        texto: "📋 Aqui está a última resposta pronta para copiar (ou digite `/copiar` para baixar a conversa inteira):\n\n" + wrapCodeFence(alvoCopiar, "txt"),
+        origem: "📋 cópia"
+      };
+    }
+  }
+
+  // 2) Continuações de contexto ("Nem se vc procurar mais?", "Mas eu falei", "Eu ja falei")
+  if (/^(?:nem\s+se\s+(?:voce|vc)\s+procurar(?:\s+mais)?|procura\s+(?:mais|direito)|tenta\s+procurar|busca\s+mesmo\s+assim)$/.test(t)) {
+    const ant = recuperarUltimoAssuntoReal(ctx.history);
+    const uBot = String(ctx.ultimoBot || "");
+    if (/direitos autorais|comercial/i.test(uBot)) {
+      return {
+        texto: "Mesmo procurando mais, eu não busco downloads piratas de filmes ou músicas protegidos por direitos autorais — mas posso buscar **trailers, notícias, elenco ou onde assistir oficialmente** sobre **" + (ant?.pergunta || "esse tema") + "**. Quer que eu faça isso?",
+        origem: "⚖️ explicação"
+      };
+    }
+    if (ant) return { pesquisarTema: ant.pergunta + " detalhes" };
+  }
+
+  if (/^(?:mas\s+)?(?:eu\s+)?(?:ja\s+)?(?:falei|disse|respondi|mandei)(?:\s+isso|\s+ai)?$|\b(?:eu\s+te\s+respondi|fiz\s+uma\s+pergunta\s+ao\s+mesmo\s+tempo)\b/.test(t)) {
+    const ant = recuperarUltimoAssuntoReal(ctx.history);
+    if (ant) {
+      return {
+        texto: "Peguei o fio de volta — o último assunto válido que você mandou foi **“" + ant.pergunta + "”**.\n\nQuer que eu faça uma busca na web sobre isso ou prefere perguntar de outro jeito?",
+        origem: "🧠 retomada de contexto"
+      };
+    }
+  }
+
+  // 3) Chat Global (/global)
+  if (/^\/?global$/.test(t) || /\b(?:chat\s+global|sala\s+global)\b/.test(t)) {
+    return {
+      texto: "🌐 **Sobre o Chat Global na BACH AI:**\n\n" +
+        "Como o seu site roda no **GitHub Pages** (100% estático no celular de cada pessoa), **não existe um servidor central** guardando mensagens de vários usuários ao mesmo tempo.\n\n" +
+        "• Para funcionar um Chat Global real entre pessoas diferentes, você precisa conectar um banco gratuito em tempo real (ex.: **Firebase Realtime Database**, **Supabase** ou **Cloudflare Worker + D1**).\n" +
+        "• Se você criar esse backend gratuito, eu monto o módulo `chat_global.js` ligando o chat direto nele!",
+      origem: "🌐 chat global"
+    };
+  }
+
+  // 4) Abrir YouTube / vídeos do YouTube direto com cartão clicável
+  const mYT = s.match(/^(?:abre|abrir|manda|busca|procura|quero\s+ver)\s+(?:o\s+)?youtube(?:\s+(?:com|sobre|de|para))?\s*(.*)$/i)
+    || s.match(/^(?:abre|abrir)\s+(?:um\s+)?v[íi]deo\s+(?:d[eoa]s?\s+|sobre\s+)?(.+)$/i);
+  if (mYT) {
+    const buscaYT = String(mYT[1] || "").trim();
+    if (!buscaYT) {
+      injetarCardsMidiaNoChat([{ kind: "youtube", titulo: "📺 YouTube (Página Inicial)", url: "https://www.youtube.com" }]);
+      return { texto: "📺 Aqui está o acesso direto ao **YouTube** — ou peça `abrir youtube [nome do vídeo/música]` que eu já busco o vídeo exato!", origem: "📺 YouTube" };
+    }
+    const videosYT = await buscarVideosYouTube(buscaYT);
+    if (videosYT.length) {
+      injetarCardsMidiaNoChat(videosYT);
+      return { texto: "📺 Encontrei **" + videosYT.length + " vídeo(s) no YouTube** para **“" + buscaYT + "”** — toque em **▶️ Assistir ↗** logo abaixo!", origem: "📺 YouTube" };
+    }
+    injetarCardsMidiaNoChat([{ kind: "youtube", titulo: "📺 Buscar “" + buscaYT + "” no YouTube", url: "https://www.youtube.com/results?search_query=" + encodeURIComponent(buscaYT) }]);
+    return { texto: "📺 Deixei o botão direto de busca no **YouTube** para **“" + buscaYT + "”** logo abaixo!", origem: "📺 YouTube" };
+  }
+
+  if (/^(?:\d+\s+)?(?:abre|abrir)\s+filmes?$/.test(t)) {
+    return {
+      texto: "🎬 Não abro apps de streaming pagos sozinho, mas posso:\n• **Recomendar filmes** por gênero (`filmes de ação`, `terror`, `comédia`, `filmes recentes`)\n• **Buscar e rodar filmes clássicos livres** direto aqui (`baixar filme chaplin`)\n\nQual você quer ver?",
+      origem: "🎬 filmes"
+    };
+  }
+
+  // 5) Datas, fuso, idioma, identidade, arquitetura
   const dtResp = responderDataRapida(t);
   if (dtResp) return { texto: dtResp, origem: "📅 calendário" };
 
   if (/^(?:por que|porque)\s+(?:voce\s+)?nao\s+(?:achou|encontrou|conseguiu)/.test(t)) {
     const uBot = String(ctx.ultimoBot || "");
     if (/Wikimedia Commons/i.test(uBot)) {
-      return {
-        texto: "Porque o **Wikimedia Commons** só guarda fotos reais de acervo público/educacional (lugares, animais, ciência, história) — imagens de anime ou artes específicas raramente ficam lá. Se quiser, posso buscar informações ou sites sobre esse tema na internet!",
-        origem: "🧠 contexto"
-      };
+      return { texto: "Porque o **Wikimedia Commons** só guarda fotos reais de acervo público/educacional — artes ou avatares de anime raramente ficam lá. Se quiser, posso pesquisar informações sobre o tema na web!", origem: "🧠 contexto" };
     }
-    return {
-      texto: "Não encontrei uma fonte confiável que batesse exatamente com as palavras usadas. Se você reformular o tema de forma mais direta, eu tento de novo!",
-      origem: "🧠 contexto"
-    };
+    return { texto: "Não encontrei uma fonte confiável que batesse exatamente com as palavras usadas. Tente reformular de forma mais direta!", origem: "🧠 contexto" };
   }
 
   if (/^(?:me\s+)?(?:respond[ae]|fal[ae]|escrev[ae]|convers[ae])\s+(?:so\s+)?em\s+portugues$/.test(t)) {
@@ -649,19 +750,15 @@ async function responder(raw, ctx = {}) {
   }
 
   if (/^(?:voce\s+(?:e|eh)|vc\s+(?:e|eh))\s+(?:o\s+|a\s+)?(?:claude|chatgpt|gemini|gpt)\??$/.test(t)) {
-    return {
-      texto: "Não! Eu sou a **BACH AI** 🧠 — inspirada no estilo claro e direto de assistentes modernas, mas feita do zero pelo **Rizik** com motor próprio.",
-      origem: "🧠 identidade"
-    };
+    return { texto: "Não! Eu sou a **BACH AI** 🧠 — feita do zero pelo **Rizik** com motor próprio.", origem: "🧠 identidade" };
   }
 
   if (/\b(?:e|eh)\s+basead[oa]\s+no\s+o\s*que\b|\bbasead[oa]\s+em\s+que\b|\bcomo\s+(?:voce|vc)\s+(?:funciona|foi feita)\b/.test(t)) {
     return {
-      texto: "Eu funciono 100% com **motor próprio em JavaScript** criado pelo Rizik — sem depender de APIs pagas do ChatGPT ou Claude:\n\n" +
-        "• **Memória em 3 camadas:** guarda seu perfil, o contexto da conversa atual e o que você me ensina.\n" +
-        "• **Rede Neural MLP própria (`384→64→12`):** ajuda a identificar intenções livres no chat.\n" +
-        "• **Departamentos locais + Pesquisa Web:** cálculos, criação de apps (`/app`), revisão (`/revisar`), leitura de imagens/arquivos e busca ao vivo na internet.\n\n" +
-        "Quer testar alguma dessas funções agora?",
+      texto: "Eu funciono 100% com **motor próprio em JavaScript** criado pelo Rizik — sem depender de APIs externas:\n\n" +
+        "• **Memória em 3 camadas:** perfil, contexto do chat e ensinamentos.\n" +
+        "• **Rede Neural MLP própria (`384→64→12`):** classifica intenções livres.\n" +
+        "• **Departamentos + Pesquisa Web:** apps (`/app`), YouTube/mídias livres, revisão (`/revisar`) e busca na internet.",
       origem: "🧠 arquitetura"
     };
   }
@@ -670,70 +767,54 @@ async function responder(raw, ctx = {}) {
     return {
       texto: "Posso ajudar com bastante coisa, por exemplo:\n\n" +
         "• **Pesquisar na web** — notícias, esportes, tutoriais e dúvidas gerais\n" +
-        "• **Escrever e revisar textos** — e-mails, redações, histórias e ortografia (`/revisar`)\n" +
-        "• **Programação e Termux** — criar apps com preview ao vivo (`/app`), rodar JS (`/executar`) e revisar código\n" +
-        "• **Mídias e Arquivos** — ler fotos (OCR), vídeos, documentos e buscar fotos/áudios livres para baixar\n" +
-        "• **Traduções, clima e cálculos** — idiomas, previsão do tempo, contas e conversões\n\n" +
-        "Tem algo específico em mente que eu possa te ajudar agora?",
+        "• **YouTube e mídias livres** — `abrir youtube ...`, `baixar foto de ...`, `baixar audio de ...`, `baixar filme ...`\n" +
+        "• **Escrever e revisar textos** — e-mails, histórias e ortografia (`/revisar`)\n" +
+        "• **Programação e Apps** — criar apps (`/app`), rodar JS (`/executar`) e Termux\n" +
+        "• **Traduções, clima e cálculos** — idiomas, previsão do tempo e contas",
       origem: "🧠 habilidades"
     };
   }
 
   if (/\b(?:abaixa|baixa)\s+link\b|\be\s+se\s+for\s+videos?\s+ou\s+imagens?\b/.test(t)) {
-    return {
-      texto: "Funciona assim aqui na **BACH AI**:\n\n" +
-        "• **Links que você mandar:** se for link de página, artigo ou código (como GitHub), eu **leio, resumo e guardo** o texto pra você.\n" +
-        "• **Fotos e áudios livres:** se você pedir `baixar foto de ...` ou `baixar musica/audio de ...`, eu busco arquivos de acervo público com botão **⬇️ Baixar** direto no chat.\n" +
-        "• **Vídeos e filmes:** busco vídeos/clássicos livres no Internet Archive; para filmes comerciais e músicas protegidas, indico os apps oficiais.\n\n" +
-        "Quer testar me mandando um pedido de foto, áudio ou link?",
-      origem: "📥 como funciona"
-    };
+    return { texto: "Links de texto/código eu leio e resumo; para buscar fotos, áudios ou vídeos livres para ouvir/baixar, peça `baixar foto de ...`, `baixar audio de ...` ou `abrir youtube ...`!", origem: "📥 como funciona" };
   }
 
+  // Perguntas clássicas estilo prints
   if (/^(?:qual|quem)\s+(?:e\s+)?(?:o\s+)?melhor\s+jogador\s+(?:de\s+futebol\s+)?do\s+mundo(?:\s+(?:hoje|atualmente|agora|2026))?$/.test(t)) {
     return {
-      texto: "Essa é uma pergunta sem resposta única — depende muito do critério e do gosto de cada um!\n\n" +
-        "• **Harry Kane** — venceu a **Bola de Ouro 2026**, impulsionado por números altíssimos de gols e títulos.\n" +
-        "• **Kylian Mbappé** — 2º na Bola de Ouro 2026, destaque em velocidade e decisão no Real Madrid.\n" +
-        "• **Lamine Yamal** — 3º na Bola de Ouro 2026, grande nome jovem pelo Barcelona.\n" +
-        "• **Erling Haaland, Vinícius Júnior, Dembélé e Bellingham** — seguem entre os mais decisivos da temporada.\n\n" +
-        "Historicamente, **Lionel Messi** e **Cristiano Ronaldo** dominaram esse debate por quase duas décadas.\n\n" +
-        "Você tem algum palpite ou time do coração? 😁",
+      texto: "Essa é uma pergunta sem resposta única — depende muito do critério!\n\n" +
+        "• **Harry Kane** — venceu a **Bola de Ouro 2026**, com números altíssimos de gols e títulos.\n" +
+        "• **Kylian Mbappé** e **Lamine Yamal** — fecharam o pódio (2º e 3º na Bola de Ouro 2026).\n" +
+        "• **Haaland, Vinícius Júnior, Dembélé e Bellingham** — seguem entre os mais decisivos.\n\n" +
+        "Historicamente, **Lionel Messi** e **Cristiano Ronaldo** dominaram esse debate por quase duas décadas. Você tem algum palpite ou time do coração? 😁",
       origem: "⚽ futebol (2026)"
     };
   }
 
   if (/^(?:o\s+)?mundo\s+vai\s+acabar(?:\s+(?:mesmo|logo|em\s+breve))?$/.test(t)) {
     return {
-      texto: "Não há nenhuma evidência científica de que o mundo vá acabar em breve. Algumas coisas que vale saber:\n\n" +
-        "• **No curto prazo:** previsões de “fim do mundo” que circulam de tempos em tempos nunca se confirmaram, e cientistas não têm indicação de um evento catastrófico iminente.\n" +
-        "• **Riscos reais que existem:** mudanças climáticas, pandemias e conflitos são desafios sérios para a humanidade, mas são questões de gestão e prevenção — não de “fim” inevitável.\n" +
-        "• **No longuíssimo prazo (bilhões de anos):** o Sol eventualmente vai se expandir e tornar a Terra inabitável — mas isso está a uns 5 bilhões de anos de distância.\n\n" +
-        "Se você está preocupado com alguma notícia específica que leu, me conta que eu checo pra você! 🙂",
+      texto: "Não há nenhuma evidência científica de que o mundo vá acabar em breve:\n\n" +
+        "• **Curto prazo:** previsões de “fim do mundo” nunca se confirmaram.\n" +
+        "• **Riscos reais:** clima, pandemias e conflitos são desafios de gestão, não fim inevitável.\n" +
+        "• **Longuíssimo prazo:** o Sol só deve afetar a habitabilidade da Terra daqui a ~5 bilhões de anos.\n\n" +
+        "Viu alguma notícia específica sobre isso?",
       origem: "🌍 ciência"
     };
   }
 
   if (/^quem\s+(?:e|eh)\s+(?:o\s+|a\s+)?(?:pessoa\s+)?mais\s+inteligente\s+do\s+mundo$/.test(t)) {
     return {
-      texto: "Não existe uma resposta definitiva pra isso — “inteligência” é difícil de medir de forma única, e não há um ranking global aceito por todos.\n\n" +
-        "• **QI mais alto registrado:** nomes como **Marilyn vos Savant** e **William James Sidis** são frequentemente citados, mas testes de QI têm limitações.\n" +
-        "• **Reconhecimento por conquistas:** cientistas e matemáticos como **Albert Einstein**, **Isaac Newton** e **Alan Turing** mudaram a história pelo impacto real.\n" +
-        "• **Vários tipos de inteligência:** lógica, emocional, criativa, espacial — alguém pode ser brilhante em uma área e mediano em outra.\n\n" +
-        "Tem algum contexto por trás da pergunta, ou viu alguma notícia/ranking?",
+      texto: "Não existe um ranking único aceito por todos:\n\n" +
+        "• **QI registrado:** nomes como **Marilyn vos Savant** e **William James Sidis** são muito citados, mas testes de QI têm limites.\n" +
+        "• **Conquistas históricas:** **Einstein**, **Newton** e **Alan Turing** marcaram a ciência.\n" +
+        "• **Tipos de inteligência:** lógica, emocional, criativa, espacial.\n\n" +
+        "Viu algum ranking ou curiosidade sobre isso?",
       origem: "🧠 ciência & reflexão"
     };
   }
 
   if (/^(?:jogos\s+de\s+futebol|futebol\s+hoje)$/.test(t)) {
-    return {
-      texto: "Que tipo de informação você procura sobre jogos de futebol? Alguns exemplos:\n\n" +
-        "• **Jogos de hoje / desta semana** de alguma liga (Brasileirão, Champions League, etc.)\n" +
-        "• **Resultados recentes**\n" +
-        "• **Tabela de classificação** de algum campeonato\n\n" +
-        "Me diga qual liga ou time te interessa que eu busco as informações atualizadas!",
-      origem: "⚽ esportes"
-    };
+    return { texto: "Qual campeonato ou time você quer consultar? (Ex.: **Brasileirão**, **Champions League**, **Flamengo**, **Palmeiras**...) ⚽", origem: "⚽ esportes" };
   }
 
   if (/^(?:brasileirao|campeonato brasileiro|tabela do brasileirao|jogos do brasileirao)$/.test(t)) {
@@ -741,12 +822,10 @@ async function responder(raw, ctx = {}) {
   }
 
   if (/^(?:a\s+nao\s+)?(?:so\s+)?perguntas?\s+bestas?$/.test(t)) {
-    return {
-      texto: "Sem problema, pode mandar! Pergunta “besta” também é pergunta — se bater uma curiosidade aleatória, é só mandar. 😊",
-      origem: "💬 conversa"
-    };
+    return { texto: "Sem problema, pode mandar! Pergunta “besta” também é pergunta — se bater uma curiosidade aleatória, manda aí. 😊", origem: "💬 conversa" };
   }
 
+  // 6) Buscador de mídias livres (e recusa de torrent pirata)
   const midiaResp = await tratarPedidoMidiaBaixar(t, s);
   if (midiaResp) return midiaResp;
 
@@ -754,27 +833,14 @@ async function responder(raw, ctx = {}) {
     return { pesquisarTema: "como baixar gta para celular " + t };
   }
 
-  if (/^(?:abre|abrir)\s+(?:o\s+)?youtube$/.test(t)) {
-    return {
-      texto: "📺 Por segurança do navegador, eu não consigo abrir o aplicativo do YouTube direto no seu celular, mas você pode acessar pelo link oficial:\n\n`https://www.youtube.com`\n\nSe quiser que eu busque algum vídeo ou assunto específico por lá, é só dizer!",
-      origem: "📺 links"
-    };
-  }
-  if (/^(?:\d+\s+)?(?:abre|abrir)\s+filmes?$/.test(t)) {
-    return {
-      texto: "🎬 Não abro apps de streaming direto, mas posso:\n• **Recomendar filmes** por gênero (ex.: `filmes de ação`, `terror`, `comédia`, `filmes recentes`)\n• **Buscar clássicos livres** para baixar no Internet Archive (`baixar filme chaplin`)\n\nQual estilo você quer ver?",
-      origem: "🎬 filmes"
-    };
-  }
-
   if (/\bpc\b.*\b(barato|vale a pena|compensa)\b.*\b(net|internet|online)\b/.test(t)) {
     return {
-      texto: "💻 **Comprar PC pela internet costuma ser mais barato que em loja física**, sim — principalmente porque você compara várias lojas e evita estoque parado. Mas vale cuidar de 4 pontos:\n\n" +
-        "• **Preço médio real:** um PC básico de estudos/escritório sai em torno de R$ 1.300–R$ 2.000; um PC gamer de entrada novo costuma partir de R$ 2.800–R$ 3.800.\n" +
-        "• **Desconfie de preço milagroso:** anúncio de “PC Gamer completo com monitor por R$ 900” geralmente usa peças muito antigas (i5 de 2ª/3ª geração) ou é golpe.\n" +
-        "• **Prefira lojas conhecidas** (KaBuM!, Pichau, Terabyte, Amazon vendida/entue oficial, Mercado Livre Loja Oficial).\n" +
-        "• **Confira a fonte e o SSD:** exija SSD (mínimo 240 GB/500 GB) e fonte de marca confiável.\n\n" +
-        "Você quer um PC para jogos ou mais para estudos/trabalho?",
+      texto: "💻 **Comprar PC pela internet costuma ser mais barato que em loja física**, sim — mas cuide de 4 pontos:\n\n" +
+        "• **Preço realista:** PC básico sai em R$ 1.300–R$ 2.000; PC gamer de entrada novo parte de R$ 2.800–R$ 3.800.\n" +
+        "• **Desconfie de preço milagroso:** “PC Gamer com monitor por R$ 900” costuma vir com peças de 12 anos atrás.\n" +
+        "• **Lojas confiáveis:** KaBuM!, Pichau, Terabyte, Amazon/ML oficial.\n" +
+        "• **Exija SSD** e fonte de marca confiável.\n\n" +
+        "Você quer um PC para jogos ou estudos/trabalho?",
       origem: "💻 compras & hardware"
     };
   }
@@ -787,57 +853,49 @@ async function responder(raw, ctx = {}) {
   }
 
   if (/\bgerar fofocas\b|\bfofocas\b/.test(t) && /\b(sabe|faz|gera|conta)\b/.test(t)) {
-    return {
-      texto: "Não invento fofocas sobre pessoas reais 😅 — mas posso criar **histórias fictícias**, contar **curiosidades** ou buscar **notícias reais do dia**. Qual você prefere?",
-      origem: "💬 conversa"
-    };
+    return { texto: "Não invento fofocas sobre pessoas reais 😅 — mas posso criar **histórias fictícias** ou buscar **notícias reais**. Qual prefere?", origem: "💬 conversa" };
   }
 
   const escrita = gerarEscrita(t, s);
   if (escrita) return { texto: escrita, origem: "✍️ escrita criativa" };
 
   if (/^(?:bem\s+ate|tudo\s+bem\s+ate|o\s+meu\s+dia\s+(?:esta|ta)\s+(?:bem|bom|otimo|tranquilo|de\s+boa)|meu\s+dia\s+(?:esta|ta)\s+(?:bem|bom))$/.test(t)) {
-    return { texto: "Que bom! 😊 Quer conversar sobre algum assunto, tirar uma dúvida ou testar alguma ferramenta por aqui?", origem: "💬 conversa" };
+    return { texto: "Que bom! 😊 Quer conversar sobre algum assunto, tirar uma dúvida ou testar alguma ferramenta?", origem: "💬 conversa" };
   }
   if (/^(?:entendi\s+so\s+isso|so\s+isso|sei\s+sei|faltou\s+foi\s+tudo.*)$/.test(t)) {
-    return { texto: "Se ficou faltando o que você realmente queria saber, me manda direto o tema ou a pergunta que eu respondo sem enrolação!", origem: "💬 conversa" };
+    return { texto: "Se ficou faltando o que você queria saber, me manda direto o tema que eu respondo sem enrolação!", origem: "💬 conversa" };
   }
-  if (/^tabom$|^ta\s+bom$/.test(t)) {
-    return { texto: "Certo! Quando quiser mandar a próxima, estou aqui.", origem: "💬 conversa" };
-  }
+  if (/^tabom$|^ta\s+bom$/.test(t)) return { texto: "Certo! Quando quiser mandar a próxima, estou aqui.", origem: "💬 conversa" };
+
   if (/^(?:vc|voce)\s+(?:tem\s+que\s+ir\s+alem|parece\s+um?\s+boot?|so\s+repete\s+as\s+falas|nao\s+le\s+as\s+proprias\s+palavras|nem\s+calcula\s+as\s+palavras|nao\s+sabe\s+o\s+que\s+responder)$/.test(t)) {
-    return {
-      texto: "Você tem razão em cobrar — quando eu caio em resposta genérica parece robô mesmo. Manda uma pergunta real, um tema de estudo ou um código que eu te respondo direto no ponto!",
-      origem: "🔄 feedback"
-    };
+    return { texto: "Você tem razão em cobrar — quando eu caio em resposta genérica parece robô mesmo. Manda uma pergunta real ou tema que eu respondo direto no ponto!", origem: "🔄 feedback" };
   }
 
   const hMundial = horaMundial(t);
   if (hMundial) return { texto: hMundial, origem: "🕒 fuso horário" };
 
   if (/\b(copia|copiar|manda|reenvia|me da|mostra)\b.*\b(codigo|codigos|script|html)\b/.test(t) &&
-      !/\.[a-z]{2,4}\b/i.test(s) && !/\b(cria|crie|faz|faca|escrev|gerar|gera|explica|revisa|erro|como)\b/.test(t) &&
-      t.split(" ").length <= 12) {
+      !/\.[a-z]{2,4}\b/i.test(s) && !/\b(cria|crie|faz|faca|escrev|gerar|gera|explica|revisa|erro|como)\b/.test(t) && t.split(" ").length <= 12) {
     if (ctx.ultimoArquivo?.texto && ctx.ultimoArquivo.texto.length > 40) return { usarMenteTexto: true };
     const codHist = extrairUltimoCodigoDoHistorico(ctx.history);
-    if (codHist) return { texto: "📋 Aqui está o último código completo:\n\n" + wrapCodeFence(codHist.code, codHist.lang), origem: "📋 cópia de código" };
+    if (codHist) return { texto: "📋 Último código completo:\n\n" + wrapCodeFence(codHist.code, codHist.lang), origem: "📋 cópia de código" };
   }
 
   if (/^\/?(diagnostico|saude|relatorio de erros|autoavaliacao|monitoramento)$/i.test(t)) return { texto: AutoGuard.diagnose(), origem: "🛡️ autoguard" };
   if (/^\/?rollback$/i.test(t)) {
-    if (ctx.modoCriador === false) return { texto: "🔒 O comando `/rollback` é exclusivo do modo administrador.", origem: "🔒 adm" };
+    if (ctx.modoCriador === false) return { texto: "🔒 `/rollback` é exclusivo do modo administrador.", origem: "🔒 adm" };
     const rb = AutoGuard.rollback();
-    return { texto: rb.ok ? "♻️ Rollback concluído!" : "Não foi possível fazer rollback: " + rb.msg, origem: "🛡️ rollback" };
+    return { texto: rb.ok ? "♻️ Rollback concluído!" : "Erro no rollback: " + rb.msg, origem: "🛡️ rollback" };
   }
 
   if (/\b(entre essas duas|entre esses dois|qual e a melhor|qual das duas|qual dos dois)\b/.test(t)) {
     const compSites = compararUltimosSites(ctx.history);
-    if (compSites) return { texto: compSites, origem: "⚖️ comparação de sites" };
+    if (compSites) return { texto: compSites, origem: "⚖️ comparação" };
   }
 
   if (/^(?:pode\s+)?(?:parar|para|pausar|pausa|zerar|resetar)(?:\s+(?:o\s+)?(?:time|timer|tempo|cronometro|app|relogio))?$/.test(t)) {
     const appRec = detectarAppRecente(ctx.history);
-    if (appRec) return { texto: "⏱️ O app **`" + appRec + "`** roda no preview acima — toque em **⏸ Pausar** dentro dele.", origem: "▶️ controle do preview" };
+    if (appRec) return { texto: "⏱️ O app **`" + appRec + "`** roda no preview acima — toque em **⏸ Pausar** dentro dele.", origem: "▶️ controle" };
   }
 
   const dilema = resolverEscolhaOuDilema(t, s);
@@ -856,9 +914,10 @@ async function responder(raw, ctx = {}) {
 
   if (/\b(nao foi|nao era|falou errado|disse errado|respondeu errado|entendeu errado|errando|ta errado|esta errado|vc ainda erra|voce ainda erra|so erra|voce e burro|burro|burra|nada a ver|nada aver|nada haver|fez uma pesquisa atoa|pesquisa atoa)\b/.test(t)) {
     if (!ehEntradaSensivel(s)) AutoGuard.recordFailure({ module: "conversa", type: "user-feedback", input: s, detail: ctx.ultimoBot ? ctx.ultimoBot.slice(0, 100) : "insatisfação" });
+    const ant = recuperarUltimoAssuntoReal(ctx.history);
     return {
       texto: semRepetir("fb-err", [
-        "Você tem razão — essa resposta saiu fora do ponto. Me diga direto o que você queria saber ou conversar agora.",
+        "Você tem razão — saí fora do ponto" + (ant ? " em **“" + ant.pergunta + "”**" : "") + ". Me diga direto o que você quer saber ou fazer agora!",
         "Realmente errei essa. Mande direto o que você esperava que eu sigo daqui."
       ], ctx),
       origem: "🔄 autocorreção"
@@ -885,10 +944,7 @@ async function responder(raw, ctx = {}) {
       const [key, nome] = genFilme;
       return { texto: "🎬 **Filmes recomendados de " + nome + ":**\n\n" + FILMES_GENERO[key].map((f, i) => (i + 1) + ". " + f).join("\n"), origem: "🎬 recomendações" };
     }
-    return {
-      texto: "🎬 **Filmes muito bem avaliados:**\n\n1. Interestelar (2014) — Ficção\n2. A Origem (2010) — Suspense\n3. Parasita (2019) — Drama\n4. Batman: O Cavaleiro das Trevas (2008) — Ação\n5. Um Sonho de Liberdade (1994) — Drama\n\n💡 Quer de um gênero específico (ação, terror, comédia, drama) ou `filmes recentes`?",
-      origem: "🎬 recomendações"
-    };
+    return { texto: "🎬 **Filmes muito bem avaliados:**\n\n1. Interestelar (2014)\n2. A Origem (2010)\n3. Parasita (2019)\n4. Batman: O Cavaleiro das Trevas (2008)\n5. Um Sonho de Liberdade (1994)", origem: "🎬 recomendações" };
   }
 
   if (/\b(serie|series)\b/.test(t) && pedeRec && !pedeAtual) {
@@ -910,10 +966,7 @@ async function responder(raw, ctx = {}) {
   const mPlano = t.match(/^(?:cria|crie|faz|faca|monta|monte|me ajuda a)?\s*(?:um\s+)?(?:plano de estudos|roteiro de estudos|como aprender|passo a passo para aprender)\s+(?:de\s+|para\s+)?(.+)$/);
   if (mPlano) {
     const temaEstudo = mPlano[1].trim().slice(0, 120);
-    return {
-      texto: "🗺️ **Plano prático para aprender " + temaEstudo + ":**\n\n1. **Base:** entenda os conceitos essenciais.\n2. **Prática diária:** 30 min por dia em casos reais.\n3. **Projeto:** crie algo pequeno usando " + temaEstudo + ".\n4. **Revisão:** explique o tema com suas palavras.",
-      origem: "🗺️ planejamento"
-    };
+    return { texto: "🗺️ **Plano prático para aprender " + temaEstudo + ":**\n1. Base teórica\n2. Prática diária (30 min)\n3. Mini-projeto real\n4. Revisão ativa", origem: "🗺️ planejamento" };
   }
 
   return null;
