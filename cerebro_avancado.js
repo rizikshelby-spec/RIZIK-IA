@@ -1,7 +1,7 @@
-/* BACH AI 5.5 - CÉREBRO AVANÇADO BLINDADO (ESTILO CLAUDE)
- * - NLU natural com resolução real de continuações ("melhor atualizado", "de agora", "detalha o 3").
- * - Cópia de código segura com cerca dinâmica de crases (evita corte em arquivos que contêm ```).
- * - Tom direto, analítico e sem repetição robótica do nome do usuário ou bordões prontos.
+/* BACH AI 5.6 - CÉREBRO AVANÇADO COMPLETO
+ * - Estilo conversacional limpo (respostas de idioma, futebol 2026, citações e comparações).
+ * - Buscador legal de mídia (fotos, áudios/músicas e vídeos/filmes livres via Wikimedia Commons & Internet Archive) com player e download no chat.
+ * - Hora mundial exata, receitas rápidas, organizador de listas, escrita criativa e recomendações por gênero.
  */
 
 import { AutoGuard } from "./autoguard.js?v=2";
@@ -79,6 +79,389 @@ function senhaRapida(n = 14) {
   }
   return "🔐 **Senha forte gerada (" + tam + " caracteres):**\n\n`" + out + "`\n\nℹ️ Gerada localmente no seu aparelho (não salvo senhas).";
 }
+
+/* ---------- Buscador Legal de Mídias (Fotos, Áudios/Músicas, Vídeos/Filmes) ---------- */
+
+function urlHttpSegura(u) {
+  try {
+    const p = new URL(String(u || "").trim());
+    return (p.protocol === "https:" || p.protocol === "http:") ? p.href : null;
+  } catch { return null; }
+}
+
+async function fetchJson(url, ms = 10000) {
+  const c = new AbortController();
+  const id = setTimeout(() => c.abort(), ms);
+  try {
+    const r = await fetch(url, { signal: c.signal });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+  finally { clearTimeout(id); }
+}
+
+async function tentarBlobDownload(url, maxBytes = 12 * 1024 * 1024) {
+  const c = new AbortController();
+  const id = setTimeout(() => c.abort(), 12000);
+  try {
+    const r = await fetch(url, { signal: c.signal });
+    if (!r.ok) return null;
+    const len = Number(r.headers.get("content-length") || 0);
+    if (len > maxBytes) return null;
+    const blob = await r.blob();
+    if (blob.size > maxBytes || blob.size < 200) return null;
+    return URL.createObjectURL(blob);
+  } catch { return null; }
+  finally { clearTimeout(id); }
+}
+
+function injetarCardsMidiaNoChat(itens) {
+  if (typeof document === "undefined" || !Array.isArray(itens) || !itens.length) return;
+  setTimeout(() => {
+    const chatEl = document.getElementById("chat");
+    if (!chatEl) return;
+
+    itens.forEach(item => {
+      const u = urlHttpSegura(item.url);
+      if (!u) return;
+
+      const card = document.createElement("div");
+      card.className = "cartao";
+      card.style.maxWidth = "min(86%, 560px)";
+
+      const top = document.createElement("div");
+      top.className = "topo";
+      const tit = document.createElement("span");
+      tit.textContent = item.titulo;
+
+      const btnBaixar = document.createElement("button");
+      btnBaixar.textContent = "⬇️ Baixar";
+      btnBaixar.onclick = async () => {
+        btnBaixar.disabled = true;
+        btnBaixar.textContent = "⏳ Baixando...";
+        const blobUrl = await tentarBlobDownload(u);
+        if (blobUrl) {
+          const a = document.createElement("a");
+          a.href = blobUrl;
+          a.download = item.arquivo || "midia-bach";
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 8000);
+          btnBaixar.textContent = "✅ Baixado";
+        } else {
+          window.open(u, "_blank", "noopener,noreferrer");
+          btnBaixar.textContent = "↗️ Aberto";
+        }
+        setTimeout(() => { btnBaixar.disabled = false; btnBaixar.textContent = "⬇️ Baixar"; }, 2200);
+      };
+
+      const linkPagina = document.createElement("a");
+      linkPagina.href = urlHttpSegura(item.pagina || u) || u;
+      linkPagina.target = "_blank";
+      linkPagina.rel = "noopener noreferrer";
+      linkPagina.textContent = "Fonte ↗";
+      linkPagina.style.cssText = "color:var(--accent2);font-size:12px;font-weight:bold;text-decoration:none;padding:0 4px";
+
+      top.append(tit, btnBaixar, linkPagina);
+      card.appendChild(top);
+
+      if (item.kind === "image") {
+        const img = document.createElement("img");
+        img.src = u;
+        img.alt = item.titulo;
+        img.loading = "lazy";
+        img.style.cssText = "width:100%;max-height:280px;object-fit:contain;background:#080912;display:block";
+        card.appendChild(img);
+      } else if (item.kind === "audio") {
+        const wrap = document.createElement("div");
+        wrap.style.cssText = "padding:8px 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap";
+        const btnOuvir = document.createElement("button");
+        btnOuvir.textContent = "▶️ Carregar player";
+        btnOuvir.style.cssText = "padding:6px 12px;font-size:12px;border-radius:8px;background:rgba(255,255,255,.12)";
+        btnOuvir.onclick = async () => {
+          btnOuvir.disabled = true;
+          btnOuvir.textContent = "⏳ Carregando áudio...";
+          const blobUrl = await tentarBlobDownload(u);
+          if (blobUrl) {
+            const au = document.createElement("audio");
+            au.controls = true;
+            au.src = blobUrl;
+            au.style.cssText = "width:100%;height:38px";
+            wrap.innerHTML = "";
+            wrap.appendChild(au);
+            au.play().catch(() => {});
+          } else {
+            btnOuvir.textContent = "↗️ Abrir áudio no navegador";
+            btnOuvir.disabled = false;
+            btnOuvir.onclick = () => window.open(u, "_blank", "noopener,noreferrer");
+          }
+        };
+        wrap.appendChild(btnOuvir);
+        card.appendChild(wrap);
+      }
+
+      chatEl.appendChild(card);
+    });
+
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }, 50);
+}
+
+async function buscarFotosWikimedia(termo) {
+  const api = "https://commons.wikimedia.org/w/api.php?" + new URLSearchParams({
+    action: "query",
+    generator: "search",
+    gsrsearch: termo + " filetype:bitmap",
+    gsrnamespace: "6",
+    gsrlimit: "5",
+    prop: "imageinfo",
+    iiprop: "url|mime|size",
+    iiurlwidth: "900",
+    format: "json",
+    origin: "*"
+  });
+  const data = await fetchJson(api);
+  const pages = Object.values(data?.query?.pages || {});
+  const itens = [];
+  for (const pg of pages) {
+    const info = pg?.imageinfo?.[0];
+    if (!info?.url || !/^image\/(jpeg|png|webp)$/i.test(info.mime || "")) continue;
+    const ext = info.mime.includes("png") ? "png" : info.mime.includes("webp") ? "webp" : "jpg";
+    const nomeLimpo = String(pg.title || "foto").replace(/^File:/i, "").slice(0, 48);
+    itens.push({
+      kind: "image",
+      titulo: "🖼️ " + nomeLimpo,
+      url: info.thumburl || info.url,
+      pagina: info.descriptionurl || info.url,
+      arquivo: nomeLimpo.replace(/[^a-zA-Z0-9._-]/g, "_") + "." + ext
+    });
+    if (itens.length >= 3) break;
+  }
+  return itens;
+}
+
+async function buscarAudiosLivres(termo) {
+  const itens = [];
+
+  // 1) Internet Archive (áudios/músicas em domínio público ou Creative Commons)
+  const iaUrl = "https://archive.org/advancedsearch.php?" + new URLSearchParams({
+    q: "(" + termo + ") AND mediatype:audio",
+    "fl[]": "identifier,title,creator",
+    "sort[]": "downloads desc",
+    rows: "4",
+    output: "json"
+  });
+  const ia = await fetchJson(iaUrl, 9000);
+  const docs = ia?.response?.docs || [];
+
+  await Promise.allSettled(docs.slice(0, 3).map(async d => {
+    const meta = await fetchJson("https://archive.org/metadata/" + encodeURIComponent(d.identifier), 8000);
+    const files = meta?.files || [];
+    const arq = files.find(f => /\.(mp3|ogg|wav)$/i.test(f.name || "") && Number(f.size || 0) > 1000 && Number(f.size || 0) < 12 * 1024 * 1024);
+    if (!arq) return;
+    const ext = (arq.name.match(/\.(mp3|ogg|wav)$/i) || ["", "mp3"])[1].toLowerCase();
+    const titulo = String(d.title || d.identifier).slice(0, 50);
+    itens.push({
+      kind: "audio",
+      titulo: "🎵 " + titulo,
+      url: "https://archive.org/download/" + encodeURIComponent(d.identifier) + "/" + encodeURIComponent(arq.name),
+      pagina: "https://archive.org/details/" + encodeURIComponent(d.identifier),
+      arquivo: titulo.replace(/[^a-zA-Z0-9._-]/g, "_") + "." + ext
+    });
+  }));
+
+  // 2) Wikimedia Commons (efeitos sonoros, hinos, músicas clássicas, gravações livres)
+  if (itens.length < 2) {
+    const wmUrl = "https://commons.wikimedia.org/w/api.php?" + new URLSearchParams({
+      action: "query",
+      generator: "search",
+      gsrsearch: termo + " filetype:audio",
+      gsrnamespace: "6",
+      gsrlimit: "4",
+      prop: "imageinfo",
+      iiprop: "url|mime|size",
+      format: "json",
+      origin: "*"
+    });
+    const wm = await fetchJson(wmUrl, 9000);
+    for (const pg of Object.values(wm?.query?.pages || {})) {
+      const info = pg?.imageinfo?.[0];
+      if (!info?.url || !/audio|ogg/i.test(info.mime || "")) continue;
+      const nomeLimpo = String(pg.title || "audio").replace(/^File:/i, "").slice(0, 48);
+      itens.push({
+        kind: "audio",
+        titulo: "🔊 " + nomeLimpo,
+        url: info.url,
+        pagina: info.descriptionurl || info.url,
+        arquivo: nomeLimpo.replace(/[^a-zA-Z0-9._-]/g, "_")
+      });
+      if (itens.length >= 3) break;
+    }
+  }
+
+  return itens.slice(0, 3);
+}
+
+async function buscarVideosOuFilmesLivres(termo, ehFilme = false) {
+  const itens = [];
+  const q = "(" + termo + ") AND mediatype:movies";
+  const iaUrl = "https://archive.org/advancedsearch.php?" + new URLSearchParams({
+    q,
+    "fl[]": "identifier,title,year",
+    "sort[]": "downloads desc",
+    rows: "4",
+    output: "json"
+  });
+  const ia = await fetchJson(iaUrl, 9000);
+  const docs = ia?.response?.docs || [];
+
+  await Promise.allSettled(docs.slice(0, 3).map(async d => {
+    const meta = await fetchJson("https://archive.org/metadata/" + encodeURIComponent(d.identifier), 8000);
+    const files = meta?.files || [];
+    const arq = files.find(f => /\.(mp4|ogv|webm)$/i.test(f.name || "") && Number(f.size || 0) > 5000);
+    if (!arq) return;
+    const ext = (arq.name.match(/\.(mp4|ogv|webm)$/i) || ["", "mp4"])[1].toLowerCase();
+    const titulo = String(d.title || d.identifier).slice(0, 48) + (d.year ? " (" + d.year + ")" : "");
+    itens.push({
+      kind: "video",
+      titulo: (ehFilme ? "🎬 " : "🎥 ") + titulo,
+      url: "https://archive.org/download/" + encodeURIComponent(d.identifier) + "/" + encodeURIComponent(arq.name),
+      pagina: "https://archive.org/details/" + encodeURIComponent(d.identifier),
+      arquivo: titulo.replace(/[^a-zA-Z0-9._-]/g, "_") + "." + ext
+    });
+  }));
+
+  return itens.slice(0, 3);
+}
+
+async function tratarPedidoMidiaBaixar(t, raw) {
+  const m = raw.match(/^(?:como\s+)?(?:baixa[r]?|abaixa[r]?|faz(?:er)?\s+download\s+d[eoa]?|manda(?:r)?|pega(?:r)?|envia(?:r)?|quero(?:\s+baixar)?)\s+(?:um|uma|o|a|os|as|uns|umas)?\s*(fotos?|imagens?|imagem|wallpaper|m[uú]sicas?|msc|[áa]udios?|sons?|v[íi]deos?|filmes?)(?:\s+(?:de|do|da|sobre|para|chamado|chamada))?\s*(.*)$/i);
+  if (!m) return null;
+
+  const tipoRaw = norm(m[1]);
+  const termoBruto = String(m[2] || "")
+    .replace(/\b(?:por favor|pfv|pra mim|para mim|aqui|para baixar|pra baixar|gratis|de graca)\b/gi, "")
+    .replace(/[?!.]+$/, "")
+    .trim();
+
+  if (/\b(foto|fotos|imagem|imagens|wallpaper)\b/.test(tipoRaw)) {
+    const busca = termoBruto || "natureza brasil";
+    const fotos = await buscarFotosWikimedia(busca);
+    if (fotos.length) {
+      injetarCardsMidiaNoChat(fotos);
+      return {
+        texto: "🖼️ Encontrei **" + fotos.length + " foto(s) livres** para **“" + busca + "”** (Wikimedia Commons).\n\nVeja a prévia e toque em **⬇️ Baixar** nos cartões logo abaixo!",
+        origem: "🖼️ fotos livres"
+      };
+    }
+    return {
+      texto: "🖼️ Não encontrei fotos livres com o termo **“" + busca + "”** no Wikimedia Commons. Tente palavras em português ou inglês mais simples (ex.: `baixar foto de leão`, `baixar imagem de lua`).",
+      origem: "🖼️ fotos"
+    };
+  }
+
+  if (/\b(musica|musicas|msc|audio|audios|som|sons)\b/.test(tipoRaw)) {
+    const busca = termoBruto || "instrumental relaxante";
+    const audios = await buscarAudiosLivres(busca);
+    if (audios.length) {
+      injetarCardsMidiaNoChat(audios);
+      return {
+        texto: "🎵 Encontrei **" + audios.length + " áudio(s)/música(s) em acervo público** para **“" + busca + "”**!\n\n" +
+          "Você pode tocar em **▶️ Carregar player** para ouvir aqui mesmo ou em **⬇️ Baixar** para salvar o arquivo.\n\n" +
+          "*(Se você procura uma música comercial protegida por direitos autorais, para baixar offline de forma legal use **Spotify**, **YouTube Music**, **Apple Music** ou **Deezer**.)*",
+        origem: "🎵 áudios & músicas"
+      };
+    }
+    return {
+      texto: "🎵 Não achei arquivos gratuitos em domínio público para **“" + busca + "”**.\n\n" +
+        "Para músicas comerciais protegidas por direitos autorais, o download offline oficial fica disponível nos apps **Spotify**, **YouTube Music**, **Deezer** ou **Apple Music**.\n" +
+        "Se quiser áudios livres para ouvir/baixar aqui no chat, tente gêneros ou termos como `baixar musica lo-fi`, `baixar audio de chuva` ou `musica classica`!",
+      origem: "🎵 música"
+    };
+  }
+
+  if (/\b(video|videos|filme|filmes)\b/.test(tipoRaw)) {
+    const ehFilme = /filme/.test(tipoRaw);
+    const busca = termoBruto || (ehFilme ? "chaplin classic" : "natureza espaco");
+    const videos = await buscarVideosOuFilmesLivres(busca, ehFilme);
+    if (videos.length) {
+      injetarCardsMidiaNoChat(videos);
+      return {
+        texto: (ehFilme ? "🎬" : "🎥") + " Encontrei **" + videos.length + " arquivo(s) em domínio público / livre** no Internet Archive para **“" + busca + "”**!\n\n" +
+          "Toque em **⬇️ Baixar** ou **Fonte ↗** nos cartões abaixo.\n\n" +
+          (ehFilme ? "*(Para filmes recentes de cinema/streaming com direitos autorais, o download offline legal é feito dentro da **Netflix**, **Prime Video**, **Disney+**, **Max** ou **YouTube Filmes**.)*" : ""),
+        origem: ehFilme ? "🎬 filmes livres" : "🎥 vídeos livres"
+      };
+    }
+    return {
+      texto: (ehFilme ? "🎬" : "🎥") + " Não encontrei arquivos gratuitos livres para **“" + busca + "”**.\n\n" +
+        "• **Filmes e séries comerciais:** podem ser baixados para assistir offline diretamente nos apps oficiais (**Netflix**, **Amazon Prime Video**, **Disney+**, **Max**, **Globoplay** ou **Apple TV**).\n" +
+        "• **Filmes clássicos gratuitos (domínio público):** tente `baixar filme chaplin` ou `baixar video nasa`!",
+      origem: ehFilme ? "🎬 filmes" : "🎥 vídeos"
+    };
+  }
+
+  return null;
+}
+
+/* ---------- Extras: Hora Mundial, Receitas & Organizador de Listas ---------- */
+
+const FUSOS = {
+  "brasil": ["Brasil (Brasília)", "America/Sao_Paulo"],
+  "brasilia": ["Brasília", "America/Sao_Paulo"],
+  "sao paulo": ["São Paulo", "America/Sao_Paulo"],
+  "portugal": ["Portugal (Lisboa)", "Europe/Lisbon"],
+  "lisboa": ["Lisboa", "Europe/Lisbon"],
+  "londres": ["Londres", "Europe/London"],
+  "inglaterra": ["Inglaterra (Londres)", "Europe/London"],
+  "paris": ["Paris", "Europe/Paris"],
+  "franca": ["França (Paris)", "Europe/Paris"],
+  "espanha": ["Espanha (Madri)", "Europe/Madrid"],
+  "nova york": ["Nova York", "America/New_York"],
+  "estados unidos": ["EUA (Nova York)", "America/New_York"],
+  "eua": ["EUA (Nova York)", "America/New_York"],
+  "los angeles": ["Los Angeles", "America/Los_Angeles"],
+  "toquio": ["Tóquio", "Asia/Tokyo"],
+  "japao": ["Japão (Tóquio)", "Asia/Tokyo"],
+  "china": ["China (Pequim)", "Asia/Shanghai"],
+  "coreia": ["Coreia do Sul (Seul)", "Asia/Seoul"],
+  "argentina": ["Argentina (Buenos Aires)", "America/Argentina/Buenos_Aires"],
+  "dubai": ["Dubai", "Asia/Dubai"],
+  "italia": ["Itália (Roma)", "Europe/Rome"]
+};
+
+function horaMundial(t) {
+  const m = t.match(/^(?:que horas sao|hora agora|horario)\s+(?:em|na|no|de)\s+(.+)$/);
+  if (!m) return null;
+  const lugar = m[1].trim();
+  const entry = Object.entries(FUSOS).find(([k]) => lugar.includes(k));
+  if (!entry) return null;
+  const [nome, tz] = entry[1];
+  try {
+    const fmt = new Intl.DateTimeFormat("pt-BR", {
+      timeZone: tz,
+      hour: "2-digit",
+      minute: "2-digit",
+      weekday: "long"
+    }).format(new Date());
+    return "🕒 Agora em **" + nome + "** são **" + fmt + "**.";
+  } catch { return null; }
+}
+
+const RECEITAS = [
+  [/\barroz\b/, "🍚 **Arroz soltinho rápido:**\n1. Refogue 1 dente de alho picado (e cebola, se quiser) em 1 colher de óleo/azeite.\n2. Adicione 1 xícara de arroz lavado e mexa por 1 minuto.\n3. Coloque **2 xícaras de água quente** e 1 colher rasa de chá de sal.\n4. Cozinhe em fogo baixo com a panela semi-tampada até secar (~12–15 min) e deixe descansar 5 min tampado."],
+  [/\bbrigadeiro\b/, "🍫 **Brigadeiro tradicional:**\n1. Em uma panela, misture 1 lata de leite condensado, 1 colher de sopa de manteiga e 3 colheres de sopa de chocolate em pó (ou achocolatado).\n2. Cozinhe em fogo baixo mexendo **sem parar**.\n3. Quando desgrudar do fundo da panela (~8–10 min), desligue e deixe esfriar."],
+  [/\bomelete\b/, "🍳 **Omelete simples:**\n1. Bata 2 ou 3 ovos com uma pitada de sal e pimenta.\n2. Aqueça a frigideira com um fio de azeite ou manteiga em fogo médio-baixo.\n3. Despeje os ovos, adicione queijo/tomate/cheiro-verde de um lado, dobre ao meio e sirva."],
+  [/\bpanqueca\b/, "🥞 **Massa de panqueca básica:**\n1. Bata no liquidificador: 1 xícara de leite, 1 xícara de farinha de trigo, 1 ovo, 1 colher de sopa de óleo e 1 pitada de sal.\n2. Doure uma concha por vez em frigideira antiaderente untada, vire e recheie a gosto."],
+  [/\bbolo simples|bolo de chocolate\b/, "🍰 **Bolo simples fofinho:**\n1. Bata 3 ovos, 1 xícara de açúcar, 1/2 xícara de óleo e 1 xícara de leite.\n2. Misture 2 xícaras de farinha de trigo (e 1/2 de chocolate em pó, se quiser de chocolate) e por último 1 colher de sopa de fermento.\n3. Asse em forma untada a **180 °C por ~35–40 minutos**."]
+];
+
+function receitaRapida(t) {
+  if (!/\b(receita|como fazer|como prepara|preparo d)\b/.test(t)) return null;
+  for (const [re, resp] of RECEITAS) if (re.test(t)) return resp;
+  return null;
+}
+
+/* ---------- Catálogos & Contexto ---------- */
 
 const FILMES_GENERO = {
   drama: [
@@ -274,26 +657,19 @@ function extrairUltimoCodigoDoHistorico(history) {
 }
 
 async function buscarSeriesTVMaze(termo) {
-  const c = new AbortController();
-  const id = setTimeout(() => c.abort(), 8000);
-  try {
-    const r = await fetch("https://api.tvmaze.com/search/shows?q=" + encodeURIComponent(termo), { signal: c.signal });
-    if (!r.ok) return null;
-    const arr = await r.json();
-    if (!Array.isArray(arr) || !arr.length) return null;
-    const linhas = arr.slice(0, 6).map((item, i) => {
-      const s = item.show;
-      const ano = s.premiered ? " (" + s.premiered.slice(0, 4) + ")" : "";
-      const nota = s.rating?.average ? " • Nota " + s.rating.average : "";
-      const gens = (s.genres || []).slice(0, 3).join(", ");
-      return (i + 1) + ". " + s.name + ano + nota + (gens ? " — " + gens : "");
-    });
-    return {
-      texto: "📺 **Séries encontradas para “" + termo + "”:**\n\n" + linhas.join("\n") + "\n\n💡 Quer detalhes de alguma? Peça `pesquise sobre [nome da série]`.",
-      origem: "📺 catálogo de séries"
-    };
-  } catch { return null; }
-  finally { clearTimeout(id); }
+  const arr = await fetchJson("https://api.tvmaze.com/search/shows?q=" + encodeURIComponent(termo), 8000);
+  if (!Array.isArray(arr) || !arr.length) return null;
+  const linhas = arr.slice(0, 6).map((item, i) => {
+    const s = item.show;
+    const ano = s.premiered ? " (" + s.premiered.slice(0, 4) + ")" : "";
+    const nota = s.rating?.average ? " • Nota " + s.rating.average : "";
+    const gens = (s.genres || []).slice(0, 3).join(", ");
+    return (i + 1) + ". " + s.name + ano + nota + (gens ? " — " + gens : "");
+  });
+  return {
+    texto: "📺 **Séries encontradas para “" + termo + "”:**\n\n" + linhas.join("\n") + "\n\n💡 Quer detalhes de alguma? Peça `pesquise sobre [nome da série]`.",
+    origem: "📺 catálogo de séries"
+  };
 }
 
 const TODOS_TEMAS = ["roxo", "vermelho", "azul", "verde", "rosa", "dourado", "neon"];
@@ -580,30 +956,65 @@ async function responder(raw, ctx = {}) {
     };
   }
 
+  // Pedido direto no estilo dos prints: "Fala em português"
+  if (/^(?:me\s+)?(?:respond[ae]|fal[ae]|escrev[ae]|convers[ae])\s+(?:so\s+)?em\s+portugues$/.test(t)) {
+    return {
+      texto: "Claro! Pode falar comigo em português. Em que posso ajudar?",
+      origem: "💬 conversa"
+    };
+  }
+
+  // Pergunta clássica dos prints: "Qual e melhor jogador do mundo?"
+  if (/^(?:qual|quem)\s+(?:e\s+)?(?:o\s+)?melhor\s+jogador\s+(?:de\s+futebol\s+)?do\s+mundo(?:\s+(?:hoje|atualmente|agora|2026))?$/.test(t)) {
+    return {
+      texto: "Essa é uma pergunta sem resposta única — depende muito do critério e do gosto de cada um!\n\n" +
+        "**No momento atual (temporada 2025/2026):**\n" +
+        "• **Harry Kane** — venceu a **Bola de Ouro 2026**, impulsionado por números altíssimos de gols e títulos.\n" +
+        "• **Kylian Mbappé** — 2º na Bola de Ouro 2026, referência em velocidade e decisão no Real Madrid.\n" +
+        "• **Lamine Yamal** — 3º na Bola de Ouro 2026, grande destaque jovem pelo Barcelona e Espanha.\n" +
+        "• **Ousmane Dembélé, Erling Haaland, Vinícius Júnior e Jude Bellingham** — seguem entre os nomes mais influentes do futebol mundial.\n\n" +
+        "Historicamente, **Lionel Messi** e **Cristiano Ronaldo** dominaram esse debate por quase duas décadas, e muita gente ainda os considera os maiores da história.\n\n" +
+        "Você tem algum palpite ou time do coração? 😁",
+      origem: "⚽ futebol (2026)"
+    };
+  }
+
+  // Buscador de mídias para ouvir, ver e baixar (fotos, áudios/músicas, vídeos/filmes)
+  const midiaResp = await tratarPedidoMidiaBaixar(t, s);
+  if (midiaResp) return midiaResp;
+
+  // Hora mundial
+  const hMundial = horaMundial(t);
+  if (hMundial) return { texto: hMundial, origem: "🕒 fuso horário" };
+
+  // Receitas rápidas
+  const recRap = receitaRapida(t);
+  if (recRap) return { texto: recRap, origem: "🍳 receitas" };
+
+  // Organizador de listas
+  const mOrg = s.match(/^(?:organiza|organize|organizar|ordena|ordene|enumera|enumere)\s+(?:essa|esta|a)?\s*lista\s*:?\s*([\s\S]+)$/i);
+  if (mOrg) {
+    const itens = mOrg[1].split(/\s*[,;\n]+\s*/).map(x => x.trim()).filter(Boolean);
+    if (itens.length >= 2) {
+      return {
+        texto: "📋 **Lista organizada:**\n\n" + itens.map((x, i) => (i + 1) + ". " + x.charAt(0).toUpperCase() + x.slice(1)).join("\n"),
+        origem: "📋 organização"
+      };
+    }
+  }
+
   if (/\b(so queria (?:ter )?um dialogo|queria (?:ter )?um dialogo|dialogo bom|conversar direito|conversa normal|sem testar|nao quero testar|nao quero comando|para de mandar comando|para de perguntar|muito vaga|sem argumento|respostas vagas|muito robo|parece robo|parece um robo)\b/.test(t) ||
       /^(?:que|q)\s+pergunta\s+(?:cara|e essa|nada a ver|bosta)$/.test(t)) {
     if (/nao quero testar/.test(t)) {
-      return {
-        texto: "Certo, nada de testes ou comandos. Sobre o que você quer conversar de verdade agora?",
-        origem: "💬 diálogo"
-      };
+      return { texto: "Certo, nada de testes ou comandos. Sobre o que você quer conversar agora?", origem: "💬 diálogo" };
     }
     if (/robo|vaga|argumento/.test(t)) {
-      return {
-        texto: "Faz sentido a crítica — respostas automáticas genéricas irritam mesmo. Pode trazer uma situação real, uma opinião ou uma dúvida que eu respondo com argumento direto.",
-        origem: "💬 diálogo"
-      };
+      return { texto: "Faz sentido a crítica — respostas automáticas genéricas irritam mesmo. Pode trazer uma situação real, uma opinião ou uma dúvida que eu respondo direto.", origem: "💬 diálogo" };
     }
     if (/pergunta/.test(t)) {
-      return {
-        texto: "Desculpa, essa pergunta automática saiu fora de hora. Pode seguir normal.",
-        origem: "💬 diálogo"
-      };
+      return { texto: "Desculpa, essa pergunta automática saiu fora de hora. Pode seguir normal.", origem: "💬 diálogo" };
     }
-    return {
-      texto: "Justo — vou cortar os bordões automáticos e responder de forma mais direta e natural. O que você quer puxar agora?",
-      origem: "💬 diálogo"
-    };
+    return { texto: "Justo — vou cortar os bordões automáticos e responder de forma mais direta e natural. O que você quer puxar agora?", origem: "💬 diálogo" };
   }
 
   if (/\b(entre essas duas|entre esses dois|qual e a melhor|qual e o melhor|qual das duas|qual dos dois|qual dessas|qual desses)\b/.test(t)) {
@@ -662,7 +1073,7 @@ async function responder(raw, ctx = {}) {
 
   if (/\b(voce|bach)\b/.test(t) && /\b(serve|servir|presta|funciona|utilidade|objetivo|capacidade)\b/.test(t)) {
     return {
-      texto: "Sou a **BACH AI**, criada por Rizik para rodar leve e gratuita com motor próprio:\n• Converso mantendo contexto e memória em 3 camadas.\n• Analiso textos, códigos, links, fotos (com OCR) e vídeos.\n• Crio apps web (`/app`), rodo JS em sandbox (`/executar`) e avalio sites (`/site`).\n• Pesquiso na internet, traduzo idiomas e faço cálculos e revisões.",
+      texto: "Sou a **BACH AI**, criada por Rizik para rodar leve e gratuita com motor próprio:\n• Converso mantendo contexto e memória em 3 camadas.\n• Analiso textos, códigos, links, fotos (com OCR) e vídeos.\n• Busco fotos, áudios/músicas e vídeos livres para ouvir/baixar no chat.\n• Crio apps web (`/app`), rodo JS em sandbox (`/executar`) e avalio sites (`/site`).\n• Pesquiso na internet, traduzo idiomas e faço cálculos e revisões.",
       origem: "🧠 sobre a BACH"
     };
   }
@@ -682,17 +1093,11 @@ async function responder(raw, ctx = {}) {
   }
   if (/^e do o que exatamente voce entende$/.test(t) || /^do que voce entende$/.test(t)) {
     return {
-      texto: "Trabalho bem com programação e Termux, criação de apps (`/app`), matemática/conversões, revisão de português e código (`/revisar`), avaliação de sites (`/site`), tradução, ciência/história e pesquisa web com fontes. Digite `/ajuda` para ver tudo.",
+      texto: "Trabalho bem com programação e Termux, criação de apps (`/app`), matemática/conversões, revisão de português e código (`/revisar`), avaliação de sites (`/site`), tradução, busca de mídias livres, ciência/história e pesquisa web com fontes. Digite `/ajuda` para ver tudo.",
       origem: "🧠 habilidades"
     };
   }
 
-  if (/^(?:me\s+)?(?:respond[ae]|fal[ae]|escrev[ae]|convers[ae])\s+(?:so\s+)?em\s+portugues$/.test(t)) {
-    return {
-      texto: "Já estou respondendo em português. Se quiser traduzir o texto de alguma foto ou mensagem, use **↩ Responder** nela e diga **“só traduz”**.",
-      origem: "💬 conversa"
-    };
-  }
   if (/^(?:eu\s+)?fal[oa]\s+(?:sobre|de)\s+numer/.test(t)) {
     return {
       texto: "Se for cálculo, pode mandar direto (ex.: `15 * 8` ou `15% de 200`). Para numerar uma resposta anterior em lista, use **↩ Responder** nela e diga **“em lista”**.",
