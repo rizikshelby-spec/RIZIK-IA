@@ -1,8 +1,7 @@
-/* BACH AI 5.6 - SABER 4.0 (Buscas Inteligentes de Jogos, Tutoriais, Atualidades & Web)
- * - Corrige perda de termos essenciais ("melhor", "bom", "formula", "existe", "episodios").
- * - Prioriza web ao vivo para tutoriais ("como baixar...", "como fazer..."), jogos no celular e rankings atuais.
- * - Guias seguros e objetivos para jogos populares no celular (GTA, Minecraft, Fortnite, Free Fire, Roblox).
- * - Parser web resiliente para múltiplos formatos Markdown do DuckDuckGo/Jina.
+/* BACH AI 5.7 - SABER 4.1 (Buscas Precisas de Jogos, Tutoriais, Atualidades & Anti-Ruído)
+ * - Corrige gírias/erros ("abaixo" -> "baixar", "celukar" -> "celular").
+ * - Pula Wikipédia em tutoriais práticos ("como pegar", "como tirar", "como baixar", "como cortar").
+ * - Impede falsos resultados por 1 palavra solta ("Lula", "Chega", "atestado").
  */
 
 const KB_KEY = "bach_conhecimento_v2";
@@ -19,7 +18,8 @@ const STOP = new Set((
   "nisso nisto disso mes meses ano anos semana semanas dia dias hoje amanha ontem falar perguntei perguntar pergutar " +
   "perguntando pergunto pergunta perguntas responde responda responder respondendo esqueceu esqueci esquecer lembra lembro lembrar " +
   "serve servem servir servisse presta errando errado errada corrigir arrumar falou disse respondeu travou rir chutar " +
-  "fica ficam tipo tip coisa coisas tudo querer escrever escrevi saber sabe sabia precisa precisam forma maneira jeito"
+  "fica ficam tipo tip coisa coisas tudo querer escrever escrevi saber sabe sabia precisa precisam forma maneira jeito " +
+  "entendi entendeu tabom so legal besta"
 ).split(" "));
 
 const INTENCAO_STOP = new Set((
@@ -43,9 +43,7 @@ function urlPublicaSegura(url) {
     if (u.protocol !== "https:" && u.protocol !== "http:") return null;
     if (hostPrivadoOuLocal(u.hostname)) return null;
     return u.href;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 function expandirGirias(t) {
@@ -56,7 +54,9 @@ function expandirGirias(t) {
     .replace(/\b(pq|pk)\b/g, "porque")
     .replace(/\b(tb|tbm|tmb)\b/g, "tambem")
     .replace(/\b(pra|oara|praa)\b/g, "para")
-    .replace(/\bcel\b/g, "celular")
+    .replace(/\b(abaixa[r]?|abaixo)\b/g, "baixar")
+    .replace(/\b(celukar|celula|cel)\b/g, "celular")
+    .replace(/\bwhatzapp\b/g, "whatsapp")
     .replace(/\bmelho\b/g, "melhor")
     .replace(/\batualisado\b/g, "atualizado")
     .replace(/\b(para|como)\s+dormi\b/g, "$1 dormir")
@@ -156,35 +156,33 @@ function lerTexto(text) {
 /* ---------- Guias Seguros de Jogos & Pesquisas Populares ---------- */
 
 function guiaJogoCelular(qn) {
-  const querBaixarOuJogar = /\b(baixar|instalar|download|jogar|onde|tem|roda|funciona|celular|android|iphone|ios|mobile|apk)\b/.test(qn);
+  const querBaixarOuJogar = /\b(baixar|instalar|download|jogar|onde|tem|roda|funciona|celular|android|iphone|ios|mobile|apk|link)\b/.test(qn);
   if (!querBaixarOuJogar) return null;
 
   if (/\bgta\b|grand theft auto/.test(qn)) {
     if (/\bgta\s*(5|v)\b/.test(qn)) {
       return {
-        texto: "🎮 **GTA V no celular — como funciona:**\n\n" +
-          "A Rockstar não lançou uma versão nativa do **GTA V** para Android ou iPhone. Para jogar no celular de forma segura e oficial, você usa **streaming na nuvem**:\n\n" +
-          "• **Xbox Cloud Gaming (Game Pass):** funciona direto pelo navegador ou app quando o jogo está no catálogo.\n" +
-          "• **Remote Play (PlayStation / Xbox) ou Steam Link:** transmite o jogo rodando no seu console ou PC direto para a tela do celular.\n\n" +
+        texto: "🎮 **GTA V no celular / PC / iOS — como funciona:**\n\n" +
+          "• **PC:** disponível oficialmente na **Steam**, **Epic Games Store** e **Rockstar Launcher**.\n" +
+          "• **Celular (Android / iOS):** a Rockstar não lançou versão nativa do GTA V para celular. Você joga de forma oficial usando **nuvem / streaming**: **Xbox Cloud Gaming** (navegador), **Remote Play** (PS/Xbox) ou **Steam Link** (transmitindo do seu PC).\n\n" +
           "⚠️ **Cuidado:** sites oferecendo “APK do GTA 5 para celular” costumam ser golpes ou vírus.\n\n" +
-          "Você quer jogar algum GTA nativo no celular (como o San Andreas) ou conectar seu PC/console?",
+          "Você quer jogar GTA no celular (como o San Andreas oficial) ou no PC?",
         conf: "alta",
-        fontes: []
+        fontes: [{ titulo: "Rockstar Games — GTA V", url: "https://www.rockstargames.com/gta-v" }]
       };
     }
 
     return {
       texto: "🎮 **Como baixar GTA no celular (oficial e seguro):**\n\n" +
         "Os jogos da trilogia clássica têm versão oficial para **Android** e **iPhone (iOS)**:\n\n" +
-        "• **GTA: San Andreas**, **GTA: Vice City** e **GTA III** — disponíveis na **Google Play Store** e na **App Store** (pagos).\n" +
-        "• **Pela Netflix (sem custo extra se você já assina):** abra a Play Store ou App Store, busque **“GTA San Andreas Netflix”** (ou Vice City / III *Definitive Edition*), baixe e faça login com sua conta Netflix.\n" +
-        "• **GTA Liberty City Stories** e **Chinatown Wars** — também disponíveis nas lojas oficiais.\n\n" +
-        "⚠️ **Dica de segurança:** evite baixar arquivos `.apk` modificados fora da loja oficial para não pegar vírus ou perder sua conta.\n\n" +
-        "Seu celular é Android ou iPhone? Posso te ajudar a ver qual versão roda melhor nele!",
+        "• **GTA: San Andreas**, **GTA: Vice City** e **GTA III** — disponíveis na **Google Play Store** e **App Store**.\n" +
+        "• **Pela Netflix (sem custo extra se você assina):** pesquise **“GTA San Andreas Netflix”** (ou Vice City / III *Definitive Edition*) na loja do celular e entre com sua conta Netflix.\n\n" +
+        "⚠️ Evite arquivos `.apk` modificados de sites aleatórios para não pegar vírus.\n\n" +
+        "Seu celular é Android ou iPhone?",
       conf: "alta",
       fontes: [
-        { titulo: "Google Play Store — Rockstar Games", url: "https://play.google.com/store/apps/dev?id=7086639890153802127" },
-        { titulo: "Rockstar Games — Mobile", url: "https://www.rockstargames.com/games" }
+        { titulo: "Google Play — Rockstar Games", url: "https://play.google.com/store/apps/dev?id=7086639890153802127" },
+        { titulo: "Rockstar Games", url: "https://www.rockstargames.com/games" }
       ]
     };
   }
@@ -192,7 +190,7 @@ function guiaJogoCelular(qn) {
   if (/\bminecraft\b/.test(qn)) {
     return {
       texto: "⛏️ **Como baixar Minecraft no celular:**\n\n" +
-        "• **Android:** abra a **Google Play Store** e procure por **Minecraft** (versão oficial da *Mojang*). Se quiser testar antes de comprar, há também o **Minecraft Trial** gratuito.\n" +
+        "• **Android:** abra a **Google Play Store** e procure por **Minecraft** (ou **Minecraft Trial** para testar grátis).\n" +
         "• **iPhone / iPad:** procure por **Minecraft** na **App Store**.\n\n" +
         "Você joga mais no celular ou no PC?",
       conf: "alta",
@@ -203,11 +201,11 @@ function guiaJogoCelular(qn) {
   if (/\bfortnite\b/.test(qn)) {
     return {
       texto: "🪂 **Como baixar Fortnite no celular:**\n\n" +
-        "• **Android (mundo todo) e iPhone (União Europeia):** baixe o aplicativo da **Epic Games Store** pelo site oficial `fortnite.com` e instale o Fortnite por lá.\n" +
-        "• **iPhone no Brasil (ou celulares mais fracos):** jogue grátis direto pelo navegador usando **Xbox Cloud Gaming** (`xbox.com/play`) ou **GeForce NOW** sem precisar instalar o jogo pesado.\n\n" +
-        "Quer ajuda para configurar pelo navegador ou no Android?",
+        "• **Android (e iPhone na UE):** baixe a **Epic Games Store** em `fortnite.com/mobile` e instale por lá.\n" +
+        "• **iPhone no Brasil / celulares leves:** jogue grátis direto pelo navegador via **Xbox Cloud Gaming** (`xbox.com/play`) ou **GeForce NOW**.\n\n" +
+        "Quer ajuda para abrir pelo navegador ou no Android?",
       conf: "alta",
-      fontes: [{ titulo: "Fortnite Oficial — Epic Games", url: "https://www.fortnite.com/mobile" }]
+      fontes: [{ titulo: "Fortnite Mobile — Epic Games", url: "https://www.fortnite.com/mobile" }]
     };
   }
 
@@ -215,9 +213,9 @@ function guiaJogoCelular(qn) {
     const nome = (qn.match(/\b(roblox|free fire|cod mobile|call of duty|brawl stars|pubg|genshin)\b/) || ["o jogo"])[1].toUpperCase();
     return {
       texto: "📱 **Como baixar " + nome + " no celular:**\n\n" +
-        "• **Android:** abra a **Google Play Store**, pesquise por **" + nome + "** e toque em **Instalar** (é gratuito).\n" +
-        "• **iPhone (iOS):** abra a **App Store**, pesquise por **" + nome + "** e toque em **Obter**.\n\n" +
-        "Se estiver dando algum erro de espaço ou compatibilidade no seu aparelho, me diga qual é o erro!",
+        "• **Android:** abra a **Google Play Store**, busque **" + nome + "** e toque em **Instalar**.\n" +
+        "• **iPhone (iOS):** abra a **App Store**, busque **" + nome + "** e toque em **Obter**.\n\n" +
+        "Está dando algum erro de espaço ou compatibilidade no seu aparelho?",
       conf: "alta",
       fontes: []
     };
@@ -297,8 +295,8 @@ function limparConsulta(q) {
   const termosTodos = kw(n);
   const temAno = /\b(19|20)\d{2}\b/.test(n);
   const termosLimpos = termosAssunto.filter(w => !/^\d+$/.test(w));
-  const ehTutorial = /\b(como\s+(?:baixar|instalar|fazer|jogar|usar|criar|configurar|resolver|tirar|ganhar|atualizar|formatar|desbloquear)|onde\s+(?:baixar|assistir|comprar|encontrar)|passo\s+a\s+passo|tutorial|receita\s+de)\b/.test(n) ||
-    /\b(baixar|instalar|download)\b/.test(n);
+  const ehTutorial = /\b(como\s+(?:baixar|instalar|fazer|jogar|usar|criar|configurar|resolver|tirar|pegar|conseguir|emitir|solicitar|cortar|ganhar|atualizar|formatar|desbloquear)|onde\s+(?:baixar|assistir|comprar|encontrar)|passo\s+a\s+passo|tutorial|receita\s+de|receitas\s+de)\b/.test(n) ||
+    /\b(baixar|instalar|download|atestado)\b/.test(n);
 
   return {
     assunto: (termosAssunto.length ? termosAssunto : termosTodos).join(" "),
@@ -306,9 +304,9 @@ function limparConsulta(q) {
     webQuery: n,
     ehPessoa: /\bquem\s+(?:foi|e|eh|era)\b/.test(expandirGirias(q)),
     ehTutorial,
-    ehLancamento: /\b(lancou|lanca|lancar|lancamento|estreia|estreou|saiu|quando sai|recente|recentes|atualizado|de agora)\b/.test(n),
-    ehOpiniao: /\b(e bom|e boa|vale a pena|presta|critica|nota|legal|legais|recomenda)\b/.test(n),
-    ehAtualidade: /\b(eleic|ganhou|venceu|campeao|resultado|placar|atual|atuais|atualizado|atualmente|recente|recentes|de agora|esse ano|deste ano|2025|2026|presidente|governador|prefeito|melhor do mundo|bola de ouro|the best|ranking|artilheiro|time atual|onde joga|quanto custa|preco)\b/.test(n) ||
+    ehLancamento: /\b(lancou|lanca|lancar|lancamento|estreia|estreou|saiu|quando sai|recente|recentes|atualizado|de agora|chegando)\b/.test(n),
+    ehOpiniao: /\b(e bom|e boa|vale a pena|presta|critica|nota|legal|legais|recomenda|facil|barato)\b/.test(n),
+    ehAtualidade: /\b(eleic|ganhou|venceu|campeao|resultado|placar|atual|atuais|atualizado|atualmente|recente|recentes|de agora|esse ano|deste ano|2025|2026|presidente|governador|prefeito|melhor do mundo|bola de ouro|the best|ranking|artilheiro|time atual|onde joga|quanto custa|preco|chegando|brasileirao)\b/.test(n) ||
       (!temAno && /\b(hoje|agora|ultimos|ultimas)\b/.test(n)),
     permiteAdulto: CONTEUDO_ADULTO.test(n),
     termos: termosAssunto.length ? termosAssunto : termosTodos
@@ -364,7 +362,7 @@ async function wiki(q, qk, permiteAdulto = false, ehPessoa = false) {
     const extra = [...tkTitulo].filter(w => !alvo.has(w)).length;
     const exatoBonus = (cobTitulo >= 0.95 && extra === 0) ? 0.6 : 0;
     return { titulo: r.title, rank: i, cob, cobTitulo, extra, v: cob + exatoBonus + (i === 0 ? 0.12 : 0) - 0.14 * extra - i * 0.02 };
-  }).filter(c => c.cob >= 0.45 || (c.rank === 0 && c.cob > 0)).sort((a, b) => b.v - a.v);
+  }).filter(c => c.cob >= 0.55 || (c.rank === 0 && c.cob >= 0.45)).sort((a, b) => b.v - a.v);
 
   let escolhidos = cand.slice(0, 2);
   if (escolhidos.length === 2 && escolhidos[0].cobTitulo >= 0.9 && escolhidos[0].extra === 0 && escolhidos[1].extra > 0) {
@@ -409,9 +407,7 @@ async function wiki(q, qk, permiteAdulto = false, ehPessoa = false) {
         const tx2 = (pg2?.extract || "").slice(0, 60000);
         if (tx2 && !DESAMBIGUA.test(tx2.slice(0, 500))) {
           filtrados.push({
-            titulo: pg2.title || r2.title,
-            texto: tx2,
-            cob: 0.85,
+            titulo: pg2.title || r2.title, texto: tx2, cob: 0.85,
             url: "https://pt.wikipedia.org/wiki/" + encodeURIComponent((pg2.title || r2.title).replace(/ /g, "_"))
           });
         }
@@ -472,9 +468,12 @@ function filtrar(links, qs, permiteAdulto = false, anoAtual = "") {
     const bonusAno = anoAtual && (texto.includes(anoAtual) || texto.includes(String(Number(anoAtual) - 1))) ? 3 : 0;
     return { ...l, hits, v: hits * 2 + bonusPT + penEn + bonusAno };
   });
-  const fortes = ranq.filter(l => l.hits > 0 && (qs.size < 3 || l.hits >= 2)).sort((x, y) => y.v - x.v);
+
+  const minHits = qs.size >= 2 ? 2 : 1;
+  const fortes = ranq.filter(l => l.hits >= minHits).sort((x, y) => y.v - x.v);
   if (fortes.length) return fortes.slice(0, 7);
-  return ranq.filter(l => l.hits >= 1).sort((x, y) => y.v - x.v).slice(0, 5);
+  if (qs.size <= 2) return ranq.filter(l => l.hits >= 1).sort((x, y) => y.v - x.v).slice(0, 4);
+  return [];
 }
 
 function cleanPage(t) {
@@ -511,7 +510,6 @@ function rawGithub(u) {
 async function lerLink(url) {
   const entradaSegura = urlPublicaSegura(url);
   if (!entradaSegura) throw new Error("link-bloqueado");
-
   const u = urlPublicaSegura(rawGithub(entradaSegura));
   if (!u) throw new Error("link-bloqueado");
 
@@ -544,8 +542,7 @@ function buscarConhecimento(texto) {
   if (/\b(atualizado|atual|atuais|recente|recentes|agora|hoje|2025|2026|novo|novos|melhor do mundo|baixar|instalar)\b/.test(qn)) return null;
   const qRaw = kwAssunto(texto);
   const qk = new Set(qRaw.map(radical));
-  if (!qk.size) return null;
-  if (qk.size === 1 && qRaw[0].length < 5) return null;
+  if (!qk.size || (qk.size === 1 && qRaw[0].length < 5)) return null;
   let top = null, score = 0;
   for (const e of loadKB()) {
     const eRaw = kwAssunto(e.q);
@@ -615,7 +612,7 @@ function escolher(c, qs, pedeLista, n = 4, ehAtual = false) {
   const avg = c.reduce((a, x) => a + x.len, 0) / N || 1;
   const idf = w => Math.log(1 + (N - (df[w] || 0) + 0.5) / ((df[w] || 0) + 0.5));
   const k1 = 1.2, b = 0.75;
-  const minCob = qs.size <= 1 ? 1 : 0.35;
+  const minCob = qs.size <= 1 ? 1 : 0.45;
 
   c.forEach(x => {
     let bm = 0;
@@ -644,7 +641,7 @@ function compor(q, fontes, n = 4, permiteAdulto = false, ehAtual = false, anoAtu
   const pedeLista = /^\s*(quais|quantos|quantas|cite|liste|tipos|exemplos|melhores)\b|\b(cores|tipos|exemplos|lista|membros|integrantes|filmes|series|jogos)\b/i.test(norm(q));
   const { sel: escolhidas } = escolher(candidatas(fontes, qs, permiteAdulto, anoAtual), qs, pedeLista, n, ehAtual);
   if (!escolhidas.length) return null;
-  if (qs.size >= 2 && !escolhidas.some(x => x.lead || x.cob >= 0.35)) return null;
+  if (qs.size >= 2 && !escolhidas.some(x => x.lead || x.cob >= 0.45)) return null;
 
   const sel = [...escolhidas].sort((a, b) => (b.temAnoAtual - a.temAnoAtual) || (b.lead - a.lead) || (a.fi - b.fi) || (a.pos - b.pos));
   const usados = [...new Set(sel.map(x => x.fi))].sort((a, b) => a - b);
@@ -664,6 +661,8 @@ function compor(q, fontes, n = 4, permiteAdulto = false, ehAtual = false, anoAtu
   return { texto: t, corpo, conf, usados };
 }
 
+const PALAVRAS_GENERICAS_SOLTAS = /^(serve|fazer|falar|dizer|ver|ter|ir|vir|dar|saber|poder|querer|achar|ficar|melhorar|posso|audio|rir|travou|arrumar|esqueceu|lembra|perguntando|pergunto|respondi|respondeu|entendeu|entendi|certo|errado|chega|chegando|amanha|ontem|fofoca|fofocas|gerar)$/;
+
 async function pesquisaProfunda(q, progresso = () => {}, fundo = true, opts = {}) {
   const qn = expandirGirias(q);
   if (ehFuturoGenerico(qn)) throw new Error("sem-dados-futuros");
@@ -676,7 +675,7 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true, opts = {}
   const assunto = info.assunto || q;
   const entidade = info.entidade || assunto;
   const qk = info.termos;
-  if (!qk.length || (qk.length === 1 && /^(serve|fazer|falar|dizer|ver|ter|ir|vir|dar|saber|poder|querer|achar|ficar|melhorar|posso|audio|rir|travou|arrumar|esqueceu|lembra|perguntando|pergunto|respondi|respondeu|entendeu|certo|errado)$/.test(qk[0]))) {
+  if (!qk.length || qk.every(w => PALAVRAS_GENERICAS_SOLTAS.test(w))) {
     throw new Error("irrelevante");
   }
 
@@ -691,17 +690,12 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true, opts = {}
   if (!querFilmeAtual && /\b(filme|filmes)\b/.test(qn) && /\b(bom|bons|boa|boas|recomenda\w*|indica\w*|melhor\w*|assistir|procura\w*|top)\b/.test(qn) && qk.length <= 3) {
     return {
       texto: "🎬 **10 filmes muito bem avaliados:**\n\n" +
-        "1. Interestelar (2014) — Ficção / Aventura\n" +
-        "2. A Origem (2010) — Ficção / Suspense\n" +
-        "3. Parasita (2019) — Drama / Suspense\n" +
-        "4. Um Sonho de Liberdade (1994) — Drama\n" +
-        "5. Batman: O Cavaleiro das Trevas (2008) — Ação\n" +
-        "6. Ilha do Medo (2010) — Mistério / Suspense\n" +
-        "7. À Espera de um Milagre (1999) — Drama\n" +
-        "8. Duna: Parte Dois (2024) — Aventura / Ficção\n" +
-        "9. Homem-Aranha no Aranhaverso (2018) — Animação\n" +
-        "10. O Auto da Compadecida (2000) — Comédia Brasileira\n\n" +
-        "💡 Se quiser lançamentos recentes (2025/2026) ou um gênero específico, peça `filmes recentes` ou `filmes de terror`.",
+        "1. Interestelar (2014) — Ficção / Aventura\n2. A Origem (2010) — Ficção / Suspense\n" +
+        "3. Parasita (2019) — Drama / Suspense\n4. Um Sonho de Liberdade (1994) — Drama\n" +
+        "5. Batman: O Cavaleiro das Trevas (2008) — Ação\n6. Ilha do Medo (2010) — Mistério\n" +
+        "7. À Espera de um Milagre (1999) — Drama\n8. Duna: Parte Dois (2024) — Ficção\n" +
+        "9. Homem-Aranha no Aranhaverso (2018) — Animação\n10. O Auto da Compadecida (2000) — Comédia Brasileira\n\n" +
+        "💡 Se quiser lançamentos recentes (2025/2026), peça `filmes recentes`.",
       conf: "alta",
       fontes: []
     };
@@ -725,11 +719,7 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true, opts = {}
   }
 
   if (desambigInfo && !fontes.length) {
-    return {
-      texto: desambigInfo.texto,
-      conf: "média",
-      fontes: [{ titulo: "Wikipédia: " + desambigInfo.titulo, url: desambigInfo.url }]
-    };
+    return { texto: desambigInfo.texto, conf: "média", fontes: [{ titulo: "Wikipédia: " + desambigInfo.titulo, url: desambigInfo.url }] };
   }
 
   progresso("🌐 Buscando na internet" + (info.ehAtualidade ? " (" + anoAtual + ")" : "") + "...");
@@ -745,7 +735,7 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true, opts = {}
   if ((fundo || opts.semLimite || info.ehTutorial) && links.length < 3) {
     try {
       const extra = info.ehAtualidade ? assunto + " " + (Number(anoAtual) - 1) + " " + anoAtual
-        : info.ehTutorial ? assunto + " tutorial oficial"
+        : info.ehTutorial ? assunto + " passo a passo"
         : info.ehLancamento ? assunto + " lancou"
         : assunto + " explicacao resumo";
       const mais = await web(extra);
