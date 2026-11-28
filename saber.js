@@ -1,7 +1,7 @@
-/* BACH AI 5.7 - SABER 4.1 (Buscas Precisas de Jogos, Tutoriais, Atualidades & Anti-Ruído)
- * - Corrige gírias/erros ("abaixo" -> "baixar", "celukar" -> "celular").
- * - Pula Wikipédia em tutoriais práticos ("como pegar", "como tirar", "como baixar", "como cortar").
- * - Impede falsos resultados por 1 palavra solta ("Lula", "Chega", "atestado").
+/* BACH AI 5.8 - SABER 4.2 (Estilo Limpo tipo Claude + Links Compactos + Anti-Ruído)
+ * - Remove citações [1] [2] poluindo cada linha e deixa links curtos/limpos.
+ * - Corrige gírias/erros ("abaixo" -> "baixar", "celukar" -> "celular", "whatzapp" -> "whatsapp").
+ * - Pula Wikipédia em tutoriais práticos e eventos atuais (2026).
  */
 
 const KB_KEY = "bach_conhecimento_v2";
@@ -168,7 +168,7 @@ function guiaJogoCelular(qn) {
           "⚠️ **Cuidado:** sites oferecendo “APK do GTA 5 para celular” costumam ser golpes ou vírus.\n\n" +
           "Você quer jogar GTA no celular (como o San Andreas oficial) ou no PC?",
         conf: "alta",
-        fontes: [{ titulo: "Rockstar Games — GTA V", url: "https://www.rockstargames.com/gta-v" }]
+        fontes: [{ titulo: "Rockstar Games", url: "https://www.rockstargames.com/gta-v" }]
       };
     }
 
@@ -180,10 +180,7 @@ function guiaJogoCelular(qn) {
         "⚠️ Evite arquivos `.apk` modificados de sites aleatórios para não pegar vírus.\n\n" +
         "Seu celular é Android ou iPhone?",
       conf: "alta",
-      fontes: [
-        { titulo: "Google Play — Rockstar Games", url: "https://play.google.com/store/apps/dev?id=7086639890153802127" },
-        { titulo: "Rockstar Games", url: "https://www.rockstargames.com/games" }
-      ]
+      fontes: [{ titulo: "Rockstar Games", url: "https://www.rockstargames.com/games" }]
     };
   }
 
@@ -201,11 +198,11 @@ function guiaJogoCelular(qn) {
   if (/\bfortnite\b/.test(qn)) {
     return {
       texto: "🪂 **Como baixar Fortnite no celular:**\n\n" +
-        "• **Android (e iPhone na UE):** baixe a **Epic Games Store** em `fortnite.com/mobile` e instale por lá.\n" +
+        "• **Android:** baixe a **Epic Games Store** em `fortnite.com/mobile` e instale por lá.\n" +
         "• **iPhone no Brasil / celulares leves:** jogue grátis direto pelo navegador via **Xbox Cloud Gaming** (`xbox.com/play`) ou **GeForce NOW**.\n\n" +
         "Quer ajuda para abrir pelo navegador ou no Android?",
       conf: "alta",
-      fontes: [{ titulo: "Fortnite Mobile — Epic Games", url: "https://www.fortnite.com/mobile" }]
+      fontes: [{ titulo: "Fortnite Mobile", url: "https://www.fortnite.com/mobile" }]
     };
   }
 
@@ -279,9 +276,9 @@ async function buscarAnimesJikan(qn, assunto, progresso) {
   return {
     texto: "⛩️ **Animes encontrados (" + (ehAtual ? "temporada atual" : ehTop ? "mais bem avaliados" : "busca: " + assunto) + "):**\n\n" +
       linhas.join("\n") +
-      "\n\n💡 Quer a sinopse de algum específico? Peça `pesquise sobre [nome do anime]`.",
+      "\n\nQuer a sinopse ou mais detalhes de algum específico?",
     conf: "alta",
-    fontes: lista.slice(0, 3).map(a => ({ titulo: "MyAnimeList: " + a.title, url: a.url }))
+    fontes: lista.slice(0, 2).map(a => ({ titulo: a.title, url: a.url }))
   };
 }
 
@@ -335,9 +332,9 @@ function resumirDesambiguacao(texto, titulo) {
     .map(l => l.trim())
     .filter(l => l.length > 18 && !/^(Ver também|Ligações externas|Referências)/i.test(l) && !DESAMBIGUA.test(l));
   if (!linhas.length) return null;
-  return "📚 **“" + titulo + "” pode se referir a vários significados na Wikipédia:**\n\n• " +
-    linhas.slice(0, 6).join("\n• ") +
-    "\n\n💡 Se quiser um específico, diga o nome completo.";
+  return "**“" + titulo + "”** pode se referir a vários temas:\n\n• " +
+    linhas.slice(0, 5).join("\n• ") +
+    "\n\nQual deles você procura?";
 }
 
 async function wiki(q, qk, permiteAdulto = false, ehPessoa = false) {
@@ -554,12 +551,10 @@ function buscarConhecimento(texto) {
     if (s > score) { score = s; top = e; }
   }
   if (!top || score < 0.8) return null;
-  const dias = Math.floor((Date.now() - (top.at || 0)) / 86400000);
-  return "📚 Do que já consultei sobre **“" + top.q + "”** (" + new Date(top.at).toLocaleDateString("pt-BR") + "):\n\n" + String(top.resumo).slice(0, 1800) +
-    (dias > 30 ? "\n\n⚠️ Esse registro tem mais de 30 dias — se quiser dados atualizados, peça `pesquise a fundo sobre " + top.q + "`." : "");
+  return top.resumo;
 }
 
-/* ---------- Montar a resposta com ranking BM25 ---------- */
+/* ---------- Montar a resposta limpa (Estilo Claude) ---------- */
 
 const LIXO = /(cookie|copyright|©|todos os direitos|pol[ií]tica de privacidade|termos de uso|inscreva|assine|newsletter|clique aqui|leia mais|compartilhe|whatsapp|facebook|instagram|login|cadastr|publicidade|an[uú]ncio|aceitar|menu principal|veja também|ver também)/i;
 
@@ -583,7 +578,7 @@ function candidatas(fontes, qs, permiteAdulto = false, anoAtual = "") {
   fontes.forEach((f, fi) => {
     f.frases.forEach((raw, pos) => {
       const s = limparFrase(raw);
-      if (s.length < 35 || s.length > 440 || LIXO.test(s) || !/[.!?][)"'”»]?$/.test(s) || /^(R|P|Q|A):\s/.test(s)) return;
+      if (s.length < 35 || s.length > 360 || LIXO.test(s) || !/[.!][)"'”»]?$/.test(s) || /^(R|P|Q|A):\s/.test(s)) return;
       if (!permiteAdulto && CONTEUDO_ADULTO.test(s)) return;
       if (/^[,;:)\]]/.test(s) || !/^[A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9"“]/.test(s)) return;
       const k = new Set(kr(s));
@@ -639,26 +634,26 @@ function compor(q, fontes, n = 4, permiteAdulto = false, ehAtual = false, anoAtu
   const qk = kwAssunto(q);
   const qs = new Set((qk.length ? qk : kw(q)).map(radical));
   const pedeLista = /^\s*(quais|quantos|quantas|cite|liste|tipos|exemplos|melhores)\b|\b(cores|tipos|exemplos|lista|membros|integrantes|filmes|series|jogos)\b/i.test(norm(q));
-  const { sel: escolhidas } = escolher(candidatas(fontes, qs, permiteAdulto, anoAtual), qs, pedeLista, n, ehAtual);
+  const { sel: escolhidas } = escolher(candidatas(fontes, qs, permiteAdulto, anoAtual), qs, pedeLista, Math.min(4, n), ehAtual);
   if (!escolhidas.length) return null;
   if (qs.size >= 2 && !escolhidas.some(x => x.lead || x.cob >= 0.45)) return null;
 
   const sel = [...escolhidas].sort((a, b) => (b.temAnoAtual - a.temAnoAtual) || (b.lead - a.lead) || (a.fi - b.fi) || (a.pos - b.pos));
   const usados = [...new Set(sel.map(x => x.fi))].sort((a, b) => a - b);
-  const num = fi => usados.indexOf(fi) + 1;
   const [primeira, ...resto] = sel;
 
-  let corpo = primeira.s + " [" + num(primeira.fi) + "]";
-  if (resto.length) corpo += "\n\n" + resto.map(x => "• " + x.s + " [" + num(x.fi) + "]").join("\n");
+  let corpo = primeira.s;
+  if (resto.length) corpo += "\n\n" + resto.map(x => "• " + x.s).join("\n");
 
   const principal = fontes.some(f => f.primario);
   const apoio = Math.max(...sel.map(x => x.apoio));
   const forte = sel.filter(x => x.cob >= 0.55).length;
   const conf = principal && (apoio >= 1 || forte >= 2) ? "alta" : principal || apoio >= 1 || (usados.length >= 2 && forte >= 1) ? "média" : "baixa";
 
-  let t = (conf === "baixa" && usados.length < 2 ? "⚠️ Encontrei pouca confirmação nas fontes — vale conferir os links abaixo:\n\n" : "") + corpo;
-  t += "\n\n**Fontes:**\n" + usados.map((fi, i) => "[" + (i + 1) + "] " + fontes[fi].nome).join("\n");
-  return { texto: t, corpo, conf, usados };
+  const dominios = usados.slice(0, 3).map(fi => fontes[fi].dominio || fontes[fi].nome.split(" — ")[0]).filter(Boolean);
+  let t = corpo + "\n\nQuer que eu aprofunde algum desses pontos ou pesquise mais detalhes? 🙂" +
+    (dominios.length ? "\n\n*Fontes: " + [...new Set(dominios)].join(" • ") + "*" : "");
+  return { texto: t, corpo, conf, usados: usados.slice(0, 2) };
 }
 
 const PALAVRAS_GENERICAS_SOLTAS = /^(serve|fazer|falar|dizer|ver|ter|ir|vir|dar|saber|poder|querer|achar|ficar|melhorar|posso|audio|rir|travou|arrumar|esqueceu|lembra|perguntando|pergunto|respondi|respondeu|entendeu|entendi|certo|errado|chega|chegando|amanha|ontem|fofoca|fofocas|gerar)$/;
@@ -707,19 +702,19 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true, opts = {}
   let desambigInfo = null;
 
   if (!info.ehAtualidade && !info.ehTutorial) {
-    progresso("📚 Consultando a Wikipédia (pt.wikipedia.org)...");
+    progresso("📚 Consultando a Wikipédia...");
     try {
       const resWiki = await wiki(entidade, kwAssunto(entidade).length ? kwAssunto(entidade) : qk, info.permiteAdulto, info.ehPessoa);
       desambigInfo = resWiki.desambigInfo;
       resWiki.artigos.forEach((p, i) => fontes.push({
-        nome: "Wikipédia: " + p.titulo, url: p.url, frases: paragrafos(p.texto).slice(0, 400), wiki: true,
+        nome: "Wikipédia: " + p.titulo, dominio: "Wikipédia", url: p.url, frases: paragrafos(p.texto).slice(0, 400), wiki: true,
         primario: i === 0 && p.cob >= 0.45, tituloStems: new Set(kr(p.titulo))
       }));
     } catch (e) { console.warn("wiki", e); }
   }
 
   if (desambigInfo && !fontes.length) {
-    return { texto: desambigInfo.texto, conf: "média", fontes: [{ titulo: "Wikipédia: " + desambigInfo.titulo, url: desambigInfo.url }] };
+    return { texto: desambigInfo.texto, conf: "média", fontes: [{ titulo: "Wikipédia", url: desambigInfo.url }] };
   }
 
   progresso("🌐 Buscando na internet" + (info.ehAtualidade ? " (" + anoAtual + ")" : "") + "...");
@@ -737,38 +732,34 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true, opts = {}
       const extra = info.ehAtualidade ? assunto + " " + (Number(anoAtual) - 1) + " " + anoAtual
         : info.ehTutorial ? assunto + " passo a passo"
         : info.ehLancamento ? assunto + " lancou"
-        : assunto + " explicacao resumo";
+        : assunto + " resumo";
       const mais = await web(extra);
       const vistos = new Set(links.map(l => l.url));
       mais.forEach(l => { if (!vistos.has(l.url)) links.push(l); });
     } catch (e) { console.warn("web2", e); }
   }
 
-  progresso("🧹 Filtrando " + links.length + " resultado(s) por relevância...");
+  progresso("🧹 Filtrando " + links.length + " resultado(s)...");
   links = filtrar(links, qs, info.permiteAdulto, info.ehAtualidade ? anoAtual : "");
-  const webFontes = links.map(l => ({ nome: host(l.url) + " — " + l.titulo.slice(0, 60), url: l.url, frases: l.snippet ? [l.snippet] : [] }));
+  const webFontes = links.map(l => ({ nome: host(l.url), dominio: host(l.url), url: l.url, frases: l.snippet ? [l.snippet] : [] }));
   fontes.push(...webFontes);
 
-  const maxPaginas = opts.semLimite ? 7 : 4;
-  const maxFrases = opts.semLimite ? 9 : fundo ? 6 : 4;
-
+  const maxPaginas = opts.semLimite ? 6 : 4;
   if ((fundo || opts.semLimite || info.ehTutorial) && webFontes.length) {
-    progresso("📖 Lendo as páginas mais relevantes...");
+    progresso("📖 Lendo as melhores fontes...");
     await Promise.allSettled(webFontes.slice(0, maxPaginas).map(async f => {
-      progresso("🌐 Lendo " + host(f.url));
       f.frases.push(...await readPage(f, qs));
     }));
   }
 
-  progresso("🧩 Organizando os resultados...");
-  const r = compor(assunto, fontes, maxFrases, info.permiteAdulto, info.ehAtualidade, anoAtual);
+  progresso("🧩 Organizando a resposta...");
+  const r = compor(assunto, fontes, 4, info.permiteAdulto, info.ehAtualidade, anoAtual);
   if (!r) throw new Error("irrelevante");
 
   const guardou = r.conf !== "baixa" && !info.ehAtualidade;
-  if (guardou) saveKB({ q: assunto, resumo: r.corpo, at: Date.now() });
+  if (guardou) saveKB({ q: assunto, resumo: r.texto, at: Date.now() });
 
-  const texto = r.texto + (fundo ? "" : "\n\nQuer que eu aprofunde ou detalhe algum ponto disso?");
-  return { texto, conf: r.conf, fontes: r.usados.map(i => ({ titulo: fontes[i].nome, url: fontes[i].url })) };
+  return { texto: r.texto, conf: r.conf, fontes: r.usados.map(i => ({ titulo: fontes[i].dominio || fontes[i].nome, url: fontes[i].url })) };
 }
 
 export const Saber = { lerTexto, summarize, pesquisaProfunda, buscarConhecimento, isCode, compor, lerLink, urlsEm };
