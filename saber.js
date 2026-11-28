@@ -1,7 +1,8 @@
-/* BACH AI 5.5 - SABER 3.6 (Busca Atual Real + Anti-Cache Desatualizado + Links Completos)
- * - Detecta pedidos de conteúdo atualizado/recente (ex.: filmes recentes 2025/2026) e consulta a web ao vivo.
- * - Corrige gírias e erros de digitação (melho -> melhor, atualisado -> atualizado, qm -> quem).
- * - Protege contra SSRF em links externos e amplia leitura de código via link para 350 KB.
+/* BACH AI 5.6 - SABER 4.0 (Buscas Inteligentes de Jogos, Tutoriais, Atualidades & Web)
+ * - Corrige perda de termos essenciais ("melhor", "bom", "formula", "existe", "episodios").
+ * - Prioriza web ao vivo para tutoriais ("como baixar...", "como fazer..."), jogos no celular e rankings atuais.
+ * - Guias seguros e objetivos para jogos populares no celular (GTA, Minecraft, Fortnite, Free Fire, Roblox).
+ * - Parser web resiliente para múltiplos formatos Markdown do DuckDuckGo/Jina.
  */
 
 const KB_KEY = "bach_conhecimento_v2";
@@ -22,11 +23,7 @@ const STOP = new Set((
 ).split(" "));
 
 const INTENCAO_STOP = new Set((
-  "bom boa bons boas legal legais ruim melhor melhores pior piores presta vale pena top " +
-  "lancou lanca lancar lancamento lancamentos estreou estreia estrear saiu sair sai lancado lancados " +
-  "recomenda recomende indica indique assistir assisto ver saber proximo proxima proximos proximas vem vim vir chegar " +
-  "existe existem existiu existir nome nomes membro membros integrante integrantes " +
-  "formula formulas feito feita feitos feitas fruta frutas episodio episodios temporada temporadas"
+  "recomenda recomende indica indique assistir assisto ver saber proximo proxima proximos proximas vem vim vir chegar"
 ).split(" "));
 
 const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -58,10 +55,11 @@ function expandirGirias(t) {
     .replace(/\b(oq|oqe|oque)\b/g, "o que")
     .replace(/\b(pq|pk)\b/g, "porque")
     .replace(/\b(tb|tbm|tmb)\b/g, "tambem")
-    .replace(/\bpra\b/g, "para")
+    .replace(/\b(pra|oara|praa)\b/g, "para")
+    .replace(/\bcel\b/g, "celular")
     .replace(/\bmelho\b/g, "melhor")
     .replace(/\batualisado\b/g, "atualizado")
-    .replace(/\b(para|pra|como)\s+dormi\b/g, "$1 dormir")
+    .replace(/\b(para|como)\s+dormi\b/g, "$1 dormir")
     .replace(/\bpisodios\b/g, "episodios");
 }
 
@@ -81,7 +79,7 @@ function topWords(text, n = 8) {
 
 function sentences(text) {
   const t = String(text || "").slice(0, 120000).replace(/\s+/g, " ");
-  return (t.match(/[^.!?]+[.!?]+/g) || [t]).map(s => s.trim()).filter(s => s.length >= 40 && s.length <= 420);
+  return (t.match(/[^.!?]+[.!?]+/g) || [t]).map(s => s.trim()).filter(s => s.length >= 35 && s.length <= 420);
 }
 
 function best(list, scoreFn, k) {
@@ -155,6 +153,79 @@ function lerTexto(text) {
   return out;
 }
 
+/* ---------- Guias Seguros de Jogos & Pesquisas Populares ---------- */
+
+function guiaJogoCelular(qn) {
+  const querBaixarOuJogar = /\b(baixar|instalar|download|jogar|onde|tem|roda|funciona|celular|android|iphone|ios|mobile|apk)\b/.test(qn);
+  if (!querBaixarOuJogar) return null;
+
+  if (/\bgta\b|grand theft auto/.test(qn)) {
+    if (/\bgta\s*(5|v)\b/.test(qn)) {
+      return {
+        texto: "🎮 **GTA V no celular — como funciona:**\n\n" +
+          "A Rockstar não lançou uma versão nativa do **GTA V** para Android ou iPhone. Para jogar no celular de forma segura e oficial, você usa **streaming na nuvem**:\n\n" +
+          "• **Xbox Cloud Gaming (Game Pass):** funciona direto pelo navegador ou app quando o jogo está no catálogo.\n" +
+          "• **Remote Play (PlayStation / Xbox) ou Steam Link:** transmite o jogo rodando no seu console ou PC direto para a tela do celular.\n\n" +
+          "⚠️ **Cuidado:** sites oferecendo “APK do GTA 5 para celular” costumam ser golpes ou vírus.\n\n" +
+          "Você quer jogar algum GTA nativo no celular (como o San Andreas) ou conectar seu PC/console?",
+        conf: "alta",
+        fontes: []
+      };
+    }
+
+    return {
+      texto: "🎮 **Como baixar GTA no celular (oficial e seguro):**\n\n" +
+        "Os jogos da trilogia clássica têm versão oficial para **Android** e **iPhone (iOS)**:\n\n" +
+        "• **GTA: San Andreas**, **GTA: Vice City** e **GTA III** — disponíveis na **Google Play Store** e na **App Store** (pagos).\n" +
+        "• **Pela Netflix (sem custo extra se você já assina):** abra a Play Store ou App Store, busque **“GTA San Andreas Netflix”** (ou Vice City / III *Definitive Edition*), baixe e faça login com sua conta Netflix.\n" +
+        "• **GTA Liberty City Stories** e **Chinatown Wars** — também disponíveis nas lojas oficiais.\n\n" +
+        "⚠️ **Dica de segurança:** evite baixar arquivos `.apk` modificados fora da loja oficial para não pegar vírus ou perder sua conta.\n\n" +
+        "Seu celular é Android ou iPhone? Posso te ajudar a ver qual versão roda melhor nele!",
+      conf: "alta",
+      fontes: [
+        { titulo: "Google Play Store — Rockstar Games", url: "https://play.google.com/store/apps/dev?id=7086639890153802127" },
+        { titulo: "Rockstar Games — Mobile", url: "https://www.rockstargames.com/games" }
+      ]
+    };
+  }
+
+  if (/\bminecraft\b/.test(qn)) {
+    return {
+      texto: "⛏️ **Como baixar Minecraft no celular:**\n\n" +
+        "• **Android:** abra a **Google Play Store** e procure por **Minecraft** (versão oficial da *Mojang*). Se quiser testar antes de comprar, há também o **Minecraft Trial** gratuito.\n" +
+        "• **iPhone / iPad:** procure por **Minecraft** na **App Store**.\n\n" +
+        "Você joga mais no celular ou no PC?",
+      conf: "alta",
+      fontes: [{ titulo: "Minecraft Oficial", url: "https://www.minecraft.net/pt-br" }]
+    };
+  }
+
+  if (/\bfortnite\b/.test(qn)) {
+    return {
+      texto: "🪂 **Como baixar Fortnite no celular:**\n\n" +
+        "• **Android (mundo todo) e iPhone (União Europeia):** baixe o aplicativo da **Epic Games Store** pelo site oficial `fortnite.com` e instale o Fortnite por lá.\n" +
+        "• **iPhone no Brasil (ou celulares mais fracos):** jogue grátis direto pelo navegador usando **Xbox Cloud Gaming** (`xbox.com/play`) ou **GeForce NOW** sem precisar instalar o jogo pesado.\n\n" +
+        "Quer ajuda para configurar pelo navegador ou no Android?",
+      conf: "alta",
+      fontes: [{ titulo: "Fortnite Oficial — Epic Games", url: "https://www.fortnite.com/mobile" }]
+    };
+  }
+
+  if (/\b(roblox|free fire|cod mobile|call of duty|brawl stars|pubg|genshin)\b/.test(qn)) {
+    const nome = (qn.match(/\b(roblox|free fire|cod mobile|call of duty|brawl stars|pubg|genshin)\b/) || ["o jogo"])[1].toUpperCase();
+    return {
+      texto: "📱 **Como baixar " + nome + " no celular:**\n\n" +
+        "• **Android:** abra a **Google Play Store**, pesquise por **" + nome + "** e toque em **Instalar** (é gratuito).\n" +
+        "• **iPhone (iOS):** abra a **App Store**, pesquise por **" + nome + "** e toque em **Obter**.\n\n" +
+        "Se estiver dando algum erro de espaço ou compatibilidade no seu aparelho, me diga qual é o erro!",
+      conf: "alta",
+      fontes: []
+    };
+  }
+
+  return null;
+}
+
 /* ---------- Pesquisa profunda ---------- */
 
 async function get(url, ms = 14000, json = false) {
@@ -226,15 +297,19 @@ function limparConsulta(q) {
   const termosTodos = kw(n);
   const temAno = /\b(19|20)\d{2}\b/.test(n);
   const termosLimpos = termosAssunto.filter(w => !/^\d+$/.test(w));
+  const ehTutorial = /\b(como\s+(?:baixar|instalar|fazer|jogar|usar|criar|configurar|resolver|tirar|ganhar|atualizar|formatar|desbloquear)|onde\s+(?:baixar|assistir|comprar|encontrar)|passo\s+a\s+passo|tutorial|receita\s+de)\b/.test(n) ||
+    /\b(baixar|instalar|download)\b/.test(n);
+
   return {
     assunto: (termosAssunto.length ? termosAssunto : termosTodos).join(" "),
     entidade: (termosLimpos.length ? termosLimpos : termosAssunto.length ? termosAssunto : termosTodos).join(" "),
     webQuery: n,
     ehPessoa: /\bquem\s+(?:foi|e|eh|era)\b/.test(expandirGirias(q)),
+    ehTutorial,
     ehLancamento: /\b(lancou|lanca|lancar|lancamento|estreia|estreou|saiu|quando sai|recente|recentes|atualizado|de agora)\b/.test(n),
     ehOpiniao: /\b(e bom|e boa|vale a pena|presta|critica|nota|legal|legais|recomenda)\b/.test(n),
-    ehAtualidade: /\b(eleic|ganhou|venceu|campeao|resultado|placar|atual|atuais|atualizado|atualmente|recente|recentes|de agora|esse ano|deste ano|2025|2026|presidente|governador|prefeito)\b/.test(n) ||
-      (!temAno && /\b(hoje|agora|ultimos)\b/.test(n)),
+    ehAtualidade: /\b(eleic|ganhou|venceu|campeao|resultado|placar|atual|atuais|atualizado|atualmente|recente|recentes|de agora|esse ano|deste ano|2025|2026|presidente|governador|prefeito|melhor do mundo|bola de ouro|the best|ranking|artilheiro|time atual|onde joga|quanto custa|preco)\b/.test(n) ||
+      (!temAno && /\b(hoje|agora|ultimos|ultimas)\b/.test(n)),
     permiteAdulto: CONTEUDO_ADULTO.test(n),
     termos: termosAssunto.length ? termosAssunto : termosTodos
   };
@@ -245,7 +320,7 @@ function paragrafos(texto) {
   const out = [];
   for (const p of corte.split(/\n+/)) {
     const t = p.replace(/\s+/g, " ").trim();
-    if (t.length < 40) continue;
+    if (t.length < 35) continue;
     const marcado = t.replace(/([.!?])\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9"“])/g, "$1\n");
     for (const s of marcado.split("\n")) {
       const limpoS = s.trim();
@@ -362,9 +437,9 @@ const host = u => { try { return new URL(u).hostname.replace(/^www\./, ""); } ca
 
 async function web(q) {
   const txt = await get("https://r.jina.ai/http://html.duckduckgo.com/html/?kl=br-pt&q=" + encodeURIComponent(q), 12000);
-  const ms = [...txt.matchAll(/^## \[(.*?)\]\((https?:\/\/[^)\s]+)\)/gm)];
+  const ms = [...txt.matchAll(/^(?:#{1,4}\s+|[-*]\s+|\d+\.\s+)?(?<!!)\[([^\]]{3,180})\]\((https?:\/\/[^)\s]+)\)/gm)];
   const out = [], seen = new Set();
-  for (let i = 0; i < ms.length && out.length < 9; i++) {
+  for (let i = 0; i < ms.length && out.length < 10; i++) {
     let link = ms[i][2];
     try {
       const u = new URL(link);
@@ -375,7 +450,7 @@ async function web(q) {
     const ini = ms[i].index + ms[i][0].length;
     const fim = i + 1 < ms.length ? ms[i + 1].index : txt.length;
     const titulo = limparMd(ms[i][1]);
-    let snippet = limparMd(txt.slice(ini, fim)).replace(/…+|\.{3,}\s*$/g, "").trim().slice(0, 320);
+    let snippet = limparMd(txt.slice(ini, fim)).replace(/…+|\.{3,}\s*$/g, "").trim().slice(0, 340);
     if (snippet && !/[.!?]$/.test(snippet)) snippet += ".";
     if (titulo.length < 4) continue;
     seen.add(linkSeguro);
@@ -392,9 +467,9 @@ function filtrar(links, qs, permiteAdulto = false, anoAtual = "") {
     const texto = l.titulo + " " + l.snippet;
     const k = new Set(kr(texto));
     const hits = [...qs].filter(w => k.has(w)).length;
-    const bonusPT = /pt\.wikipedia|\.br\/|brasilescola|todamateria|significados|mundoeducacao|bbc\.|g1\.globo|uol|adorocinema|omelete|tecmundo/i.test(l.url) ? 3 : 0;
+    const bonusPT = /pt\.wikipedia|\.br\/|brasilescola|todamateria|significados|mundoeducacao|bbc\.|g1\.globo|ge\.globo|uol|techtudo|canaltech|tudocelular|adorocinema|omelete|tecmundo|play\.google|apps\.apple/i.test(l.url) ? 3 : 0;
     const penEn = (/en\.wikipedia/i.test(l.url) || pareceIngles(texto)) ? -2 : 0;
-    const bonusAno = anoAtual && texto.includes(anoAtual) ? 3 : 0;
+    const bonusAno = anoAtual && (texto.includes(anoAtual) || texto.includes(String(Number(anoAtual) - 1))) ? 3 : 0;
     return { ...l, hits, v: hits * 2 + bonusPT + penEn + bonusAno };
   });
   const fortes = ranq.filter(l => l.hits > 0 && (qs.size < 3 || l.hits >= 2)).sort((x, y) => y.v - x.v);
@@ -418,7 +493,7 @@ async function readPage(link, qs) {
   return best(paragrafos(txt), s => {
     const n = new Set(kr(s));
     const hits = [...qs].filter(w => n.has(w)).length;
-    return hits ? hits * 3 + (s.length > 70 && s.length < 350 ? 1 : 0) : 0;
+    return hits ? hits * 3 + (s.length > 60 && s.length < 360 ? 1 : 0) : 0;
   }, 10);
 }
 
@@ -466,7 +541,7 @@ function saveKB(entry) {
 
 function buscarConhecimento(texto) {
   const qn = expandirGirias(texto);
-  if (/\b(atualizado|atual|atuais|recente|recentes|agora|hoje|2025|2026|novo|novos)\b/.test(qn)) return null;
+  if (/\b(atualizado|atual|atuais|recente|recentes|agora|hoje|2025|2026|novo|novos|melhor do mundo|baixar|instalar)\b/.test(qn)) return null;
   const qRaw = kwAssunto(texto);
   const qk = new Set(qRaw.map(radical));
   if (!qk.size) return null;
@@ -483,7 +558,7 @@ function buscarConhecimento(texto) {
   }
   if (!top || score < 0.8) return null;
   const dias = Math.floor((Date.now() - (top.at || 0)) / 86400000);
-  return "📚 Do que já consultei sobre “" + top.q + "” (" + new Date(top.at).toLocaleDateString("pt-BR") + "):\n\n" + String(top.resumo).slice(0, 1800) +
+  return "📚 Do que já consultei sobre **“" + top.q + "”** (" + new Date(top.at).toLocaleDateString("pt-BR") + "):\n\n" + String(top.resumo).slice(0, 1800) +
     (dias > 30 ? "\n\n⚠️ Esse registro tem mais de 30 dias — se quiser dados atualizados, peça `pesquise a fundo sobre " + top.q + "`." : "");
 }
 
@@ -511,7 +586,7 @@ function candidatas(fontes, qs, permiteAdulto = false, anoAtual = "") {
   fontes.forEach((f, fi) => {
     f.frases.forEach((raw, pos) => {
       const s = limparFrase(raw);
-      if (s.length < 40 || s.length > 420 || LIXO.test(s) || !/[.!][)"'”»]?$/.test(s) || /^(R|P|Q|A):\s/.test(s)) return;
+      if (s.length < 35 || s.length > 440 || LIXO.test(s) || !/[.!?][)"'”»]?$/.test(s) || /^(R|P|Q|A):\s/.test(s)) return;
       if (!permiteAdulto && CONTEUDO_ADULTO.test(s)) return;
       if (/^[,;:)\]]/.test(s) || !/^[A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9"“]/.test(s)) return;
       const k = new Set(kr(s));
@@ -540,7 +615,7 @@ function escolher(c, qs, pedeLista, n = 4, ehAtual = false) {
   const avg = c.reduce((a, x) => a + x.len, 0) / N || 1;
   const idf = w => Math.log(1 + (N - (df[w] || 0) + 0.5) / ((df[w] || 0) + 0.5));
   const k1 = 1.2, b = 0.75;
-  const minCob = qs.size <= 1 ? 1 : 0.4;
+  const minCob = qs.size <= 1 ? 1 : 0.35;
 
   c.forEach(x => {
     let bm = 0;
@@ -566,10 +641,10 @@ function escolher(c, qs, pedeLista, n = 4, ehAtual = false) {
 function compor(q, fontes, n = 4, permiteAdulto = false, ehAtual = false, anoAtual = "") {
   const qk = kwAssunto(q);
   const qs = new Set((qk.length ? qk : kw(q)).map(radical));
-  const pedeLista = /^\s*(quais|quantos|quantas|cite|liste|tipos|exemplos)\b|\b(cores|tipos|exemplos|lista|membros|integrantes|filmes|series)\b/i.test(norm(q));
+  const pedeLista = /^\s*(quais|quantos|quantas|cite|liste|tipos|exemplos|melhores)\b|\b(cores|tipos|exemplos|lista|membros|integrantes|filmes|series|jogos)\b/i.test(norm(q));
   const { sel: escolhidas } = escolher(candidatas(fontes, qs, permiteAdulto, anoAtual), qs, pedeLista, n, ehAtual);
   if (!escolhidas.length) return null;
-  if (qs.size >= 2 && !escolhidas.some(x => x.lead || x.cob >= 0.45)) return null;
+  if (qs.size >= 2 && !escolhidas.some(x => x.lead || x.cob >= 0.35)) return null;
 
   const sel = [...escolhidas].sort((a, b) => (b.temAnoAtual - a.temAnoAtual) || (b.lead - a.lead) || (a.fi - b.fi) || (a.pos - b.pos));
   const usados = [...new Set(sel.map(x => x.fi))].sort((a, b) => a - b);
@@ -581,11 +656,11 @@ function compor(q, fontes, n = 4, permiteAdulto = false, ehAtual = false, anoAtu
 
   const principal = fontes.some(f => f.primario);
   const apoio = Math.max(...sel.map(x => x.apoio));
-  const forte = sel.filter(x => x.cob >= 0.6).length;
-  const conf = principal && (apoio >= 1 || forte >= 2) ? "alta" : principal || apoio >= 1 || (usados.length >= 2 && forte >= 2) ? "média" : "baixa";
+  const forte = sel.filter(x => x.cob >= 0.55).length;
+  const conf = principal && (apoio >= 1 || forte >= 2) ? "alta" : principal || apoio >= 1 || (usados.length >= 2 && forte >= 1) ? "média" : "baixa";
 
-  let t = (conf === "baixa" ? "⚠️ Não há confirmação total nas fontes encontradas — confira os links abaixo.\n\n" : "") + corpo;
-  t += "\n\nFontes:\n" + usados.map((fi, i) => "[" + (i + 1) + "] " + fontes[fi].nome).join("\n");
+  let t = (conf === "baixa" && usados.length < 2 ? "⚠️ Encontrei pouca confirmação nas fontes — vale conferir os links abaixo:\n\n" : "") + corpo;
+  t += "\n\n**Fontes:**\n" + usados.map((fi, i) => "[" + (i + 1) + "] " + fontes[fi].nome).join("\n");
   return { texto: t, corpo, conf, usados };
 }
 
@@ -593,6 +668,9 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true, opts = {}
   const qn = expandirGirias(q);
   if (ehFuturoGenerico(qn)) throw new Error("sem-dados-futuros");
   if (META_REFERENCIA.test(qn)) throw new Error("meta-referencia");
+
+  const guiaJogo = guiaJogoCelular(qn);
+  if (guiaJogo) return guiaJogo;
 
   const info = limparConsulta(q);
   const assunto = info.assunto || q;
@@ -609,7 +687,6 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true, opts = {}
     } catch (e) { console.warn("jikan", e); }
   }
 
-  // Só usa a lista clássica se NÃO tiver pedido por filmes atuais/recentes/2025/2026
   const querFilmeAtual = /\b(atual|atuais|atualizado|atualizados|de agora|recente|recentes|novo|novos|2025|2026|lancamento|lancamentos|streaming)\b/.test(qn);
   if (!querFilmeAtual && /\b(filme|filmes)\b/.test(qn) && /\b(bom|bons|boa|boas|recomenda\w*|indica\w*|melhor\w*|assistir|procura\w*|top)\b/.test(qn) && qk.length <= 3) {
     return {
@@ -635,7 +712,7 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true, opts = {}
   const fontes = [];
   let desambigInfo = null;
 
-  if (!info.ehAtualidade) {
+  if (!info.ehAtualidade && !info.ehTutorial) {
     progresso("📚 Consultando a Wikipédia (pt.wikipedia.org)...");
     try {
       const resWiki = await wiki(entidade, kwAssunto(entidade).length ? kwAssunto(entidade) : qk, info.permiteAdulto, info.ehPessoa);
@@ -658,14 +735,19 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true, opts = {}
   progresso("🌐 Buscando na internet" + (info.ehAtualidade ? " (" + anoAtual + ")" : "") + "...");
   let links = [];
   const consultaWeb = info.ehAtualidade ? (info.webQuery || assunto) + " " + anoAtual
+    : info.ehTutorial ? (info.webQuery || assunto)
     : info.ehLancamento ? (info.webQuery || assunto) + " data de lancamento"
     : info.ehOpiniao ? (info.webQuery || assunto) + " recomendacao critica"
     : info.ehPessoa ? "quem foi " + assunto
     : (info.webQuery.length >= assunto.length ? info.webQuery : assunto);
+
   try { links = await web(consultaWeb); } catch (e) { console.warn("web", e); }
-  if ((fundo || opts.semLimite) && links.length < 3) {
+  if ((fundo || opts.semLimite || info.ehTutorial) && links.length < 3) {
     try {
-      const extra = info.ehAtualidade ? assunto + " " + (Number(anoAtual) - 1) + " " + anoAtual : info.ehLancamento ? assunto + " lancou" : assunto + " explicacao resumo";
+      const extra = info.ehAtualidade ? assunto + " " + (Number(anoAtual) - 1) + " " + anoAtual
+        : info.ehTutorial ? assunto + " tutorial oficial"
+        : info.ehLancamento ? assunto + " lancou"
+        : assunto + " explicacao resumo";
       const mais = await web(extra);
       const vistos = new Set(links.map(l => l.url));
       mais.forEach(l => { if (!vistos.has(l.url)) links.push(l); });
@@ -680,7 +762,7 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true, opts = {}
   const maxPaginas = opts.semLimite ? 7 : 4;
   const maxFrases = opts.semLimite ? 9 : fundo ? 6 : 4;
 
-  if ((fundo || opts.semLimite) && webFontes.length) {
+  if ((fundo || opts.semLimite || info.ehTutorial) && webFontes.length) {
     progresso("📖 Lendo as páginas mais relevantes...");
     await Promise.allSettled(webFontes.slice(0, maxPaginas).map(async f => {
       progresso("🌐 Lendo " + host(f.url));
@@ -695,7 +777,7 @@ async function pesquisaProfunda(q, progresso = () => {}, fundo = true, opts = {}
   const guardou = r.conf !== "baixa" && !info.ehAtualidade;
   if (guardou) saveKB({ q: assunto, resumo: r.corpo, at: Date.now() });
 
-  const texto = r.texto + (fundo ? "" : "\n\nQuer mais detalhes? Peça `pesquise a fundo sobre " + assunto + "`.");
+  const texto = r.texto + (fundo ? "" : "\n\nQuer que eu aprofunde ou detalhe algum ponto disso?");
   return { texto, conf: r.conf, fontes: r.usados.map(i => ({ titulo: fontes[i].nome, url: fontes[i].url })) };
 }
 
